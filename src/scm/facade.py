@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Hashable
+from collections.abc import Callable, Hashable
 from functools import lru_cache
-from typing import Any, Callable, cast
+from typing import Any, cast
+
 from scm.types import ALL_PROTOCOLS, Provider, Referrer
 
 
@@ -12,9 +13,7 @@ def _protocol_attrs(proto: object) -> tuple[str, ...]:
 
 
 @lru_cache(maxsize=32)
-def _facade_type_for_provider_class(
-    cls: type[Facade], provider_cls: type[Provider]
-) -> type[Facade]:
+def _facade_type_for_provider_class(cls: type[Facade], provider_cls: type[Provider]) -> type[Facade]:
     """Build (and cache) one facade subclass per implementation class."""
     methods: dict[str, Any] = {}
     for proto in ALL_PROTOCOLS:
@@ -24,6 +23,7 @@ def _facade_type_for_provider_class(
                 if attr not in methods:
                     method = cls._delegating_method(attr)
                     method.__name__ = attr
+                    methods[attr] = method
     return type(f"FacadeFor{provider_cls.__name__}", (cls,), methods)
 
 
@@ -48,11 +48,9 @@ class Facade:
         provider: Provider,
         *,
         referrer: Referrer = "shared",
-        record_count: Callable[[str, int, dict[str, str]], None],
+        record_count: Callable[[str, int, dict[str, str]], None] = lambda key, amount, tags: None,
     ) -> Facade:
-        facade_cls = _facade_type_for_provider_class(
-            cast(Hashable, cls), cast(Hashable, type(provider))
-        )
+        facade_cls = _facade_type_for_provider_class(cast(Hashable, cls), cast(Hashable, type(provider)))
         return object.__new__(facade_cls)
 
     def __init__(
@@ -60,7 +58,7 @@ class Facade:
         provider: Provider,
         *,
         referrer: Referrer = "shared",
-        record_count: Callable[[str, int, dict[str, str]], None],
+        record_count: Callable[[str, int, dict[str, str]], None] = lambda key, amount, tags: None,
     ) -> None:
         self.provider = provider
         self.referrer = referrer
