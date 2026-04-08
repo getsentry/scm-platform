@@ -1,0 +1,1 @@
+This project exclusively manages interactions with source code management service-providers.

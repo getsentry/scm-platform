@@ -1,0 +1,42 @@
+[project]
+name = "scm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Colton Allen", email = "colton.allen@sentry.io" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "msgspec>=0.20.0",
+    "requests>=2.33.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.4,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.mypy]
+python_version = "3.13"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+  "E", # pycodestyle errors
+  "W", # pycodestyle warnings
+  "F", # pyflakes
+  "B", # flake8-bugbear
+  "LOG", # flake8-logging
+  "I", # isort
+  "T20", # flake8-print (replaces S002)
+  "UP", # pyupgrade
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.0",
+    "pytest>=9.0.3",
+]
