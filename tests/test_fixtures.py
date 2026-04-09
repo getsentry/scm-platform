@@ -1216,7 +1216,6 @@ class FakeGitHubApiClient:
     """
 
     def __init__(self) -> None:
-        super().__init__(integration=MagicMock())
         self.issue_comments: list[dict[str, Any]] = []
         self.pr_comments: list[dict[str, Any]] = []
         self.graphql_pr_comments_data: dict[str, Any] | None = None
@@ -1342,7 +1341,7 @@ class FakeGitHubApiClient:
     def create_comment_reaction(self, repo: str, comment_id: str, reaction: Reaction) -> dict[str, Any]:
         self._record_call("create_comment_reaction", repo, comment_id, reaction)
         self._maybe_raise()
-        return make_github_reaction(content=reaction.value)
+        return make_github_reaction(content=reaction)
 
     def get_issue_reactions(self, repo: str, issue_number: str) -> list[dict[str, Any]]:
         self._record_call("get_issue_reactions", repo, issue_number)
@@ -1352,7 +1351,7 @@ class FakeGitHubApiClient:
     def create_issue_reaction(self, repo: str, issue_number: str, reaction: Reaction) -> dict[str, Any]:
         self._record_call("create_issue_reaction", repo, issue_number, reaction)
         self._maybe_raise()
-        return make_github_reaction(content=reaction.value)
+        return make_github_reaction(content=reaction)
 
     def delete_issue_reaction(self, repo: str, issue_number: str, reaction_id: str) -> None:
         self._record_call("delete_issue_reaction", repo, issue_number, reaction_id)
@@ -1575,7 +1574,7 @@ class SourceCodeManager(Facade):
     def delegator(name: str) -> Callable[..., Any]:
         """Return a method that forwards calls to self.provider.<name>."""
 
-        def method(self: Facade, *args: Any, **kwargs: Any) -> Any:
+        def method(self: SourceCodeManager, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
             return exec_provider_fn(
                 self.provider,
                 referrer=self.referrer,

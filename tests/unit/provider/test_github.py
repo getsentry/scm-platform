@@ -817,7 +817,7 @@ VOID_CASES: list[dict[str, Any]] = [
 ]
 
 
-ALIAS_METHODS = {
+ALIAS_METHODS: dict[str, tuple[str, dict[str, Any], tuple[Any, ...], Any]] = {
     "get_pull_request_comment_reactions": (
         "get_issue_comment_reactions",
         {"pull_request_id": "42", "comment_id": "99", "pagination": {"cursor": "2", "per_page": 5}},

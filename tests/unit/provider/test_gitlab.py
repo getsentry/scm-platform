@@ -5,17 +5,17 @@ from typing import Any, NamedTuple
 
 import pytest
 
-from scm.providers.gitlab.provider import GitLabProvider
-from scm.types import ApiClient, Repository
+from scm.providers.gitlab.provider import GitLabApiClient, GitLabProvider
+from scm.types import Repository
 
 
 @pytest.fixture
-def client() -> ApiClient:
+def client() -> GitLabApiClient:
     return unittest.mock.MagicMock(_name="client")
 
 
 @pytest.fixture
-def provider(client: ApiClient) -> GitLabProvider:
+def provider(client: GitLabApiClient) -> GitLabProvider:
     return GitLabProvider(
         client=client,
         organization_id=1,
