@@ -11930,7 +11930,7 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
 
     # Check client._request calls
     assert client._request.call_count == len(param.client_calls)
-    for client_call, mock_call in zip(param.client_calls, client._request.call_args_list):
+    for client_call, mock_call in zip(param.client_calls, client._request.call_args_list, strict=False):
         assert mock_call.kwargs["method"] == client_call.method
         assert mock_call.kwargs["path"] == client_call.path
         if client_call.params is not None:

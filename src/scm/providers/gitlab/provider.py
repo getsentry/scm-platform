@@ -2,7 +2,6 @@ import datetime
 import functools
 from collections.abc import Callable, Iterable
 from typing import Any
-from urllib.parse import urlencode
 
 import requests
 
@@ -12,7 +11,6 @@ from scm.types import (
     ActionResult,
     ApiClient,
     ArchiveFormat,
-    ArchiveLink,
     Author,
     BranchName,
     Comment,
