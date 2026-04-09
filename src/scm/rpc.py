@@ -32,6 +32,27 @@ class NoOpRateLimitProvider:
         return None
 
 
+def fetch_repository(
+    base_url: str, signing_secret: str, organization_id: int, repository_id: RepositoryId
+) -> Repository:
+    """Base implementation of Sentry's repository fetching behavior."""
+    url = SCM_API_URL.format(base_url=base_url)
+
+    response = requests.get(
+        url,
+        headers={
+            "Authorization": f"rpcsignature {sign_message(signing_secret, url.encode())}",
+            "X-Organization-Id": str(organization_id),
+            "X-Repository-Id": msgspec.json.encode(repository_id).decode("utf-8"),
+        },
+    )
+
+    if response.status_code == 200:
+        return deserialize_repository(response.content)
+    else:
+        raise_rpc_errors(response.content)
+
+
 class SourceCodeManager(Facade):
     def __new__(
         cls,
@@ -65,7 +86,7 @@ class SourceCodeManager(Facade):
         base_url: str,
         referrer: Referrer = "shared",
         signing_secret: str,
-        fetch_repository: Callable[[str, str, int, RepositoryId], Repository],
+        fetch_repository: Callable[[str, str, int, RepositoryId], Repository] = fetch_repository,
     ):
         # Look up the name of the service-provider for a given credential set. This allows us to initialize the facade
         # with a set of methods that match the capabilities of the service provider.
@@ -170,26 +191,6 @@ def initialize_provider(client: ApiClient, organization_id: int, repository: Rep
 
 def sign_message(signing_secret: str, message: bytes) -> str:
     return f"rpc0:{hmac.new(signing_secret.encode('utf-8'), message, hashlib.sha256).hexdigest()}"
-
-
-def fetch_repository(
-    base_url: str, signing_secret: str, organization_id: int, repository_id: RepositoryId
-) -> Repository:
-    url = SCM_API_URL.format(base_url=base_url)
-
-    response = requests.get(
-        url,
-        headers={
-            "Authorization": f"rpcsignature {sign_message(signing_secret, url.encode())}",
-            "X-Organization-Id": str(organization_id),
-            "X-Repository-Id": msgspec.json.encode(repository_id).decode("utf-8"),
-        },
-    )
-
-    if response.status_code == 200:
-        return deserialize_repository(response.content)
-    else:
-        raise_rpc_errors(response.content)
 
 
 class RepositoryResponse(msgspec.Struct):
