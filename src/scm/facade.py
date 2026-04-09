@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable
 from typing import Any, cast
 
-from scm.types import ALL_PROTOCOLS, Provider, Referrer
+from scm.types import ALL_PROTOCOLS, Provider
 
 
 def _protocol_attrs(proto: object) -> tuple[str, ...]:
@@ -19,7 +19,7 @@ def _facade_type_for_provider_class(cls: type[Facade], provider_cls: type[Provid
         if all(hasattr(provider_cls, attr) for attr in protocol_attrs):
             for attr in protocol_attrs:
                 if attr not in methods:
-                    method = cls._delegating_method(attr)
+                    method = cls.delegator(attr)
                     method.__name__ = attr
                     methods[attr] = method
     return type(f"FacadeFor{provider_cls.__name__}", (cls,), methods)
@@ -42,7 +42,7 @@ class Facade:
         return object.__new__(_facade_type_for_provider_class(cast(Hashable, cls), cast(Hashable, type(provider))))
 
     @staticmethod
-    def _delegating_method(name: str) -> Callable[..., Any]:
+    def delegator(name: str) -> Callable[..., Any]:
         """Return a method that forwards calls to self.provider.<name>."""
 
         def method(self: Facade, *args: Any, **kwargs: Any) -> Any:

@@ -1547,7 +1547,7 @@ class SourceCodeManager(Facade):
         self.record_count = record_count
 
     @staticmethod
-    def _delegating_method(name: str) -> Callable[..., Any]:
+    def delegator(name: str) -> Callable[..., Any]:
         """Return a method that forwards calls to self.provider.<name>."""
 
         def method(self: Facade, *args: Any, **kwargs: Any) -> Any:
