@@ -36,6 +36,7 @@ class Facade:
     #
     # After the isinstance guard MyPy narrows `facade` to `Facade & Protocol`
     # and statically validates method calls.
+    provider: Provider
 
     @classmethod
     def init_scoped_facade(cls, provider):
