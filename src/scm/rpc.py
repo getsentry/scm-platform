@@ -14,6 +14,23 @@ from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc"
 
 
+class NoOpRateLimitProvider:
+    """
+    Provider instances will attempt to enforce rate-limits. We provide a no-op class which always
+    succeeds. Rate-limits are managed on the Sentry-side. Client's are not required, and are encouraged
+    not to, enforce their own rate-limits.
+    """
+
+    def get_and_set_rate_limit(self, total_key: str, usage_key: str, expiration: int) -> tuple[int | None, int]:
+        return None, 0
+
+    def get_accounted_usage(self, keys: list[str]) -> int:
+        return 0
+
+    def set_key_values(self, kvs: dict[str, tuple[int, int | None]]) -> None:
+        return None
+
+
 class SourceCodeManager(Facade):
     def __new__(
         cls,
@@ -66,8 +83,12 @@ class SourceCodeManager(Facade):
         # Given the repository metadata we initialize a provider instance. This provider thinks its making requests to
         # the service-provider but in reality its sending requests to Sentry.
         if repository["provider_name"] == "github":
-            # OOF! Rate-limits need to be handled Sentry-side. How to configure for both...
-            provider = GitHubProvider(client, organization_id, repository)
+            provider = GitHubProvider(
+                client,
+                organization_id,
+                repository,
+                rate_limit_provider=NoOpRateLimitProvider(),
+            )
         elif repository["provider_name"] == "gitlab":
             provider = GitLabProvider(client, organization_id, repository)
         else:
