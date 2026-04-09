@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable
-from functools import lru_cache
 from typing import Any, cast
 
 from scm.types import ALL_PROTOCOLS, Provider, Referrer
@@ -12,7 +11,6 @@ def _protocol_attrs(proto: object) -> tuple[str, ...]:
     return cast(tuple[str, ...], getattr(proto, "__protocol_attrs__", ()))
 
 
-@lru_cache(maxsize=32)
 def _facade_type_for_provider_class(cls: type[Facade], provider_cls: type[Provider]) -> type[Facade]:
     """Build (and cache) one facade subclass per implementation class."""
     methods: dict[str, Any] = {}
@@ -39,30 +37,9 @@ class Facade:
     # After the isinstance guard MyPy narrows `facade` to `Facade & Protocol`
     # and statically validates method calls.
 
-    provider: Provider
-    referrer: Referrer
-    record_count: Callable[[str, int, dict[str, str]], None]
-
-    def __new__(
-        cls,
-        provider: Provider,
-        *,
-        referrer: Referrer = "shared",
-        record_count: Callable[[str, int, dict[str, str]], None] = lambda key, amount, tags: None,
-    ) -> Facade:
-        facade_cls = _facade_type_for_provider_class(cast(Hashable, cls), cast(Hashable, type(provider)))
-        return object.__new__(facade_cls)
-
-    def __init__(
-        self,
-        provider: Provider,
-        *,
-        referrer: Referrer = "shared",
-        record_count: Callable[[str, int, dict[str, str]], None] = lambda key, amount, tags: None,
-    ) -> None:
-        self.provider = provider
-        self.referrer = referrer
-        self.record_count = record_count
+    @classmethod
+    def init_scoped_facade(cls, provider):
+        return object.__new__(_facade_type_for_provider_class(cast(Hashable, cls), cast(Hashable, type(provider))))
 
     @staticmethod
     def _delegating_method(name: str) -> Callable[..., Any]:
