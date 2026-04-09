@@ -681,7 +681,6 @@ def test_exec_raises_provider_not_supported_for_all_actions(
     action: Callable[..., Any],
     kwargs: dict[str, Any],
 ):
-    """Every SCM action raises SCMProviderNotSupported when the provider lacks the protocol."""
     scm = SourceCodeManager(MinimalProvider())
 
     with pytest.raises(AttributeError):
