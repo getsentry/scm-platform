@@ -5,17 +5,17 @@ from typing import Any, NamedTuple
 
 import pytest
 
-from scm.providers.gitlab.provider import GitLabApiClient, GitLabProvider
+from scm.providers.gitlab.provider import ApiClient, GitLabProvider
 from scm.types import Repository
 
 
 @pytest.fixture
-def client() -> GitLabApiClient:
+def client() -> ApiClient:
     return unittest.mock.MagicMock(_name="client")
 
 
 @pytest.fixture
-def provider(client: GitLabApiClient) -> GitLabProvider:
+def provider(client: ApiClient) -> GitLabProvider:
     return GitLabProvider(
         client=client,
         organization_id=1,
@@ -11937,46 +11937,3 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
-
-
-class TestGetArchiveLink:
-    def test_returns_tar_gz_url(self, provider: GitLabProvider, client: unittest.mock.MagicMock):
-        client.base_url = "https://gitlab.example.com"
-        client.get_access_token.return_value = {
-            "access_token": "fake-gitlab-token",
-            "permissions": None,
-        }
-
-        result = provider.get_archive_link("main")
-
-        assert result["type"] == "gitlab"
-        assert result["data"]["url"] == (
-            "https://gitlab.example.com/api/v4/projects/79787061/repository/archive.tar.gz?sha=main"
-        )
-        assert result["data"]["headers"] == {"Authorization": "Bearer fake-gitlab-token"}
-
-    def test_returns_zip_url(self, provider: GitLabProvider, client: unittest.mock.MagicMock):
-        client.base_url = "https://gitlab.example.com"
-        client.get_access_token.return_value = {
-            "access_token": "fake-gitlab-token",
-            "permissions": None,
-        }
-
-        result = provider.get_archive_link("main", "zip")
-
-        assert result["type"] == "gitlab"
-        assert result["data"]["url"] == (
-            "https://gitlab.example.com/api/v4/projects/79787061/repository/archive.zip?sha=main"
-        )
-        assert result["data"]["headers"] == {"Authorization": "Bearer fake-gitlab-token"}
-
-    def test_empty_ref_omits_sha_param(self, provider: GitLabProvider, client: unittest.mock.MagicMock):
-        client.base_url = "https://gitlab.example.com"
-        client.get_access_token.return_value = {
-            "access_token": "fake-gitlab-token",
-            "permissions": None,
-        }
-
-        result = provider.get_archive_link("")
-
-        assert "?sha=" not in result["data"]["url"]

@@ -138,14 +138,8 @@ def catch_provider_exception(fn):
     return wrapper
 
 
-class GitLabApiClient(ApiClient):
-    base_url: str
-
-    def get_access_token(self) -> dict[str, str | None] | None: ...
-
-
 class GitLabProviderApiClient:
-    def __init__(self, client: GitLabApiClient) -> None:
+    def __init__(self, client: ApiClient) -> None:
         self.client = client
 
     def is_rate_limited(self, referrer: Referrer) -> bool:
@@ -221,7 +215,7 @@ class GitLabProviderApiClient:
 
 
 class GitLabProvider:
-    def __init__(self, client: GitLabApiClient, organization_id: int, repository: Repository) -> None:
+    def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
         self.client = GitLabProviderApiClient(client)
         self.organization_id = organization_id
         self.repository = repository
@@ -530,26 +524,6 @@ class GitLabProvider:
             request_options=request_options,
         )
         return make_result(map_git_commit_object, response.json())
-
-    def get_archive_link(
-        self,
-        ref: str,
-        archive_format: ArchiveFormat = "tarball",
-    ) -> ActionResult[ArchiveLink]:
-        fmt = GITLAB_ARCHIVE_FORMAT_MAP[archive_format]
-        path = GitLab.archive.format(project=self.project_id, format=fmt)
-        url = GitLab.build_api_url(self.client.client.base_url, path)
-        if ref:
-            url = f"{url}?{urlencode({'sha': ref})}"
-        token_data = self.client.client.get_access_token()
-        token = token_data["access_token"] if token_data else None
-        data = ArchiveLink(url=url, headers={"Authorization": f"Bearer {token}"} if token else {})
-        return ActionResult(
-            data=data,
-            type="gitlab",
-            raw={"data": url, "headers": None},
-            meta={},
-        )
 
     def get_file_content(
         self,
