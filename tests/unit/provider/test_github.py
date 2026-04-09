@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock
@@ -52,6 +53,7 @@ class FakeResponse:
         url: str = "",
     ) -> None:
         self._payload = payload
+        self.content = json.dumps(payload).encode()
         self.headers = headers or {}
         self.status_code = status_code
         self.text = text if text is not None else ""
@@ -296,9 +298,17 @@ def expected_pull_request_commit(raw: dict[str, Any]) -> dict[str, Any]:
 def expected_review_comment(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
-        "html_url": raw["html_url"],
-        "path": raw["path"],
+        "unique_id": raw["node_id"],
+        "url": raw["html_url"],
+        "file_path": raw["path"],
         "body": raw["body"],
+        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]} if raw.get("user") else None,
+        "created_at": "2025-01-01T00:00:00+00:00",
+        "diff_hunk": raw["diff_hunk"],
+        "review_id": str(raw["pull_request_review_id"]),
+        "author_association": raw["author_association"],
+        "commit_sha": raw["original_commit_id"],
+        "head": raw["commit_id"],
     }
 
 
@@ -329,7 +339,7 @@ TREE_RAW = make_github_git_tree()
 GIT_COMMIT_OBJECT_RAW = make_github_git_commit_object()
 PULL_REQUEST_FILE_RAW = make_github_pull_request_file(previous_filename="src/old.py")
 PULL_REQUEST_COMMIT_RAW = make_github_pull_request_commit()
-REVIEW_COMMENT_RAW = make_github_review_comment()
+REVIEW_COMMENT_RAW = make_github_review_comment(user={"id": 42, "login": "testuser"})
 REVIEW_RAW = make_github_review()
 CHECK_RUN_RAW = make_github_check_run()
 
@@ -624,6 +634,30 @@ ACTION_CASES: list[dict[str, Any]] = [
             "path": "src/main.py",
             "side": "RIGHT",
             "subject_type": "file",
+        },
+        "raw": REVIEW_COMMENT_RAW,
+        "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
+    },
+    {
+        "name": "create_review_comment_multiline",
+        "operation": "post",
+        "kwargs": {
+            "pull_request_id": "42",
+            "commit_id": "abc123",
+            "body": "Looks good",
+            "path": "src/main.py",
+            "side": "RIGHT",
+            "start_line": 1,
+            "end_line": 5,
+        },
+        "path": "/repos/test-org/test-repo/pulls/42/comments",
+        "data": {
+            "body": "Looks good",
+            "commit_id": "abc123",
+            "path": "src/main.py",
+            "line": 5,
+            "side": "RIGHT",
+            "start_line": 1,
         },
         "raw": REVIEW_COMMENT_RAW,
         "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),

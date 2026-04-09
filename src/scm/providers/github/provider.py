@@ -4,9 +4,11 @@ from datetime import datetime
 from email.utils import format_datetime, parsedate_to_datetime
 from typing import Any, cast
 
+import msgspec
 import requests
 
 from scm.errors import SCMProviderException
+from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
     DynamicRateLimiter,
     RateLimitProvider,
@@ -778,10 +780,31 @@ class GitHubProvider:
                 "subject_type": "file",
             },
         )
-        return map_action(response, map_review_comment)
+        return deserialize_action(response, deserialize_pull_request_review_comment)
 
-    # create_review_comment_line: not supported
-    # create_review_comment_multiline: not supported
+    def create_review_comment_multiline(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+        start_line: int,
+        end_line: int,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment on a line span."""
+        response = self.client.post(
+            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/comments",
+            data={
+                "body": body,
+                "commit_id": commit_id,
+                "path": path,
+                "line": end_line,
+                "side": side,
+                "start_line": start_line,
+            },
+        )
+        return deserialize_action(response, deserialize_pull_request_review_comment)
 
     def create_review_comment_reply(
         self,
@@ -797,7 +820,7 @@ class GitHubProvider:
                 "in_reply_to": int(comment_id),
             },
         )
-        return map_action(response, map_review_comment)
+        return deserialize_action(response, deserialize_pull_request_review_comment)
 
     def create_review(
         self,
@@ -1022,15 +1045,6 @@ def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
     )
 
 
-def map_review_comment(raw: dict[str, Any]) -> ReviewComment:
-    return ReviewComment(
-        id=str(raw["id"]),
-        html_url=raw["html_url"],
-        path=raw["path"],
-        body=raw["body"],
-    )
-
-
 def map_review(raw: dict[str, Any]) -> Review:
     return Review(
         id=str(raw["id"]),
@@ -1111,4 +1125,31 @@ def map_paginated_action[T](
         "type": "github",
         "raw": {"data": raw, "headers": dict(response.headers)},
         "meta": meta,
+    }
+
+
+def deserialize_action[T](response: requests.Response, fn: Callable[[bytes], T]) -> ActionResult[T]:
+    return {
+        "data": fn(response.content),
+        "type": "github",
+        "raw": {"data": response.json(), "headers": dict(response.headers)},
+        "meta": _extract_response_meta(response),
+    }
+
+
+def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:
+    comment = msgspec.json.decode(content, type=GitHubPullRequestReviewComment)
+    return {
+        "author_association": comment.author_association,
+        "author": Author(id=str(comment.user.id), username=comment.user.login) if comment.user else None,
+        "body": comment.body,
+        "commit_sha": comment.original_commit_id,
+        "created_at": comment.created_at.isoformat(),
+        "diff_hunk": comment.diff_hunk,
+        "file_path": comment.path,
+        "head": comment.commit_id,
+        "id": str(comment.id),
+        "review_id": str(comment.pull_request_review_id),
+        "unique_id": comment.node_id,
+        "url": comment.html_url,
     }
