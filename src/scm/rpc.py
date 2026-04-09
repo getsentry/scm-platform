@@ -139,9 +139,9 @@ class RpcApiClient(ApiClient):
             headers={
                 "Authorization": f"rpcsignature {sign_message(self.signing_secret, body)}",
                 "Content-Type": "application/json",
-                "X-Organization-ID": self.organization_id,
+                "X-Organization-ID": str(self.organization_id),
                 "X-Referrer": self.referrer,
-                "X-Repository-ID": msgspec.json.encode(self.repository_id),
+                "X-Repository-ID": msgspec.json.encode(self.repository_id).decode("utf-8"),
             },
         )
         return response
