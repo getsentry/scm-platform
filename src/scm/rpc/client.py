@@ -10,7 +10,8 @@ from scm.errors import SCMError, SCMRepositoryCouldNotBeDeserialized, SCMRpcErro
 from scm.facade import Facade
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
-from scm.types import ApiClient, Provider, ProviderName, Referrer, Repository, RepositoryId
+from scm.rpc.types import ErrorResponse, RepositoryResponse
+from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc"
 
@@ -193,15 +194,6 @@ def sign_message(signing_secret: str, message: bytes) -> str:
     return f"rpc0:{hmac.new(signing_secret.encode('utf-8'), message, hashlib.sha256).hexdigest()}"
 
 
-class RepositoryResponse(msgspec.Struct):
-    external_id: str | None
-    integration_id: int
-    is_active: bool
-    name: str
-    organization_id: int
-    provider_name: ProviderName
-
-
 def deserialize_repository(content: bytes) -> Repository:
     try:
         repository = msgspec.json.decode(content, type=RepositoryResponse)
@@ -216,18 +208,6 @@ def deserialize_repository(content: bytes) -> Repository:
             "organization_id": repository.organization_id,
             "provider_name": repository.provider_name,
         }
-
-
-class Error(msgspec.Struct):
-    status: str | None = None
-    code: str | None = None
-    title: str | None = None
-    detail: str | None = None
-    meta: dict[str, Any] | None = None
-
-
-class ErrorResponse(msgspec.Struct):
-    errors: list[Error]
 
 
 def raise_rpc_errors(content: bytes) -> None:

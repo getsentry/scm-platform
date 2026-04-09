@@ -2,6 +2,8 @@ from collections.abc import Mapping, MutableMapping
 from datetime import datetime
 from typing import Any, Literal, Protocol, Required, TypedDict, runtime_checkable
 
+import requests
+
 type Action = Literal["check_run", "comment", "pull_request"]
 type EventTypeHint = Literal["check_run", "comment", "pull_request"]
 type HybridCloudSilo = Literal["control", "region"]
@@ -1012,6 +1014,7 @@ class Provider(Protocol):
     handling "can" requests.
     """
 
+    api_client: "ApiClient"
     organization_id: int
     repository: Repository
 
@@ -1028,4 +1031,4 @@ class ApiClient(Protocol):
         params: Mapping[str, str] | None,
         allow_redirects: bool | None,
         raw_response: bool,
-    ): ...
+    ) -> requests.Response: ...
