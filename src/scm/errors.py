@@ -6,8 +6,9 @@ class SCMError(Exception):
 
 
 class SCMCodedError(SCMError):
-    def __init__(self, code: str) -> None:
+    def __init__(self, *args, code: str, **kwargs) -> None:
         self.code = code
+        super().__init__(*args, **kwargs)
 
 
 class SCMUnhandledException(SCMError):
@@ -35,3 +36,4 @@ class SCMRpcError(SCMError):
         self.code = code
         self.title = title
         self.detail = detail
+        self.meta = meta

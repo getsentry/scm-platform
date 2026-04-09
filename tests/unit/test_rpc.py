@@ -6,14 +6,19 @@ import msgspec
 import pytest
 
 from scm.actions import get_branch
+from scm.errors import SCMError, SCMRepositoryCouldNotBeDeserialized, SCMRpcError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc import (
     SCM_API_URL,
     NoOpRateLimitProvider,
+    RepositoryResponse,
     RpcApiClient,
     SourceCodeManager,
+    deserialize_repository,
+    fetch_repository,
     initialize_provider,
+    raise_rpc_errors,
     sign_message,
 )
 from scm.types import Repository
@@ -307,3 +312,182 @@ class TestSourceCodeManager:
             assert scm.referrer == "test"
             assert scm.organization_id == 1
             assert scm.repository_id == 42
+
+
+class TestDeserializeRepository:
+    def test_valid_response(self):
+        data = msgspec.json.encode(
+            {
+                "external_id": "12345",
+                "integration_id": 1,
+                "is_active": True,
+                "name": "org/repo",
+                "organization_id": 1,
+                "provider_name": "github",
+            }
+        )
+        result = deserialize_repository(data)
+        assert result == {
+            "external_id": "12345",
+            "integration_id": 1,
+            "is_active": True,
+            "name": "org/repo",
+            "organization_id": 1,
+            "provider_name": "github",
+        }
+
+    def test_null_external_id(self):
+        data = msgspec.json.encode(
+            {
+                "external_id": None,
+                "integration_id": 1,
+                "is_active": True,
+                "name": "org/repo",
+                "organization_id": 1,
+                "provider_name": "gitlab",
+            }
+        )
+        result = deserialize_repository(data)
+        assert result["external_id"] is None
+
+    def test_invalid_json_raises(self):
+        with pytest.raises(SCMRepositoryCouldNotBeDeserialized):
+            deserialize_repository(b"not json")
+
+    def test_missing_field_raises(self):
+        data = msgspec.json.encode({"external_id": "12345"})
+        with pytest.raises(SCMRepositoryCouldNotBeDeserialized):
+            deserialize_repository(data)
+
+
+class TestRaiseRpcErrors:
+    def test_single_error(self):
+        data = msgspec.json.encode(
+            {"errors": [{"status": "400", "code": "bad_request", "title": "Bad", "detail": "Oops", "meta": None}]}
+        )
+        with pytest.raises(SCMRpcError) as exc_info:
+            raise_rpc_errors(data)
+        assert exc_info.value.code == "bad_request"
+        assert exc_info.value.detail == "Oops"
+        assert exc_info.value.status == "400"
+
+    def test_multiple_errors_raises_exception_group(self):
+        data = msgspec.json.encode(
+            {
+                "errors": [
+                    {"status": "400", "code": "err1", "title": "First", "detail": None, "meta": None},
+                    {"status": "500", "code": "err2", "title": "Second", "detail": None, "meta": None},
+                ]
+            }
+        )
+        with pytest.raises(ExceptionGroup) as exc_info:
+            raise_rpc_errors(data)
+        assert len(exc_info.value.exceptions) == 2
+
+    def test_unparseable_error_response(self):
+        with pytest.raises(SCMError, match="Unprocessable entity"):
+            raise_rpc_errors(b"not json")
+
+    def test_error_with_meta(self):
+        data = msgspec.json.encode(
+            {
+                "errors": [
+                    {
+                        "status": "429",
+                        "code": "rate_limited",
+                        "title": None,
+                        "detail": None,
+                        "meta": {"retry_after": 30},
+                    }
+                ]
+            }
+        )
+        with pytest.raises(SCMRpcError) as exc_info:
+            raise_rpc_errors(data)
+
+        assert exc_info.value.code == "rate_limited"
+        assert exc_info.value.status == "429"
+        assert exc_info.value.detail is None
+        assert exc_info.value.title is None
+        assert exc_info.value.meta == {"retry_after": 30}
+
+
+class TestFetchRepository:
+    def test_success(self):
+        repo_data = {
+            "external_id": "12345",
+            "integration_id": 1,
+            "is_active": True,
+            "name": "org/repo",
+            "organization_id": 1,
+            "provider_name": "github",
+        }
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = msgspec.json.encode(repo_data)
+
+        with patch("scm.rpc.requests.get", return_value=mock_response) as mock_get:
+            result = fetch_repository("https://sentry.io", "secret", 1, 42)
+
+        assert result["name"] == "org/repo"
+        assert result["provider_name"] == "github"
+
+        call_args = mock_get.call_args
+        assert call_args[0][0] == "https://sentry.io/api/0/internal/scm-rpc"
+        headers = call_args[1]["headers"]
+        assert headers["Authorization"].startswith("rpcsignature rpc0:")
+        assert headers["X-Organization-Id"] == "1"
+        assert headers["X-Repository-Id"] == "42"
+
+    def test_success_with_tuple_repository_id(self):
+        repo_data = {
+            "external_id": "12345",
+            "integration_id": 1,
+            "is_active": True,
+            "name": "org/repo",
+            "organization_id": 1,
+            "provider_name": "github",
+        }
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = msgspec.json.encode(repo_data)
+
+        with patch("scm.rpc.requests.get", return_value=mock_response) as mock_get:
+            fetch_repository("https://sentry.io", "secret", 1, ("github", "ext-123"))
+
+        headers = mock_get.call_args[1]["headers"]
+        assert headers["X-Repository-Id"] == '["github","ext-123"]'
+
+    def test_signs_url_not_body(self):
+        repo_data = {
+            "external_id": "12345",
+            "integration_id": 1,
+            "is_active": True,
+            "name": "org/repo",
+            "organization_id": 1,
+            "provider_name": "github",
+        }
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = msgspec.json.encode(repo_data)
+
+        with patch("scm.rpc.requests.get", return_value=mock_response) as mock_get:
+            fetch_repository("https://sentry.io", "my-secret", 1, 42)
+
+        headers = mock_get.call_args[1]["headers"]
+        url = "https://sentry.io/api/0/internal/scm-rpc"
+        expected_sig = sign_message("my-secret", url.encode())
+        assert headers["Authorization"] == f"rpcsignature {expected_sig}"
+
+    def test_error_response_raises(self):
+        error_data = {
+            "errors": [{"status": "404", "code": "not_found", "title": "Not Found", "detail": None, "meta": None}]
+        }
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.content = msgspec.json.encode(error_data)
+
+        with patch("scm.rpc.requests.get", return_value=mock_response):
+            with pytest.raises(SCMRpcError) as exc_info:
+                fetch_repository("https://sentry.io", "secret", 1, 42)
+            assert exc_info.value.code == "not_found"

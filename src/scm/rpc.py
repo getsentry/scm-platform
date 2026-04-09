@@ -6,10 +6,11 @@ from typing import Any
 import msgspec
 import requests
 
+from scm.errors import SCMError, SCMRepositoryCouldNotBeDeserialized, SCMRpcError
 from scm.facade import Facade
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
-from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
+from scm.types import ApiClient, Provider, ProviderName, Referrer, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc"
 
@@ -169,3 +170,77 @@ def initialize_provider(client: ApiClient, organization_id: int, repository: Rep
 
 def sign_message(signing_secret: str, message: bytes) -> str:
     return f"rpc0:{hmac.new(signing_secret.encode('utf-8'), message, hashlib.sha256).hexdigest()}"
+
+
+def fetch_repository(
+    base_url: str, signing_secret: str, organization_id: int, repository_id: RepositoryId
+) -> Repository:
+    url = SCM_API_URL.format(base_url=base_url)
+
+    response = requests.get(
+        url,
+        headers={
+            "Authorization": f"rpcsignature {sign_message(signing_secret, url.encode())}",
+            "X-Organization-Id": str(organization_id),
+            "X-Repository-Id": msgspec.json.encode(repository_id).decode("utf-8"),
+        },
+    )
+
+    if response.status_code == 200:
+        return deserialize_repository(response.content)
+    else:
+        raise_rpc_errors(response.content)
+
+
+class RepositoryResponse(msgspec.Struct):
+    external_id: str | None
+    integration_id: int
+    is_active: bool
+    name: str
+    organization_id: int
+    provider_name: ProviderName
+
+
+def deserialize_repository(content: bytes) -> Repository:
+    try:
+        repository = msgspec.json.decode(content, type=RepositoryResponse)
+    except msgspec.DecodeError as e:
+        raise SCMRepositoryCouldNotBeDeserialized from e
+    else:
+        return {
+            "external_id": repository.external_id,
+            "integration_id": repository.integration_id,
+            "is_active": repository.is_active,
+            "name": repository.name,
+            "organization_id": repository.organization_id,
+            "provider_name": repository.provider_name,
+        }
+
+
+class Error(msgspec.Struct):
+    status: str | None = None
+    code: str | None = None
+    title: str | None = None
+    detail: str | None = None
+    meta: dict[str, Any] | None = None
+
+
+class ErrorResponse(msgspec.Struct):
+    errors: list[Error]
+
+
+def raise_rpc_errors(content: bytes) -> None:
+    try:
+        response = msgspec.json.decode(content, type=ErrorResponse)
+    except msgspec.DecodeError as e:
+        raise SCMError("Unprocessable entity") from e
+
+    exceptions = [
+        SCMRpcError(code=error.code, detail=error.detail, meta=error.meta, status=error.status, title=error.title)
+        for error in response.errors
+    ]
+
+    if len(exceptions) == 1:
+        raise exceptions[0]
+    else:
+        raise ExceptionGroup("Several errors occurred while processing the request.", exceptions)
