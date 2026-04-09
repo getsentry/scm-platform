@@ -9,10 +9,9 @@ from scm.actions import get_branch
 from scm.errors import SCMError, SCMRepositoryCouldNotBeDeserialized, SCMRpcError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
-from scm.rpc import (
+from scm.rpc.client import (
     SCM_API_URL,
     NoOpRateLimitProvider,
-    RepositoryResponse,
     RpcApiClient,
     SourceCodeManager,
     deserialize_repository,
@@ -285,7 +284,10 @@ class TestSourceCodeManager:
         mock_repo = _make_repository("github")
         mock_fetch = MagicMock(return_value=mock_repo)
 
-        with patch("scm.rpc.RpcApiClient") as MockClient, patch("scm.rpc.initialize_provider") as mock_init:
+        with (
+            patch("scm.rpc.client.RpcApiClient") as MockClient,
+            patch("scm.rpc.client.initialize_provider") as mock_init,
+        ):
             mock_provider = MagicMock()
             mock_init.return_value = mock_provider
 
@@ -426,7 +428,7 @@ class TestFetchRepository:
         mock_response.status_code = 200
         mock_response.content = msgspec.json.encode(repo_data)
 
-        with patch("scm.rpc.requests.get", return_value=mock_response) as mock_get:
+        with patch("requests.get", return_value=mock_response) as mock_get:
             result = fetch_repository("https://sentry.io", "secret", 1, 42)
 
         assert result["name"] == "org/repo"
@@ -452,7 +454,7 @@ class TestFetchRepository:
         mock_response.status_code = 200
         mock_response.content = msgspec.json.encode(repo_data)
 
-        with patch("scm.rpc.requests.get", return_value=mock_response) as mock_get:
+        with patch("requests.get", return_value=mock_response) as mock_get:
             fetch_repository("https://sentry.io", "secret", 1, ("github", "ext-123"))
 
         headers = mock_get.call_args[1]["headers"]
@@ -471,7 +473,7 @@ class TestFetchRepository:
         mock_response.status_code = 200
         mock_response.content = msgspec.json.encode(repo_data)
 
-        with patch("scm.rpc.requests.get", return_value=mock_response) as mock_get:
+        with patch("requests.get", return_value=mock_response) as mock_get:
             fetch_repository("https://sentry.io", "my-secret", 1, 42)
 
         headers = mock_get.call_args[1]["headers"]
@@ -487,7 +489,7 @@ class TestFetchRepository:
         mock_response.status_code = 404
         mock_response.content = msgspec.json.encode(error_data)
 
-        with patch("scm.rpc.requests.get", return_value=mock_response):
+        with patch("requests.get", return_value=mock_response):
             with pytest.raises(SCMRpcError) as exc_info:
                 fetch_repository("https://sentry.io", "secret", 1, 42)
             assert exc_info.value.code == "not_found"
