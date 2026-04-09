@@ -82,17 +82,7 @@ class SourceCodeManager(Facade):
 
         # Given the repository metadata we initialize a provider instance. This provider thinks its making requests to
         # the service-provider but in reality its sending requests to Sentry.
-        if repository["provider_name"] == "github":
-            provider = GitHubProvider(
-                client,
-                organization_id,
-                repository,
-                rate_limit_provider=NoOpRateLimitProvider(),
-            )
-        elif repository["provider_name"] == "gitlab":
-            provider = GitLabProvider(client, organization_id, repository)
-        else:
-            raise NotImplementedError("Not working yet. Sorry!")
+        provider = initialize_provider(client, organization_id, repository)
 
         return cls(
             provider,
@@ -160,12 +150,21 @@ class RpcApiClient(ApiClient):
             headers={
                 "Authorization": f"rpcsignature {sign_message(self.signing_secret, body)}",
                 "Content-Type": "application/json",
-                "X-Organization-ID": str(self.organization_id),
+                "X-Organization-Id": str(self.organization_id),
                 "X-Referrer": self.referrer,
-                "X-Repository-ID": msgspec.json.encode(self.repository_id).decode("utf-8"),
+                "X-Repository-Id": msgspec.json.encode(self.repository_id).decode("utf-8"),
             },
         )
         return response
+
+
+def initialize_provider(client: ApiClient, organization_id: int, repository: Repository) -> Provider:
+    if repository["provider_name"] == "github":
+        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())
+    elif repository["provider_name"] == "gitlab":
+        return GitLabProvider(client, organization_id, repository)
+    else:
+        raise NotImplementedError("Not working yet. Sorry!")
 
 
 def sign_message(signing_secret: str, message: bytes) -> str:
