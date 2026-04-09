@@ -3,7 +3,7 @@ name = "scm"
 version = "0.1.0"
 description = "A unified interface for source code management providers"
 readme = "README.md"
-license = "FSL-1.1-Apache-2.0"
+license = "LicenseRef-FSL-1.1-Apache-2.0"
 license-files = ["LICENSE"]
 authors = [
     { name = "Colton Allen", email = "colton.allen@sentry.io" }
