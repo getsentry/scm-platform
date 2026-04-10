@@ -326,6 +326,7 @@ class GitHubProvider:
         rate_limit_provider: RateLimitProvider,
         get_time_in_seconds: Callable[[], int] = lambda: int(time.time()),
     ) -> None:
+        self.api_client = client
         self.client = GitHubProviderApiClient(
             client,
             organization_id=organization_id,

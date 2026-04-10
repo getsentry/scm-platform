@@ -214,6 +214,7 @@ class GitLabProviderApiClient:
 
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
+        self.api_client = client
         self.client = GitLabProviderApiClient(client)
         self.organization_id = organization_id
         self.repository = repository
