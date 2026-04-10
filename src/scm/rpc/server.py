@@ -117,7 +117,8 @@ def serialize_repository(repository: Repository) -> bytes:
                 name=repository["name"],
                 organization_id=repository["organization_id"],
                 provider_name=repository["provider_name"],
-            )
+            ),
+            type="repository",
         )
     )
 
