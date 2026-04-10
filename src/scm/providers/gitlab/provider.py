@@ -136,14 +136,22 @@ def catch_provider_exception(fn):
     return wrapper
 
 
-class GitLabProviderApiClient:
-    def __init__(self, client: ApiClient) -> None:
+class GitLabProvider:
+    def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
         self.client = client
+        self.organization_id = organization_id
+        self.repository = repository
+
+        # External ID format is "{netloc}:{repo_id}", where netloc might contain a colon before a port number
+        if repository["external_id"] is None or ":" not in repository["external_id"]:
+            raise SCMCodedError(code="malformed_external_id")
+
+        self.project_id = repository["external_id"].rsplit(":", maxsplit=1)[1]
 
     def is_rate_limited(self, referrer: Referrer) -> bool:
         return False
 
-    def request(
+    def _request(
         self,
         method: str,
         path: str,
@@ -151,16 +159,19 @@ class GitLabProviderApiClient:
         params: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
+        stream: bool | None = None,
+        raw_response: bool = True,
     ) -> requests.Response:
         try:
-            response = self.client._request(
+            response = self._request(
                 method=method,
                 path=path,
                 headers=headers,
                 data=data,
                 params=params,
-                raw_response=True,
+                raw_response=raw_response,
                 allow_redirects=allow_redirects,
+                stream=stream,
             )
             response.raise_for_status()
             return response
@@ -184,7 +195,7 @@ class GitLabProviderApiClient:
             params["per_page"] = str(pagination["per_page"])
             params["page"] = str(pagination["cursor"])
 
-        return self.request(
+        return self._request(
             "GET",
             path=path,
             params=params,
@@ -198,7 +209,7 @@ class GitLabProviderApiClient:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self.request("POST", path=path, data=data, headers=headers)
+        return self._request("POST", path=path, data=data, headers=headers)
 
     def patch(
         self,
@@ -206,27 +217,10 @@ class GitLabProviderApiClient:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self.request("PATCH", path=path, data=data, headers=headers)
+        return self._request("PATCH", path=path, data=data, headers=headers)
 
     def delete(self, path: str) -> requests.Response:
-        return self.request("DELETE", path=path)
-
-
-class GitLabProvider:
-    def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
-        self.api_client = client
-        self.client = GitLabProviderApiClient(client)
-        self.organization_id = organization_id
-        self.repository = repository
-
-        # External ID format is "{netloc}:{repo_id}", where netloc might contain a colon before a port number
-        if repository["external_id"] is None or ":" not in repository["external_id"]:
-            raise SCMCodedError(code="malformed_external_id")
-
-        self.project_id = repository["external_id"].rsplit(":", maxsplit=1)[1]
-
-    def is_rate_limited(self, referrer: Referrer) -> bool:
-        return False  # Rate-limits temporarily disabled.
+        return self._request("DELETE", path=path)
 
     def get_issue_comments(
         self,
@@ -234,7 +228,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Comment]:
-        response = self.client.get(
+        response = self.get(
             GitLab.issue_notes.format(project_id=self.project_id, issue_id=issue_id),
             pagination=pagination,
             request_options=request_options,
@@ -242,14 +236,14 @@ class GitLabProvider:
         return make_paginated_result(map_comment, response.json())
 
     def create_issue_comment(self, issue_id: str, body: str) -> ActionResult[Comment]:
-        response = self.client.post(
+        response = self.post(
             GitLab.issue_notes.format(project_id=self.project_id, issue_id=issue_id),
             data={"body": body},
         )
         return make_result(map_comment, response.json())
 
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None:
-        self.client.delete(
+        self.delete(
             GitLab.issue_note.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
         )
 
@@ -258,7 +252,7 @@ class GitLabProvider:
         pull_request_id: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[PullRequest]:
-        response = self.client.get(
+        response = self.get(
             GitLab.merge_request.format(project_id=self.project_id, pr_key=pull_request_id),
             request_options=request_options,
         )
@@ -281,7 +275,7 @@ class GitLabProvider:
         They correspond to GitHub's review comments, which are not returned by GitHub's
         "list review comments" endpoint, used to to implement `get_pull_request_comments`.
         """
-        response = self.client.get(
+        response = self.get(
             GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
             request_options=request_options,
@@ -301,14 +295,14 @@ class GitLabProvider:
         )
 
     def create_pull_request_comment(self, pull_request_id: str, body: str) -> ActionResult[Comment]:
-        response = self.client.post(
+        response = self.post(
             GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
             data={"body": body},
         )
         return make_result(map_comment, response.json())
 
     def delete_pull_request_comment(self, pull_request_id: str, comment_id: str) -> None:
-        self.client.delete(
+        self.delete(
             GitLab.merge_request_note.format(project_id=self.project_id, pr_key=pull_request_id, note_id=comment_id),
         )
 
@@ -319,7 +313,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[ReactionResult]:
-        response = self.client.get(
+        response = self.get(
             GitLab.issue_note_awards.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
             pagination=pagination,
             request_options=request_options,
@@ -337,7 +331,7 @@ class GitLabProvider:
         comment_id: str,
         reaction: Reaction,
     ) -> ActionResult[ReactionResult]:
-        response = self.client.post(
+        response = self.post(
             GitLab.issue_note_awards.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
@@ -349,7 +343,7 @@ class GitLabProvider:
         comment_id: str,
         reaction_id: str,
     ) -> None:
-        self.client.delete(
+        self.delete(
             GitLab.issue_note_award.format(
                 project_id=self.project_id, issue_id=issue_id, note_id=comment_id, award_id=reaction_id
             ),
@@ -362,7 +356,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[ReactionResult]:
-        response = self.client.get(
+        response = self.get(
             GitLab.merge_request_note_awards.format(
                 project_id=self.project_id, pr_key=pull_request_id, note_id=comment_id
             ),
@@ -382,7 +376,7 @@ class GitLabProvider:
         comment_id: str,
         reaction: Reaction,
     ) -> ActionResult[ReactionResult]:
-        response = self.client.post(
+        response = self.post(
             GitLab.merge_request_note_awards.format(
                 project_id=self.project_id, pr_key=pull_request_id, note_id=comment_id
             ),
@@ -391,7 +385,7 @@ class GitLabProvider:
         return make_result(map_reaction_result, response.json())
 
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
-        self.client.delete(
+        self.delete(
             GitLab.merge_request_note_award.format(
                 project_id=self.project_id, pr_key=pull_request_id, note_id=comment_id, award_id=reaction_id
             ),
@@ -403,7 +397,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[ReactionResult]:
-        response = self.client.get(
+        response = self.get(
             GitLab.issue_awards.format(project_id=self.project_id, issue_id=issue_id),
             pagination=pagination,
             request_options=request_options,
@@ -416,14 +410,14 @@ class GitLabProvider:
         )
 
     def create_issue_reaction(self, issue_id: str, reaction: Reaction) -> ActionResult[ReactionResult]:
-        response = self.client.post(
+        response = self.post(
             GitLab.issue_awards.format(project_id=self.project_id, issue_id=issue_id),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
         return make_result(map_reaction_result, response.json())
 
     def delete_issue_reaction(self, issue_id: str, reaction_id: str) -> None:
-        self.client.delete(
+        self.delete(
             GitLab.issue_award.format(project_id=self.project_id, issue_id=issue_id, award_id=reaction_id),
         )
 
@@ -433,7 +427,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[ReactionResult]:
-        response = self.client.get(
+        response = self.get(
             GitLab.merge_request_awards.format(project_id=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
             request_options=request_options,
@@ -446,14 +440,14 @@ class GitLabProvider:
         )
 
     def create_pull_request_reaction(self, pull_request_id: str, reaction: Reaction) -> ActionResult[ReactionResult]:
-        response = self.client.post(
+        response = self.post(
             GitLab.merge_request_awards.format(project_id=self.project_id, pr_key=pull_request_id),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
         return make_result(map_reaction_result, response.json())
 
     def delete_pull_request_reaction(self, pull_request_id: str, reaction_id: str) -> None:
-        self.client.delete(
+        self.delete(
             GitLab.merge_request_award.format(project_id=self.project_id, pr_key=pull_request_id, award_id=reaction_id),
         )
 
@@ -462,14 +456,14 @@ class GitLabProvider:
         branch: BranchName,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitRef]:
-        response = self.client.get(
+        response = self.get(
             GitLab.branch.format(project_id=self.project_id, branch=branch),
             request_options=request_options,
         )
         return make_result(map_git_ref, response.json())
 
     def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
-        response = self.client.post(
+        response = self.post(
             GitLab.branches.format(project_id=self.project_id),
             data={"branch": branch, "ref": sha},
         )
@@ -491,7 +485,7 @@ class GitLabProvider:
         params: dict[str, str] = {"ref": tree_sha}
         if recursive:
             params["recursive"] = "true"
-        response = self.client.get(
+        response = self.get(
             GitLab.tree.format(project=self.project_id),
             params=params,
         )
@@ -518,7 +512,7 @@ class GitLabProvider:
         ``tree.sha`` to the commit SHA so that downstream code can pass it to
         ``get_tree`` (which accepts any ref).
         """
-        response = self.client.get(
+        response = self.get(
             GitLab.commit.format(project=self.project_id, sha=sha),
             request_options=request_options,
         )
@@ -533,7 +527,7 @@ class GitLabProvider:
         params: dict[str, str] = {}
         if ref:
             params["ref"] = ref
-        response = self.client.get(
+        response = self.get(
             GitLab.file.format(project=self.project_id, path=path),
             params=params,
             request_options=request_options,
@@ -545,7 +539,7 @@ class GitLabProvider:
         sha: SHA,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[Commit]:
-        response = self.client.get(
+        response = self.get(
             GitLab.commit.format(project=self.project_id, sha=sha),
             request_options=request_options,
         )
@@ -560,7 +554,7 @@ class GitLabProvider:
         params: dict[str, str] = {}
         if ref:
             params["ref_name"] = ref
-        response = self.client.get(
+        response = self.get(
             GitLab.commits.format(project=self.project_id),
             params=params,
             pagination=pagination,
@@ -578,7 +572,7 @@ class GitLabProvider:
         params: dict[str, str] = {"path": path}
         if ref:
             params["ref_name"] = ref
-        response = self.client.get(
+        response = self.get(
             GitLab.commits.format(project=self.project_id),
             params=params,
             pagination=pagination,
@@ -593,7 +587,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
-        response = self.client.get(
+        response = self.get(
             GitLab.compare.format(project=self.project_id),
             params={"from": start_sha, "to": end_sha},
             pagination=pagination,
@@ -608,7 +602,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[PullRequestFile]:
-        response = self.client.get(
+        response = self.get(
             GitLab.pr_diffs.format(project=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
             request_options=request_options,
@@ -621,7 +615,7 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[PullRequestCommit]:
-        response = self.client.get(
+        response = self.get(
             GitLab.merge_request_commits.format(project_id=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
             request_options=request_options,
@@ -647,7 +641,7 @@ class GitLabProvider:
             params: dict[str, str] = {}
             if gitlab_state:
                 params["state"] = gitlab_state
-            response = self.client.get(
+            response = self.get(
                 GitLab.merge_requests.format(project_id=self.project_id),
                 params=params,
                 pagination=pagination,
@@ -669,7 +663,7 @@ class GitLabProvider:
             "source_branch": head,
             "target_branch": base,
         }
-        response = self.client.post(
+        response = self.post(
             GitLab.merge_requests.format(project_id=self.project_id),
             data=data,
         )
@@ -689,7 +683,7 @@ class GitLabProvider:
             data["description"] = body
         if state is not None:
             data["state_event"] = PULL_REQUEST_STATE_UPDATE_MAP[state]
-        response = self.client.patch(
+        response = self.patch(
             GitLab.merge_request.format(project_id=self.project_id, pr_key=pull_request_id),
             data=data,
         )
@@ -713,12 +707,12 @@ class GitLabProvider:
         we build a comment ID made of the GitLab's discussion ID and comment ID.
         It can be passed to `create_review_comment_reply`, and uniquely identifies a note.
         """
-        versions_response = self.client.get(
+        versions_response = self.get(
             GitLab.merge_request_versions.format(project_id=self.project_id, pr_key=pull_request_id),
         )
         versions = versions_response.json()
 
-        response = self.client.post(
+        response = self.post(
             GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
             data={
                 "body": body,
@@ -750,7 +744,7 @@ class GitLabProvider:
         The newly created comment's ID will have the same format.
         """
         discussion_id = comment_id.split(":")[0]
-        response = self.client.post(
+        response = self.post(
             GitLab.merge_request_discussion_notes.format(
                 project_id=self.project_id, pr_key=pull_request_id, discussion_id=discussion_id
             ),
