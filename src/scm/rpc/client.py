@@ -72,16 +72,16 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     the request.
     """
     if repository["provider_name"] in ("github", "github_enterprise"):
-        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())
+        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())  # type: ignore[return-value]
     elif repository["provider_name"] == "gitlab":
-        return GitLabProvider(client, organization_id, repository)
+        return GitLabProvider(client, organization_id, repository)  # type: ignore[return-value]
     else:
         return None
 
 
 class SourceCodeManager(ScmBase):
     @classmethod
-    def make_from_repository_id(
+    def make_from_repository_id(  # type: ignore[override]
         cls,
         organization_id: int,
         repository_id: RepositoryId,
