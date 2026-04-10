@@ -24,7 +24,7 @@ class RpcServer:
         self.record_count = record_count
         self.verify_request_signature = verify_request_signature
 
-    def get(self, headers: Mapping[str, str]):
+    def get(self, headers: dict[str, str]):
         try:
             authorization, organization_id, repository_id = self._extract_headers(headers)
 
@@ -47,14 +47,14 @@ class RpcServer:
             status, error_data = serialize_error(e)
             return Response(status_code=status, headers={}, content=error_data)
 
-    def post(self, data: bytes, headers: Mapping[str, str]) -> StreamResponse:
+    def post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         try:
             return self._post(data, headers)
         except SCMCodedError as e:
             status, error_data = serialize_error(e)
             return StreamResponse(status_code=status, headers={}, content=iter([error_data]))
 
-    def _post(self, data: bytes, headers: Mapping[str, str]) -> StreamResponse:
+    def _post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         authorization, organization_id, repository_id = self._extract_headers(headers)
 
         if not self.verify_request_signature(authorization, data):
@@ -77,7 +77,7 @@ class RpcServer:
         action = action_request.data
         response = exec_provider_fn(
             scm.provider,
-            provider_fn=lambda: scm.provider.api_client._request(
+            provider_fn=lambda: scm.provider._request(
                 method=action.method,
                 path=action.path,
                 headers=action.headers,

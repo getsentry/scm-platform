@@ -10,9 +10,9 @@ from scm.types import ProviderName
 class ActionAttributes(msgspec.Struct):
     method: str
     path: str
-    headers: Mapping[str, str] | None
-    data: Mapping[str, Any] | None
-    params: Mapping[str, str] | None
+    headers: dict[str, str] | None
+    data: dict[str, Any] | None
+    params: dict[str, str] | None
     allow_redirects: bool
 
 

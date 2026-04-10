@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import Any
 
 import msgspec
@@ -150,11 +150,12 @@ class RpcApiClient(ApiClient):
         self,
         method: str,
         path: str,
-        headers: Mapping[str, str] | None,
-        data: Mapping[str, Any] | None,
-        params: Mapping[str, str] | None,
-        allow_redirects: bool | None,
-        raw_response: bool,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool | None = None,
+        raw_response: bool = True,
     ) -> requests.Response:
         body = msgspec.json.encode(
             {
@@ -164,6 +165,8 @@ class RpcApiClient(ApiClient):
                 "data": data,
                 "params": params,
                 "allow_redirects": allow_redirects,
+                "stream": True,
+                "raw_response": True,
             }
         )
 

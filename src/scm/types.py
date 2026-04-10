@@ -1,4 +1,4 @@
-from collections.abc import Mapping, MutableMapping
+from collections.abc import MutableMapping
 from datetime import datetime
 from typing import Any, Literal, Protocol, Required, TypedDict, runtime_checkable
 
@@ -995,7 +995,21 @@ ALL_PROTOCOLS = (
 )
 
 
-class Provider(Protocol):
+class ApiClient(Protocol):
+    def _request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool | None = None,
+        raw_response: bool = True,
+    ) -> requests.Response: ...
+
+
+class Provider(ApiClient, Protocol):
     """
     Providers abstract over an integration. They map generic commands to service-provider specific
     commands and they map the results of those commands to generic result-types.
@@ -1014,21 +1028,7 @@ class Provider(Protocol):
     handling "can" requests.
     """
 
-    api_client: "ApiClient"
     organization_id: int
     repository: Repository
 
     def is_rate_limited(self, referrer: Referrer) -> bool: ...
-
-
-class ApiClient(Protocol):
-    def _request(
-        self,
-        method: str,
-        path: str,
-        headers: Mapping[str, str] | None,
-        data: Mapping[str, Any] | None,
-        params: Mapping[str, str] | None,
-        allow_redirects: bool | None,
-        raw_response: bool,
-    ) -> requests.Response: ...
