@@ -9,7 +9,6 @@ from scm.errors import SCMProviderException
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     GitHubProvider,
-    GitHubProviderApiClient,
 )
 from scm.types import ApiClient, Referrer, Repository
 from tests.test_fixtures import (
@@ -173,7 +172,11 @@ def make_provider(client: RecordingClient | None = None) -> tuple[GitHubProvider
         repository=make_repository(),
         rate_limit_provider=NoOpRateLimitProvider(),
     )
-    provider.client = transport  # type: ignore[assignment]
+    provider.get = transport.get  # type: ignore[assignment]
+    provider.post = transport.post  # type: ignore[assignment]
+    provider.patch = transport.patch  # type: ignore[assignment]
+    provider.delete = transport.delete  # type: ignore[assignment]
+    provider.graphql = transport.graphql  # type: ignore[assignment]
     return provider, transport
 
 
@@ -1001,7 +1004,6 @@ def test_provider_initialization_wraps_api_client() -> None:
         rate_limit_provider=NoOpRateLimitProvider(),
     )
 
-    assert isinstance(provider.client, GitHubProviderApiClient)
     assert provider.organization_id == 99
     assert provider.repository == repository
 
@@ -1012,11 +1014,13 @@ def test_is_rate_limited_returns_false() -> None:
     assert provider.is_rate_limited("shared") is False
 
 
-def _make_api_client() -> GitHubProviderApiClient:
-    return GitHubProviderApiClient(
+def _make_api_client() -> GitHubProvider:
+    return GitHubProvider(
         client=MagicMock(spec=ApiClient),
         organization_id=1,
+        repository=make_repository(),
         rate_limit_provider=NoOpRateLimitProvider(),
+        get_time_in_seconds=lambda: 0,
     )
 
 
@@ -1120,8 +1124,13 @@ def test_public_methods_are_accounted_for() -> None:
         *{case["name"] for case in VOID_CASES},
         *set(ALIAS_METHODS),
     }
+    # Transport methods are tested via TestGitHubProviderApiClientGraphql and
+    # implicitly by every action test that routes through them.
+    transport_methods = {"get", "post", "patch", "delete", "graphql"}
     public_methods = {
-        name for name, value in GitHubProvider.__dict__.items() if callable(value) and not name.startswith("_")
-    }
+        name
+        for name, value in GitHubProvider.__dict__.items()
+        if callable(value) and not name.startswith("_")
+    } - transport_methods
 
     assert public_methods == covered_methods

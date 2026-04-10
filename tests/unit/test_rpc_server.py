@@ -141,6 +141,7 @@ class TestPost:
                 "data": None,
                 "params": None,
                 "allow_redirects": True,
+                "stream": None,
             },
         }
         return msgspec.json.encode(defaults)
@@ -190,7 +191,7 @@ class TestPost:
         mock_response.iter_content.return_value = [b'{"ref": "main"}']
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
-        provider.api_client._request.return_value = mock_response
+        provider._request.return_value = mock_response
 
         server = make_server(
             fetch_repository=lambda org_id, repo_id: repo,

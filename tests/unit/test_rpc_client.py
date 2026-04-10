@@ -4,6 +4,8 @@ import msgspec
 import pytest
 
 from scm.errors import SCMCodedError
+from scm.providers.github.provider import GitHubProvider
+from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
     NoOpRateLimitProvider,
     RpcApiClient,
@@ -11,41 +13,142 @@ from scm.rpc.client import (
     fetch_provider,
     fetch_repository,
 )
-from scm.rpc.types import RepositoryAttributes, RepositoryResponse
-from scm.types import Repository
+from scm.rpc.types import Error, ErrorResponse, RepositoryAttributes, RepositoryResponse
 
 
-def make_repository(**overrides) -> Repository:
+def make_repository(**overrides):
     defaults = {
-        "external_id": "abc",
+        "external_id": "abc123",
         "integration_id": 1,
         "is_active": True,
         "name": "org/repo",
         "organization_id": 1,
         "provider_name": "github",
     }
-    defaults.update(overrides)
-    return defaults
+    return {**defaults, **overrides}
 
 
-def make_repository_response(**overrides) -> bytes:
-    defaults = dict(
-        external_id="abc123",
-        integration_id=1,
-        is_active=True,
-        name="org/repo",
-        organization_id=1,
-        provider_name="github",
+def make_serialized_repository(**overrides):
+    repo = make_repository(**overrides)
+    return msgspec.json.encode(
+        RepositoryResponse(
+            type="repository",
+            data=RepositoryAttributes(
+                external_id=repo["external_id"],
+                integration_id=repo["integration_id"],
+                is_active=repo["is_active"],
+                name=repo["name"],
+                organization_id=repo["organization_id"],
+                provider_name=repo["provider_name"],
+            ),
+        )
     )
-    defaults.update(overrides)
-    return msgspec.json.encode(RepositoryResponse(type="repository", data=RepositoryAttributes(**defaults)))
+
+
+def make_error_response(*codes: str) -> bytes:
+    return msgspec.json.encode(ErrorResponse(errors=[Error(code=code) for code in codes]))
+
+
+class TestFetchRepository:
+    @patch("scm.rpc.client.requests.get")
+    def test_success(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=200, content=make_serialized_repository())
+        repo = fetch_repository("http://base", "secret", 1, 1)
+        assert repo["name"] == "org/repo"
+        assert repo["provider_name"] == "github"
+
+    @patch("scm.rpc.client.requests.get")
+    def test_single_error_raises_coded_error(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=404, content=make_error_response("repository_not_found"))
+        with pytest.raises(SCMCodedError, match="repository_not_found"):
+            fetch_repository("http://base", "secret", 1, 1)
+
+    @patch("scm.rpc.client.requests.get")
+    def test_multiple_errors_raises_exception_group(self, mock_get):
+        mock_get.return_value = MagicMock(
+            status_code=400,
+            content=make_error_response("repository_not_found", "rpc_invalid_grant"),
+        )
+        with pytest.raises(ExceptionGroup) as exc_info:
+            fetch_repository("http://base", "secret", 1, 1)
+
+        codes = {e.code for e in exc_info.value.exceptions}
+        assert codes == {"repository_not_found", "rpc_invalid_grant"}
+
+    @patch("scm.rpc.client.requests.get")
+    def test_undeserializable_error_response(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=500, content=b"not valid json")
+        with pytest.raises(SCMCodedError, match="rpc_errors_could_not_be_deserialized"):
+            fetch_repository("http://base", "secret", 1, 1)
+
+    @patch("scm.rpc.client.requests.get")
+    def test_signs_get_request_headers(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=200, content=make_serialized_repository())
+        fetch_repository("http://base", "secret", 1, 1)
+
+        call_kwargs = mock_get.call_args
+        headers = call_kwargs.kwargs["headers"]
+        assert headers["Authorization"].startswith("rpcsignature rpc0:")
+        assert headers["X-Organization-Id"] == "1"
+
+    @patch("scm.rpc.client.requests.get")
+    def test_tuple_repository_id(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=200, content=make_serialized_repository())
+        fetch_repository("http://base", "secret", 1, ("github", "ext-123"))
+
+        headers = mock_get.call_args.kwargs["headers"]
+        assert headers["X-Repository-Id"] == '["github","ext-123"]'
+
+
+class TestDeserializeRepository:
+    def test_valid_content(self):
+        repo = deserialize_repository(make_serialized_repository())
+        assert repo["name"] == "org/repo"
+        assert repo["external_id"] == "abc123"
+        assert repo["integration_id"] == 1
+        assert repo["is_active"] is True
+        assert repo["organization_id"] == 1
+        assert repo["provider_name"] == "github"
+
+    def test_invalid_content_raises(self):
+        with pytest.raises(SCMCodedError, match="repository_could_not_be_deserialized"):
+            deserialize_repository(b"not valid json")
+
+    def test_wrong_structure_raises(self):
+        with pytest.raises(SCMCodedError, match="repository_could_not_be_deserialized"):
+            deserialize_repository(b'{"type": "unknown", "data": {}}')
+
+
+class TestFetchProvider:
+    def test_github_returns_github_provider(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="github")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, GitHubProvider)
+
+    def test_github_enterprise_returns_github_provider(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="github_enterprise")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, GitHubProvider)
+
+    def test_gitlab_returns_gitlab_provider(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="gitlab", external_id="gitlab.com:12345")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, GitLabProvider)
+
+    def test_unknown_provider_returns_none(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="bitbucket")
+        provider = fetch_provider(client, 1, repo)
+        assert provider is None
 
 
 class TestNoOpRateLimitProvider:
     def test_get_and_set_rate_limit(self):
         provider = NoOpRateLimitProvider()
-        result = provider.get_and_set_rate_limit("total", "usage", 60)
-        assert result == (None, 0)
+        assert provider.get_and_set_rate_limit("total", "usage", 3600) == (None, 0)
 
     def test_get_accounted_usage(self):
         provider = NoOpRateLimitProvider()
@@ -56,137 +159,13 @@ class TestNoOpRateLimitProvider:
         assert provider.set_key_values({"k": (1, None)}) is None
 
 
-class TestDeserializeRepository:
-    def test_deserializes_valid_response(self):
-        repo1 = make_repository()
-        repo2 = deserialize_repository(make_repository_response(**repo1))
-        assert repo1 == repo2
-
-    def test_invalid_content_raises(self):
-        with pytest.raises(SCMCodedError, match="repository_could_not_be_deserialized"):
-            deserialize_repository(b"not valid json")
-
-    def test_wrong_structure_raises(self):
-        with pytest.raises(SCMCodedError, match="repository_could_not_be_deserialized"):
-            deserialize_repository(msgspec.json.encode({"foo": "bar"}))
-
-
-class TestFetchRepository:
-    def test_success_calls_deserialize(self):
-        content = make_repository_response()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = content
-
-        with patch("scm.rpc.client.requests.get", return_value=mock_response) as mock_get:
-            fetch_repository("http://localhost", "secret", 1, 1)
-
-        call_args = mock_get.call_args
-        assert "rpcsignature" in call_args.kwargs["headers"]["Authorization"]
-        assert call_args.kwargs["headers"]["X-Organization-Id"] == "1"
-
-    def test_error_response_single(self):
-        error_body = msgspec.json.encode({"errors": [{"code": "repository_not_found"}]})
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-        mock_response.content = error_body
-
-        with patch("scm.rpc.client.requests.get", return_value=mock_response):
-            with pytest.raises(SCMCodedError, match="repository_not_found"):
-                fetch_repository("http://localhost", "secret", 1, 1)
-
-    def test_error_response_multiple(self):
-        error_body = msgspec.json.encode(
-            {"errors": [{"code": "repository_not_found"}, {"code": "repository_inactive"}]}
-        )
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.content = error_body
-
-        with patch("scm.rpc.client.requests.get", return_value=mock_response):
-            with pytest.raises(ExceptionGroup) as exc_info:
-                fetch_repository("http://localhost", "secret", 1, 1)
-            assert len(exc_info.value.exceptions) == 2
-
-    def test_undeserializable_error_response(self):
-        mock_response = MagicMock()
-        mock_response.status_code = 500
-        mock_response.content = b"not json"
-
-        with patch("scm.rpc.client.requests.get", return_value=mock_response):
-            with pytest.raises(SCMCodedError, match="rpc_errors_could_not_be_deserialized"):
-                fetch_repository("http://localhost", "secret", 1, 1)
-
-    def test_tuple_repository_id(self):
-        content = make_repository_response()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = content
-
-        with patch("scm.rpc.client.requests.get", return_value=mock_response) as mock_get:
-            fetch_repository("http://localhost", "secret", 1, ("github", "ext-123"))
-
-        headers = mock_get.call_args.kwargs["headers"]
-        assert headers["X-Repository-Id"] == '["github","ext-123"]'
-
-
-class TestFetchProvider:
-    def _make_repo(self, **overrides):
-        defaults = {
-            "external_id": "abc",
-            "integration_id": 1,
-            "is_active": True,
-            "name": "org/repo",
-            "organization_id": 1,
-            "provider_name": "github",
-        }
-        defaults.update(overrides)
-        return defaults
-
-    def test_github_provider(self):
-        client = MagicMock()
-        provider = fetch_provider(client, 1, self._make_repo(provider_name="github"))
-        assert provider is not None
-        assert type(provider).__name__ == "GitHubProvider"
-
-    def test_github_enterprise_provider(self):
-        client = MagicMock()
-        provider = fetch_provider(client, 1, self._make_repo(provider_name="github_enterprise"))
-        assert provider is not None
-        assert type(provider).__name__ == "GitHubProvider"
-
-    def test_gitlab_provider(self):
-        client = MagicMock()
-        provider = fetch_provider(client, 1, self._make_repo(provider_name="gitlab", external_id="abc:123"))
-        assert provider is not None
-        assert type(provider).__name__ == "GitLabProvider"
-
-    def test_unknown_provider_returns_none(self):
-        client = MagicMock()
-        assert fetch_provider(client, 1, self._make_repo(provider_name="bitbucket")) is None
-
-
 class TestRpcApiClient:
-    def test_init(self):
+    def test_request_encodes_action_and_signs(self):
         client = RpcApiClient(
-            base_url="http://localhost",
+            base_url="http://base",
             signing_secret="secret",
             organization_id=1,
-            referrer="shared",
-            repository_id=1,
-        )
-        assert client.base_url == "http://localhost"
-        assert client.signing_secret == "secret"
-        assert client.organization_id == 1
-        assert client.referrer == "shared"
-        assert client.repository_id == 1
-
-    def test_request(self):
-        client = RpcApiClient(
-            base_url="http://localhost",
-            signing_secret="secret",
-            organization_id=1,
-            referrer="shared",
+            referrer="test-referrer",
             repository_id=1,
         )
         mock_response = MagicMock()
@@ -195,38 +174,45 @@ class TestRpcApiClient:
 
         result = client._request(
             method="GET",
-            path="/repos/org/repo",
-            headers=None,
+            path="/repos/org/repo/pulls/1",
+            headers={"Accept": "application/json"},
             data=None,
-            params=None,
-            allow_redirects=True,
-            raw_response=True,
+            params={"per_page": "10"},
         )
 
         assert result is mock_response
-        call_args = client.session.post.call_args
-        assert call_args.kwargs["stream"] is True
-        assert "rpcsignature" in call_args.kwargs["headers"]["Authorization"]
-        assert call_args.kwargs["headers"]["Content-Type"] == "application/json"
-        assert call_args.kwargs["headers"]["X-Organization-Id"] == "1"
-        assert call_args.kwargs["headers"]["X-Referrer"] == "shared"
 
-        body = msgspec.json.decode(call_args.kwargs["data"])
-        assert body["method"] == "GET"
-        assert body["path"] == "/repos/org/repo"
+        call_args = client.session.post.call_args
+        assert call_args.args[0] == "http://base/api/0/internal/scm-rpc"
+
+        headers = call_args.kwargs["headers"]
+        assert headers["Authorization"].startswith("rpcsignature rpc0:")
+        assert headers["Content-Type"] == "application/json"
+        assert headers["X-Organization-Id"] == "1"
+        assert headers["X-Referrer"] == "test-referrer"
+        assert headers["X-Repository-Id"] == "1"
+        assert call_args.kwargs["stream"] is True
+
+        body = call_args.kwargs["data"]
+        decoded = msgspec.json.decode(body)
+        assert decoded["type"] == "action"
+        assert decoded["data"]["method"] == "GET"
+        assert decoded["data"]["path"] == "/repos/org/repo/pulls/1"
+        assert decoded["data"]["headers"] == {"Accept": "application/json"}
+        assert decoded["data"]["params"] == {"per_page": "10"}
 
     def test_request_with_tuple_repository_id(self):
         client = RpcApiClient(
-            base_url="http://localhost",
+            base_url="http://base",
             signing_secret="secret",
             organization_id=1,
-            referrer="test",
+            referrer="shared",
             repository_id=("github", "ext-123"),
         )
         client.session = MagicMock()
         client.session.post.return_value = MagicMock()
 
-        client._request("GET", "/path", None, None, None, True, True)
+        client._request(method="GET", path="/test")
 
         headers = client.session.post.call_args.kwargs["headers"]
         assert headers["X-Repository-Id"] == '["github","ext-123"]'

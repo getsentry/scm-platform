@@ -524,6 +524,36 @@ class TestRpcIntegration:
 
         server_provider._request.assert_called_once()
 
+    def test_multi_chunk_streaming_response(self):
+        """Verify that a response split across multiple chunks is reassembled correctly."""
+        repo = make_repository()
+        pr_json = make_github_pull_request()
+        content = json.dumps(pr_json).encode()
+
+        # Split content into 3 chunks with an empty chunk interleaved
+        mid = len(content) // 2
+        chunks = [content[:mid], b"", content[mid:]]
+
+        mock_response = MagicMock(spec=requests.Response)
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.iter_content.return_value = chunks
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        server_provider = MagicMock()
+        server_provider.repository = repo
+        server_provider.is_rate_limited.return_value = False
+        server_provider.__class__.__name__ = "GitHubProvider"
+        server_provider._request.return_value = mock_response
+
+        server = make_rpc_server(repo, server_provider)
+        scm = make_client_scm(1, 1, server)
+
+        result = actions.get_pull_request(scm, "1")
+
+        assert result["data"]["title"] == "Test PR"
+
     def test_all_actions_covered(self):
         tested_actions = {case[0] for case in ACTION_TEST_CASES}
         all_action_fns = {

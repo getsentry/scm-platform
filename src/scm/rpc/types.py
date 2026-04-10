@@ -1,6 +1,5 @@
 from collections.abc import Iterator, Mapping
 from typing import Any, Literal
-
 import msgspec
 
 from scm.errors import ErrorCode
@@ -12,7 +11,7 @@ class ActionAttributes(msgspec.Struct):
     path: str
     headers: dict[str, str] | None
     data: dict[str, Any] | None
-    params: dict[str, str] | None
+    params: dict[str, Any] | None
     allow_redirects: bool | None
     stream: bool | None
 
