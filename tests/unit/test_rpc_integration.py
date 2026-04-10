@@ -1,3 +1,4 @@
+import inspect
 import json
 from collections.abc import Callable
 from io import BytesIO
@@ -406,9 +407,7 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
     ),
     (
         "create_git_tree",
-        lambda scm: actions.create_git_tree(
-            scm, [{"path": "file.py", "mode": "100644", "type": "blob", "sha": "abc"}]
-        ),
+        lambda scm: actions.create_git_tree(scm, [{"path": "file.py", "mode": "100644", "type": "blob", "sha": "abc"}]),
         make_github_git_tree(),
         201,
         None,
@@ -524,3 +523,10 @@ class TestRpcIntegration:
         action_fn(scm)
 
         server_provider._request.assert_called_once()
+
+    def test_all_actions_covered(self):
+        tested_actions = {case[0] for case in ACTION_TEST_CASES}
+        all_action_fns = {
+            name for name, obj in inspect.getmembers(actions, inspect.isfunction) if not name.startswith("_")
+        }
+        assert tested_actions == all_action_fns
