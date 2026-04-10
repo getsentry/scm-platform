@@ -529,4 +529,6 @@ class TestRpcIntegration:
         all_action_fns = {
             name for name, obj in inspect.getmembers(actions, inspect.isfunction) if not name.startswith("_")
         }
-        assert tested_actions == all_action_fns
+        assert tested_actions == all_action_fns, (
+            "Missing action function. Please add your action to the test case above."
+        )
