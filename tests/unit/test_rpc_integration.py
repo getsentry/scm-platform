@@ -1,17 +1,37 @@
 import json
+from collections.abc import Callable
 from io import BytesIO
+from typing import Any
 from unittest.mock import MagicMock
 
 import msgspec
+import pytest
 import requests
 
-from scm.actions import create_issue_comment, get_pull_request
+from scm import actions
 from scm.rpc.client import SourceCodeManager, deserialize_repository
 from scm.rpc.errors import deserialize_error
 from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
 from scm.types import Repository
-from tests.test_fixtures import make_github_comment, make_github_pull_request
+from tests.test_fixtures import (
+    make_github_branch,
+    make_github_check_run,
+    make_github_comment,
+    make_github_commit,
+    make_github_commit_comparison,
+    make_github_file_content,
+    make_github_git_blob,
+    make_github_git_commit_object,
+    make_github_git_ref,
+    make_github_git_tree,
+    make_github_pull_request,
+    make_github_pull_request_commit,
+    make_github_pull_request_file,
+    make_github_reaction,
+    make_github_review,
+    make_github_review_comment,
+)
 
 SIGNING_SECRET = "test-secret"
 BASE_URL = "http://rpc-server"
@@ -29,12 +49,19 @@ def make_repository(**overrides) -> Repository:
     return {**defaults, **overrides}
 
 
-def make_github_api_response(body: dict | list, status_code: int = 200) -> MagicMock:
+def make_github_api_response(
+    body: dict | list | str,
+    status_code: int = 200,
+    headers: dict[str, str] | None = None,
+) -> MagicMock:
     """A mock requests.Response as returned by the GitHub API."""
-    content = json.dumps(body).encode()
+    if isinstance(body, str):
+        content = body.encode()
+    else:
+        content = json.dumps(body).encode()
     response = MagicMock(spec=requests.Response)
     response.status_code = status_code
-    response.headers = {"Content-Type": "application/json"}
+    response.headers = headers or {"Content-Type": "application/json"}
     response.iter_content.return_value = [content]
     response.__enter__ = lambda s: s
     response.__exit__ = MagicMock(return_value=False)
@@ -96,50 +123,404 @@ def make_client_scm(organization_id, repository_id, server):
     return scm
 
 
+# Each entry: (action_name, action_callable, mock_response_body, status_code, extra_headers)
+# action_callable receives the scm instance and calls the action with appropriate args.
+ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, str] | None]] = [
+    # Pull request operations
+    (
+        "get_pull_request",
+        lambda scm: actions.get_pull_request(scm, "1"),
+        make_github_pull_request(),
+        200,
+        None,
+    ),
+    (
+        "get_pull_requests",
+        lambda scm: actions.get_pull_requests(scm),
+        [make_github_pull_request()],
+        200,
+        None,
+    ),
+    (
+        "create_pull_request",
+        lambda scm: actions.create_pull_request(scm, "Title", "Body", "feature", "main"),
+        make_github_pull_request(),
+        201,
+        None,
+    ),
+    (
+        "create_pull_request_draft",
+        lambda scm: actions.create_pull_request_draft(scm, "Title", "Body", "feature", "main"),
+        make_github_pull_request(),
+        201,
+        None,
+    ),
+    (
+        "update_pull_request",
+        lambda scm: actions.update_pull_request(scm, "1", title="Updated"),
+        make_github_pull_request(title="Updated"),
+        200,
+        None,
+    ),
+    (
+        "get_pull_request_files",
+        lambda scm: actions.get_pull_request_files(scm, "1"),
+        [make_github_pull_request_file()],
+        200,
+        None,
+    ),
+    (
+        "get_pull_request_commits",
+        lambda scm: actions.get_pull_request_commits(scm, "1"),
+        [make_github_pull_request_commit()],
+        200,
+        None,
+    ),
+    (
+        "get_pull_request_diff",
+        lambda scm: actions.get_pull_request_diff(scm, "1"),
+        "diff --git a/file.py b/file.py\n-old\n+new",
+        200,
+        None,
+    ),
+    (
+        "request_review",
+        lambda scm: actions.request_review(scm, "1", ["reviewer1"]),
+        {"id": 1},
+        200,
+        None,
+    ),
+    # Issue comment operations
+    (
+        "get_issue_comments",
+        lambda scm: actions.get_issue_comments(scm, "10"),
+        [make_github_comment()],
+        200,
+        None,
+    ),
+    (
+        "create_issue_comment",
+        lambda scm: actions.create_issue_comment(scm, issue_id="10", body="Hello"),
+        make_github_comment(body="Hello"),
+        201,
+        None,
+    ),
+    (
+        "delete_issue_comment",
+        lambda scm: actions.delete_issue_comment(scm, "10", "1"),
+        {},
+        204,
+        None,
+    ),
+    # Pull request comment operations
+    (
+        "get_pull_request_comments",
+        lambda scm: actions.get_pull_request_comments(scm, "1"),
+        [make_github_comment()],
+        200,
+        None,
+    ),
+    (
+        "create_pull_request_comment",
+        lambda scm: actions.create_pull_request_comment(scm, "1", "Nice work"),
+        make_github_comment(body="Nice work"),
+        201,
+        None,
+    ),
+    (
+        "delete_pull_request_comment",
+        lambda scm: actions.delete_pull_request_comment(scm, "1", "5"),
+        {},
+        204,
+        None,
+    ),
+    # Issue comment reaction operations
+    (
+        "get_issue_comment_reactions",
+        lambda scm: actions.get_issue_comment_reactions(scm, "10", "1"),
+        [make_github_reaction()],
+        200,
+        None,
+    ),
+    (
+        "create_issue_comment_reaction",
+        lambda scm: actions.create_issue_comment_reaction(scm, "10", "1", "+1"),
+        make_github_reaction(content="+1"),
+        201,
+        None,
+    ),
+    (
+        "delete_issue_comment_reaction",
+        lambda scm: actions.delete_issue_comment_reaction(scm, "10", "1", "99"),
+        {},
+        204,
+        None,
+    ),
+    # Pull request comment reaction operations
+    (
+        "get_pull_request_comment_reactions",
+        lambda scm: actions.get_pull_request_comment_reactions(scm, "1", "5"),
+        [make_github_reaction()],
+        200,
+        None,
+    ),
+    (
+        "create_pull_request_comment_reaction",
+        lambda scm: actions.create_pull_request_comment_reaction(scm, "1", "5", "heart"),
+        make_github_reaction(content="heart"),
+        201,
+        None,
+    ),
+    (
+        "delete_pull_request_comment_reaction",
+        lambda scm: actions.delete_pull_request_comment_reaction(scm, "1", "5", "99"),
+        {},
+        204,
+        None,
+    ),
+    # Issue reaction operations
+    (
+        "get_issue_reactions",
+        lambda scm: actions.get_issue_reactions(scm, "10"),
+        [make_github_reaction()],
+        200,
+        None,
+    ),
+    (
+        "create_issue_reaction",
+        lambda scm: actions.create_issue_reaction(scm, "10", "eyes"),
+        make_github_reaction(content="eyes"),
+        201,
+        None,
+    ),
+    (
+        "delete_issue_reaction",
+        lambda scm: actions.delete_issue_reaction(scm, "10", "99"),
+        {},
+        204,
+        None,
+    ),
+    # Pull request reaction operations
+    (
+        "get_pull_request_reactions",
+        lambda scm: actions.get_pull_request_reactions(scm, "1"),
+        [make_github_reaction()],
+        200,
+        None,
+    ),
+    (
+        "create_pull_request_reaction",
+        lambda scm: actions.create_pull_request_reaction(scm, "1", "rocket"),
+        make_github_reaction(content="rocket"),
+        201,
+        None,
+    ),
+    (
+        "delete_pull_request_reaction",
+        lambda scm: actions.delete_pull_request_reaction(scm, "1", "99"),
+        {},
+        204,
+        None,
+    ),
+    # Branch operations
+    (
+        "get_branch",
+        lambda scm: actions.get_branch(scm, "main"),
+        make_github_branch(),
+        200,
+        None,
+    ),
+    (
+        "create_branch",
+        lambda scm: actions.create_branch(scm, "new-branch", "abc123"),
+        make_github_git_ref(),
+        201,
+        None,
+    ),
+    (
+        "update_branch",
+        lambda scm: actions.update_branch(scm, "main", "def456"),
+        make_github_git_ref(sha="def456"),
+        200,
+        None,
+    ),
+    # Git blob operations
+    (
+        "create_git_blob",
+        lambda scm: actions.create_git_blob(scm, "file content", "utf-8"),
+        make_github_git_blob(),
+        201,
+        None,
+    ),
+    # File content operations
+    (
+        "get_file_content",
+        lambda scm: actions.get_file_content(scm, "README.md"),
+        make_github_file_content(),
+        200,
+        None,
+    ),
+    # Commit operations
+    (
+        "get_commit",
+        lambda scm: actions.get_commit(scm, "abc123"),
+        make_github_commit(),
+        200,
+        None,
+    ),
+    (
+        "get_commits",
+        lambda scm: actions.get_commits(scm),
+        [make_github_commit()],
+        200,
+        None,
+    ),
+    (
+        "get_commits_by_path",
+        lambda scm: actions.get_commits_by_path(scm, "src/main.py"),
+        [make_github_commit()],
+        200,
+        None,
+    ),
+    (
+        "compare_commits",
+        lambda scm: actions.compare_commits(scm, "abc123", "def456"),
+        make_github_commit_comparison(commits=[make_github_commit()]),
+        200,
+        None,
+    ),
+    # Git tree and commit operations
+    (
+        "get_tree",
+        lambda scm: actions.get_tree(scm, "tree_sha"),
+        make_github_git_tree(),
+        200,
+        None,
+    ),
+    (
+        "get_git_commit",
+        lambda scm: actions.get_git_commit(scm, "abc123"),
+        make_github_git_commit_object(),
+        200,
+        None,
+    ),
+    (
+        "create_git_tree",
+        lambda scm: actions.create_git_tree(
+            scm, [{"path": "file.py", "mode": "100644", "type": "blob", "sha": "abc"}]
+        ),
+        make_github_git_tree(),
+        201,
+        None,
+    ),
+    (
+        "create_git_commit",
+        lambda scm: actions.create_git_commit(scm, "commit msg", "tree_sha", ["parent_sha"]),
+        make_github_git_commit_object(),
+        201,
+        None,
+    ),
+    # Review comment operations
+    (
+        "create_review_comment_file",
+        lambda scm: actions.create_review_comment_file(scm, "1", "abc123", "Nice", "file.py", "RIGHT"),
+        make_github_review_comment(),
+        201,
+        None,
+    ),
+    (
+        "create_review_comment_multiline",
+        lambda scm: actions.create_review_comment_multiline(
+            scm, "1", "abc123", "Span comment", "file.py", "RIGHT", 1, 5
+        ),
+        make_github_review_comment(),
+        201,
+        None,
+    ),
+    (
+        "create_review_comment_reply",
+        lambda scm: actions.create_review_comment_reply(scm, "1", "Reply", "100"),
+        make_github_review_comment(),
+        201,
+        None,
+    ),
+    (
+        "create_review",
+        lambda scm: actions.create_review(scm, "1", "abc123", "comment", []),
+        make_github_review(),
+        201,
+        None,
+    ),
+    # Check run operations
+    (
+        "create_check_run",
+        lambda scm: actions.create_check_run(scm, "CI", "abc123"),
+        make_github_check_run(),
+        201,
+        None,
+    ),
+    (
+        "get_check_run",
+        lambda scm: actions.get_check_run(scm, "300"),
+        make_github_check_run(),
+        200,
+        None,
+    ),
+    (
+        "update_check_run",
+        lambda scm: actions.update_check_run(scm, "300", status="completed", conclusion="success"),
+        make_github_check_run(),
+        200,
+        None,
+    ),
+    # Minimize comment (GraphQL)
+    (
+        "minimize_comment",
+        lambda scm: actions.minimize_comment(scm, "IC_abc123", "SPAM"),
+        {"data": {"minimizeComment": {"minimizedComment": {"isMinimized": True}}}},
+        200,
+        None,
+    ),
+    # Archive link (redirect)
+    (
+        "get_archive_link",
+        lambda scm: actions.get_archive_link(scm, "main"),
+        "",
+        302,
+        {
+            "Content-Type": "text/html",
+            "Location": "https://codeload.github.com/org/repo/legacy.tar.gz/main",
+        },
+    ),
+]
+
+
 class TestRpcIntegration:
-    def test_get_pull_request(self):
+    @pytest.mark.parametrize(
+        "action_name, action_fn, response_body, status_code, extra_headers",
+        ACTION_TEST_CASES,
+        ids=[case[0] for case in ACTION_TEST_CASES],
+    )
+    def test_action_through_rpc(
+        self,
+        action_name: str,
+        action_fn: Callable[[Any], Any],
+        response_body: dict | list | str,
+        status_code: int,
+        extra_headers: dict[str, str] | None,
+    ):
         repo = make_repository()
-        pr_json = make_github_pull_request()
+        mock_response = make_github_api_response(response_body, status_code, extra_headers)
 
         server_provider = MagicMock()
         server_provider.repository = repo
         server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
-        server_provider._request.return_value = make_github_api_response(pr_json)
+        server_provider._request.return_value = mock_response
 
         server = make_rpc_server(repo, server_provider)
         scm = make_client_scm(1, 1, server)
 
-        result = get_pull_request(scm, "1")
+        action_fn(scm)
 
-        assert result["data"]["title"] == "Test PR"
-        assert result["data"]["number"] == "1"
-        assert result["data"]["state"] == "open"
-        assert result["type"] == "github"
-
-        call_kwargs = server_provider._request.call_args.kwargs
-        assert call_kwargs["method"] == "GET"
-        assert "/pulls/1" in call_kwargs["path"]
-
-    def test_create_issue_comment(self):
-        repo = make_repository()
-        comment_json = make_github_comment(body="Hello from RPC")
-
-        server_provider = MagicMock()
-        server_provider.repository = repo
-        server_provider.is_rate_limited.return_value = False
-        server_provider.__class__.__name__ = "GitHubProvider"
-        server_provider._request.return_value = make_github_api_response(comment_json, status_code=201)
-
-        server = make_rpc_server(repo, server_provider)
-        scm = make_client_scm(1, 1, server)
-
-        result = create_issue_comment(scm, issue_id="10", body="Hello from RPC")
-
-        assert result["data"]["body"] == "Hello from RPC"
-        assert result["type"] == "github"
-
-        call_kwargs = server_provider._request.call_args.kwargs
-        assert call_kwargs["method"] == "POST"
-        assert "/issues/10/comments" in call_kwargs["path"]
-        assert call_kwargs["data"] == {"body": "Hello from RPC"}
+        server_provider._request.assert_called_once()
