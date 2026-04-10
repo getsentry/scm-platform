@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from typing import Any, Literal
 
 import msgspec
@@ -32,6 +32,20 @@ class RepositoryAttributes(msgspec.Struct):
 class RepositoryResponse(msgspec.Struct):
     type: Literal["repository"]
     data: RepositoryAttributes
+
+
+class Response:
+    def __init__(self, status_code: int, headers: Mapping[str, str], content: bytes) -> None:
+        self.status_code = status_code
+        self.headers = headers
+        self.content = content
+
+
+class StreamResponse:
+    def __init__(self, status_code: int, headers: Mapping[str, str], content: Iterator[bytes]) -> None:
+        self.status_code = status_code
+        self.headers = headers
+        self.content = content
 
 
 class Error(msgspec.Struct):

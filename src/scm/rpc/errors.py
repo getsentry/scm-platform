@@ -1,4 +1,3 @@
-import functools
 from typing import Any
 
 import msgspec
@@ -59,21 +58,3 @@ def serialize_rpc_error(exc: SCMRpcError) -> tuple[int, bytes]:
             )
         ),
     )
-
-
-def wrapped_safe(fn):
-    @functools.wraps(fn)
-    def decorator(*args, **kwargs):
-        try:
-            return fn(*args, **kwargs)
-        except SCMRpcError:
-            raise
-        except Exception as e:
-            raise SCMRpcError(
-                code="unhandled_exception",
-                title="An unhandled exception was encountered",
-                status=400,
-                meta={"error": str(e)},
-            ) from e
-
-    return decorator
