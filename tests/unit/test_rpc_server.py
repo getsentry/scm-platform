@@ -4,10 +4,13 @@ import msgspec
 import pytest
 
 from scm.errors import SCMCodedError
+from scm.rpc.helpers import sign_get, sign_post
 from scm.rpc.server import RpcServer, iter_response, serialize_repository
 from scm.rpc.types import RepositoryResponse
 from scm.types import Repository
 from tests.test_fixtures import BaseTestProvider
+
+TEST_SECRET = "test-secret"
 
 
 def make_repository(**overrides) -> Repository:
@@ -28,10 +31,10 @@ def mock_record_count(a, b, c):
 
 def make_server(**overrides) -> RpcServer:
     defaults = dict(
+        secrets=[TEST_SECRET],
         fetch_repository=lambda org_id, repo_id: make_repository(),
         fetch_provider=lambda org_id, repo: BaseTestProvider(),
         record_count=mock_record_count,
-        verify_request_signature=lambda auth, data: True,
     )
     defaults.update(overrides)
     return RpcServer(**defaults)
@@ -98,7 +101,7 @@ class TestGet:
             fetch_provider=lambda org_id, r: provider,
         )
 
-        response = server.get(make_headers())
+        response = server.get(make_headers(Authorization=sign_get(TEST_SECRET, 1, 1)))
 
         assert response.status_code == 200
         decoded = msgspec.json.decode(response.content, type=RepositoryResponse)
@@ -106,7 +109,7 @@ class TestGet:
         assert decoded.data.provider_name == "github"
 
     def test_invalid_signature_returns_401(self):
-        server = make_server(verify_request_signature=lambda auth, data: False)
+        server = make_server()
         response = server.get(make_headers())
 
         assert response.status_code == 401
@@ -115,7 +118,7 @@ class TestGet:
 
     def test_repository_not_found_returns_404(self):
         server = make_server(fetch_repository=lambda org_id, repo_id: None)
-        response = server.get(make_headers())
+        response = server.get(make_headers(Authorization=sign_get(TEST_SECRET, 1, 1)))
 
         assert response.status_code == 404
         decoded = msgspec.json.decode(response.content)
@@ -147,7 +150,7 @@ class TestPost:
         return msgspec.json.encode(defaults)
 
     def test_invalid_signature_returns_401(self):
-        server = make_server(verify_request_signature=lambda auth, data: False)
+        server = make_server()
         response = server.post(self._make_action_body(), make_headers())
 
         assert response.status_code == 401
@@ -155,8 +158,9 @@ class TestPost:
         assert decoded["errors"][0]["code"] == "rpc_invalid_grant"
 
     def test_malformed_body_returns_400(self):
+        body = b"not valid json"
         server = make_server()
-        response = server.post(b"not valid json", make_headers())
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
 
         assert response.status_code == 400
         decoded = msgspec.json.decode(b"".join(response.content))
@@ -171,8 +175,9 @@ class TestPost:
         assert decoded["errors"][0]["code"] == "rpc_malformed_request_headers"
 
     def test_repository_not_found_returns_404(self):
+        body = self._make_action_body()
         server = make_server(fetch_repository=lambda org_id, repo_id: None)
-        response = server.post(self._make_action_body(), make_headers())
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
 
         assert response.status_code == 404
         decoded = msgspec.json.decode(b"".join(response.content))
@@ -198,7 +203,8 @@ class TestPost:
             fetch_provider=lambda org_id, r: provider,
         )
 
-        response = server.post(self._make_action_body(), make_headers())
+        body = self._make_action_body()
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
 
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "application/json"

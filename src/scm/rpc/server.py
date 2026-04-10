@@ -7,6 +7,7 @@ from scm.errors import SCMCodedError
 from scm.helpers import exec_provider_fn
 from scm.manager import SourceCodeManager
 from scm.rpc.errors import serialize_error
+from scm.rpc.helpers import verify_get, verify_post
 from scm.rpc.types import ActionRequest, RepositoryAttributes, RepositoryResponse, Response, StreamResponse
 from scm.types import Provider, Repository, RepositoryId
 
@@ -14,23 +15,21 @@ from scm.types import Provider, Repository, RepositoryId
 class RpcServer:
     def __init__(
         self,
+        secrets: list[str],
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         fetch_provider: Callable[[int, Repository], Provider | None],
         record_count: Callable[[str, int, dict[str, str]], None],
-        verify_request_signature: Callable[[str, bytes], bool],
     ) -> None:
+        self.secrets = secrets
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.record_count = record_count
-        self.verify_request_signature = verify_request_signature
 
     def get(self, headers: dict[str, str]):
         try:
             authorization, organization_id, repository_id = self._extract_headers(headers)
 
-            if not self.verify_request_signature(
-                authorization, f"{headers['X-Organization-Id']}{headers['X-Repository-Id']}".encode()
-            ):
+            if not verify_get(self.secrets, organization_id, repository_id, authorization):
                 raise SCMCodedError(code="rpc_invalid_grant")
 
             scm = SourceCodeManager.make_from_repository_id(
@@ -57,7 +56,7 @@ class RpcServer:
     def _post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         authorization, organization_id, repository_id = self._extract_headers(headers)
 
-        if not self.verify_request_signature(authorization, data):
+        if not verify_post(self.secrets, data, authorization):
             raise SCMCodedError(code="rpc_invalid_grant")
 
         try:
