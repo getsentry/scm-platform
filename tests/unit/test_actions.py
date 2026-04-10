@@ -29,7 +29,6 @@ from scm.actions import (
     delete_pull_request_comment_reaction,
     delete_pull_request_reaction,
     get_branch,
-    get_capabilities,
     get_check_run,
     get_commit,
     get_commits,
@@ -757,18 +756,3 @@ def test_exec_passes_custom_record_count() -> None:
         {"provider": "BaseTestProvider"},
     )
     assert calls[1] == ("sentry.scm.actions.success_by_referrer", 1, {"referrer": "shared"})
-
-
-def test_get_capabilities() -> None:
-    assert list(get_capabilities(SourceCodeManager(BaseTestProvider()))) == list(
-        map(lambda v: v.__name__, ALL_PROTOCOLS)
-    )
-
-    class IncapableProvider:
-        organization_id: int
-        repository: Repository
-
-        def is_rate_limited(self, referrer: Referrer) -> bool:
-            return False
-
-    assert list(get_capabilities(SourceCodeManager(IncapableProvider()))) == []

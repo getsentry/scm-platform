@@ -87,13 +87,6 @@ from scm.types import (
 )
 
 
-def get_capabilities(scm: Any) -> Iterable[str]:
-    """Get the names of the protocols implemented by the given SourceCodeManager."""
-    for protocol in ALL_PROTOCOLS:
-        if isinstance(scm, protocol):
-            yield protocol.__name__
-
-
 def get_issue_comments(
     scm: GetIssueCommentsProtocol,
     issue_id: str,
@@ -104,9 +97,7 @@ def get_issue_comments(
     return scm.get_issue_comments(issue_id, pagination, request_options)
 
 
-def create_issue_comment(
-    scm: CreateIssueCommentProtocol, issue_id: str, body: str
-) -> ActionResult[Comment]:
+def create_issue_comment(scm: CreateIssueCommentProtocol, issue_id: str, body: str) -> ActionResult[Comment]:
     """Create a comment on an issue."""
     return scm.create_issue_comment(issue_id, body)
 
@@ -142,9 +133,7 @@ def create_pull_request_comment(
     return scm.create_pull_request_comment(pull_request_id, body)
 
 
-def delete_pull_request_comment(
-    scm: DeletePullRequestCommentProtocol, pull_request_id: str, comment_id: str
-) -> None:
+def delete_pull_request_comment(scm: DeletePullRequestCommentProtocol, pull_request_id: str, comment_id: str) -> None:
     """Delete a comment on a pull request."""
     return scm.delete_pull_request_comment(pull_request_id, comment_id)
 
@@ -182,9 +171,7 @@ def get_pull_request_comment_reactions(
     request_options: RequestOptions | None = None,
 ) -> PaginatedActionResult[ReactionResult]:
     """Get reactions on a pull request comment."""
-    return scm.get_pull_request_comment_reactions(
-        pull_request_id, comment_id, pagination, request_options
-    )
+    return scm.get_pull_request_comment_reactions(pull_request_id, comment_id, pagination, request_options)
 
 
 def create_pull_request_comment_reaction(
@@ -224,9 +211,7 @@ def create_issue_reaction(
     return scm.create_issue_reaction(issue_id, reaction)
 
 
-def delete_issue_reaction(
-    scm: DeleteIssueReactionProtocol, issue_id: str, reaction_id: str
-) -> None:
+def delete_issue_reaction(scm: DeleteIssueReactionProtocol, issue_id: str, reaction_id: str) -> None:
     """Delete a reaction on an issue."""
     return scm.delete_issue_reaction(issue_id, reaction_id)
 
@@ -269,16 +254,12 @@ def create_branch(scm: CreateBranchProtocol, branch: BranchName, sha: SHA) -> Ac
     return scm.create_branch(branch, sha)
 
 
-def update_branch(
-    scm: UpdateBranchProtocol, branch: BranchName, sha: SHA, force: bool = False
-) -> ActionResult[GitRef]:
+def update_branch(scm: UpdateBranchProtocol, branch: BranchName, sha: SHA, force: bool = False) -> ActionResult[GitRef]:
     """Update a branch to point at a new SHA."""
     return scm.update_branch(branch, sha, force)
 
 
-def create_git_blob(
-    scm: CreateGitBlobProtocol, content: str, encoding: str
-) -> ActionResult[GitBlob]:
+def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> ActionResult[GitBlob]:
     """Create a git blob object."""
     return scm.create_git_blob(content, encoding)
 
@@ -332,9 +313,7 @@ def get_commits_by_path(
 
     Commits are returned in descending order. Equivalent to `git log ref`.
     """
-    return scm.get_commits_by_path(
-        path=path, ref=ref, pagination=pagination, request_options=request_options
-    )
+    return scm.get_commits_by_path(path=path, ref=ref, pagination=pagination, request_options=request_options)
 
 
 def compare_commits(
@@ -471,9 +450,7 @@ def create_review_comment_multiline(
     end_line: int,
 ) -> ActionResult[ReviewComment]:
     """Leave a review comment on a line span."""
-    return scm.create_review_comment_multiline(
-        pull_request_id, commit_id, body, path, side, start_line, end_line
-    )
+    return scm.create_review_comment_multiline(pull_request_id, commit_id, body, path, side, start_line, end_line)
 
 
 def create_review_comment_reply(
