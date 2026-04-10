@@ -2,8 +2,20 @@ from typing import Any
 
 import msgspec
 
-from scm.errors import SCMError
+from scm.errors import ErrorCode, SCMCodedError, SCMError
 from scm.rpc.types import Error, ErrorResponse
+
+STATUS_MAP: dict[ErrorCode, int] = {
+    "malformed_external_id": 400,
+    "provider_not_found": 404,
+    "rate_limit_exceeded": 429,
+    "repository_inactive": 404,
+    "repository_not_found": 404,
+    "repository_organization_mismatch": 404,
+    "rpc_invalid_grant": 401,
+    "rpc_malformed_request_body": 400,
+    "rpc_malformed_request_headers": 400,
+}
 
 
 class SCMRpcError(SCMError):
@@ -20,6 +32,14 @@ class SCMRpcError(SCMError):
         self.title = title
         self.detail = detail
         self.meta = meta
+
+
+def map_coded_error(error: SCMCodedError) -> SCMRpcError:
+    return SCMRpcError(
+        code=error.code,
+        title=error.message,
+        status=STATUS_MAP[error.code],
+    )
 
 
 def deserialize_rpc_error(error: bytes) -> None:

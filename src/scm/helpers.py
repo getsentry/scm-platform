@@ -1,7 +1,29 @@
 from collections.abc import Callable
 
 from scm.errors import SCMCodedError, SCMError, SCMUnhandledException
-from scm.types import Provider, Referrer
+from scm.types import Provider, Referrer, Repository, RepositoryId
+
+
+def initialize_provider(
+    organization_id: int,
+    repository_id: RepositoryId,
+    *,
+    fetch_repository: Callable[[int, RepositoryId], Repository | None],
+    fetch_provider: Callable[[int, Repository], Provider | None],
+) -> Provider:
+    repository = fetch_repository(organization_id, repository_id)
+    if not repository:
+        raise SCMCodedError(organization_id, repository_id, code="repository_not_found")
+    if not repository["is_active"]:
+        raise SCMCodedError(repository, code="repository_inactive")
+    if repository["organization_id"] != organization_id:
+        raise SCMCodedError(repository, code="repository_organization_mismatch")
+
+    provider = fetch_provider(organization_id, repository)
+    if provider is None:
+        raise SCMCodedError(code="provider_not_found")
+
+    return provider
 
 
 def exec_provider_fn[T](
