@@ -110,7 +110,7 @@ class TestGet:
         response = server.get(make_headers())
 
         assert response.status_code == 401
-        decoded = msgspec.json.decode(b"".join(response.content))
+        decoded = msgspec.json.decode(response.content)
         assert decoded["errors"][0]["code"] == "rpc_invalid_grant"
 
     def test_repository_not_found_returns_404(self):
@@ -118,7 +118,7 @@ class TestGet:
         response = server.get(make_headers())
 
         assert response.status_code == 404
-        decoded = msgspec.json.decode(b"".join(response.content))
+        decoded = msgspec.json.decode(response.content)
         assert decoded["errors"][0]["code"] == "repository_not_found"
 
     def test_malformed_headers_returns_400(self):
@@ -126,7 +126,7 @@ class TestGet:
         response = server.get({"Authorization": "x"})
 
         assert response.status_code == 400
-        decoded = msgspec.json.decode(b"".join(response.content))
+        decoded = msgspec.json.decode(response.content)
         assert decoded["errors"][0]["code"] == "rpc_malformed_request_headers"
 
 

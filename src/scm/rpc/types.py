@@ -50,8 +50,8 @@ class StreamResponse:
 
 
 class Error(msgspec.Struct):
+    code: ErrorCode
     status: str | None = None
-    code: ErrorCode | None = None
     title: str | None = None
     detail: str | None = None
     meta: dict[str, Any] | None = None

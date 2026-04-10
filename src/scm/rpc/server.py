@@ -6,7 +6,7 @@ import requests
 from scm.errors import SCMCodedError
 from scm.helpers import exec_provider_fn
 from scm.manager import SourceCodeManager
-from scm.rpc.errors import map_coded_error, serialize_rpc_error
+from scm.rpc.errors import serialize_error
 from scm.rpc.types import ActionRequest, RepositoryAttributes, RepositoryResponse, Response, StreamResponse
 from scm.types import Provider, Repository, RepositoryId
 
@@ -44,14 +44,14 @@ class RpcServer:
 
             return Response(status_code=200, headers={}, content=serialize_repository(scm.provider.repository))
         except SCMCodedError as e:
-            status, error_data = serialize_rpc_error(map_coded_error(e))
-            return Response(status_code=status, headers={}, content=iter([error_data]))
+            status, error_data = serialize_error(e)
+            return Response(status_code=status, headers={}, content=error_data)
 
     def post(self, data: bytes, headers: Mapping[str, str]) -> StreamResponse:
         try:
             return self._post(data, headers)
         except SCMCodedError as e:
-            status, error_data = serialize_rpc_error(map_coded_error(e))
+            status, error_data = serialize_error(e)
             return StreamResponse(status_code=status, headers={}, content=iter([error_data]))
 
     def _post(self, data: bytes, headers: Mapping[str, str]) -> StreamResponse:
