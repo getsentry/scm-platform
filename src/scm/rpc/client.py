@@ -10,7 +10,7 @@ from scm.manager import SourceCodeManager as ScmBase
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import sign_get, sign_post
-from scm.rpc.types import ErrorResponse, RepositoryResponse
+from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse, RepositoryResponse
 from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc"
@@ -158,16 +158,18 @@ class RpcApiClient(ApiClient):
         raw_response: bool = True,
     ) -> requests.Response:
         body = msgspec.json.encode(
-            {
-                "method": method,
-                "path": path,
-                "headers": headers,
-                "data": data,
-                "params": params,
-                "allow_redirects": allow_redirects,
-                "stream": True,
-                "raw_response": True,
-            }
+            ActionRequest(
+                type="action",
+                data=ActionAttributes(
+                    method=method,
+                    path=path,
+                    headers=headers,
+                    data=data,
+                    params=params,
+                    allow_redirects=allow_redirects,
+                    stream=stream,
+                ),
+            )
         )
 
         response = self.session.post(

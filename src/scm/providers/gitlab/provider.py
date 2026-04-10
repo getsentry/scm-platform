@@ -163,7 +163,7 @@ class GitLabProvider:
         raw_response: bool = True,
     ) -> requests.Response:
         try:
-            response = self._request(
+            response = self.client._request(
                 method=method,
                 path=path,
                 headers=headers,

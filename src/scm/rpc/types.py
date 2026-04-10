@@ -14,6 +14,7 @@ class ActionAttributes(msgspec.Struct):
     data: dict[str, Any] | None
     params: dict[str, str] | None
     allow_redirects: bool
+    stream: bool | None
 
 
 class ActionRequest(msgspec.Struct):
