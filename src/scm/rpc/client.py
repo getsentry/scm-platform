@@ -72,9 +72,9 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     the request.
     """
     if repository["provider_name"] in ("github", "github_enterprise"):
-        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())  # type: ignore[return-value]
+        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())
     elif repository["provider_name"] == "gitlab":
-        return GitLabProvider(client, organization_id, repository)  # type: ignore[return-value]
+        return GitLabProvider(client, organization_id, repository)
     else:
         return None
 
