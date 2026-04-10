@@ -13,7 +13,7 @@ class ActionAttributes(msgspec.Struct):
     headers: dict[str, str] | None
     data: dict[str, Any] | None
     params: dict[str, str] | None
-    allow_redirects: bool
+    allow_redirects: bool | None
     stream: bool | None
 
 
