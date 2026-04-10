@@ -3,6 +3,7 @@ from typing import Any, Literal
 
 import msgspec
 
+from scm.errors import ErrorCode
 from scm.types import ProviderName
 
 
@@ -50,7 +51,7 @@ class StreamResponse:
 
 class Error(msgspec.Struct):
     status: str | None = None
-    code: str | None = None
+    code: ErrorCode | None = None
     title: str | None = None
     detail: str | None = None
     meta: dict[str, Any] | None = None

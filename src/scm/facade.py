@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable
 from typing import Any, cast
 
-from scm.types import ALL_PROTOCOLS, Provider
+from scm.helpers import exec_provider_fn
+from scm.types import ALL_PROTOCOLS, Provider, Referrer
 
 
 def _protocol_attrs(proto: object) -> tuple[str, ...]:
@@ -38,6 +39,26 @@ class Facade:
     # and statically validates method calls.
     provider: Provider
 
+    def __new__(
+        cls,
+        provider: Provider,
+        *,
+        referrer: Referrer = "shared",
+        record_count: Callable[[str, int, dict[str, str]], None],
+    ) -> Facade:
+        return cls.init_scoped_facade(provider)
+
+    def __init__(
+        self,
+        provider: Provider,
+        *,
+        referrer: Referrer = "shared",
+        record_count: Callable[[str, int, dict[str, str]], None],
+    ) -> None:
+        self.provider = provider
+        self.referrer = referrer
+        self.record_count = record_count
+
     @classmethod
     def init_scoped_facade(cls, provider):
         return object.__new__(_facade_type_for_provider_class(cast(Hashable, cls), cast(Hashable, type(provider))))
@@ -47,6 +68,11 @@ class Facade:
         """Return a method that forwards calls to self.provider.<name>."""
 
         def method(self: Facade, *args: Any, **kwargs: Any) -> Any:
-            return getattr(self.provider, name)(*args, **kwargs)
+            return exec_provider_fn(
+                self.provider,
+                referrer=self.referrer,
+                provider_fn=lambda: getattr(self.provider, name)(*args, **kwargs),
+                record_count=self.record_count,
+            )
 
         return method

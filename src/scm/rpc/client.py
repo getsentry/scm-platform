@@ -6,7 +6,7 @@ from typing import Any
 import msgspec
 import requests
 
-from scm.errors import SCMError, SCMRepositoryCouldNotBeDeserialized, SCMRpcError
+from scm.errors import SCMCodedError, SCMError
 from scm.facade import Facade
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -198,7 +198,7 @@ def deserialize_repository(content: bytes) -> Repository:
     try:
         repository = msgspec.json.decode(content, type=RepositoryResponse)
     except msgspec.DecodeError as e:
-        raise SCMRepositoryCouldNotBeDeserialized from e
+        raise SCMCodedError(code="repository_could_not_be_deserialized") from e
     else:
         return {
             "external_id": repository.external_id,
@@ -216,10 +216,7 @@ def raise_rpc_errors(content: bytes) -> None:
     except msgspec.DecodeError as e:
         raise SCMError("Unprocessable entity") from e
 
-    exceptions = [
-        SCMRpcError(code=error.code, detail=error.detail, meta=error.meta, status=error.status, title=error.title)
-        for error in response.errors
-    ]
+    exceptions = [SCMCodedError(code=error.code) for error in response.errors]
 
     if len(exceptions) == 1:
         raise exceptions[0]

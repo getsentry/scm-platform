@@ -1,65 +1,83 @@
-from collections.abc import Iterator, Mapping
-from typing import Protocol
+from collections.abc import Callable, Iterator, Mapping
 
 import msgspec
 import requests
 
+from scm.errors import SCMCodedError
 from scm.helpers import exec_provider_fn
-from scm.rpc.errors import SCMRpcError, serialize_rpc_error
+from scm.manager import SourceCodeManager
+from scm.rpc.errors import map_coded_error, serialize_rpc_error
 from scm.rpc.types import ActionRequest, RepositoryAttributes, RepositoryResponse, Response, StreamResponse
 from scm.types import Provider, Repository, RepositoryId
 
 
-class RpcServerImpl(Protocol):
-    def fetch_repository(self, organization_id: int, repository_id: RepositoryId) -> Repository | None: ...
-    def initialize_provider(self, organization_id: int, repository: Repository) -> Provider | None: ...
-    def record_count(self, name: str, value: int, tags: dict[str, str]) -> None: ...
-    def verify_request_signature(self, signature: str, message: bytes) -> bool: ...
-
-
 class RpcServer:
-    def __init__(self, impl: RpcServerImpl) -> None:
-        self.impl = impl
+    def __init__(
+        self,
+        fetch_repository: Callable[[int, RepositoryId], Repository | None],
+        fetch_provider: Callable[[int, Repository], Provider | None],
+        record_count: Callable[[str, int, dict[str, str]], None],
+        verify_request_signature: Callable[[str, bytes], bool],
+    ) -> None:
+        self.fetch_repository = fetch_repository
+        self.fetch_provider = fetch_provider
+        self.record_count = record_count
+        self.verify_request_signature = verify_request_signature
 
     def get(self, headers: Mapping[str, str]):
         try:
-            return self._get(headers)
-        except SCMRpcError as e:
-            status, error_data = serialize_rpc_error(e)
+            authorization, organization_id, repository_id = self._extract_headers(headers)
+
+            if not self.verify_request_signature(
+                authorization, f"{headers['X-Organization-Id']}{headers['X-Repository-Id']}".encode()
+            ):
+                raise SCMCodedError(code="rpc_invalid_grant")
+
+            scm = SourceCodeManager.make_from_repository_id(
+                organization_id,
+                repository_id,
+                referrer=headers.get("X-Referrer", "shared"),
+                fetch_repository=self.fetch_repository,
+                fetch_provider=self.fetch_provider,
+                record_count=self.record_count,
+            )
+
+            return Response(status_code=200, headers={}, content=serialize_repository(scm.provider.repository))
+        except SCMCodedError as e:
+            status, error_data = serialize_rpc_error(map_coded_error(e))
             return Response(status_code=status, headers={}, content=iter([error_data]))
 
     def post(self, data: bytes, headers: Mapping[str, str]) -> StreamResponse:
         try:
             return self._post(data, headers)
-        except SCMRpcError as e:
-            status, error_data = serialize_rpc_error(e)
+        except SCMCodedError as e:
+            status, error_data = serialize_rpc_error(map_coded_error(e))
             return StreamResponse(status_code=status, headers={}, content=iter([error_data]))
-
-    def _get(self, headers: Mapping[str, str]):
-        authorization, organization_id, repository_id = self._extract_headers(headers)
-        self._authorize_request(authorization, f"{headers['X-Organization-Id']}{headers['X-Repository-Id']}")
-        repository = self._fetch_valid_repository(organization_id, repository_id)
-        return Response(status_code=200, headers={}, content=serialize_repository(repository))
 
     def _post(self, data: bytes, headers: Mapping[str, str]) -> StreamResponse:
         authorization, organization_id, repository_id = self._extract_headers(headers)
-        self._authorize_request(authorization, data)
-        repository = self._fetch_valid_repository(organization_id, repository_id)
-        provider = self._initialize_provider(organization_id, repository)
+
+        if not self.verify_request_signature(authorization, data):
+            raise SCMCodedError(code="rpc_invalid_grant")
 
         try:
             action_request = msgspec.json.decode(data, type=ActionRequest)
         except msgspec.DecodeError as e:
-            raise SCMRpcError(
-                code="invalid_request_body",
-                title="The request body was invalid.",
-                status=400,
-            ) from e
+            raise SCMCodedError(code="rpc_malformed_request_body") from e
+
+        scm = SourceCodeManager.make_from_repository_id(
+            organization_id,
+            repository_id,
+            referrer=headers.get("X-Referrer", "shared"),
+            fetch_repository=self.fetch_repository,
+            fetch_provider=self.fetch_provider,
+            record_count=self.record_count,
+        )
 
         action = action_request.data
         response = exec_provider_fn(
-            provider,
-            provider_fn=lambda: provider.api_client._request(
+            scm.provider,
+            provider_fn=lambda: scm.provider.api_client._request(
                 method=action.method,
                 path=action.path,
                 headers=action.headers,
@@ -68,18 +86,14 @@ class RpcServer:
                 allow_redirects=action.allow_redirects,
                 raw_response=True,
             ),
-            referrer=headers.get("X-Referrer", "shared"),
-            record_count=self.impl.record_count,
+            referrer=scm.referrer,
+            record_count=scm.record_count,
         )
         return StreamResponse(
             status_code=response.status_code,
             headers=dict(response.headers),
             content=iter_response(response),
         )
-
-    def _authorize_request(self, signature: str, message: bytes):
-        if not self.impl.verify_request_signature(signature, message):
-            raise SCMRpcError(code="invalid_grant", title="Invalid grant", status=401)
 
     def _extract_headers(self, headers: Mapping[str, str]) -> tuple[str, int, RepositoryId]:
         try:
@@ -89,47 +103,7 @@ class RpcServer:
                 msgspec.json.decode(headers["X-Repository-Id"], type=RepositoryId),
             )
         except (KeyError, TypeError, ValueError, msgspec.DecodeError) as e:
-            raise SCMRpcError(
-                code="malformed_request",
-                title="Could not deserialize request headers",
-                status=400,
-                meta={"exception": str(e)},
-            ) from e
-
-    def _fetch_valid_repository(self, organization_id: int, repository_id: RepositoryId) -> Repository:
-        repository = self.impl.fetch_repository(organization_id, repository_id)
-        if not repository:
-            raise SCMRpcError(
-                code="repository_not_found",
-                title="The repository could not be found.",
-                detail=f"The repository matching '{repository_id}' could not be found.",
-                status=404,
-            )
-        elif not repository["is_active"]:
-            raise SCMRpcError(
-                code="repository_inactive",
-                title="The repository was found but is no longer active.",
-                detail=f"The repository matching '{repository_id}' is not active.",
-                status=404,
-            )
-        elif repository["organization_id"] != organization_id:
-            raise SCMRpcError(
-                code="repository_organization_mismatch",
-                title="A repository for another organization was found.",
-                status=404,
-            )
-
-        return repository
-
-    def _initialize_provider(self, organization_id: int, repository: Repository) -> Provider:
-        provider = self.impl.initialize_provider(organization_id, repository)
-        if not provider:
-            raise SCMRpcError(
-                code="invalid_provider",
-                title="No valid service-provider was found.",
-                status=404,
-            )
-        return provider
+            raise SCMCodedError(code="rpc_malformed_request_headers") from e
 
 
 def serialize_repository(repository: Repository) -> bytes:
