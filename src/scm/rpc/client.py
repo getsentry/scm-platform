@@ -115,7 +115,7 @@ class SourceCodeManager(ScmBase):
         fetch_repository: Callable[[Session, str, str, int, RepositoryId], Repository | None] = fetch_repository,
         fetch_provider: Callable[[ApiClient, int, Repository], Provider | None] = fetch_provider,
     ):
-        full_url = SCM_API_URL.format(base_url=base_url or os.environ["SCM_RPC_BASE_URL"])
+        full_url = SCM_API_URL.format(base_url=base_url if base_url is not None else os.environ["SCM_RPC_BASE_URL"])
         signing_secret = signing_secret or os.environ["SCM_RPC_SIGNING_SECRET"]
 
         # A specialized RpcApiClient is initialized. It will proxy the service-provider requests through Sentry. This
@@ -133,7 +133,7 @@ class SourceCodeManager(ScmBase):
             organization_id,
             repository_id,
             referrer=referrer,
-            fetch_repository=lambda oid, rid: fetch_repository(session, full_url, signing_secret, oid, rid),
+            fetch_repository=lambda oid, rid: fetch_repository(full_url, signing_secret, oid, rid, session),
             fetch_provider=lambda oid, repo: fetch_provider(client, oid, repo),
             # Metrics are not recorded in the client environment. Metrics are collected server-side.
             record_count=lambda name, value, tags: None,
