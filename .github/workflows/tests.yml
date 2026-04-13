@@ -1,0 +1,36 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    name: Run the linter, type checker, and tests
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        python: [3.13]
+
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install dependencies
+      run: |
+        pip install uv
+        uv sync --frozen
+    - name: Run tests
+      run: |
+        uv run ruff check .
+        uv run mypy .
+        uv run pytest

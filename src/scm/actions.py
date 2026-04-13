@@ -1,8 +1,4 @@
-from collections.abc import Iterable
-from typing import Any
-
 from scm.types import (
-    ALL_PROTOCOLS,
     SHA,
     ActionResult,
     ArchiveFormat,

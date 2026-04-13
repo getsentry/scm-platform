@@ -59,7 +59,6 @@ from scm.errors import (
     SCMUnhandledException,
 )
 from scm.types import (
-    ALL_PROTOCOLS,
     GetBranchProtocol,
     GetIssueReactionsProtocol,
     PaginatedActionResult,

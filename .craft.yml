@@ -1,0 +1,9 @@
+minVersion: 2.21.1
+statusProvider:
+  name: github
+artifactProvider:
+  name: github
+targets:
+  - name: github
+  - name: sentry-pypi
+    internalPypiRepo: getsentry/pypi
