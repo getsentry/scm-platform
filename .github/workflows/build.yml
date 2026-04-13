@@ -1,0 +1,26 @@
+name: build
+
+on:
+  push:
+    branches:
+      - release/**
+
+jobs:
+  dist:
+    name: distribution packages
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.13
+
+      - run: |
+          pip install uv
+          uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.sha }}
+          path: dist/*
