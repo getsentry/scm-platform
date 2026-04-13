@@ -17,8 +17,11 @@ SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
 
 
 class Response(Protocol):
-    status_code: int
-    content: bytes
+    @property
+    def content(self) -> bytes: ...
+
+    @property
+    def status_code(self) -> int: ...
 
     def json(self, *args, **kwargs) -> Any: ...
 
@@ -112,7 +115,9 @@ class SourceCodeManager(ScmBase):
         signing_secret: str | None = None,
         referrer: Referrer = "shared",
         session: Callable[[], Session] = lambda: RequestsSession(),
-        fetch_repository: Callable[[Session, str, str, int, RepositoryId], Repository | None] = fetch_repository,
+        fetch_repository: Callable[
+            [str, str, int, RepositoryId, Callable[[], Session]], Repository | None
+        ] = fetch_repository,
         fetch_provider: Callable[[ApiClient, int, Repository], Provider | None] = fetch_provider,
     ):
         full_url = SCM_API_URL.format(base_url=base_url if base_url is not None else os.environ["SCM_RPC_BASE_URL"])

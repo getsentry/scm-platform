@@ -82,7 +82,7 @@ def make_rpc_server(repository: Repository, server_provider: MagicMock) -> RpcSe
 def bridged_fetch_repository(server: RpcServer):
     """Return a fetch_repository callable that routes through the RPC server."""
 
-    def _fetch(sess, base_url, signing_secret, org_id, repo_id):
+    def _fetch(url, signing_secret, org_id, repo_id, sess):
         headers = {
             "Authorization": sign_get(signing_secret, org_id, repo_id),
             "X-Organization-Id": str(org_id),
