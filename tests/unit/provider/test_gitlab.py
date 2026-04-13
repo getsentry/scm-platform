@@ -10468,7 +10468,7 @@ def _make_mock_response(json_data):
                         "commit_id": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
                         "last_commit_id": "1403774c82d64068af027d0b5d0cc4f52473b6f2",
                         "execute_filemode": False,
-                        "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",
+                        "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",  # noqa: E501
                     },
                     params={"ref": "main"},
                 ),
@@ -10477,7 +10477,7 @@ def _make_mock_response(json_data):
                 "data": {
                     "path": "README.md",
                     "sha": "d96986775b6793cac0a358b35650de94752a9530",
-                    "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",
+                    "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",  # noqa: E501
                     "encoding": "base64",
                     "size": 92,
                 },
@@ -10494,7 +10494,7 @@ def _make_mock_response(json_data):
                         "commit_id": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
                         "last_commit_id": "1403774c82d64068af027d0b5d0cc4f52473b6f2",
                         "execute_filemode": False,
-                        "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",
+                        "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",  # noqa: E501
                     },
                     "headers": None,
                 },
