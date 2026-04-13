@@ -33,11 +33,13 @@ from tests.test_fixtures import (
 
 def make_repository() -> Repository:
     return {
+        "id": 1,
         "integration_id": 1,
         "name": "test-org/test-repo",
         "organization_id": 1,
         "is_active": True,
         "external_id": None,
+        "provider_name": "github",
     }
 
 

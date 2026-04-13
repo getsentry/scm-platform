@@ -9,6 +9,7 @@ from tests.test_fixtures import BaseTestProvider
 
 def make_repository(**overrides) -> Repository:
     defaults: Repository = {
+        "id": 1,
         "external_id": "abc123",
         "integration_id": 1,
         "is_active": True,
@@ -16,7 +17,7 @@ def make_repository(**overrides) -> Repository:
         "organization_id": 1,
         "provider_name": "github",
     }
-    return {**defaults, **overrides}
+    return {**defaults, **overrides}  # type: ignore[typeddict-item]
 
 
 def mock_record_count(a, b, c):

@@ -48,7 +48,7 @@ def make_repository(**overrides) -> Repository:
         "organization_id": 1,
         "provider_name": "github",
     }
-    return {**defaults, **overrides}
+    return {**defaults, **overrides}  # type: ignore[typeddict-item]
 
 
 def make_github_api_response(
@@ -109,7 +109,7 @@ def bridge_session_to_server(session: requests.Session, server: RpcServer) -> No
         mock_resp._content = raw.getvalue()
         return mock_resp
 
-    session.post = fake_post
+    session.post = fake_post  # type: ignore[assignment]
 
 
 def make_client_scm(organization_id, repository_id, server):

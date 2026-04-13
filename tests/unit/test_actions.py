@@ -79,11 +79,13 @@ def raises_with_code(exc_class, code):
 
 def fetch_repository(oid, rid) -> Repository:
     return {
+        "id": 1,
         "integration_id": 1,
         "name": "test",
         "organization_id": 1,
         "is_active": True,
         "external_id": None,
+        "provider_name": "github",
     }
 
 
@@ -664,12 +666,17 @@ class MinimalProvider:
 
     organization_id: int = 1
     repository: Repository = {
+        "id": 1,
         "integration_id": 1,
         "name": "test",
         "organization_id": 1,
         "is_active": True,
         "external_id": None,
+        "provider_name": "github",
     }
+
+    def _request(self, method, path, headers=None, data=None, params=None, allow_redirects=None, stream=None, raw_response=True):
+        raise NotImplementedError("MinimalProvider does not support _request")
 
     def is_rate_limited(self, referrer: Referrer) -> bool:
         return False

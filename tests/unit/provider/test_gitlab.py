@@ -20,11 +20,13 @@ def provider(client: ApiClient) -> GitLabProvider:
         client=client,
         organization_id=1,
         repository=Repository(
+            id=1,
             integration_id=1,
             name="test-repo",
             organization_id=1,
             is_active=True,
             external_id="gitlab.com:79787061",
+            provider_name="gitlab",
         ),
     )
 

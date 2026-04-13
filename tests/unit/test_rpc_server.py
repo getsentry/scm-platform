@@ -22,7 +22,7 @@ def make_repository(**overrides) -> Repository:
         "organization_id": 1,
         "provider_name": "github",
     }
-    return {**defaults, **overrides}
+    return {**defaults, **overrides}  # type: ignore[typeddict-item]
 
 
 def mock_record_count(a, b, c):
@@ -37,7 +37,7 @@ def make_server(**overrides) -> RpcServer:
         record_count=mock_record_count,
     )
     defaults.update(overrides)
-    return RpcServer(**defaults)
+    return RpcServer(**defaults)  # type: ignore[arg-type]
 
 
 def make_headers(**overrides) -> dict[str, str]:

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import msgspec
 import pytest
 
-from scm.errors import SCMCodedError
+from scm.errors import ErrorCode, SCMCodedError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
@@ -34,7 +34,7 @@ def make_serialized_repository(**overrides):
     return serialize_repository(make_repository(**overrides))
 
 
-def make_error_response(*codes: str) -> bytes:
+def make_error_response(*codes: ErrorCode) -> bytes:
     return msgspec.json.encode(ErrorResponse(errors=[Error(code=code) for code in codes]))
 
 
