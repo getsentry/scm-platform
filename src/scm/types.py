@@ -995,7 +995,7 @@ ALL_PROTOCOLS = (
 )
 
 
-class ApiClient(Protocol):
+class ApiClient[T](Protocol):
     def _request(
         self,
         method: str,
@@ -1006,7 +1006,7 @@ class ApiClient(Protocol):
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
-    ) -> requests.Response: ...
+    ) -> T | requests.Response: ...
 
 
 class Provider(ApiClient, Protocol):

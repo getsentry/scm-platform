@@ -1,5 +1,6 @@
 from collections.abc import Iterator, Mapping
 from typing import Any, Literal
+
 import msgspec
 
 from scm.errors import ErrorCode

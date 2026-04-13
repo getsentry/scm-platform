@@ -216,7 +216,11 @@ class GitHubProvider:
                     next_window_start=int(response.headers[GITHUB_RATE_LIMIT_RESET]),
                 )
 
-            response.raise_for_status()
+            if response.status_code >= 400:
+                if hasattr(response, "raise_for_status"):
+                    response.raise_for_status()
+                else:
+                    raise Exception(response.content)
             return response
         except Exception as e:
             raise SCMProviderException(str(e)) from e

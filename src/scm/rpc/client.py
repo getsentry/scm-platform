@@ -1,6 +1,6 @@
 import os
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 
 import msgspec
 import requests
@@ -13,7 +13,17 @@ from scm.rpc.helpers import sign_get, sign_post
 from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse, RepositoryResponse
 from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
 
-SCM_API_URL = "{base_url}/api/0/internal/scm-rpc"
+SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
+
+
+class Response(Protocol):
+    status_code: int
+    content: bytes
+
+
+class Session(Protocol):
+    def get(self, url: str, headers: dict[str, str]) -> Response: ...
+    def post(self, url: str, data: bytes, headers: dict[str, str], stream: bool) -> Response: ...
 
 
 class NoOpRateLimitProvider:
@@ -33,12 +43,12 @@ class NoOpRateLimitProvider:
 
 
 def fetch_repository(
-    base_url: str, signing_secret: str, organization_id: int, repository_id: RepositoryId
+    session: Session, base_url: str, signing_secret: str, organization_id: int, repository_id: RepositoryId
 ) -> Repository:
     """Fetch repositorty metadata."""
     url = SCM_API_URL.format(base_url=base_url)
 
-    response = requests.get(
+    response = session.get(
         url,
         headers={
             "Authorization": f"rpcsignature {sign_get(signing_secret, organization_id, repository_id)}",
@@ -87,10 +97,11 @@ class SourceCodeManager(ScmBase):
         repository_id: RepositoryId,
         *,
         referrer: Referrer = "shared",
-        fetch_repository: Callable[[str, str, int, RepositoryId], Repository | None] = fetch_repository,
+        fetch_repository: Callable[[Session, str, str, int, RepositoryId], Repository | None] = fetch_repository,
         fetch_provider: Callable[[ApiClient, int, Repository], Provider | None] = fetch_provider,
         fetch_base_url: Callable[[], str] = lambda: os.environ["SCM_RPC_BASE_URL"],
         fetch_signing_secret: Callable[[], str] = lambda: os.environ["SCM_RPC_SIGNING_SECRET"],
+        session_override: Session | None = None,
     ):
         base_url = fetch_base_url()
         signing_secret = fetch_signing_secret()
@@ -103,13 +114,16 @@ class SourceCodeManager(ScmBase):
             organization_id=organization_id,
             referrer=referrer,
             repository_id=repository_id,
+            session_override=session_override,
         )
 
         return super().make_from_repository_id(
             organization_id,
             repository_id,
             referrer=referrer,
-            fetch_repository=lambda oid, rid: fetch_repository(base_url, signing_secret, oid, rid),
+            fetch_repository=lambda oid, rid: fetch_repository(
+                session_override or requests.Session(), base_url, signing_secret, oid, rid
+            ),
             fetch_provider=lambda oid, repo: fetch_provider(client, oid, repo),
             record_count=lambda name, value, tags: None,
         )
@@ -137,6 +151,7 @@ class RpcApiClient(ApiClient):
         organization_id: int,
         referrer: str,
         repository_id: RepositoryId,
+        session_override: Session | None = None,
     ) -> None:
         self.base_url = base_url
         self.signing_secret = signing_secret
@@ -144,7 +159,7 @@ class RpcApiClient(ApiClient):
         self.referrer = referrer
         self.repository_id = repository_id
 
-        self.session = requests.Session()
+        self.session = session_override or requests.Session()
 
     def _request(
         self,

@@ -81,7 +81,7 @@ def make_rpc_server(repository: Repository, server_provider: MagicMock) -> RpcSe
 def bridged_fetch_repository(server: RpcServer):
     """Return a fetch_repository callable that routes through the RPC server."""
 
-    def _fetch(base_url, signing_secret, org_id, repo_id):
+    def _fetch(sess, base_url, signing_secret, org_id, repo_id):
         headers = {
             "Authorization": sign_get(signing_secret, org_id, repo_id),
             "X-Organization-Id": str(org_id),
@@ -99,11 +99,7 @@ def bridge_session_to_server(session: requests.Session, server: RpcServer) -> No
     """Patch a requests.Session so POST calls route directly to the RPC server."""
 
     def fake_post(url, **kwargs):
-        headers = dict(kwargs.get("headers", {}))
-        auth = headers.get("Authorization", "")
-        if auth.startswith("rpcsignature "):
-            headers["Authorization"] = auth.removeprefix("rpcsignature ")
-        response = server.post(kwargs.get("data", b""), headers)
+        response = server.post(kwargs.get("data", b""), dict(kwargs.get("headers", {})))
         raw = BytesIO(b"".join(response.content))
         mock_resp = requests.Response()
         mock_resp.status_code = response.status_code

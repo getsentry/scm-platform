@@ -97,7 +97,7 @@ class RpcServer:
     def _extract_headers(self, headers: Mapping[str, str]) -> tuple[str, int, RepositoryId]:
         try:
             return (
-                headers["Authorization"],
+                headers["Authorization"].removeprefix("rpcsignature "),
                 int(headers["X-Organization-Id"]),
                 msgspec.json.decode(headers["X-Repository-Id"], type=RepositoryId),
             )
