@@ -40,6 +40,7 @@ def serialize_error(exc: SCMCodedError) -> tuple[int, bytes]:
                         code=exc.code,
                         status=str(STATUS_MAP[exc.code]),
                         title=exc.message,
+                        detail=exc.detail,
                     )
                 ]
             )

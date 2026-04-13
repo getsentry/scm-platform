@@ -3,12 +3,12 @@ from collections.abc import Callable, Iterator, Mapping
 import msgspec
 import requests
 
-from scm.errors import SCMCodedError
+from scm.errors import ErrorCode, SCMCodedError
 from scm.helpers import exec_provider_fn
 from scm.manager import SourceCodeManager
 from scm.rpc.errors import serialize_error
-from scm.rpc.helpers import verify_get, verify_post
-from scm.rpc.types import ActionRequest, RepositoryAttributes, RepositoryResponse, Response, StreamResponse
+from scm.rpc.helpers import serialize_repository, verify_get, verify_post
+from scm.rpc.types import ActionRequest, Response, StreamResponse
 from scm.types import Provider, Repository, RepositoryId
 
 
@@ -41,17 +41,25 @@ class RpcServer:
                 record_count=self.record_count,
             )
 
-            return Response(status_code=200, headers={}, content=serialize_repository(scm.provider.repository))
+            return Response(
+                status_code=200,
+                headers={"Content-Type": "application/json"},
+                content=serialize_repository(scm.provider.repository),
+            )
         except SCMCodedError as e:
             status, error_data = serialize_error(e)
-            return Response(status_code=status, headers={}, content=error_data)
+            return Response(status_code=status, headers={"Content-Type": "application/json"}, content=error_data)
 
     def post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         try:
             return self._post(data, headers)
         except SCMCodedError as e:
             status, error_data = serialize_error(e)
-            return StreamResponse(status_code=status, headers={}, content=iter([error_data]))
+            return StreamResponse(
+                status_code=status,
+                headers={"Content-Type": "application/json"},
+                content=iter([error_data]),
+            )
 
     def _post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         authorization, organization_id, repository_id = self._extract_headers(headers)
@@ -95,31 +103,29 @@ class RpcServer:
         )
 
     def _extract_headers(self, headers: Mapping[str, str]) -> tuple[str, int, RepositoryId]:
+        code: ErrorCode = "rpc_malformed_request_headers"
+
         try:
-            return (
-                headers["Authorization"].removeprefix("rpcsignature "),
-                int(headers["X-Organization-Id"]),
-                msgspec.json.decode(headers["X-Repository-Id"], type=RepositoryId),
-            )
-        except (KeyError, TypeError, ValueError, msgspec.DecodeError) as e:
-            raise SCMCodedError(code="rpc_malformed_request_headers") from e
+            authorization = headers["Authorization"].removeprefix("rpcsignature ")
+        except KeyError as e:
+            raise SCMCodedError(code=code, detail="Could not find Authorization header") from e
 
+        try:
+            raw = headers["X-Organization-Id"]
+            organization_id = int(raw)
+        except KeyError as e:
+            raise SCMCodedError(code=code, detail="Could not find X-Organization-Id header") from e
+        except ValueError as e:
+            raise SCMCodedError(code=code, detail="Could not parse X-Organization-Id header") from e
 
-def serialize_repository(repository: Repository) -> bytes:
-    """Return a serialized repository response type."""
-    return msgspec.json.encode(
-        RepositoryResponse(
-            data=RepositoryAttributes(
-                external_id=repository["external_id"],
-                integration_id=repository["integration_id"],
-                is_active=repository["is_active"],
-                name=repository["name"],
-                organization_id=repository["organization_id"],
-                provider_name=repository["provider_name"],
-            ),
-            type="repository",
-        )
-    )
+        try:
+            repository_id = msgspec.json.decode(headers["X-Repository-Id"], type=RepositoryId)
+        except KeyError as e:
+            raise SCMCodedError(code=code, detail="Could not find X-Repository-Id header") from e
+        except msgspec.DecodeError as e:
+            raise SCMCodedError(code=code, detail="Could not parse X-Repository-Id header") from e
+
+        return authorization, organization_id, repository_id
 
 
 def iter_response(response: requests.Response) -> Iterator[bytes]:

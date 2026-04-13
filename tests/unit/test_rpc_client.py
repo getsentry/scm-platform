@@ -13,11 +13,13 @@ from scm.rpc.client import (
     fetch_provider,
     fetch_repository,
 )
-from scm.rpc.types import Error, ErrorResponse, RepositoryAttributes, RepositoryResponse
+from scm.rpc.server import serialize_repository
+from scm.rpc.types import Error, ErrorResponse
 
 
 def make_repository(**overrides):
     defaults = {
+        "id": 1,
         "external_id": "abc123",
         "integration_id": 1,
         "is_active": True,
@@ -29,20 +31,7 @@ def make_repository(**overrides):
 
 
 def make_serialized_repository(**overrides):
-    repo = make_repository(**overrides)
-    return msgspec.json.encode(
-        RepositoryResponse(
-            type="repository",
-            data=RepositoryAttributes(
-                external_id=repo["external_id"],
-                integration_id=repo["integration_id"],
-                is_active=repo["is_active"],
-                name=repo["name"],
-                organization_id=repo["organization_id"],
-                provider_name=repo["provider_name"],
-            ),
-        )
-    )
+    return serialize_repository(make_repository(**overrides))
 
 
 def make_error_response(*codes: str) -> bytes:
@@ -162,7 +151,7 @@ class TestNoOpRateLimitProvider:
 class TestRpcApiClient:
     def test_request_encodes_action_and_signs(self):
         client = RpcApiClient(
-            base_url="http://base",
+            full_url="http://base/api/0/internal/scm-rpc",
             signing_secret="secret",
             organization_id=1,
             referrer="test-referrer",
@@ -183,7 +172,7 @@ class TestRpcApiClient:
         assert result is mock_response
 
         call_args = client.session.post.call_args
-        assert call_args.args[0] == "http://base/api/0/internal/scm-rpc"
+        assert call_args.kwargs["url"] == "http://base/api/0/internal/scm-rpc"
 
         headers = call_args.kwargs["headers"]
         assert headers["Authorization"].startswith("rpcsignature rpc0:")
@@ -191,7 +180,6 @@ class TestRpcApiClient:
         assert headers["X-Organization-Id"] == "1"
         assert headers["X-Referrer"] == "test-referrer"
         assert headers["X-Repository-Id"] == "1"
-        assert call_args.kwargs["stream"] is True
 
         body = call_args.kwargs["data"]
         decoded = msgspec.json.decode(body)
@@ -203,7 +191,7 @@ class TestRpcApiClient:
 
     def test_request_with_tuple_repository_id(self):
         client = RpcApiClient(
-            base_url="http://base",
+            full_url="http://base/api/0/internal/scm-rpc",
             signing_secret="secret",
             organization_id=1,
             referrer="shared",

@@ -31,9 +31,14 @@ class RepositoryAttributes(msgspec.Struct):
     provider_name: ProviderName
 
 
-class RepositoryResponse(msgspec.Struct):
-    type: Literal["repository"]
-    data: RepositoryAttributes
+class JsonApiData[Type, Attributes](msgspec.Struct):
+    id: str
+    type: Type
+    attributes: Attributes
+
+
+class JsonApiPayload[Type, Attributes](msgspec.Struct):
+    data: JsonApiData[Type, Attributes]
 
 
 class Response:

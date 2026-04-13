@@ -34,9 +34,10 @@ class SCMError(Exception):
 
 
 class SCMCodedError(SCMError):
-    def __init__(self, *args, code: ErrorCode, **kwargs) -> None:
+    def __init__(self, *args, code: ErrorCode, detail: str | None = None, **kwargs) -> None:
         self.code = code
         self.message = ERROR_CODES[code]
+        self.detail = detail
         super().__init__(self.code, self.message, *args, **kwargs)
 
 

@@ -4,9 +4,8 @@ import msgspec
 import pytest
 
 from scm.errors import SCMCodedError
-from scm.rpc.helpers import sign_get, sign_post
+from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.server import RpcServer, iter_response, serialize_repository
-from scm.rpc.types import RepositoryResponse
 from scm.types import Repository
 from tests.test_fixtures import BaseTestProvider
 
@@ -15,6 +14,7 @@ TEST_SECRET = "test-secret"
 
 def make_repository(**overrides) -> Repository:
     defaults: Repository = {
+        "id": 1,
         "external_id": "abc123",
         "integration_id": 1,
         "is_active": True,
@@ -54,7 +54,7 @@ class TestExtractHeaders:
     def test_extracts_int_repository_id(self):
         server = make_server()
         auth, org_id, repo_id = server._extract_headers(make_headers())
-        assert auth == "rpcsignature rpc0:abc"
+        assert auth == "rpc0:abc"
         assert org_id == 1
         assert repo_id == 1
 
@@ -104,9 +104,9 @@ class TestGet:
         response = server.get(make_headers(Authorization=sign_get(TEST_SECRET, 1, 1)))
 
         assert response.status_code == 200
-        decoded = msgspec.json.decode(response.content, type=RepositoryResponse)
-        assert decoded.data.name == "org/repo"
-        assert decoded.data.provider_name == "github"
+        decoded = deserialize_repository(response.content)
+        assert decoded["name"] == "org/repo"
+        assert decoded["provider_name"] == "github"
 
     def test_invalid_signature_returns_401(self):
         server = make_server()
@@ -215,22 +215,17 @@ class TestPost:
 class TestSerializeRepository:
     def test_serializes_all_fields(self):
         repo = make_repository()
-        result = serialize_repository(repo)
-        decoded = msgspec.json.decode(result, type=RepositoryResponse)
+        decoded = deserialize_repository(serialize_repository(repo))
 
-        assert decoded.type == "repository"
-        assert decoded.data.external_id == "abc123"
-        assert decoded.data.integration_id == 1
-        assert decoded.data.is_active is True
-        assert decoded.data.name == "org/repo"
-        assert decoded.data.organization_id == 1
-        assert decoded.data.provider_name == "github"
+        assert decoded["external_id"] == repo["external_id"]
+        assert decoded["integration_id"] == repo["integration_id"]
+        assert decoded["is_active"] == repo["is_active"]
+        assert decoded["name"] == repo["name"]
+        assert decoded["organization_id"] == repo["organization_id"]
+        assert decoded["provider_name"] == repo["provider_name"]
 
     def test_null_external_id(self):
-        repo = make_repository(external_id=None)
-        result = serialize_repository(repo)
-        decoded = msgspec.json.decode(result, type=RepositoryResponse)
-        assert decoded.data.external_id is None
+        assert deserialize_repository(serialize_repository(make_repository(external_id=None)))["external_id"] is None
 
 
 class TestIterResponse:

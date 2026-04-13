@@ -40,6 +40,7 @@ BASE_URL = "http://rpc-server"
 
 def make_repository(**overrides) -> Repository:
     defaults: Repository = {
+        "id": 1,
         "external_id": "abc123",
         "integration_id": 1,
         "is_active": True,
@@ -116,9 +117,9 @@ def make_client_scm(organization_id, repository_id, server):
     scm = SourceCodeManager.make_from_repository_id(
         organization_id,
         repository_id,
+        base_url=BASE_URL,
+        signing_secret=SIGNING_SECRET,
         fetch_repository=bridged_fetch_repository(server),
-        fetch_base_url=lambda: BASE_URL,
-        fetch_signing_secret=lambda: SIGNING_SECRET,
     )
     bridge_session_to_server(scm.provider.client.session, server)
     return scm

@@ -9,8 +9,8 @@ from scm.errors import SCMCodedError
 from scm.manager import SourceCodeManager as ScmBase
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
-from scm.rpc.helpers import sign_get, sign_post
-from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse, RepositoryResponse
+from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
+from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse
 from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
@@ -20,10 +20,20 @@ class Response(Protocol):
     status_code: int
     content: bytes
 
+    def json(self, *args, **kwargs) -> Any: ...
+
 
 class Session(Protocol):
     def get(self, url: str, headers: dict[str, str]) -> Response: ...
-    def post(self, url: str, data: bytes, headers: dict[str, str], stream: bool) -> Response: ...
+    def post(self, url: str, data: bytes, headers: dict[str, str]) -> Response: ...
+
+
+class RequestsSession:
+    def get(self, url: str, headers: dict[str, str]) -> Response:
+        return requests.get(url, headers=headers)
+
+    def post(self, url: str, data: bytes, headers: dict[str, str]) -> Response:
+        return requests.post(url, data=data, headers=headers)
 
 
 class NoOpRateLimitProvider:
@@ -43,12 +53,14 @@ class NoOpRateLimitProvider:
 
 
 def fetch_repository(
-    session: Session, base_url: str, signing_secret: str, organization_id: int, repository_id: RepositoryId
+    url: str,
+    signing_secret: str,
+    organization_id: int,
+    repository_id: RepositoryId,
+    session: Callable[[], Session] = lambda: RequestsSession(),
 ) -> Repository:
     """Fetch repositorty metadata."""
-    url = SCM_API_URL.format(base_url=base_url)
-
-    response = session.get(
+    response = session().get(
         url,
         headers={
             "Authorization": f"rpcsignature {sign_get(signing_secret, organization_id, repository_id)}",
@@ -96,35 +108,34 @@ class SourceCodeManager(ScmBase):
         organization_id: int,
         repository_id: RepositoryId,
         *,
+        base_url: str | None = None,
+        signing_secret: str | None = None,
         referrer: Referrer = "shared",
+        session: Callable[[], Session] = lambda: RequestsSession(),
         fetch_repository: Callable[[Session, str, str, int, RepositoryId], Repository | None] = fetch_repository,
         fetch_provider: Callable[[ApiClient, int, Repository], Provider | None] = fetch_provider,
-        fetch_base_url: Callable[[], str] = lambda: os.environ["SCM_RPC_BASE_URL"],
-        fetch_signing_secret: Callable[[], str] = lambda: os.environ["SCM_RPC_SIGNING_SECRET"],
-        session_override: Session | None = None,
     ):
-        base_url = fetch_base_url()
-        signing_secret = fetch_signing_secret()
+        full_url = SCM_API_URL.format(base_url=base_url or os.environ["SCM_RPC_BASE_URL"])
+        signing_secret = signing_secret or os.environ["SCM_RPC_SIGNING_SECRET"]
 
         # A specialized RpcApiClient is initialized. It will proxy the service-provider requests through Sentry. This
         # forces clients to obey Sentry's strict access control requirements.
         client = RpcApiClient(
-            base_url=base_url,
+            full_url=full_url,
             signing_secret=signing_secret,
             organization_id=organization_id,
             referrer=referrer,
             repository_id=repository_id,
-            session_override=session_override,
+            session=session,
         )
 
         return super().make_from_repository_id(
             organization_id,
             repository_id,
             referrer=referrer,
-            fetch_repository=lambda oid, rid: fetch_repository(
-                session_override or requests.Session(), base_url, signing_secret, oid, rid
-            ),
+            fetch_repository=lambda oid, rid: fetch_repository(session, full_url, signing_secret, oid, rid),
             fetch_provider=lambda oid, repo: fetch_provider(client, oid, repo),
+            # Metrics are not recorded in the client environment. Metrics are collected server-side.
             record_count=lambda name, value, tags: None,
         )
 
@@ -146,20 +157,19 @@ class RpcApiClient(ApiClient):
 
     def __init__(
         self,
-        base_url: str,
+        full_url: str,
         signing_secret: str,
         organization_id: int,
         referrer: str,
         repository_id: RepositoryId,
-        session_override: Session | None = None,
+        session: Callable[[], Session] = lambda: RequestsSession(),
     ) -> None:
-        self.base_url = base_url
+        self.full_url = full_url
         self.signing_secret = signing_secret
         self.organization_id = organization_id
         self.referrer = referrer
         self.repository_id = repository_id
-
-        self.session = session_override or requests.Session()
+        self.session = session()
 
     def _request(
         self,
@@ -171,7 +181,7 @@ class RpcApiClient(ApiClient):
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
-    ) -> requests.Response:
+    ) -> Response:
         body = msgspec.json.encode(
             ActionRequest(
                 type="action",
@@ -188,7 +198,7 @@ class RpcApiClient(ApiClient):
         )
 
         response = self.session.post(
-            SCM_API_URL.format(base_url=self.base_url),
+            url=self.full_url,
             data=body,
             headers={
                 "Authorization": f"rpcsignature {sign_post(self.signing_secret, body)}",
@@ -197,22 +207,5 @@ class RpcApiClient(ApiClient):
                 "X-Referrer": self.referrer,
                 "X-Repository-Id": msgspec.json.encode(self.repository_id).decode("utf-8"),
             },
-            stream=True,
         )
         return response
-
-
-def deserialize_repository(content: bytes) -> Repository:
-    try:
-        repository = msgspec.json.decode(content, type=RepositoryResponse).data
-    except msgspec.DecodeError as e:
-        raise SCMCodedError(code="repository_could_not_be_deserialized") from e
-    else:
-        return {
-            "external_id": repository.external_id,
-            "integration_id": repository.integration_id,
-            "is_active": repository.is_active,
-            "name": repository.name,
-            "organization_id": repository.organization_id,
-            "provider_name": repository.provider_name,
-        }

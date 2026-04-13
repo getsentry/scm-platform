@@ -256,6 +256,7 @@ class Repository(TypedDict):
     """Identifies a repository within a Sentry integration."""
 
     external_id: str | None
+    id: int
     integration_id: int
     is_active: bool
     name: str
