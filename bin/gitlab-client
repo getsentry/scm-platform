@@ -43,7 +43,6 @@ from scm.types import (
     GetIssueCommentsProtocol,
     GetPullRequestCommentsProtocol,
     GetPullRequestCommitsProtocol,
-    GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
@@ -139,10 +138,6 @@ def main():
     elif args.command == "get-pull-request-commits":
         assert isinstance(scm, GetPullRequestCommitsProtocol)
         dump(scm.get_pull_request_commits(args.id))
-
-    elif args.command == "get-pull-request-diff":
-        assert isinstance(scm, GetPullRequestDiffProtocol)
-        dump(scm.get_pull_request_diff(args.id))
 
     elif args.command == "get-issue-comments":
         assert isinstance(scm, GetIssueCommentsProtocol)
