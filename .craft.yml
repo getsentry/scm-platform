@@ -8,4 +8,4 @@ targets:
   - name: sentry-pypi
     internalPypiRepo: getsentry/pypi
 requireNames:
-  - /^scm-.+-py3-none-any\.whl$/
+  - /^sentry_scm-.+-py3-none-any\.whl$/
