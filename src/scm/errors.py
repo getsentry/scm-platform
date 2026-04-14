@@ -10,8 +10,10 @@ type ErrorCode = Literal[
     "repository_organization_mismatch",
     "rpc_errors_could_not_be_deserialized",
     "rpc_invalid_grant",
+    "rpc_invalid_path",
     "rpc_malformed_request_body",
     "rpc_malformed_request_headers",
+    "rpc_request_too_large",
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
@@ -24,8 +26,10 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "repository_organization_mismatch": "A repository was found but it did not belong to your organization.",
     "rpc_errors_could_not_be_deserialized": "The error response could not be deserialized.",
     "rpc_invalid_grant": "Invalid grant",
+    "rpc_invalid_path": "The request path was invalid.",
     "rpc_malformed_request_body": "The request body was invalid.",
     "rpc_malformed_request_headers": "The request headers were invalid.",
+    "rpc_request_too_large": "The request body exceeded the maximum allowed size.",
 }
 
 

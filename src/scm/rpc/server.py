@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterator, Mapping, MutableMapping
+from urllib.parse import urlparse
 
 import msgspec
 import requests
@@ -10,6 +11,9 @@ from scm.rpc.errors import serialize_error
 from scm.rpc.helpers import serialize_repository, verify_get, verify_post
 from scm.rpc.types import ActionRequest, Response, StreamResponse
 from scm.types import Provider, Repository, RepositoryId
+
+TEN_MEGABYTES = 10 * 1024 * 1024
+ALLOWED_HEADERS = frozenset({"accept", "content-type", "if-none-match"})
 
 
 class RpcServer:
@@ -66,11 +70,16 @@ class RpcServer:
 
         if not verify_post(self.secrets, data, authorization):
             raise SCMCodedError(code="rpc_invalid_grant")
+        if len(data) >= TEN_MEGABYTES:
+            raise SCMCodedError(code="rpc_request_too_large")
 
         try:
             action_request = msgspec.json.decode(data, type=ActionRequest)
         except msgspec.DecodeError as e:
             raise SCMCodedError(code="rpc_malformed_request_body") from e
+
+        if not is_safe_path(action_request.data.path):
+            raise SCMCodedError(code="rpc_invalid_path")
 
         scm = SourceCodeManager.make_from_repository_id(
             organization_id,
@@ -87,7 +96,9 @@ class RpcServer:
             provider_fn=lambda: scm.provider._request(
                 method=action.method,
                 path=action.path,
-                headers=action.headers,
+                headers={k: v for k, v in action.headers.items() if k.lower() in ALLOWED_HEADERS}
+                if action.headers
+                else {},
                 data=action.data,
                 params=action.params,
                 allow_redirects=action.allow_redirects,
@@ -133,8 +144,8 @@ def iter_response(response: requests.Response) -> Iterator[bytes]:
         yield from filter(bool, r.iter_content(chunk_size=64 * 1024))
 
 
-# Transport-level headers that describe upstream wire framing, not the payload
-# itself. iter_response() decodes the body so these no longer apply.
+# Transport-level headers that describe upstream wire framing, not the payload itself. iter_response() decodes
+# the body so these no longer apply. Requests will decode the response and supply its own values.
 _HOP_BY_HOP = frozenset(
     {
         "authorization",
@@ -157,3 +168,8 @@ _HOP_BY_HOP = frozenset(
 def normalize_headers(headers: MutableMapping[str, str]) -> dict[str, str]:
     """Remove wire-framing headers and other private headers we do not want to leak."""
     return {k: v for k, v in headers.items() if k.lower() not in _HOP_BY_HOP}
+
+
+def is_safe_path(path: str) -> bool:
+    parsed = urlparse(path)
+    return path.startswith("/") and not parsed.scheme and not parsed.netloc

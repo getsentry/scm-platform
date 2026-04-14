@@ -11,8 +11,10 @@ STATUS_MAP: dict[ErrorCode, int] = {
     "repository_not_found": 404,
     "repository_organization_mismatch": 404,
     "rpc_invalid_grant": 401,
+    "rpc_invalid_path": 400,
     "rpc_malformed_request_body": 400,
     "rpc_malformed_request_headers": 400,
+    "rpc_request_too_large": 413,
 }
 
 

@@ -5,7 +5,7 @@ import pytest
 
 from scm.errors import SCMCodedError
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
-from scm.rpc.server import RpcServer, iter_response, serialize_repository
+from scm.rpc.server import RpcServer, is_safe_path, iter_response, normalize_headers, serialize_repository
 from scm.types import Repository
 from tests.test_fixtures import BaseTestProvider
 
@@ -134,20 +134,18 @@ class TestGet:
 
 
 class TestPost:
-    def _make_action_body(self) -> bytes:
-        defaults = {
-            "type": "action",
-            "data": {
-                "method": "GET",
-                "path": "/repos/org/repo/branches/main",
-                "headers": None,
-                "data": None,
-                "params": None,
-                "allow_redirects": True,
-                "stream": None,
-            },
+    def _make_action_body(self, **data_overrides) -> bytes:
+        data = {
+            "method": "GET",
+            "path": "/repos/org/repo/branches/main",
+            "headers": None,
+            "data": None,
+            "params": None,
+            "allow_redirects": True,
+            "stream": None,
+            **data_overrides,
         }
-        return msgspec.json.encode(defaults)
+        return msgspec.json.encode({"type": "action", "data": data})
 
     def test_invalid_signature_returns_401(self):
         server = make_server()
@@ -182,6 +180,79 @@ class TestPost:
         assert response.status_code == 404
         decoded = msgspec.json.decode(b"".join(response.content))
         assert decoded["errors"][0]["code"] == "repository_not_found"
+
+    def test_request_at_10mb_returns_413(self):
+        body = b"x" * (10 * 1024 * 1024)
+        server = make_server()
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+
+        assert response.status_code == 413
+        decoded = msgspec.json.decode(b"".join(response.content))
+        assert decoded["errors"][0]["code"] == "rpc_request_too_large"
+
+    def test_request_just_under_10mb_is_not_rejected_for_size(self):
+        body = self._make_action_body(data="a" * (10 * 1024 * 1024 - 200))
+        server = make_server()
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+
+        assert response.status_code != 413
+
+    def test_unsafe_path_returns_400(self):
+        body = self._make_action_body(path="https://evil.com/repos")
+        server = make_server()
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+
+        assert response.status_code == 400
+        decoded = msgspec.json.decode(b"".join(response.content))
+        assert decoded["errors"][0]["code"] == "rpc_invalid_path"
+
+    def test_scheme_relative_path_returns_400(self):
+        body = self._make_action_body(path="//evil.com/repos")
+        server = make_server()
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+
+        assert response.status_code == 400
+        decoded = msgspec.json.decode(b"".join(response.content))
+        assert decoded["errors"][0]["code"] == "rpc_invalid_path"
+
+    def test_action_headers_are_truncated_to_allowlist(self):
+        repo = make_repository()
+        provider = MagicMock()
+        provider.repository = repo
+        provider.is_rate_limited.return_value = False
+        provider.__class__.__name__ = "GitHubProvider"
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.iter_content.return_value = [b"ok"]
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        provider._request.return_value = mock_response
+
+        server = make_server(
+            fetch_repository=lambda org_id, repo_id: repo,
+            fetch_provider=lambda org_id, r: provider,
+        )
+
+        body = self._make_action_body(
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "text/plain",
+                "If-None-Match": '"etag"',
+                "Authorization": "Bearer stolen",
+                "X-Custom": "dropped",
+            },
+        )
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+
+        assert response.status_code == 200
+        forwarded_headers = provider._request.call_args.kwargs["headers"]
+        assert forwarded_headers == {
+            "Accept": "application/json",
+            "Content-Type": "text/plain",
+            "If-None-Match": '"etag"',
+        }
 
     def test_successful_post_streams_response(self):
         repo = make_repository()
@@ -246,3 +317,69 @@ class TestIterResponse:
 
         chunks = list(iter_response(mock_response))
         assert chunks == [b"data", b"more"]
+
+
+class TestNormalizeHeaders:
+    def test_passes_through_regular_headers(self):
+        headers = {"Content-Type": "application/json", "X-Custom": "value"}
+        result = normalize_headers(headers)
+        assert result == {"Content-Type": "application/json", "X-Custom": "value"}
+
+    def test_strips_hop_by_hop_headers(self):
+        headers = {
+            "Content-Type": "application/json",
+            "transfer-encoding": "chunked",
+            "connection": "keep-alive",
+            "content-encoding": "gzip",
+            "content-length": "42",
+        }
+        result = normalize_headers(headers)
+        assert result == {"Content-Type": "application/json"}
+
+    def test_strip_is_case_insensitive(self):
+        headers = {"Transfer-Encoding": "chunked", "CONNECTION": "keep-alive"}
+        result = normalize_headers(headers)
+        assert result == {}
+
+    def test_empty_headers(self):
+        assert normalize_headers({}) == {}
+
+    def test_strips_auth_and_cookie_headers(self):
+        headers = {
+            "authorization": "Bearer token",
+            "set-cookie": "session=abc",
+            "proxy-authenticate": "Basic",
+            "proxy-authorization": "Basic xyz",
+            "X-Request-Id": "123",
+        }
+        result = normalize_headers(headers)
+        assert result == {"X-Request-Id": "123"}
+
+
+class TestIsSafePath:
+    def test_absolute_path(self):
+        assert is_safe_path("/repos/org/repo") is True
+
+    def test_path_with_query_string(self):
+        assert is_safe_path("/repos/org/repo?page=1") is True
+
+    def test_rejects_relative_path(self):
+        assert is_safe_path("repos/org/repo") is False
+
+    def test_rejects_empty_string(self):
+        assert is_safe_path("") is False
+
+    def test_rejects_absolute_url_with_scheme(self):
+        assert is_safe_path("https://evil.com/repos") is False
+
+    def test_rejects_scheme_relative_url(self):
+        assert is_safe_path("//evil.com/repos") is False
+
+    def test_rejects_scheme_with_authority(self):
+        assert is_safe_path("http://evil.com/repos") is False
+
+    def test_root_path(self):
+        assert is_safe_path("/") is True
+
+    def test_path_with_encoded_characters(self):
+        assert is_safe_path("/repos/org/repo%20name") is True
