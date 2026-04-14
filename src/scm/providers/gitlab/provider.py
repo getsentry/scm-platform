@@ -151,30 +151,24 @@ class GitLabProvider:
         stream: bool | None = None,
         raw_response: bool = True,
     ) -> requests.Response:
-        try:
-            response = self.client._request(
-                method=method,
-                path=path,
-                headers=headers,
-                data=data,
-                params=params,
-                raw_response=raw_response,
-                allow_redirects=allow_redirects,
-                stream=stream,
-            )
-            if response.status_code == 403:
-                raise SCMCodedError(code="resource_forbidden")
-            elif response.status_code == 404:
-                raise SCMCodedError(code="resource_not_found")
+        response = self.client._request(
+            method=method,
+            path=path,
+            headers=headers,
+            data=data,
+            params=params,
+            raw_response=raw_response,
+            allow_redirects=allow_redirects,
+            stream=stream,
+        )
+        if response.status_code == 403:
+            raise SCMCodedError(code="resource_forbidden")
+        elif response.status_code == 404:
+            raise SCMCodedError(code="resource_not_found")
+        elif response.status_code >= 400:
+            raise SCMCodedError(code="unhandled_exception")
 
-            try:
-                response.raise_for_status()
-            except Exception as e:
-                raise SCMCodedError(code="unhandled_exception") from e
-
-            return response
-        except Exception as e:
-            raise SCMCodedError(code="unhandled_exception") from e
+        return response
 
     def get(
         self,

@@ -35,6 +35,7 @@ def make_server(**overrides) -> RpcServer:
         fetch_repository=lambda org_id, repo_id: make_repository(),
         fetch_provider=lambda org_id, repo: BaseTestProvider(),
         record_count=mock_record_count,
+        emit_error=lambda e: None,
     )
     defaults.update(overrides)
     return RpcServer(**defaults)  # type: ignore[arg-type]

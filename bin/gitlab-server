@@ -195,6 +195,7 @@ def main():
         fetch_repository=make_fetch_repository(base_url),
         fetch_provider=make_fetch_provider(base_url, access_token),
         record_count=lambda name, value, tags: None,
+        emit_error=lambda e: logger.exception(e),
     )
 
     server = RpcHTTPServer((args.host, args.port), RpcHandler, rpc)
