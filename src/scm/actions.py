@@ -54,10 +54,12 @@ from scm.types import (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryProtocol,
     GetTreeProtocol,
     GitBlob,
     GitCommitObject,
     GitRef,
+    GitRepository,
     GitTree,
     InputTreeEntry,
     MinimizeCommentProtocol,
@@ -81,6 +83,11 @@ from scm.types import (
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
 )
+
+
+def get_repository(scm: GetRepositoryProtocol) -> ActionResult[GitRepository]:
+    """Get the repository associated with this SourceCodeManager."""
+    return scm.get_repository()
 
 
 def get_issue_comments(
