@@ -7,7 +7,7 @@ from typing import Any, cast
 import msgspec
 import requests
 
-from scm.errors import SCMProviderException
+from scm.errors import SCMCodedError
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
     DynamicRateLimiter,
@@ -217,14 +217,19 @@ class GitHubProvider:
                     next_window_start=int(response.headers[GITHUB_RATE_LIMIT_RESET]),
                 )
 
-            if response.status_code >= 400:
-                if hasattr(response, "raise_for_status"):
-                    response.raise_for_status()
-                else:
-                    raise Exception(response.content)
+            if response.status_code == 403:
+                raise SCMCodedError(code="resource_forbidden")
+            elif response.status_code == 404:
+                raise SCMCodedError(code="resource_not_found")
+
+            try:
+                response.raise_for_status()
+            except Exception as e:
+                raise SCMCodedError(code="unhandled_exception") from e
+
             return response
         except Exception as e:
-            raise SCMProviderException(str(e)) from e
+            raise SCMCodedError(code="unhandled_exception") from e
 
     def get(
         self,
@@ -294,12 +299,11 @@ class GitHubProvider:
         response_data = response.json()
 
         if not isinstance(response_data, dict) or ("data" not in response_data and "errors" not in response_data):
-            raise SCMProviderException("GraphQL response is not in expected format")
+            raise SCMCodedError(code="unexpected_response_format", detail="GraphQL response is not in expected format")
 
         errors = response_data.get("errors", [])
         if errors and not response_data.get("data"):
-            err_message = "\n".join(e.get("message", "") for e in errors)
-            raise SCMProviderException(err_message)
+            raise SCMCodedError(code="resource_bad_request", detail="\n".join(e.get("message", "") for e in errors))
 
         return response_data.get("data", {})
 
@@ -888,7 +892,7 @@ class GitHubProvider:
             allow_redirects=False,
         )
         if response.status_code != 302 or "Location" not in response.headers:
-            raise SCMProviderException("Could not extract 'Location' header.")
+            raise SCMCodedError(code="unexpected_response_format", detail="Could not extract 'Location' header.")
 
         return {
             "data": ArchiveLink(url=response.headers["Location"], headers={}),

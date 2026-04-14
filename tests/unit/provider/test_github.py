@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from scm.errors import SCMProviderException
+from scm.errors import SCMCodedError
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     GitHubProvider,
@@ -478,7 +478,7 @@ ACTION_CASES: list[dict[str, Any]] = [
         "raw": REPOSITORY_RAW,
         "expected_data": expected_repository(REPOSITORY_RAW),
     },
-     {
+    {
         "name": "create_issue_comment",
         "operation": "post",
         "kwargs": {"issue_id": "42", "body": "hello"},
@@ -1090,8 +1090,9 @@ class TestGitHubProviderApiClientGraphql:
             return_value=FakeResponse([{"unexpected": "list"}])
         )
 
-        with pytest.raises(SCMProviderException, match="not in expected format"):
+        with pytest.raises(SCMCodedError) as exc_info:
             api_client.graphql("{ viewer { login } }", {})
+        assert exc_info.value.code == "unexpected_response_format"
 
     def test_raises_on_response_missing_data_and_errors(self) -> None:
         api_client = _make_api_client()
@@ -1099,8 +1100,9 @@ class TestGitHubProviderApiClientGraphql:
             return_value=FakeResponse({"something": "else"})
         )
 
-        with pytest.raises(SCMProviderException, match="not in expected format"):
+        with pytest.raises(SCMCodedError) as exc_info:
             api_client.graphql("{ viewer { login } }", {})
+        assert exc_info.value.code == "unexpected_response_format"
 
     def test_raises_on_errors_without_data(self) -> None:
         api_client = _make_api_client()
@@ -1108,8 +1110,10 @@ class TestGitHubProviderApiClientGraphql:
             return_value=FakeResponse({"errors": [{"message": "Field not found"}, {"message": "Unauthorized"}]})
         )
 
-        with pytest.raises(SCMProviderException, match="Field not found\nUnauthorized"):
+        with pytest.raises(SCMCodedError) as exc_info:
             api_client.graphql("{ viewer { login } }", {})
+        assert exc_info.value.code == "resource_bad_request"
+        assert exc_info.value.detail == "Field not found\nUnauthorized"
 
     def test_returns_data_on_partial_success_with_errors(self) -> None:
         api_client = _make_api_client()
