@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from scm.errors import SCMCodedError, SCMError, SCMUnhandledException
+from scm.errors import SCMCodedError, SCMError
 from scm.types import Provider, Referrer, Repository, RepositoryId
 
 
@@ -50,4 +50,4 @@ def exec_provider_fn[T](
     except Exception as e:
         record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})
         record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
-        raise SCMUnhandledException from e
+        raise SCMCodedError(code="unhandled_exception") from e

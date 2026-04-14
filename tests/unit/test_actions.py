@@ -53,19 +53,8 @@ from scm.actions import (
     update_check_run,
     update_pull_request,
 )
-from scm.errors import (
-    SCMCodedError,
-    SCMProviderException,
-    SCMUnhandledException,
-)
-from scm.types import (
-    GetBranchProtocol,
-    GetIssueReactionsProtocol,
-    PaginatedActionResult,
-    ReactionResult,
-    Referrer,
-    Repository,
-)
+from scm.errors import SCMCodedError
+from scm.types import GetBranchProtocol, Referrer, Repository
 from tests.test_fixtures import BaseTestProvider, SourceCodeManager
 
 
@@ -644,22 +633,6 @@ def test_action_success(method, kwargs: dict[str, Any], check):
     ]
 
 
-def test_provider_exception_is_not_wrapped() -> None:
-    """SCMProviderException should pass through exec_provider_fn, not be wrapped as SCMUnhandledException."""
-
-    class FailingProvider(BaseTestProvider):
-        def get_issue_reactions(
-            self, issue_id: str, pagination=None, request_options=None
-        ) -> PaginatedActionResult[ReactionResult]:
-            raise SCMProviderException("GitHub API error")
-
-    scm = SourceCodeManager(FailingProvider())
-
-    with pytest.raises(SCMProviderException):
-        assert isinstance(scm, GetIssueReactionsProtocol)
-        scm.get_issue_reactions(issue_id="1")
-
-
 class MinimalProvider:
     """A provider that implements Provider but no action protocols."""
 
@@ -695,7 +668,7 @@ def test_exec_raises_provider_not_supported_for_all_actions(
 
 
 def test_exec_wraps_unhandled_exception() -> None:
-    """Non-SCM exceptions raised by the provider are wrapped as SCMUnhandledException."""
+    """Non-SCM exceptions raised by the provider are wrapped as SCMCodedError."""
 
     class ExplodingProvider(BaseTestProvider):
         def get_branch(self, branch, request_options=None):
@@ -703,9 +676,10 @@ def test_exec_wraps_unhandled_exception() -> None:
 
     scm = SourceCodeManager(ExplodingProvider())
 
-    with pytest.raises(SCMUnhandledException):
+    with pytest.raises(SCMCodedError) as e:
         assert isinstance(scm, GetBranchProtocol)
         scm.get_branch(branch="main")
+        assert e.code == "unhandled_exception"
 
 
 def test_exec_records_failure_metric_on_unhandled_exception() -> None:
@@ -718,9 +692,10 @@ def test_exec_records_failure_metric_on_unhandled_exception() -> None:
 
     scm = SourceCodeManager(ExplodingProvider(), record_count=lambda k, a, t: metrics.append((k, a, t)))
 
-    with pytest.raises(SCMUnhandledException):
+    with pytest.raises(SCMCodedError) as e:
         assert isinstance(scm, GetBranchProtocol)
         scm.get_branch(branch="main")
+        assert e.code == "unhandled_exception"
 
     assert metrics == [
         ("sentry.scm.actions.failed_by_provider", 1, {"provider": ExplodingProvider.__name__}),

@@ -14,6 +14,11 @@ type ErrorCode = Literal[
     "rpc_malformed_request_body",
     "rpc_malformed_request_headers",
     "rpc_request_too_large",
+    "resource_bad_request",
+    "resource_forbidden",
+    "resource_not_found",
+    "unexpected_response_format",
+    "unhandled_exception",
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
@@ -30,6 +35,11 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "rpc_malformed_request_body": "The request body was invalid.",
     "rpc_malformed_request_headers": "The request headers were invalid.",
     "rpc_request_too_large": "The request body exceeded the maximum allowed size.",
+    "resource_bad_request": "A bad request error response was received.",
+    "resource_forbidden": "You are not authorized to access the requested resource.",
+    "resource_not_found": "The requested resource could not be found.",
+    "unexpected_response_format": "The response format was in an unexpected format.",
+    "unhandled_exception": "An unhandled exception occurred. This has been logged.",
 }
 
 
@@ -43,11 +53,3 @@ class SCMCodedError(SCMError):
         self.message = ERROR_CODES[code]
         self.detail = detail
         super().__init__(self.code, self.message, *args, **kwargs)
-
-
-class SCMUnhandledException(SCMError):
-    pass
-
-
-class SCMProviderException(SCMError):
-    pass

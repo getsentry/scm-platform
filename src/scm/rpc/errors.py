@@ -15,6 +15,11 @@ STATUS_MAP: dict[ErrorCode, int] = {
     "rpc_malformed_request_body": 400,
     "rpc_malformed_request_headers": 400,
     "rpc_request_too_large": 413,
+    "resource_bad_request": 400,
+    "resource_forbidden": 403,
+    "resource_not_found": 404,
+    "unexpected_response_format": 500,
+    "unhandled_exception": 500,
 }
 
 

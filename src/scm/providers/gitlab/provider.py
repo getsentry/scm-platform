@@ -1,11 +1,10 @@
 import datetime
-import functools
 from collections.abc import Callable, Iterable
 from typing import Any
 
 import requests
 
-from scm.errors import SCMCodedError, SCMProviderException
+from scm.errors import SCMCodedError
 from scm.types import (
     SHA,
     ActionResult,
@@ -126,17 +125,6 @@ PULL_REQUEST_STATE_UPDATE_MAP: dict[PullRequestState, str] = {
 }
 
 
-def catch_provider_exception(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        try:
-            return fn(*args, **kwargs)
-        except Exception as e:
-            raise SCMProviderException(str(e)) from e
-
-    return wrapper
-
-
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
         self.client = client
@@ -174,10 +162,19 @@ class GitLabProvider:
                 allow_redirects=allow_redirects,
                 stream=stream,
             )
-            response.raise_for_status()
+            if response.status_code == 403:
+                raise SCMCodedError(code="resource_forbidden")
+            elif response.status_code == 404:
+                raise SCMCodedError(code="resource_not_found")
+
+            try:
+                response.raise_for_status()
+            except Exception as e:
+                raise SCMCodedError(code="unhandled_exception") from e
+
             return response
         except Exception as e:
-            raise SCMProviderException(str(e)) from e
+            raise SCMCodedError(code="unhandled_exception") from e
 
     def get(
         self,
@@ -188,7 +185,7 @@ class GitLabProvider:
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
     ) -> requests.Response:
-        headers = {"Accept": "application/vnd.github+json"}
+        headers = {}
         headers.update(extra_headers or {})
 
         params = params or {}
