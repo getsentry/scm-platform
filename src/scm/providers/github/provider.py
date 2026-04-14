@@ -35,6 +35,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRepository,
     GitTree,
     InputTreeEntry,
     PaginatedActionResult,
@@ -301,6 +302,10 @@ class GitHubProvider:
             raise SCMProviderException(err_message)
 
         return response_data.get("data", {})
+
+    def get_repository(self) -> ActionResult[GitRepository]:
+        response = self.get(f"/repos/{self.repository['name']}")
+        return map_action(response, map_repository)
 
     def get_issue_comments(
         self,
@@ -1061,6 +1066,16 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         html_url=raw.get("html_url", ""),
         head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
         base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+    )
+
+
+def map_repository(raw: dict[str, Any]) -> GitRepository:
+    return GitRepository(
+        full_name=raw["full_name"],
+        default_branch=raw["default_branch"],
+        clone_url=raw["clone_url"],
+        private=raw["private"],
+        size=raw["size"],
     )
 
 

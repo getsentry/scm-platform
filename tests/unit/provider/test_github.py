@@ -26,6 +26,7 @@ from tests.test_fixtures import (
     make_github_pull_request_commit,
     make_github_pull_request_file,
     make_github_reaction,
+    make_github_repository,
     make_github_review,
     make_github_review_comment,
 )
@@ -182,6 +183,16 @@ def make_provider(client: RecordingClient | None = None) -> tuple[GitHubProvider
     return provider, transport
 
 
+def expected_repository(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "full_name": raw["full_name"],
+        "default_branch": raw["default_branch"],
+        "clone_url": raw["clone_url"],
+        "private": raw["private"],
+        "size": raw["size"],
+    }
+
+
 def expected_comment(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
@@ -331,6 +342,7 @@ def expected_check_run(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+REPOSITORY_RAW = make_github_repository()
 COMMENT_RAW = make_github_comment()
 REACTION_RAW = make_github_reaction()
 PULL_REQUEST_RAW = make_github_pull_request()
@@ -459,6 +471,14 @@ PAGINATED_CASES: list[dict[str, Any]] = [
 
 ACTION_CASES: list[dict[str, Any]] = [
     {
+        "name": "get_repository",
+        "operation": "get",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo",
+        "raw": REPOSITORY_RAW,
+        "expected_data": expected_repository(REPOSITORY_RAW),
+    },
+     {
         "name": "create_issue_comment",
         "operation": "post",
         "kwargs": {"issue_id": "42", "body": "hello"},

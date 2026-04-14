@@ -20,6 +20,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRepository,
     GitTree,
     PaginatedActionResult,
     PaginatedResponseMeta,
@@ -221,6 +222,10 @@ class GitLabProvider:
 
     def delete(self, path: str) -> requests.Response:
         return self._request("DELETE", path=path)
+
+    def get_repository(self) -> ActionResult[GitRepository]:
+        response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
+        return make_result(map_repository, response.json())
 
     def get_issue_comments(
         self,
@@ -871,6 +876,19 @@ def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
         changes=0,
         patch=raw.get("diff"),
         sha="",
+    )
+
+
+def map_repository(raw: dict[str, Any]) -> GitRepository:
+    statistics = raw.get("statistics")
+    repo_size = statistics.get("repository_size", 0) if statistics else 0
+    return GitRepository(
+        full_name=raw["path_with_namespace"],
+        default_branch=raw["default_branch"],
+        clone_url=raw["http_url_to_repo"],
+        private=raw["visibility"] != "public",
+        # GitLab returns size in bytes. We convert to kB to match GitHub
+        size=repo_size // 1000,
     )
 
 
