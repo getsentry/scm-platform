@@ -679,7 +679,7 @@ def test_exec_wraps_unhandled_exception() -> None:
     with pytest.raises(SCMCodedError) as e:
         assert isinstance(scm, GetBranchProtocol)
         scm.get_branch(branch="main")
-        assert e.value.code == "unhandled_exception"
+    assert e.value.code == "unhandled_exception"
 
 
 def test_exec_records_failure_metric_on_unhandled_exception() -> None:
@@ -695,7 +695,7 @@ def test_exec_records_failure_metric_on_unhandled_exception() -> None:
     with pytest.raises(SCMCodedError) as e:
         assert isinstance(scm, GetBranchProtocol)
         scm.get_branch(branch="main")
-        assert e.value.code == "unhandled_exception"
+    assert e.value.code == "unhandled_exception"
 
     assert metrics == [
         ("sentry.scm.actions.failed_by_provider", 1, {"provider": ExplodingProvider.__name__}),
