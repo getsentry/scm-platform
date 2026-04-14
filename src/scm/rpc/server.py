@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, MutableMapping
 
 import msgspec
 import requests
@@ -98,7 +98,7 @@ class RpcServer:
         )
         return StreamResponse(
             status_code=response.status_code,
-            headers=dict(response.headers),
+            headers=normalize_headers(response.headers),
             content=iter_response(response),
         )
 
@@ -130,6 +130,30 @@ class RpcServer:
 
 def iter_response(response: requests.Response) -> Iterator[bytes]:
     with response as r:
-        for chunk in r.iter_content(chunk_size=4096):
-            if chunk:
-                yield chunk
+        yield from filter(bool, r.iter_content(chunk_size=64 * 1024))
+
+
+# Transport-level headers that describe upstream wire framing, not the payload
+# itself. iter_response() decodes the body so these no longer apply.
+_HOP_BY_HOP = frozenset(
+    {
+        "authorization",
+        "connection",
+        "content-encoding",
+        "content-length",
+        "host",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "set-cookie",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+    }
+)
+
+
+def normalize_headers(headers: MutableMapping[str, str]) -> dict[str, str]:
+    """Remove wire-framing headers and other private headers we do not want to leak."""
+    return {k: v for k, v in headers.items() if k.lower() not in _HOP_BY_HOP}
