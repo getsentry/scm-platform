@@ -21,9 +21,7 @@ class RateLimitProvider(Protocol):
     simulation.
     """
 
-    def get_and_set_rate_limit(
-        self, total_key: str, usage_key: str, expiration: int
-    ) -> tuple[int | None, int]:
+    def get_and_set_rate_limit(self, total_key: str, usage_key: str, expiration: int) -> tuple[int | None, int]:
         """
         Get the request limit and incr/expire quota usage for the key.
 
@@ -98,9 +96,7 @@ class DynamicRateLimiter:
         # Computed as the window minus the number seconds elapsed within the window. So if our window
         # is 100 seconds and 10 seconds of the current window has already elapsed then the remaining
         # time is 90 seconds.
-        expires_in = self.rate_limit_window_seconds - int(
-            current_time % self.rate_limit_window_seconds
-        )
+        expires_in = self.rate_limit_window_seconds - int(current_time % self.rate_limit_window_seconds)
 
         # Get the total capacity of the service-provider and the amount of quota we've consumed for
         # a given referrer. If the referrer does not exist in the allocation pool
@@ -122,9 +118,7 @@ class DynamicRateLimiter:
         # If the referrer exists in the allocation pool then we compute its capacity otherwise we
         # need to compute the total unallocated "shared" capacity.
         if referrer == "shared":
-            referrer_capacity = int(
-                service_capacity * (1.0 - sum(self.referrer_allocation.values()))
-            )
+            referrer_capacity = int(service_capacity * (1.0 - sum(self.referrer_allocation.values())))
         else:
             referrer_capacity = int(service_capacity * self.referrer_allocation[referrer])
 
@@ -163,16 +157,12 @@ class DynamicRateLimiter:
         # If we share the same window as the service-provider we can update our rate-limits to match
         # what the service-provider recorded. It doesn't matter if we're perfect.
         if time_bucket == specified_bucket:
-            key_fn = functools.partial(
-                usage_count_key, self.provider, self.organization_id, time_bucket
-            )
+            key_fn = functools.partial(usage_count_key, self.provider, self.organization_id, time_bucket)
 
             # Computed as the window minus the number seconds elapsed within the window. So if our window
             # is 100 seconds and 10 seconds of the current window has already elapsed then the remaining
             # time is 90 seconds.
-            expiration = self.rate_limit_window_seconds - int(
-                current_time % self.rate_limit_window_seconds
-            )
+            expiration = self.rate_limit_window_seconds - int(current_time % self.rate_limit_window_seconds)
 
             # The shared usage is the delta of the accounted usage and the reported usage. This
             # value is expected to be strictly higher than our accounted shared usage because a

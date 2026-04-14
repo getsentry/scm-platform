@@ -1130,9 +1130,7 @@ def test_public_methods_are_accounted_for() -> None:
     # implicitly by every action test that routes through them.
     transport_methods = {"get", "post", "patch", "delete", "graphql"}
     public_methods = {
-        name
-        for name, value in GitHubProvider.__dict__.items()
-        if callable(value) and not name.startswith("_")
+        name for name, value in GitHubProvider.__dict__.items() if callable(value) and not name.startswith("_")
     } - transport_methods
 
     assert public_methods == covered_methods
