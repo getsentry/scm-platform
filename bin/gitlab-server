@@ -1,19 +1,18 @@
 #!/usr/bin/env python
 """
-Standalone RPC server that proxies requests to the real GitHub API
-using GitHub App installation authentication.
+Standalone RPC server that proxies requests to a GitLab API instance
+using personal/group/project access token authentication.
 
 Usage:
-    bin/github-server                          # reads from .credentials
-    bin/github-server --app-id 12345 ...       # CLI overrides
+    bin/gitlab-server                          # reads from .credentials
+    bin/gitlab-server --access-token glpat-... # CLI overrides
 
 Credentials are loaded from .credentials (KEY=VALUE, one per line) then
 overridden by env vars, then by CLI args.
 
 Configuration:
-    --app-id / GITHUB_APP_ID                 GitHub App ID (required)
-    --private-key / GITHUB_PRIVATE_KEY_PATH  Path to .pem file (required)
-    --installation-id / GITHUB_INSTALLATION_ID  Installation ID (required)
+    --access-token / GITLAB_ACCESS_TOKEN     GitLab access token (required)
+    --base-url / GITLAB_BASE_URL             GitLab instance URL (default: https://gitlab.com)
     --secret / SCM_RPC_SIGNING_SECRET        HMAC signing secret (default: "secret")
     --host                                   Bind address (default: 127.0.0.1)
     --port                                   Listen port (default: 8080)
@@ -25,70 +24,25 @@ import logging
 import os
 import pathlib
 import sys
-import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
+from urllib.parse import urlparse
 
-import jwt
 import requests
 
-from scm.providers.github.provider import GitHubProvider
-from scm.rpc.client import NoOpRateLimitProvider
+from scm.providers.gitlab.provider import API_VERSION, GitLabProvider
 from scm.rpc.server import RpcServer
 from scm.types import Provider, Repository, RepositoryId
 
 logger = logging.getLogger(__name__)
 
-GITHUB_API_BASE = "https://api.github.com"
 
+class GitLabApiClient:
+    """API client that makes authenticated HTTP requests to the GitLab API."""
 
-class InstallationTokenManager:
-    """Manages GitHub App installation access tokens with automatic refresh."""
-
-    def __init__(self, app_id: str, private_key: str, installation_id: str) -> None:
-        self.app_id = app_id
-        self.private_key = private_key
-        self.installation_id = installation_id
-        self._token: str | None = None
-        self._expires_at: float = 0
-
-    def _make_jwt(self) -> str:
-        now = int(time.time())
-        payload = {
-            "iat": now - 60,
-            "exp": now + (10 * 60),
-            "iss": self.app_id,
-        }
-        return jwt.encode(payload, self.private_key, algorithm="RS256")
-
-    def _refresh(self) -> None:
-        token = self._make_jwt()
-        response = requests.post(
-            f"{GITHUB_API_BASE}/app/installations/{self.installation_id}/access_tokens",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
-        self._token = data["token"]
-        # Refresh 5 minutes before actual expiry to avoid races.
-        self._expires_at = time.time() + 3300
-
-    @property
-    def token(self) -> str:
-        if self._token is None or time.time() >= self._expires_at:
-            self._refresh()
-        assert self._token is not None
-        return self._token
-
-
-class GitHubApiClient:
-    """API client that makes authenticated HTTP requests to the GitHub API."""
-
-    def __init__(self, token_manager: InstallationTokenManager) -> None:
-        self.token_manager = token_manager
+    def __init__(self, base_url: str, access_token: str) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.access_token = access_token
 
     def _request(
         self,
@@ -101,8 +55,8 @@ class GitHubApiClient:
         stream: bool | None = None,
         raw_response: bool = True,
     ) -> requests.Response:
-        url = f"{GITHUB_API_BASE}{path}"
-        req_headers = {"Authorization": f"Bearer {self.token_manager.token}"}
+        url = f"{self.base_url}{API_VERSION}{path}"
+        req_headers = {"Authorization": f"Bearer {self.access_token}"}
         if headers:
             req_headers.update(headers)
 
@@ -119,29 +73,33 @@ class GitHubApiClient:
         return requests.request(method, url, **kwargs)
 
 
-def fetch_repository(organization_id: int, repository_id: RepositoryId) -> Repository | None:
-    if isinstance(repository_id, (list, tuple)):
-        provider_name, external_id = repository_id
-        return {
-            "id": 1,
-            "external_id": external_id,
-            "integration_id": 1,
-            "is_active": True,
-            "name": external_id,
-            "organization_id": organization_id,
-            "provider_name": provider_name,
-        }
-    return None
+def make_fetch_repository(base_url: str):
+    netloc = urlparse(base_url).netloc
+
+    def fetch_repository(organization_id: int, repository_id: RepositoryId) -> Repository | None:
+        if isinstance(repository_id, (list, tuple)):
+            provider_name, external_id = repository_id
+            return {
+                "id": 1,
+                "external_id": f"{netloc}:{external_id}",
+                "integration_id": 1,
+                "is_active": True,
+                "name": external_id,
+                "organization_id": organization_id,
+                "provider_name": provider_name,
+            }
+        return None
+
+    return fetch_repository
 
 
-def make_fetch_provider(token_manager: InstallationTokenManager):
+def make_fetch_provider(base_url: str, access_token: str):
     def fetch_provider(organization_id: int, repository: Repository) -> Provider | None:
-        client = GitHubApiClient(token_manager)
-        return GitHubProvider(
+        client = GitLabApiClient(base_url, access_token)
+        return GitLabProvider(
             client=client,
             organization_id=organization_id,
             repository=repository,
-            rate_limit_provider=NoOpRateLimitProvider(),
         )
 
     return fetch_provider
@@ -214,10 +172,9 @@ def resolve(key: str, cli_value: str | None, creds: dict[str, str]) -> str | Non
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GitHub RPC Server (App Installation Auth)")
-    parser.add_argument("--app-id", default=None)
-    parser.add_argument("--private-key", default=None)
-    parser.add_argument("--installation-id", default=None)
+    parser = argparse.ArgumentParser(description="GitLab RPC Server (Access Token Auth)")
+    parser.add_argument("--access-token", default=None)
+    parser.add_argument("--base-url", default=None)
     parser.add_argument("--secret", default=None)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
@@ -225,40 +182,27 @@ def main():
 
     creds = load_credentials()
 
-    app_id = resolve("GITHUB_APP_ID", args.app_id, creds)
-    private_key_path = resolve("GITHUB_PRIVATE_KEY_PATH", args.private_key, creds)
-    installation_id = resolve("GITHUB_INSTALLATION_ID", args.installation_id, creds)
+    access_token = resolve("GITLAB_ACCESS_TOKEN", args.access_token, creds)
+    base_url = resolve("GITLAB_BASE_URL", args.base_url, creds) or "https://gitlab.com"
     secret = resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret"
 
-    missing = []
-    if not app_id:
-        missing.append("GITHUB_APP_ID")
-    if not private_key_path:
-        missing.append("GITHUB_PRIVATE_KEY_PATH")
-    if not installation_id:
-        missing.append("GITHUB_INSTALLATION_ID")
-    if missing:
-        logger.error(f"Error: missing required config: {', '.join(missing)}")
+    if not access_token:
+        logger.error("Error: missing required config: GITLAB_ACCESS_TOKEN")
         sys.exit(1)
-
-    with open(private_key_path) as f:
-        private_key = f.read()
-
-    token_manager = InstallationTokenManager(app_id, private_key, installation_id)
 
     rpc = RpcServer(
         secrets=[secret],
-        fetch_repository=fetch_repository,
-        fetch_provider=make_fetch_provider(token_manager),
+        fetch_repository=make_fetch_repository(base_url),
+        fetch_provider=make_fetch_provider(base_url, access_token),
         record_count=lambda name, value, tags: None,
     )
 
     server = RpcHTTPServer((args.host, args.port), RpcHandler, rpc)
-    logger.info(f"Listening on {args.host}:{args.port}")
+    logger.debug(f"Listening on {args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        logger.info("\nShutting down.")
+        logger.debug("\nShutting down.")
         server.server_close()
 
 
