@@ -53,11 +53,3 @@ class SCMCodedError(SCMError):
         self.message = ERROR_CODES[code]
         self.detail = detail
         super().__init__(self.code, self.message, *args, **kwargs)
-
-
-class SCMUnhandledException(SCMError):
-    pass
-
-
-class SCMProviderException(SCMError):
-    pass

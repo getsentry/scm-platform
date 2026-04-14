@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock
 
-from scm.errors import SCMCodedError, SCMError, SCMUnhandledException
 from scm.facade import Facade
+from scm.helpers import exec_provider_fn
 from scm.types import (
     ActionResult,
     BuildConclusion,
@@ -1599,28 +1599,3 @@ class SourceCodeManager(Facade):
             )
 
         return method
-
-
-def exec_provider_fn[P: Provider, T](
-    provider: P,
-    *,
-    referrer: Referrer = "shared",
-    provider_fn: Callable[[], T],
-    record_count: Callable[[str, int, dict[str, str]], None],
-) -> T:
-    if provider.is_rate_limited(referrer):
-        raise SCMCodedError(provider, referrer, code="rate_limit_exceeded")
-
-    provider_name = provider.__class__.__name__
-
-    try:
-        result = provider_fn()
-        record_count("sentry.scm.actions.success_by_provider", 1, {"provider": provider_name})
-        record_count("sentry.scm.actions.success_by_referrer", 1, {"referrer": referrer})
-        return result
-    except SCMError:
-        raise
-    except Exception as e:
-        record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})
-        record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
-        raise SCMUnhandledException from e
