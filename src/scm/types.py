@@ -264,6 +264,16 @@ class Repository(TypedDict):
     provider_name: ProviderName
 
 
+class GitRepository(TypedDict):
+    """Information about a git repository at an SCM provider."""
+
+    full_name: str
+    default_branch: str | None
+    clone_url: str
+    private: bool
+    size: int
+
+
 class GitRef(TypedDict):
     """A git reference (branch pointer)."""
 
@@ -458,6 +468,14 @@ class PullRequestEventData(TypedDict):
     base: PullRequestBranch
     is_private_repo: bool
     author: Author | None
+
+
+# Basic protocols
+
+
+@runtime_checkable
+class GetRepositoryProtocol(Protocol):
+    def get_repository(self) -> ActionResult[GitRepository]: ...
 
 
 # Issue Comment Protocols
@@ -986,6 +1004,7 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryProtocol,
     GetTreeProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,

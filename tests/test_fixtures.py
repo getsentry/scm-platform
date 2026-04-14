@@ -44,6 +44,17 @@ from scm.types import (
 )
 
 
+def make_github_repository() -> dict[str, Any]:
+    """Factory for GitHub repository API responses."""
+    return {
+        "full_name": "test-org/test-repo",
+        "default_branch": "main",
+        "clone_url": "https://github.com/test-org/test-repo.git",
+        "private": False,
+        "size": 1234,
+    }
+
+
 def make_github_comment(
     comment_id: int = 1,
     body: str = "Test comment",

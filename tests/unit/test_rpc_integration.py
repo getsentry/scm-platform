@@ -30,6 +30,7 @@ from tests.test_fixtures import (
     make_github_pull_request_commit,
     make_github_pull_request_file,
     make_github_reaction,
+    make_github_repository,
     make_github_review,
     make_github_review_comment,
 )
@@ -128,6 +129,13 @@ def make_client_scm(organization_id, repository_id, server):
 # Each entry: (action_name, action_callable, mock_response_body, status_code, extra_headers)
 # action_callable receives the scm instance and calls the action with appropriate args.
 ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, str] | None]] = [
+    (
+        "get_repository",
+        lambda scm: actions.get_repository(scm),
+        make_github_repository(),
+        200,
+        None,
+    ),
     # Pull request operations
     (
         "get_pull_request",
