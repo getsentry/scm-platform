@@ -194,42 +194,36 @@ class GitHubProvider:
         stream: bool | None = None,
         raw_response: bool = True,
     ) -> requests.Response:
-        try:
-            response = self.client._request(
-                method=method,
-                path=path,
-                headers=headers,
-                data=data,
-                params=params,
-                raw_response=raw_response,
-                allow_redirects=allow_redirects,
-                stream=stream,
+        response = self.client._request(
+            method=method,
+            path=path,
+            headers=headers,
+            data=data,
+            params=params,
+            raw_response=raw_response,
+            allow_redirects=allow_redirects,
+            stream=stream,
+        )
+
+        if (
+            GITHUB_RATE_LIMIT_CAPACITY in response.headers
+            and GITHUB_RATE_LIMIT_USED in response.headers
+            and GITHUB_RATE_LIMIT_RESET in response.headers
+        ):
+            self.rate_limiter.update_rate_limit_meta(
+                capacity=int(response.headers[GITHUB_RATE_LIMIT_CAPACITY]),
+                consumed=int(response.headers[GITHUB_RATE_LIMIT_USED]),
+                next_window_start=int(response.headers[GITHUB_RATE_LIMIT_RESET]),
             )
 
-            if (
-                GITHUB_RATE_LIMIT_CAPACITY in response.headers
-                and GITHUB_RATE_LIMIT_USED in response.headers
-                and GITHUB_RATE_LIMIT_RESET in response.headers
-            ):
-                self.rate_limiter.update_rate_limit_meta(
-                    capacity=int(response.headers[GITHUB_RATE_LIMIT_CAPACITY]),
-                    consumed=int(response.headers[GITHUB_RATE_LIMIT_USED]),
-                    next_window_start=int(response.headers[GITHUB_RATE_LIMIT_RESET]),
-                )
+        if response.status_code == 403:
+            raise SCMCodedError(code="resource_forbidden")
+        elif response.status_code == 404:
+            raise SCMCodedError(code="resource_not_found")
+        elif response.status_code >= 400:
+            raise SCMCodedError(code="unhandled_exception")
 
-            if response.status_code == 403:
-                raise SCMCodedError(code="resource_forbidden")
-            elif response.status_code == 404:
-                raise SCMCodedError(code="resource_not_found")
-
-            try:
-                response.raise_for_status()
-            except Exception as e:
-                raise SCMCodedError(code="unhandled_exception") from e
-
-            return response
-        except Exception as e:
-            raise SCMCodedError(code="unhandled_exception") from e
+        return response
 
     def get(
         self,

@@ -49,7 +49,7 @@ class ForwardToClientTest(NamedTuple):
 def _make_mock_response(json_data):
     response = unittest.mock.MagicMock()
     response.json.return_value = json_data
-    response.raise_for_status.return_value = None
+    response.status_code = 200
     return response
 
 

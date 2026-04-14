@@ -23,11 +23,13 @@ class RpcServer:
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         fetch_provider: Callable[[int, Repository], Provider | None],
         record_count: Callable[[str, int, dict[str, str]], None],
+        emit_error: Callable[[Exception], None],
     ) -> None:
         self.secrets = secrets
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.record_count = record_count
+        self.emit_error = emit_error
 
     def get(self, headers: dict[str, str]):
         try:
@@ -51,6 +53,9 @@ class RpcServer:
                 content=serialize_repository(scm.provider.repository),
             )
         except SCMCodedError as e:
+            if e.code == "unhandled_exception":
+                self.emit_error(e)
+
             status, error_data = serialize_error(e)
             return Response(status_code=status, headers={"Content-Type": "application/json"}, content=error_data)
 
@@ -58,6 +63,9 @@ class RpcServer:
         try:
             return self._post(data, headers)
         except SCMCodedError as e:
+            if e.code == "unhandled_exception":
+                self.emit_error(e)
+
             status, error_data = serialize_error(e)
             return StreamResponse(
                 status_code=status,

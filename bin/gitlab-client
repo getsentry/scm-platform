@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 """
-RPC client that talks to a github-server instance.
+RPC client that talks to a gitlab-server instance.
 
 Usage:
-    bin/github-client --repo owner/repo <command> [args...]
+    bin/gitlab-client --repo <project_id> <command> [args...]
 
 Configuration (CLI args override env vars):
     --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8080)
     --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
     --org-id                            Organization ID (default: 1)
-    --repo                              GitHub repository as owner/repo (required)
+    --repo                              GitLab project ID (numeric) (required)
 
 Commands:
     get-pull-request <id>
@@ -43,7 +43,6 @@ from scm.types import (
     GetIssueCommentsProtocol,
     GetPullRequestCommentsProtocol,
     GetPullRequestCommitsProtocol,
-    GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
@@ -57,11 +56,11 @@ def dump(obj):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GitHub RPC Client")
+    parser = argparse.ArgumentParser(description="GitLab RPC Client")
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--secret", default=None)
     parser.add_argument("--org-id", type=int, default=1)
-    parser.add_argument("--repo", required=True, help="owner/repo")
+    parser.add_argument("--repo", required=True, help="GitLab project ID (numeric)")
 
     sub = parser.add_subparsers(dest="command")
 
@@ -120,7 +119,7 @@ def main():
 
     scm = SourceCodeManager.make_from_repository_id(
         args.org_id,
-        ("github", args.repo),
+        ("gitlab", args.repo),
         **kwargs,
     )
 
@@ -139,10 +138,6 @@ def main():
     elif args.command == "get-pull-request-commits":
         assert isinstance(scm, GetPullRequestCommitsProtocol)
         dump(scm.get_pull_request_commits(args.id))
-
-    elif args.command == "get-pull-request-diff":
-        assert isinstance(scm, GetPullRequestDiffProtocol)
-        dump(scm.get_pull_request_diff(args.id))
 
     elif args.command == "get-issue-comments":
         assert isinstance(scm, GetIssueCommentsProtocol)

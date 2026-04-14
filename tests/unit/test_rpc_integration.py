@@ -77,6 +77,7 @@ def make_rpc_server(repository: Repository, server_provider: MagicMock) -> RpcSe
         fetch_repository=lambda org_id, repo_id: repository,
         fetch_provider=lambda org_id, repo: server_provider,
         record_count=lambda name, value, tags: None,
+        emit_error=lambda e: None,
     )
 
 
