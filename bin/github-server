@@ -251,6 +251,7 @@ def main():
         fetch_repository=fetch_repository,
         fetch_provider=make_fetch_provider(token_manager),
         record_count=lambda name, value, tags: None,
+        emit_error=lambda e: None,
     )
 
     server = RpcHTTPServer((args.host, args.port), RpcHandler, rpc)
