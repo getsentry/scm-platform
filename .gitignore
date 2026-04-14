@@ -6,6 +6,10 @@ dist/
 wheels/
 *.egg-info
 .coverage*
+*.pem
 
 # Virtual environments
 .venv
+
+# Credentials
+.credentials

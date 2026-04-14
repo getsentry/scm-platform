@@ -1,0 +1,263 @@
+#!/usr/bin/env python
+"""
+Standalone RPC server that proxies requests to the real GitHub API
+using GitHub App installation authentication.
+
+Usage:
+    bin/github-server                          # reads from .credentials
+    bin/github-server --app-id 12345 ...       # CLI overrides
+
+Credentials are loaded from .credentials (KEY=VALUE, one per line) then
+overridden by env vars, then by CLI args.
+
+Configuration:
+    --app-id / GITHUB_APP_ID                 GitHub App ID (required)
+    --private-key / GITHUB_PRIVATE_KEY_PATH  Path to .pem file (required)
+    --installation-id / GITHUB_INSTALLATION_ID  Installation ID (required)
+    --secret / SCM_RPC_SIGNING_SECRET        HMAC signing secret (default: "secret")
+    --host                                   Bind address (default: 127.0.0.1)
+    --port                                   Listen port (default: 8080)
+"""
+
+import argparse
+import json
+import os
+import pathlib
+import sys
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
+
+import jwt
+import requests
+
+from scm.providers.github.provider import GitHubProvider
+from scm.rpc.client import NoOpRateLimitProvider
+from scm.rpc.server import RpcServer
+from scm.types import Provider, Repository, RepositoryId
+
+GITHUB_API_BASE = "https://api.github.com"
+
+
+class InstallationTokenManager:
+    """Manages GitHub App installation access tokens with automatic refresh."""
+
+    def __init__(self, app_id: str, private_key: str, installation_id: str) -> None:
+        self.app_id = app_id
+        self.private_key = private_key
+        self.installation_id = installation_id
+        self._token: str | None = None
+        self._expires_at: float = 0
+
+    def _make_jwt(self) -> str:
+        now = int(time.time())
+        payload = {
+            "iat": now - 60,
+            "exp": now + (10 * 60),
+            "iss": self.app_id,
+        }
+        return jwt.encode(payload, self.private_key, algorithm="RS256")
+
+    def _refresh(self) -> None:
+        token = self._make_jwt()
+        response = requests.post(
+            f"{GITHUB_API_BASE}/app/installations/{self.installation_id}/access_tokens",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        self._token = data["token"]
+        # Refresh 5 minutes before actual expiry to avoid races.
+        self._expires_at = time.time() + 3300
+
+    @property
+    def token(self) -> str:
+        if self._token is None or time.time() >= self._expires_at:
+            self._refresh()
+        assert self._token is not None
+        return self._token
+
+
+class GitHubApiClient:
+    """API client that makes authenticated HTTP requests to the GitHub API."""
+
+    def __init__(self, token_manager: InstallationTokenManager) -> None:
+        self.token_manager = token_manager
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool | None = None,
+        raw_response: bool = True,
+    ) -> requests.Response:
+        url = f"{GITHUB_API_BASE}{path}"
+        req_headers = {"Authorization": f"Bearer {self.token_manager.token}"}
+        if headers:
+            req_headers.update(headers)
+
+        kwargs: dict[str, Any] = {"headers": req_headers}
+        if data is not None:
+            kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
+        if allow_redirects is not None:
+            kwargs["allow_redirects"] = allow_redirects
+        if stream is not None:
+            kwargs["stream"] = stream
+
+        return requests.request(method, url, **kwargs)
+
+
+def fetch_repository(organization_id: int, repository_id: RepositoryId) -> Repository | None:
+    if isinstance(repository_id, (list, tuple)):
+        provider_name, external_id = repository_id
+        return {
+            "id": 1,
+            "external_id": external_id,
+            "integration_id": 1,
+            "is_active": True,
+            "name": external_id,
+            "organization_id": organization_id,
+            "provider_name": provider_name,
+        }
+    return None
+
+
+def make_fetch_provider(token_manager: InstallationTokenManager):
+    def fetch_provider(organization_id: int, repository: Repository) -> Provider | None:
+        client = GitHubApiClient(token_manager)
+        return GitHubProvider(
+            client=client,
+            organization_id=organization_id,
+            repository=repository,
+            rate_limit_provider=NoOpRateLimitProvider(),
+        )
+
+    return fetch_provider
+
+
+class RpcHandler(BaseHTTPRequestHandler):
+    server: "RpcHTTPServer"
+
+    def do_GET(self):
+        headers = dict(self.headers.items())
+        response = self.server.rpc.get(headers)
+        self.send_response(response.status_code)
+        for k, v in response.headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(response.content)
+
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        data = self.rfile.read(content_length)
+        headers = dict(self.headers.items())
+
+        try:
+            response = self.server.rpc.post(data, headers)
+        except Exception as exc:
+            body = json.dumps({"errors": [{"detail": str(exc)}]}).encode()
+            self.send_response(502)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self.send_response(response.status_code)
+        for k, v in response.headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        for chunk in response.content:
+            self.wfile.write(chunk)
+
+    def log_message(self, format, *args):
+        sys.stderr.write(f"[{self.log_date_time_string()}] {format % args}\n")
+
+
+class RpcHTTPServer(HTTPServer):
+    def __init__(self, server_address, handler_class, rpc: RpcServer) -> None:
+        self.rpc = rpc
+        super().__init__(server_address, handler_class)
+
+
+def load_credentials() -> dict[str, str]:
+    """Load KEY=VALUE pairs from .credentials, skipping blanks and comments."""
+    creds: dict[str, str] = {}
+    path = pathlib.Path(__file__).resolve().parent.parent / ".credentials"
+    if not path.exists():
+        return creds
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if value:
+            creds[key.strip()] = value
+    return creds
+
+
+def resolve(key: str, cli_value: str | None, creds: dict[str, str]) -> str | None:
+    """CLI arg wins, then env var, then .credentials file."""
+    return cli_value or os.environ.get(key) or creds.get(key)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="GitHub RPC Server (App Installation Auth)")
+    parser.add_argument("--app-id", default=None)
+    parser.add_argument("--private-key", default=None)
+    parser.add_argument("--installation-id", default=None)
+    parser.add_argument("--secret", default=None)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+
+    creds = load_credentials()
+
+    app_id = resolve("GITHUB_APP_ID", args.app_id, creds)
+    private_key_path = resolve("GITHUB_PRIVATE_KEY_PATH", args.private_key, creds)
+    installation_id = resolve("GITHUB_INSTALLATION_ID", args.installation_id, creds)
+    secret = resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret"
+
+    missing = []
+    if not app_id:
+        missing.append("GITHUB_APP_ID")
+    if not private_key_path:
+        missing.append("GITHUB_PRIVATE_KEY_PATH")
+    if not installation_id:
+        missing.append("GITHUB_INSTALLATION_ID")
+    if missing:
+        print(f"Error: missing required config: {', '.join(missing)}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(private_key_path) as f:
+        private_key = f.read()
+
+    token_manager = InstallationTokenManager(app_id, private_key, installation_id)
+
+    rpc = RpcServer(
+        secrets=[secret],
+        fetch_repository=fetch_repository,
+        fetch_provider=make_fetch_provider(token_manager),
+        record_count=lambda name, value, tags: None,
+    )
+
+    server = RpcHTTPServer((args.host, args.port), RpcHandler, rpc)
+    print(f"Listening on {args.host}:{args.port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down.")
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

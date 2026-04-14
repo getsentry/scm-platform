@@ -1,0 +1,178 @@
+#!/usr/bin/env python
+"""
+RPC client that talks to a github-server instance.
+
+Usage:
+    bin/github-client --repo owner/repo <command> [args...]
+
+Configuration (CLI args override env vars):
+    --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8080)
+    --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
+    --org-id                            Organization ID (default: 1)
+    --repo                              GitHub repository as owner/repo (required)
+
+Commands:
+    get-pull-request <id>
+    get-pull-requests [--state open|closed]
+    get-pull-request-files <id>
+    get-pull-request-commits <id>
+    get-pull-request-diff <id>
+    get-issue-comments <issue_id>
+    get-pull-request-comments <pr_id>
+    create-issue-comment <issue_id> <body>
+    create-pull-request-comment <pr_id> <body>
+    get-branch <name>
+    get-commit <sha>
+    get-file-content <path> [--ref <ref>]
+    compare-commits <start_sha> <end_sha>
+"""
+
+import argparse
+import json
+import sys
+
+from scm.rpc.client import SourceCodeManager
+from scm.types import (
+    CompareCommitsProtocol,
+    CreateIssueCommentProtocol,
+    CreatePullRequestCommentProtocol,
+    GetBranchProtocol,
+    GetCommitProtocol,
+    GetFileContentProtocol,
+    GetIssueCommentsProtocol,
+    GetPullRequestCommentsProtocol,
+    GetPullRequestCommitsProtocol,
+    GetPullRequestDiffProtocol,
+    GetPullRequestFilesProtocol,
+    GetPullRequestProtocol,
+    GetPullRequestsProtocol,
+)
+
+
+def dump(obj):
+    print(json.dumps(obj, indent=2, default=str))
+
+
+def main():
+    parser = argparse.ArgumentParser(description="GitHub RPC Client")
+    parser.add_argument("--base-url", default=None)
+    parser.add_argument("--secret", default=None)
+    parser.add_argument("--org-id", type=int, default=1)
+    parser.add_argument("--repo", required=True, help="owner/repo")
+
+    sub = parser.add_subparsers(dest="command")
+
+    p = sub.add_parser("get-pull-request")
+    p.add_argument("id")
+
+    p = sub.add_parser("get-pull-requests")
+    p.add_argument("--state", default="open", choices=["open", "closed"])
+
+    p = sub.add_parser("get-pull-request-files")
+    p.add_argument("id")
+
+    p = sub.add_parser("get-pull-request-commits")
+    p.add_argument("id")
+
+    p = sub.add_parser("get-pull-request-diff")
+    p.add_argument("id")
+
+    p = sub.add_parser("get-issue-comments")
+    p.add_argument("issue_id")
+
+    p = sub.add_parser("get-pull-request-comments")
+    p.add_argument("pr_id")
+
+    p = sub.add_parser("create-issue-comment")
+    p.add_argument("issue_id")
+    p.add_argument("body")
+
+    p = sub.add_parser("create-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("body")
+
+    p = sub.add_parser("get-branch")
+    p.add_argument("name")
+
+    p = sub.add_parser("get-commit")
+    p.add_argument("sha")
+
+    p = sub.add_parser("get-file-content")
+    p.add_argument("path")
+    p.add_argument("--ref", default=None)
+
+    p = sub.add_parser("compare-commits")
+    p.add_argument("start_sha")
+    p.add_argument("end_sha")
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    kwargs = {
+        "base_url": args.base_url if args.base_url else "http://127.0.0.1:8080",
+        "signing_secret": args.secret if args.secret else "secret",
+    }
+
+    scm = SourceCodeManager.make_from_repository_id(
+        args.org_id,
+        ("github", args.repo),
+        **kwargs,
+    )
+
+    if args.command == "get-pull-request":
+        assert isinstance(scm, GetPullRequestProtocol)
+        dump(scm.get_pull_request(args.id))
+
+    elif args.command == "get-pull-requests":
+        assert isinstance(scm, GetPullRequestsProtocol)
+        dump(scm.get_pull_requests(state=args.state))
+
+    elif args.command == "get-pull-request-files":
+        assert isinstance(scm, GetPullRequestFilesProtocol)
+        dump(scm.get_pull_request_files(args.id))
+
+    elif args.command == "get-pull-request-commits":
+        assert isinstance(scm, GetPullRequestCommitsProtocol)
+        dump(scm.get_pull_request_commits(args.id))
+
+    elif args.command == "get-pull-request-diff":
+        assert isinstance(scm, GetPullRequestDiffProtocol)
+        dump(scm.get_pull_request_diff(args.id))
+
+    elif args.command == "get-issue-comments":
+        assert isinstance(scm, GetIssueCommentsProtocol)
+        dump(scm.get_issue_comments(args.issue_id))
+
+    elif args.command == "get-pull-request-comments":
+        assert isinstance(scm, GetPullRequestCommentsProtocol)
+        dump(scm.get_pull_request_comments(args.pr_id))
+
+    elif args.command == "create-issue-comment":
+        assert isinstance(scm, CreateIssueCommentProtocol)
+        dump(scm.create_issue_comment(args.issue_id, args.body))
+
+    elif args.command == "create-pull-request-comment":
+        assert isinstance(scm, CreatePullRequestCommentProtocol)
+        dump(scm.create_pull_request_comment(args.pr_id, args.body))
+
+    elif args.command == "get-branch":
+        assert isinstance(scm, GetBranchProtocol)
+        dump(scm.get_branch(args.name))
+
+    elif args.command == "get-commit":
+        assert isinstance(scm, GetCommitProtocol)
+        dump(scm.get_commit(args.sha))
+
+    elif args.command == "get-file-content":
+        assert isinstance(scm, GetFileContentProtocol)
+        dump(scm.get_file_content(args.path, ref=args.ref))
+
+    elif args.command == "compare-commits":
+        assert isinstance(scm, CompareCommitsProtocol)
+        dump(scm.compare_commits(args.start_sha, args.end_sha))
+
+
+if __name__ == "__main__":
+    main()
