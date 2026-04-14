@@ -188,7 +188,7 @@ class GitLabProvider:
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
     ) -> requests.Response:
-        headers = {"Accept": "application/vnd.github+json"}
+        headers = {}
         headers.update(extra_headers or {})
 
         params = params or {}
