@@ -11,11 +11,15 @@ Credentials are loaded from .credentials (KEY=VALUE, one per line) then
 overridden by env vars, then by CLI args.
 
 Configuration:
-    --access-token / GITLAB_ACCESS_TOKEN     GitLab access token (required)
+    --access-token / GITLAB_ACCESS_TOKEN     GitLab access token (required, see below)
     --base-url / GITLAB_BASE_URL             GitLab instance URL (default: https://gitlab.com)
     --secret / SCM_RPC_SIGNING_SECRET        HMAC signing secret (default: "secret")
     --host                                   Bind address (default: 127.0.0.1)
     --port                                   Listen port (default: 8080)
+
+Credentials:
+    A GitLab access token is required to authenticate API requests.
+    You can create a personal access token on https://gitlab.com/-/user_settings/personal_access_tokens.
 """
 
 import argparse

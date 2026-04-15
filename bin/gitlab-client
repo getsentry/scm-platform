@@ -9,7 +9,11 @@ Configuration (CLI args override env vars):
     --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8080)
     --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
     --org-id                            Organization ID (default: 1)
-    --repo                              GitLab project ID (numeric) (required)
+    --repo                              GitLab project ID (numeric) (required, see below)
+
+Project ID:
+    The GitLab project ID is a numeric identifier for your repository.
+    You can find it on the project page, in the "..." menu in the top right corner.
 
 Commands:
     get-pull-request <id>

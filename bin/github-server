@@ -11,12 +11,18 @@ Credentials are loaded from .credentials (KEY=VALUE, one per line) then
 overridden by env vars, then by CLI args.
 
 Configuration:
-    --app-id / GITHUB_APP_ID                 GitHub App ID (required)
-    --private-key / GITHUB_PRIVATE_KEY_PATH  Path to .pem file (required)
-    --installation-id / GITHUB_INSTALLATION_ID  Installation ID (required)
+    --app-id / GITHUB_APP_ID                 GitHub App ID (required, see below)
+    --private-key / GITHUB_PRIVATE_KEY_PATH  Path to .pem file (required, see below)
+    --installation-id / GITHUB_INSTALLATION_ID  Installation ID (required, see below)
     --secret / SCM_RPC_SIGNING_SECRET        HMAC signing secret (default: "secret")
     --host                                   Bind address (default: 127.0.0.1)
     --port                                   Listen port (default: 8080)
+
+Credentials:
+    First, create a GitHub app as described on https://develop.sentry.dev/integrations/github/.
+    This will give you the App ID and a private key you can save as a .pem file.
+    Then install the app on your account. You'll then find the installation ID
+    in the "Configure" URL listed on https://github.com/settings/installations.
 """
 
 import argparse
