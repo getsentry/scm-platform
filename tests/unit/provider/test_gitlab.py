@@ -10269,7 +10269,7 @@ def _make_mock_response(json_data):
             client_calls=[
                 ClientForwardedCall(
                     method="GET",
-                    path="/projects/79787061/repository/branches/topics/blah",
+                    path="/projects/79787061/repository/branches/topics%2Fblah",
                     json_response={
                         "name": "topics/blah",
                         "commit": {
@@ -10420,7 +10420,7 @@ def _make_mock_response(json_data):
             client_calls=[
                 ClientForwardedCall(
                     method="GET",
-                    path="/projects/79787061/repository/branches/tests/20260311-110504",
+                    path="/projects/79787061/repository/branches/tests%2F20260311-110504",
                     json_response={
                         "name": "tests/20260311-110504",
                         "commit": {

@@ -1,6 +1,7 @@
 import datetime
 from collections.abc import Callable, Iterable
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -453,7 +454,7 @@ class GitLabProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitRef]:
         response = self.get(
-            GitLab.branch.format(project_id=self.project_id, branch=branch),
+            GitLab.branch.format(project_id=self.project_id, branch=quote(branch, safe="")),
             request_options=request_options,
         )
         return make_result(map_git_ref, response.json())
