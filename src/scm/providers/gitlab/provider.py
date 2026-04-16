@@ -1,7 +1,7 @@
-from urllib.parse import quote
 import datetime
 from collections.abc import Callable, Iterable
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
