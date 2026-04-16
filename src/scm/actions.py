@@ -34,6 +34,7 @@ from scm.types import (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DownloadArchiveProtocol,
     FileContent,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
@@ -531,6 +532,11 @@ def get_archive_link(
     return scm.get_archive_link(ref, archive_format)
 
 
+def download_archive(scm: DownloadArchiveProtocol, ref: str, archive_format: ArchiveFormat = "tarball") -> bytes:
+    """Download a repository archive."""
+    return scm.download_archive(ref, archive_format)
+
+
 __all__ = (
     "compare_commits",
     "create_branch",
@@ -555,6 +561,7 @@ __all__ = (
     "delete_pull_request_comment_reaction",
     "delete_pull_request_comment",
     "delete_pull_request_reaction",
+    "download_archive",
     "get_archive_link",
     "get_branch",
     "get_check_run",

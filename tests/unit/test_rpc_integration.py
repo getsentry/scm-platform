@@ -501,6 +501,14 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
             "Location": "https://codeload.github.com/org/repo/legacy.tar.gz/main",
         },
     ),
+    # Download archive (raw bytes)
+    (
+        "download_archive",
+        lambda scm: actions.download_archive(scm, "main"),
+        "tarball-bytes",
+        200,
+        {"Content-Type": "application/x-gzip"},
+    ),
 ]
 
 

@@ -895,6 +895,17 @@ class GitHubProvider:
             "meta": _extract_response_meta(response),
         }
 
+    def download_archive(
+        self,
+        ref: str,
+        archive_format: ArchiveFormat = "tarball",
+        request_options: RequestOptions | None = None,
+    ) -> bytes:
+        return self.get(
+            f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{ref}",
+            request_options=request_options,
+        ).content
+
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:
         self.graphql(
             MINIMIZE_COMMENT_MUTATION,

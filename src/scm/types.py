@@ -837,11 +837,12 @@ class GetFileContentProtocol(Protocol):
 
 @runtime_checkable
 class GetArchiveLinkProtocol(Protocol):
-    def get_archive_link(
-        self,
-        ref: str,
-        archive_format: ArchiveFormat = "tarball",
-    ) -> ActionResult[ArchiveLink]: ...
+    def get_archive_link(self, ref: str, archive_format: ArchiveFormat = "tarball") -> ActionResult[ArchiveLink]: ...
+
+
+@runtime_checkable
+class DownloadArchiveProtocol(Protocol):
+    def download_archive(self, ref: str, archive_format: ArchiveFormat = "tarball") -> bytes: ...
 
 
 # Check Run Protocols
@@ -985,6 +986,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DownloadArchiveProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
