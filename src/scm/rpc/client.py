@@ -36,7 +36,7 @@ class RequestsSession:
         return requests.get(url, headers=headers)
 
     def post(self, url: str, data: bytes, headers: dict[str, str]) -> Response:
-        return requests.post(url, data=data, headers=headers)
+        return requests.post(url, data=data, headers=headers, allow_redirects=False)
 
 
 class NoOpRateLimitProvider:
