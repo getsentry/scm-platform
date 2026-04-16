@@ -203,13 +203,13 @@ class GitLabProvider:
     ) -> requests.Response:
         return self._request("POST", path=path, data=data, headers=headers)
 
-    def patch(
+    def put(
         self,
         path: str,
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self._request("PATCH", path=path, data=data, headers=headers)
+        return self._request("PUT", path=path, data=data, headers=headers)
 
     def delete(self, path: str) -> requests.Response:
         return self._request("DELETE", path=path)
@@ -679,7 +679,7 @@ class GitLabProvider:
             data["description"] = body
         if state is not None:
             data["state_event"] = PULL_REQUEST_STATE_UPDATE_MAP[state]
-        response = self.patch(
+        response = self.put(
             GitLab.merge_request.format(project_id=self.project_id, pr_key=pull_request_id),
             data=data,
         )
