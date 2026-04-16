@@ -1034,7 +1034,7 @@ def _make_mock_response(json_data):
             provider_args={"pull_request_id": "26", "title": None, "body": None, "state": "closed"},
             client_calls=[
                 ClientForwardedCall(
-                    method="PATCH",
+                    method="PUT",
                     path="/projects/79787061/merge_requests/26",
                     json_response={
                         "id": 463099183,
