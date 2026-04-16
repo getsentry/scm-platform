@@ -181,7 +181,7 @@ def main():
 
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
-        dump(scm.download_archive(args.ref))
+        logger.info(scm.download_archive(args.ref))
 
 
 if __name__ == "__main__":
