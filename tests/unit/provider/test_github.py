@@ -1141,10 +1141,46 @@ class TestGitHubProviderApiClientGraphql:
         assert result == {}
 
 
+def _queue_raw_bytes(client: RecordingClient, content: bytes) -> None:
+    response = FakeResponse({})
+    response.content = content
+    client.queue("get", response)
+
+
+def test_download_archive_returns_bytes_from_response() -> None:
+    provider, client = make_provider()
+    _queue_raw_bytes(client, b"tarball-bytes")
+
+    result = provider.download_archive("main")
+
+    assert result == b"tarball-bytes"
+    assert client.calls == [
+        {
+            "operation": "get",
+            "path": "/repos/test-org/test-repo/tarball/main",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+        }
+    ]
+
+
+def test_download_archive_zip_uses_zipball_path() -> None:
+    provider, client = make_provider()
+    _queue_raw_bytes(client, b"zip-bytes")
+
+    result = provider.download_archive("main", archive_format="zip")
+
+    assert result == b"zip-bytes"
+    assert client.calls[0]["path"] == "/repos/test-org/test-repo/zipball/main"
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "is_rate_limited",
         "get_pull_request_diff",
+        "download_archive",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

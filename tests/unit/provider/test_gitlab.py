@@ -11978,3 +11978,29 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
+
+
+def test_download_archive_returns_bytes_from_response(client, provider: GitLabProvider):
+    response = unittest.mock.MagicMock()
+    response.content = b"tarball-bytes"
+    response.status_code = 200
+    client._request.return_value = response
+
+    assert provider.download_archive("main") == b"tarball-bytes"
+
+    call = client._request.call_args
+    assert call.kwargs["method"] == "GET"
+    assert call.kwargs["path"] == "/projects/79787061/repository/archive.tar.gz"
+    assert call.kwargs["params"] == {"sha": "main"}
+
+
+def test_download_archive_zip_uses_zip_extension(client, provider: GitLabProvider):
+    response = unittest.mock.MagicMock()
+    response.content = b"zip-bytes"
+    response.status_code = 200
+    client._request.return_value = response
+
+    assert provider.download_archive("main", archive_format="zip") == b"zip-bytes"
+
+    call = client._request.call_args
+    assert call.kwargs["path"] == "/projects/79787061/repository/archive.zip"

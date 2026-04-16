@@ -28,6 +28,7 @@ from scm.actions import (
     delete_pull_request_comment,
     delete_pull_request_comment_reaction,
     delete_pull_request_reaction,
+    download_archive,
     get_branch,
     get_check_run,
     get_commit,
@@ -171,6 +172,8 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (update_check_run, {"check_run_id": "300"}),
     # GraphQL mutation operations
     (minimize_comment, {"comment_node_id": "IC_abc", "reason": "OUTDATED"}),
+    # Archive operations
+    (download_archive, {"ref": "main"}),
 )
 
 
@@ -439,6 +442,10 @@ def _check_update_check_run(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_download_archive(result: Any) -> None:
+    assert result == b"archive-bytes"
+
+
 ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]], ...] = (
     (get_issue_comments, {"issue_id": "1"}, _check_issue_comments),
     (
@@ -614,6 +621,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         {"comment_node_id": "IC_abc", "reason": "OUTDATED"},
         _check_none,
     ),
+    (download_archive, {"ref": "main"}, _check_download_archive),
 )
 
 

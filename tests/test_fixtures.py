@@ -1115,6 +1115,9 @@ class BaseTestProvider(Provider):
 
     def get_archive_link(self): ...
 
+    def download_archive(self, ref: str, archive_format: str = "tarball") -> bytes:
+        return b"archive-bytes"
+
     def resolve_review_thread(self): ...
 
     def create_review_comment_reply(

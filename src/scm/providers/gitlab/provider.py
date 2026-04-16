@@ -753,6 +753,19 @@ class GitLabProvider:
             raw,
         )
 
+    def download_archive(
+        self,
+        ref: str,
+        archive_format: ArchiveFormat = "tarball",
+        request_options: RequestOptions | None = None,
+    ) -> bytes:
+        response = self.get(
+            GitLab.archive.format(project=self.project_id, format=GITLAB_ARCHIVE_FORMAT_MAP[archive_format]),
+            params={"sha": ref},
+            request_options=request_options,
+        )
+        return response.content
+
 
 def make_paginated_result[T](
     map_item: Callable[[dict[str, Any]], T],

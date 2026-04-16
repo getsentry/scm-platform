@@ -41,6 +41,7 @@ from scm.types import (
     CompareCommitsProtocol,
     CreateIssueCommentProtocol,
     CreatePullRequestCommentProtocol,
+    DownloadArchiveProtocol,
     GetBranchProtocol,
     GetCommitProtocol,
     GetFileContentProtocol,
@@ -111,6 +112,9 @@ def main():
     p.add_argument("start_sha")
     p.add_argument("end_sha")
 
+    p = sub.add_parser("download-archive")
+    p.add_argument("ref")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -174,6 +178,10 @@ def main():
     elif args.command == "compare-commits":
         assert isinstance(scm, CompareCommitsProtocol)
         dump(scm.compare_commits(args.start_sha, args.end_sha))
+
+    elif args.command == "download-archive":
+        assert isinstance(scm, DownloadArchiveProtocol)
+        logger.info(scm.download_archive(args.ref))
 
 
 if __name__ == "__main__":
