@@ -3,6 +3,7 @@ from scm.types import (
     ActionResult,
     ArchiveFormat,
     ArchiveLink,
+    Author,
     BranchName,
     BuildConclusion,
     BuildStatus,
@@ -57,6 +58,8 @@ from scm.types import (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryAssigneesProtocol,
+    GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetTreeProtocol,
     GitBlob,
@@ -66,6 +69,7 @@ from scm.types import (
     GitTree,
     InputTreeEntry,
     Issue,
+    Label,
     MinimizeCommentProtocol,
     PaginatedActionResult,
     PaginationParams,
@@ -92,6 +96,24 @@ from scm.types import (
 def get_repository(scm: GetRepositoryProtocol) -> ActionResult[GitRepository]:
     """Get the repository associated with this SourceCodeManager."""
     return scm.get_repository()
+
+
+def get_repository_assignees(
+    scm: GetRepositoryAssigneesProtocol,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[Author]:
+    """Get users available as assignees for issues and pull requests in the repository."""
+    return scm.get_repository_assignees(pagination, request_options)
+
+
+def get_repository_labels(
+    scm: GetRepositoryLabelsProtocol,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[Label]:
+    """Get labels defined in the repository."""
+    return scm.get_repository_labels(pagination, request_options)
 
 
 def get_issue(
@@ -606,6 +628,8 @@ __all__ = (
     "get_pull_request_reactions",
     "get_pull_request",
     "get_pull_requests",
+    "get_repository_assignees",
+    "get_repository_labels",
     "get_tree",
     "minimize_comment",
     "request_review",

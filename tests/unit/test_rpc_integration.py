@@ -16,6 +16,7 @@ from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
 from scm.types import Repository
 from tests.test_fixtures import (
+    make_github_assignee,
     make_github_branch,
     make_github_check_run,
     make_github_comment,
@@ -27,6 +28,7 @@ from tests.test_fixtures import (
     make_github_git_ref,
     make_github_git_tree,
     make_github_issue,
+    make_github_label,
     make_github_pull_request,
     make_github_pull_request_commit,
     make_github_pull_request_file,
@@ -135,6 +137,20 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         "get_repository",
         lambda scm: actions.get_repository(scm),
         make_github_repository(),
+        200,
+        None,
+    ),
+    (
+        "get_repository_assignees",
+        lambda scm: actions.get_repository_assignees(scm),
+        [make_github_assignee()],
+        200,
+        None,
+    ),
+    (
+        "get_repository_labels",
+        lambda scm: actions.get_repository_labels(scm),
+        [make_github_label()],
         200,
         None,
     ),

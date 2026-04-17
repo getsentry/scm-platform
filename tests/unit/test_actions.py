@@ -49,6 +49,8 @@ from scm.actions import (
     get_pull_request_files,
     get_pull_request_reactions,
     get_pull_requests,
+    get_repository_assignees,
+    get_repository_labels,
     get_tree,
     minimize_comment,
     request_review,
@@ -88,6 +90,9 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_issue_comments, {"issue_id": "1"}),
     (create_issue_comment, {"issue_id": "1", "body": "test"}),
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}),
+    # Repository metadata
+    (get_repository_assignees, {}),
+    (get_repository_labels, {}),
     # Pull request
     (get_pull_request, {"pull_request_id": "1"}),
     # Pull request comments
@@ -212,6 +217,24 @@ def _check_issue_comments(result: Any) -> None:
     assert result["data"][0]["id"] == "101"
     assert result["data"][0]["body"] == "Test comment"
     assert result["data"][0]["author"]["username"] == "testuser"
+    assert result["type"] == "github"
+
+
+def _check_repository_assignees(result: Any) -> None:
+    assert len(result["data"]) == 1
+    assignee = result["data"][0]
+    assert assignee["id"] == "123"
+    assert assignee["username"] == "testuser"
+    assert result["type"] == "github"
+
+
+def _check_repository_labels(result: Any) -> None:
+    assert len(result["data"]) == 1
+    label = result["data"][0]
+    assert label["id"] == "1"
+    assert label["name"] == "bug"
+    assert label["color"] == "d73a4a"
+    assert label["description"] == "Something isn't working"
     assert result["type"] == "github"
 
 
@@ -477,6 +500,8 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         _check_created_comment,
     ),
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}, _check_none),
+    (get_repository_assignees, {}, _check_repository_assignees),
+    (get_repository_labels, {}, _check_repository_labels),
     (get_pull_request, {"pull_request_id": "1"}, _check_pull_request),
     (
         get_pull_request_comments,

@@ -7,6 +7,7 @@ from scm.facade import Facade
 from scm.helpers import exec_provider_fn
 from scm.types import (
     ActionResult,
+    Author,
     BuildConclusion,
     BuildStatus,
     CheckRun,
@@ -23,6 +24,7 @@ from scm.types import (
     GitTree,
     InputTreeEntry,
     Issue,
+    Label,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -137,6 +139,32 @@ def make_github_issue(
         "state": state,
         "html_url": html_url,
         "user": {"id": user_id, "login": username},
+    }
+
+
+def make_github_assignee(
+    user_id: int = 123,
+    username: str = "testuser",
+) -> dict[str, Any]:
+    """Factory for GitHub assignee (user) API responses."""
+    return {
+        "id": user_id,
+        "login": username,
+    }
+
+
+def make_github_label(
+    label_id: int = 1,
+    name: str = "bug",
+    color: str = "d73a4a",
+    description: str | None = "Something isn't working",
+) -> dict[str, Any]:
+    """Factory for GitHub label API responses."""
+    return {
+        "id": label_id,
+        "name": name,
+        "color": color,
+        "description": description,
     }
 
 
@@ -606,6 +634,32 @@ class BaseTestProvider(Provider):
             type="github",
             raw={"headers": None, "data": raw},
             meta={},
+        )
+
+    # Repository metadata
+
+    def get_repository_assignees(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Author]:
+        return PaginatedActionResult(
+            data=[Author(id="123", username="testuser")],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def get_repository_labels(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Label]:
+        return PaginatedActionResult(
+            data=[Label(id="1", name="bug", color="d73a4a", description="Something isn't working")],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
         )
 
     # Issue comments

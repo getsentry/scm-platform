@@ -39,6 +39,7 @@ from scm.types import (
     GitTree,
     InputTreeEntry,
     Issue,
+    Label,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -305,6 +306,32 @@ class GitHubProvider:
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
         return map_action(response, map_repository)
+
+    def get_repository_assignees(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Author]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/assignees",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(
+            pagination, response, lambda r: [Author(id=str(u["id"]), username=u["login"]) for u in r]
+        )
+
+    def get_repository_labels(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Label]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/labels",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_label(label) for label in r])
 
     def get_issue_comments(
         self,
@@ -956,6 +983,15 @@ def map_comment(raw: dict[str, Any]) -> Comment:
         id=str(raw["id"]),
         body=raw["body"],
         author=map_author(raw.get("user")),
+    )
+
+
+def map_label(raw: dict[str, Any]) -> Label:
+    return Label(
+        id=str(raw["id"]),
+        name=raw["name"],
+        color=raw["color"],
+        description=raw.get("description"),
     )
 
 

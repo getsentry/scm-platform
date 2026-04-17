@@ -187,6 +187,15 @@ class Comment(TypedDict):
     author: Author | None
 
 
+class Label(TypedDict):
+    """Provider-agnostic representation of a repository label."""
+
+    id: ResourceId
+    name: str
+    color: str
+    description: str | None
+
+
 class ReactionResult(TypedDict):
     """Provider-agnostic representation of a reaction on an issue, comment, or pull request."""
 
@@ -488,6 +497,24 @@ class PullRequestEventData(TypedDict):
 @runtime_checkable
 class GetRepositoryProtocol(Protocol):
     def get_repository(self) -> ActionResult[GitRepository]: ...
+
+
+@runtime_checkable
+class GetRepositoryAssigneesProtocol(Protocol):
+    def get_repository_assignees(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Author]: ...
+
+
+@runtime_checkable
+class GetRepositoryLabelsProtocol(Protocol):
+    def get_repository_labels(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Label]: ...
 
 
 # Issue Protocols
@@ -1043,6 +1070,8 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryAssigneesProtocol,
+    GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetTreeProtocol,
     MinimizeCommentProtocol,
