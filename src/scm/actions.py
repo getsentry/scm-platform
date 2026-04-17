@@ -19,6 +19,7 @@ from scm.types import (
     CreateGitTreeProtocol,
     CreateIssueCommentProtocol,
     CreateIssueCommentReactionProtocol,
+    CreateIssueProtocol,
     CreateIssueReactionProtocol,
     CreatePullRequestCommentProtocol,
     CreatePullRequestCommentReactionProtocol,
@@ -47,6 +48,7 @@ from scm.types import (
     GetGitCommitProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
+    GetIssueProtocol,
     GetIssueReactionsProtocol,
     GetPullRequestCommentReactionsProtocol,
     GetPullRequestCommentsProtocol,
@@ -66,6 +68,7 @@ from scm.types import (
     GitRepository,
     GitTree,
     InputTreeEntry,
+    Issue,
     Label,
     MinimizeCommentProtocol,
     PaginatedActionResult,
@@ -111,6 +114,26 @@ def get_repository_labels(
 ) -> PaginatedActionResult[Label]:
     """Get labels defined in the repository."""
     return scm.get_repository_labels(pagination, request_options)
+
+
+def get_issue(
+    scm: GetIssueProtocol,
+    issue_id: str,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[Issue]:
+    """Get an issue."""
+    return scm.get_issue(issue_id, request_options)
+
+
+def create_issue(
+    scm: CreateIssueProtocol,
+    title: str,
+    body: str,
+    assignees: list[str] | None = None,
+    labels: list[str] | None = None,
+) -> ActionResult[Issue]:
+    """Create an issue."""
+    return scm.create_issue(title, body, assignees, labels)
 
 
 def get_issue_comments(
@@ -569,6 +592,7 @@ __all__ = (
     "create_issue_comment_reaction",
     "create_issue_comment",
     "create_issue_reaction",
+    "create_issue",
     "create_pull_request_comment_reaction",
     "create_pull_request_comment",
     "create_pull_request_draft",
@@ -595,6 +619,7 @@ __all__ = (
     "get_issue_comment_reactions",
     "get_issue_comments",
     "get_issue_reactions",
+    "get_issue",
     "get_pull_request_comment_reactions",
     "get_pull_request_comments",
     "get_pull_request_commits",

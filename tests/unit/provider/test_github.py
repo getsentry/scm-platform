@@ -23,6 +23,7 @@ from tests.test_fixtures import (
     make_github_git_commit_object,
     make_github_git_ref,
     make_github_git_tree,
+    make_github_issue,
     make_github_label,
     make_github_pull_request,
     make_github_pull_request_commit,
@@ -238,6 +239,16 @@ def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_issue(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": str(raw["number"]),
+        "title": raw["title"],
+        "body": raw.get("body"),
+        "state": raw["state"],
+        "html_url": raw.get("html_url", ""),
+    }
+
+
 def expected_git_ref_from_branch(raw: dict[str, Any]) -> dict[str, Any]:
     return {"ref": raw["name"], "sha": raw["commit"]["sha"]}
 
@@ -363,6 +374,7 @@ LABEL_RAW = make_github_label()
 COMMENT_RAW = make_github_comment()
 REACTION_RAW = make_github_reaction()
 PULL_REQUEST_RAW = make_github_pull_request()
+ISSUE_RAW = make_github_issue()
 BRANCH_RAW = make_github_branch()
 GIT_REF_RAW = make_github_git_ref()
 GIT_BLOB_RAW = make_github_git_blob()
@@ -531,6 +543,23 @@ ACTION_CASES: list[dict[str, Any]] = [
         "path": "/repos/test-org/test-repo/pulls/42",
         "raw": PULL_REQUEST_RAW,
         "expected_data": expected_pull_request(PULL_REQUEST_RAW),
+    },
+    {
+        "name": "get_issue",
+        "operation": "get",
+        "kwargs": {"issue_id": "7"},
+        "path": "/repos/test-org/test-repo/issues/7",
+        "raw": ISSUE_RAW,
+        "expected_data": expected_issue(ISSUE_RAW),
+    },
+    {
+        "name": "create_issue",
+        "operation": "post",
+        "kwargs": {"title": "bug", "body": "it broke"},
+        "path": "/repos/test-org/test-repo/issues",
+        "data": {"title": "bug", "body": "it broke"},
+        "raw": ISSUE_RAW,
+        "expected_data": expected_issue(ISSUE_RAW),
     },
     {
         "name": "create_pull_request_comment",
@@ -971,6 +1000,27 @@ def test_action_methods(case: dict[str, Any]) -> None:
             expected_call["params"] = case["params"]
         expected_call["headers"] = case.get("headers")
     assert client.calls == [expected_call]
+
+
+def test_create_issue_forwards_assignees_and_labels() -> None:
+    provider, client = make_provider()
+    client.queue("post", FakeResponse(ISSUE_RAW))
+
+    provider.create_issue(title="bug", body="it broke", assignees=["alice", "bob"], labels=["bug", "p1"])
+
+    assert client.calls == [
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/issues",
+            "data": {
+                "title": "bug",
+                "body": "it broke",
+                "assignees": ["alice", "bob"],
+                "labels": ["bug", "p1"],
+            },
+            "headers": None,
+        }
+    ]
 
 
 def test_get_pull_request_diff_uses_raw_request_and_extracts_meta() -> None:

@@ -21,6 +21,8 @@ Commands:
     get-pull-request-files <id>
     get-pull-request-commits <id>
     get-pull-request-diff <id>
+    get-issue <id>
+    create-issue <title> <body> [--assignee <user_id> ...] [--label <name> ...]
     get-issue-comments <issue_id>
     get-pull-request-comments <pr_id>
     create-issue-comment <issue_id> <body>
@@ -43,12 +45,14 @@ from scm.rpc.client import SourceCodeManager
 from scm.types import (
     CompareCommitsProtocol,
     CreateIssueCommentProtocol,
+    CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
     DownloadArchiveProtocol,
     GetBranchProtocol,
     GetCommitProtocol,
     GetFileContentProtocol,
     GetIssueCommentsProtocol,
+    GetIssueProtocol,
     GetPullRequestCommentsProtocol,
     GetPullRequestCommitsProtocol,
     GetPullRequestFilesProtocol,
@@ -112,6 +116,15 @@ def main():
 
     p = sub.add_parser("get-pull-request-diff")
     p.add_argument("id")
+
+    p = sub.add_parser("get-issue")
+    p.add_argument("id")
+
+    p = sub.add_parser("create-issue")
+    p.add_argument("title")
+    p.add_argument("body")
+    p.add_argument("--assignee", action="append", dest="assignees", default=None, help="GitLab user ID (repeatable)")
+    p.add_argument("--label", action="append", dest="labels", default=None)
 
     p = sub.add_parser("get-issue-comments")
     p.add_argument("issue_id")
@@ -178,6 +191,14 @@ def main():
     elif args.command == "get-pull-request-commits":
         assert isinstance(scm, GetPullRequestCommitsProtocol)
         dump(scm.get_pull_request_commits(args.id))
+
+    elif args.command == "get-issue":
+        assert isinstance(scm, GetIssueProtocol)
+        dump(scm.get_issue(args.id))
+
+    elif args.command == "create-issue":
+        assert isinstance(scm, CreateIssueProtocol)
+        dump(scm.create_issue(args.title, args.body, assignees=args.assignees, labels=args.labels))
 
     elif args.command == "get-issue-comments":
         assert isinstance(scm, GetIssueCommentsProtocol)

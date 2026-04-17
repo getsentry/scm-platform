@@ -22,6 +22,7 @@ from scm.types import (
     GitRef,
     GitRepository,
     GitTree,
+    Issue,
     Label,
     PaginatedActionResult,
     PaginatedResponseMeta,
@@ -270,6 +271,35 @@ class GitLabProvider:
         self.delete(
             GitLab.issue_note.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
         )
+
+    def get_issue(
+        self,
+        issue_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Issue]:
+        response = self.get(
+            GitLab.issue.format(project=self.project_id, issue=issue_id),
+            request_options=request_options,
+        )
+        return make_result(map_issue, response.json())
+
+    def create_issue(
+        self,
+        title: str,
+        body: str,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]:
+        data: dict[str, Any] = {"title": title, "description": body}
+        if assignees is not None:
+            data["assignee_ids"] = [int(a) for a in assignees]
+        if labels is not None:
+            data["labels"] = labels
+        response = self.post(
+            GitLab.issues.format(project=self.project_id),
+            data=data,
+        )
+        return make_result(map_issue, response.json())
 
     def get_pull_request(
         self,
@@ -884,6 +914,16 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
             sha=raw["sha"],
         ),
         merged=raw["merged_at"] is not None,
+        html_url=raw["web_url"],
+    )
+
+
+def map_issue(raw: dict[str, Any]) -> Issue:
+    return Issue(
+        id=str(raw["iid"]),
+        title=raw["title"],
+        body=raw.get("description") or None,
+        state="open" if raw["state"] == "opened" else "closed",
         html_url=raw["web_url"],
     )
 

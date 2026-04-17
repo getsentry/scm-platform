@@ -38,6 +38,7 @@ from scm.types import (
     GitRepository,
     GitTree,
     InputTreeEntry,
+    Issue,
     Label,
     PaginatedActionResult,
     PaginatedResponseMeta,
@@ -354,6 +355,35 @@ class GitHubProvider:
 
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/issues/comments/{comment_id}")
+
+    def get_issue(
+        self,
+        issue_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Issue]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/issues/{issue_id}",
+            request_options=request_options,
+        )
+        return map_action(response, map_issue)
+
+    def create_issue(
+        self,
+        title: str,
+        body: str,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]:
+        data: dict[str, Any] = {"title": title, "body": body}
+        if assignees is not None:
+            data["assignees"] = assignees
+        if labels is not None:
+            data["labels"] = labels
+        response = self.post(
+            f"/repos/{self.repository['name']}/issues",
+            data=data,
+        )
+        return map_action(response, map_issue)
 
     def get_pull_request(
         self,
@@ -1111,6 +1141,16 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         html_url=raw.get("html_url", ""),
         head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
         base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+    )
+
+
+def map_issue(raw: dict[str, Any]) -> Issue:
+    return Issue(
+        id=str(raw["number"]),
+        title=raw["title"],
+        body=raw.get("body"),
+        state=raw["state"],
+        html_url=raw.get("html_url", ""),
     )
 
 

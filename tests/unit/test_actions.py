@@ -11,6 +11,7 @@ from scm.actions import (
     create_git_blob,
     create_git_commit,
     create_git_tree,
+    create_issue,
     create_issue_comment,
     create_issue_comment_reaction,
     create_issue_reaction,
@@ -36,6 +37,7 @@ from scm.actions import (
     get_commits_by_path,
     get_file_content,
     get_git_commit,
+    get_issue,
     get_issue_comment_reactions,
     get_issue_comments,
     get_issue_reactions,
@@ -81,6 +83,9 @@ def fetch_repository(oid, rid) -> Repository:
 
 
 ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
+    # Issues
+    (get_issue, {"issue_id": "1"}),
+    (create_issue, {"title": "T", "body": "B"}),
     # Issue comments
     (get_issue_comments, {"issue_id": "1"}),
     (create_issue_comment, {"issue_id": "1", "body": "test"}),
@@ -241,6 +246,21 @@ def _check_pull_request(result: Any) -> None:
     assert pr["head"]["sha"] == "abc123"
     assert pr["head"]["ref"] == "feature-branch"
     assert pr["base"]["sha"] == "def456"
+    assert result["type"] == "github"
+
+
+def _check_issue(result: Any) -> None:
+    issue = result["data"]
+    assert issue["id"] == "7"
+    assert issue["title"] == "Test Issue"
+    assert issue["state"] == "open"
+    assert result["type"] == "github"
+
+
+def _check_create_issue(result: Any) -> None:
+    issue = result["data"]
+    assert issue["title"] == "T"
+    assert issue["body"] == "B"
     assert result["type"] == "github"
 
 
@@ -470,6 +490,8 @@ def _check_download_archive(result: Any) -> None:
 
 
 ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]], ...] = (
+    (get_issue, {"issue_id": "1"}, _check_issue),
+    (create_issue, {"title": "T", "body": "B"}, _check_create_issue),
     (get_issue_comments, {"issue_id": "1"}, _check_issue_comments),
     (
         create_issue_comment,

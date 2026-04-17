@@ -12047,6 +12047,91 @@ def _make_mock_response(json_data):
                 "meta": {},
             },
         ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.get_issue,
+            provider_args={"issue_id": "7", "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/issues/7",
+                    json_response={
+                        "id": 98765,
+                        "iid": 7,
+                        "project_id": 79787061,
+                        "title": "Bug: something broken",
+                        "description": "It broke.",
+                        "state": "opened",
+                        "web_url": "https://gitlab.com/test-org/test-repo/-/issues/7",
+                    },
+                ),
+            ],
+            provider_return_value={
+                "data": {
+                    "id": "7",
+                    "title": "Bug: something broken",
+                    "body": "It broke.",
+                    "state": "open",
+                    "html_url": "https://gitlab.com/test-org/test-repo/-/issues/7",
+                },
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "id": 98765,
+                        "iid": 7,
+                        "project_id": 79787061,
+                        "title": "Bug: something broken",
+                        "description": "It broke.",
+                        "state": "opened",
+                        "web_url": "https://gitlab.com/test-org/test-repo/-/issues/7",
+                    },
+                    "headers": None,
+                },
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.create_issue,
+            provider_args={"title": "New issue", "body": "Details"},
+            client_calls=[
+                ClientForwardedCall(
+                    method="POST",
+                    path="/projects/79787061/issues",
+                    data={"title": "New issue", "description": "Details"},
+                    json_response={
+                        "id": 98766,
+                        "iid": 8,
+                        "project_id": 79787061,
+                        "title": "New issue",
+                        "description": "Details",
+                        "state": "opened",
+                        "web_url": "https://gitlab.com/test-org/test-repo/-/issues/8",
+                    },
+                ),
+            ],
+            provider_return_value={
+                "data": {
+                    "id": "8",
+                    "title": "New issue",
+                    "body": "Details",
+                    "state": "open",
+                    "html_url": "https://gitlab.com/test-org/test-repo/-/issues/8",
+                },
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "id": 98766,
+                        "iid": 8,
+                        "project_id": 79787061,
+                        "title": "New issue",
+                        "description": "Details",
+                        "state": "opened",
+                        "web_url": "https://gitlab.com/test-org/test-repo/-/issues/8",
+                    },
+                    "headers": None,
+                },
+                "meta": {},
+            },
+        ),
     ],
     ids=lambda param: param.provider_method.__name__,
 )
@@ -12067,6 +12152,31 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
+
+
+def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProvider):
+    client._request.return_value = _make_mock_response(
+        {
+            "id": 1,
+            "iid": 1,
+            "title": "bug",
+            "description": "it broke",
+            "state": "opened",
+            "web_url": "https://gitlab.com/test-org/test-repo/-/issues/1",
+        }
+    )
+
+    provider.create_issue(title="bug", body="it broke", assignees=["42", "99"], labels=["bug", "p1"])
+
+    call = client._request.call_args
+    assert call.kwargs["method"] == "POST"
+    assert call.kwargs["path"] == "/projects/79787061/issues"
+    assert call.kwargs["data"] == {
+        "title": "bug",
+        "description": "it broke",
+        "assignee_ids": [42, 99],
+        "labels": ["bug", "p1"],
+    }
 
 
 def test_download_archive_returns_bytes_from_response(client, provider: GitLabProvider):

@@ -23,6 +23,7 @@ from scm.types import (
     GitRef,
     GitTree,
     InputTreeEntry,
+    Issue,
     Label,
     PaginatedActionResult,
     PaginatedResponseMeta,
@@ -115,6 +116,28 @@ def make_github_reaction(
     return {
         "id": reaction_id,
         "content": content,
+        "user": {"id": user_id, "login": username},
+    }
+
+
+def make_github_issue(
+    issue_id: int = 99,
+    number: int = 7,
+    title: str = "Test Issue",
+    body: str | None = "Issue description",
+    state: str = "open",
+    html_url: str = "https://github.com/test-org/test-repo/issues/7",
+    user_id: int = 123,
+    username: str = "testuser",
+) -> dict[str, Any]:
+    """Factory for GitHub issue API responses."""
+    return {
+        "id": issue_id,
+        "number": number,
+        "title": title,
+        "body": body,
+        "state": state,
+        "html_url": html_url,
         "user": {"id": user_id, "login": username},
     }
 
@@ -563,6 +586,48 @@ class BaseTestProvider(Provider):
                 html_url=raw["html_url"],
                 head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
                 base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+            ),
+            type="github",
+            raw={"headers": None, "data": raw},
+            meta={},
+        )
+
+    # Issues
+
+    def get_issue(
+        self,
+        issue_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Issue]:
+        raw = make_github_issue()
+        return ActionResult(
+            data=Issue(
+                id=str(raw["number"]),
+                title=raw["title"],
+                body=raw["body"],
+                state=raw["state"],
+                html_url=raw["html_url"],
+            ),
+            type="github",
+            raw={"headers": None, "data": raw},
+            meta={},
+        )
+
+    def create_issue(
+        self,
+        title: str,
+        body: str,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]:
+        raw = make_github_issue(title=title, body=body)
+        return ActionResult(
+            data=Issue(
+                id=str(raw["number"]),
+                title=raw["title"],
+                body=raw["body"],
+                state=raw["state"],
+                html_url=raw["html_url"],
             ),
             type="github",
             raw={"headers": None, "data": raw},
