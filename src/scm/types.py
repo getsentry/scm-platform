@@ -230,7 +230,6 @@ class Issue(TypedDict):
     """Provider-agnostic representation of an issue."""
 
     id: ResourceId
-    number: str
     title: str
     body: str | None
     state: IssueState

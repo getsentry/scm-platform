@@ -251,8 +251,7 @@ def _check_pull_request(result: Any) -> None:
 
 def _check_issue(result: Any) -> None:
     issue = result["data"]
-    assert issue["id"] == "99"
-    assert issue["number"] == "7"
+    assert issue["id"] == "7"
     assert issue["title"] == "Test Issue"
     assert issue["state"] == "open"
     assert result["type"] == "github"

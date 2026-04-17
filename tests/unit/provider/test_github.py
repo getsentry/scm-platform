@@ -241,8 +241,7 @@ def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
 
 def expected_issue(raw: dict[str, Any]) -> dict[str, Any]:
     return {
-        "id": str(raw["id"]),
-        "number": str(raw["number"]),
+        "id": str(raw["number"]),
         "title": raw["title"],
         "body": raw.get("body"),
         "state": raw["state"],

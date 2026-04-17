@@ -12067,8 +12067,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "id": "98765",
-                    "number": "7",
+                    "id": "7",
                     "title": "Bug: something broken",
                     "body": "It broke.",
                     "state": "open",
@@ -12111,8 +12110,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "id": "98766",
-                    "number": "8",
+                    "id": "8",
                     "title": "New issue",
                     "body": "Details",
                     "state": "open",

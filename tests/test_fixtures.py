@@ -602,8 +602,7 @@ class BaseTestProvider(Provider):
         raw = make_github_issue()
         return ActionResult(
             data=Issue(
-                id=str(raw["id"]),
-                number=str(raw["number"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -624,8 +623,7 @@ class BaseTestProvider(Provider):
         raw = make_github_issue(title=title, body=body)
         return ActionResult(
             data=Issue(
-                id=str(raw["id"]),
-                number=str(raw["number"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
