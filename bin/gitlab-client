@@ -29,6 +29,8 @@ Commands:
     get-commit <sha>
     get-file-content <path> [--ref <ref>]
     compare-commits <start_sha> <end_sha>
+    get-repository-assignees
+    get-repository-labels
 """
 
 import argparse
@@ -51,6 +53,8 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryAssigneesProtocol,
+    GetRepositoryLabelsProtocol,
 )
 
 logger = logging.getLogger(__name__)
@@ -114,6 +118,9 @@ def main():
 
     p = sub.add_parser("download-archive")
     p.add_argument("ref")
+
+    sub.add_parser("get-repository-assignees")
+    sub.add_parser("get-repository-labels")
 
     args = parser.parse_args()
     if not args.command:
@@ -182,6 +189,14 @@ def main():
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
         logger.info(scm.download_archive(args.ref))
+
+    elif args.command == "get-repository-assignees":
+        assert isinstance(scm, GetRepositoryAssigneesProtocol)
+        dump(scm.get_repository_assignees())
+
+    elif args.command == "get-repository-labels":
+        assert isinstance(scm, GetRepositoryLabelsProtocol)
+        dump(scm.get_repository_labels())
 
 
 if __name__ == "__main__":
