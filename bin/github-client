@@ -9,7 +9,7 @@ Configuration (CLI args override env vars):
     --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8080)
     --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
     --org-id                            Organization ID (default: 1)
-    --repo                              GitHub repository as owner/repo (required)
+    --repo / GITHUB_REPOSITORY_NAME     GitHub repository as owner/repo
 
 Commands:
     get-pull-request <id>
@@ -32,6 +32,7 @@ Commands:
 import argparse
 import json
 import logging
+import pathlib
 import sys
 
 from scm.rpc.client import SourceCodeManager
@@ -62,12 +63,36 @@ def dump(obj):
     logger.info(json.dumps(obj, indent=2, default=str))
 
 
+def load_credentials() -> dict[str, str]:
+    """Load KEY=VALUE pairs from .credentials, skipping blanks and comments."""
+    creds: dict[str, str] = {}
+    path = pathlib.Path(__file__).resolve().parent.parent / ".credentials"
+    if not path.exists():
+        return creds
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if value:
+            creds[key.strip()] = value
+    return creds
+
+
 def main():
+    creds = load_credentials()
+
     parser = argparse.ArgumentParser(description="GitHub RPC Client")
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--secret", default=None)
     parser.add_argument("--org-id", type=int, default=1)
-    parser.add_argument("--repo", required=True, help="owner/repo")
+    parser.add_argument(
+        "--repo",
+        default=creds.get("GITHUB_REPOSITORY_NAME"),
+        required="GITHUB_REPOSITORY_NAME" not in creds,
+        help="owner/repo; defaults to GITHUB_REPOSITORY_NAME from .credentials",
+    )
 
     sub = parser.add_subparsers(dest="command")
 
