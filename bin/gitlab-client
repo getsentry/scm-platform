@@ -9,7 +9,7 @@ Configuration (CLI args override env vars):
     --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8080)
     --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
     --org-id                            Organization ID (default: 1)
-    --repo                              GitLab project ID (numeric) (required, see below)
+    --repo / GITLAB_PROJECT_ID          GitLab project ID (numeric) (see below)
 
 Project ID:
     The GitLab project ID is a numeric identifier for your repository.
@@ -29,11 +29,14 @@ Commands:
     get-commit <sha>
     get-file-content <path> [--ref <ref>]
     compare-commits <start_sha> <end_sha>
+    get-repository-assignees
+    get-repository-labels
 """
 
 import argparse
 import json
 import logging
+import pathlib
 import sys
 
 from scm.rpc.client import SourceCodeManager
@@ -51,6 +54,8 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryAssigneesProtocol,
+    GetRepositoryLabelsProtocol,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,12 +65,36 @@ def dump(obj):
     logger.info(json.dumps(obj, indent=2, default=str))
 
 
+def load_credentials() -> dict[str, str]:
+    """Load KEY=VALUE pairs from .credentials, skipping blanks and comments."""
+    creds: dict[str, str] = {}
+    path = pathlib.Path(__file__).resolve().parent.parent / ".credentials"
+    if not path.exists():
+        return creds
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if value:
+            creds[key.strip()] = value
+    return creds
+
+
 def main():
+    creds = load_credentials()
+
     parser = argparse.ArgumentParser(description="GitLab RPC Client")
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--secret", default=None)
     parser.add_argument("--org-id", type=int, default=1)
-    parser.add_argument("--repo", required=True, help="GitLab project ID (numeric)")
+    parser.add_argument(
+        "--repo",
+        default=creds.get("GITLAB_PROJECT_ID"),
+        required="GITLAB_PROJECT_ID" not in creds,
+        help="GitLab project ID (numeric); defaults to GITLAB_PROJECT_ID from .credentials",
+    )
 
     sub = parser.add_subparsers(dest="command")
 
@@ -114,6 +143,9 @@ def main():
 
     p = sub.add_parser("download-archive")
     p.add_argument("ref")
+
+    sub.add_parser("get-repository-assignees")
+    sub.add_parser("get-repository-labels")
 
     args = parser.parse_args()
     if not args.command:
@@ -182,6 +214,14 @@ def main():
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
         logger.info(scm.download_archive(args.ref))
+
+    elif args.command == "get-repository-assignees":
+        assert isinstance(scm, GetRepositoryAssigneesProtocol)
+        dump(scm.get_repository_assignees())
+
+    elif args.command == "get-repository-labels":
+        assert isinstance(scm, GetRepositoryLabelsProtocol)
+        dump(scm.get_repository_labels())
 
 
 if __name__ == "__main__":

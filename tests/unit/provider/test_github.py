@@ -12,6 +12,7 @@ from scm.providers.github.provider import (
 )
 from scm.types import ApiClient, Referrer, Repository
 from tests.test_fixtures import (
+    make_github_assignee,
     make_github_branch,
     make_github_check_run,
     make_github_comment,
@@ -22,6 +23,7 @@ from tests.test_fixtures import (
     make_github_git_commit_object,
     make_github_git_ref,
     make_github_git_tree,
+    make_github_label,
     make_github_pull_request,
     make_github_pull_request_commit,
     make_github_pull_request_file,
@@ -201,6 +203,19 @@ def expected_comment(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_assignee(raw: dict[str, Any]) -> dict[str, Any]:
+    return {"id": str(raw["id"]), "username": raw["login"]}
+
+
+def expected_label(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": str(raw["id"]),
+        "name": raw["name"],
+        "color": raw["color"],
+        "description": raw.get("description"),
+    }
+
+
 def expected_reaction(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
@@ -343,6 +358,8 @@ def expected_check_run(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 REPOSITORY_RAW = make_github_repository()
+ASSIGNEE_RAW = make_github_assignee()
+LABEL_RAW = make_github_label()
 COMMENT_RAW = make_github_comment()
 REACTION_RAW = make_github_reaction()
 PULL_REQUEST_RAW = make_github_pull_request()
@@ -362,6 +379,26 @@ CHECK_RUN_RAW = make_github_check_run()
 
 
 PAGINATED_CASES: list[dict[str, Any]] = [
+    {
+        "name": "get_repository_assignees",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/assignees",
+        "params": None,
+        "pagination": None,
+        "raw": [ASSIGNEE_RAW],
+        "expected_data": [expected_assignee(ASSIGNEE_RAW)],
+        "next_cursor": "2",
+    },
+    {
+        "name": "get_repository_labels",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/labels",
+        "params": None,
+        "pagination": None,
+        "raw": [LABEL_RAW],
+        "expected_data": [expected_label(LABEL_RAW)],
+        "next_cursor": "2",
+    },
     {
         "name": "get_issue_comments",
         "kwargs": {"issue_id": "42"},

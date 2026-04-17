@@ -636,7 +636,7 @@ wheels = [
 
 [[package]]
 name = "sentry-scm"
-version = "0.1.7"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "msgspec" },
