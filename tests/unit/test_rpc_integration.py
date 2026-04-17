@@ -26,6 +26,7 @@ from tests.test_fixtures import (
     make_github_git_commit_object,
     make_github_git_ref,
     make_github_git_tree,
+    make_github_issue,
     make_github_pull_request,
     make_github_pull_request_commit,
     make_github_pull_request_file,
@@ -199,6 +200,21 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         lambda scm: actions.request_review(scm, "1", ["reviewer1"]),
         {"id": 1},
         200,
+        None,
+    ),
+    # Issue operations
+    (
+        "get_issue",
+        lambda scm: actions.get_issue(scm, "7"),
+        make_github_issue(),
+        200,
+        None,
+    ),
+    (
+        "create_issue",
+        lambda scm: actions.create_issue(scm, "Title", "Body"),
+        make_github_issue(title="Title", body="Body"),
+        201,
         None,
     ),
     # Issue comment operations

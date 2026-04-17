@@ -121,6 +121,7 @@ type ReviewSide = Literal["LEFT", "RIGHT"]
 
 type BranchName = str
 type SHA = str
+type IssueState = Literal["open", "closed"]
 type PullRequestState = Literal["open", "closed"]
 type ReviewEvent = Literal["approve", "change_request", "comment"]
 
@@ -214,6 +215,17 @@ class PullRequest(TypedDict):
     html_url: str
     head: PullRequestBranch
     base: PullRequestBranch
+
+
+class Issue(TypedDict):
+    """Provider-agnostic representation of an issue."""
+
+    id: ResourceId
+    number: str
+    title: str
+    body: str | None
+    state: IssueState
+    html_url: str
 
 
 class RawResult(TypedDict):
@@ -476,6 +488,29 @@ class PullRequestEventData(TypedDict):
 @runtime_checkable
 class GetRepositoryProtocol(Protocol):
     def get_repository(self) -> ActionResult[GitRepository]: ...
+
+
+# Issue Protocols
+
+
+@runtime_checkable
+class GetIssueProtocol(Protocol):
+    def get_issue(
+        self,
+        issue_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Issue]: ...
+
+
+@runtime_checkable
+class CreateIssueProtocol(Protocol):
+    def create_issue(
+        self,
+        title: str,
+        body: str,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]: ...
 
 
 # Issue Comment Protocols
@@ -969,6 +1004,7 @@ ALL_PROTOCOLS = (
     CreateGitTreeProtocol,
     CreateIssueCommentProtocol,
     CreateIssueCommentReactionProtocol,
+    CreateIssueProtocol,
     CreateIssueReactionProtocol,
     CreatePullRequestCommentProtocol,
     CreatePullRequestCommentReactionProtocol,
@@ -997,6 +1033,7 @@ ALL_PROTOCOLS = (
     GetGitCommitProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
+    GetIssueProtocol,
     GetIssueReactionsProtocol,
     GetPullRequestCommentReactionsProtocol,
     GetPullRequestCommentsProtocol,
