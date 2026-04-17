@@ -22,6 +22,7 @@ from scm.types import (
     GitRef,
     GitRepository,
     GitTree,
+    Label,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -58,6 +59,8 @@ class GitLab:
     hooks = "/hooks"
     issue = "/projects/{project}/issues/{issue}"
     issues = "/projects/{project}/issues"
+    project_users = "/projects/{project_id}/users"
+    project_labels = "/projects/{project_id}/labels"
     issue_awards = "/projects/{project_id}/issues/{issue_id}/award_emoji"
     issue_award = "/projects/{project_id}/issues/{issue_id}/award_emoji/{award_id}"
     issue_notes = "/projects/{project_id}/issues/{issue_id}/notes"
@@ -218,6 +221,30 @@ class GitLabProvider:
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
         return make_result(map_repository, response.json())
+
+    def get_repository_assignees(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Author]:
+        response = self.get(
+            GitLab.project_users.format(project_id=self.project_id),
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_author, response.json())
+
+    def get_repository_labels(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Label]:
+        response = self.get(
+            GitLab.project_labels.format(project_id=self.project_id),
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_label, response.json())
 
     def get_issue_comments(
         self,
@@ -894,6 +921,15 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         private=raw["visibility"] != "public",
         # GitLab returns size in bytes. We convert to kB to match GitHub
         size=repo_size // 1000,
+    )
+
+
+def map_label(raw: dict[str, Any]) -> Label:
+    return Label(
+        id=str(raw["id"]),
+        name=raw["name"],
+        color=raw["color"],
+        description=raw.get("description"),
     )
 
 
