@@ -95,6 +95,95 @@ def _make_mock_response(json_data):
                 "meta": {},
             },
         ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.get_repository_assignees,
+            provider_args={"pagination": None, "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/users",
+                    json_response=[
+                        {
+                            "id": 150871,
+                            "username": "jacquev6",
+                            "name": "Vincent Jacques",
+                            "state": "active",
+                            "avatar_url": "https://secure.gravatar.com/avatar/x?s=80&d=identicon",
+                            "web_url": "https://gitlab.com/jacquev6",
+                        }
+                    ],
+                ),
+            ],
+            provider_return_value={
+                "data": [{"id": "150871", "username": "jacquev6"}],
+                "type": "gitlab",
+                "raw": {
+                    "data": [
+                        {
+                            "id": 150871,
+                            "username": "jacquev6",
+                            "name": "Vincent Jacques",
+                            "state": "active",
+                            "avatar_url": "https://secure.gravatar.com/avatar/x?s=80&d=identicon",
+                            "web_url": "https://gitlab.com/jacquev6",
+                        }
+                    ],
+                    "headers": None,
+                },
+                "meta": {"next_cursor": None},
+            },
+        ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.get_repository_labels,
+            provider_args={"pagination": None, "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/labels",
+                    json_response=[
+                        {
+                            "id": 42,
+                            "name": "bug",
+                            "color": "#d73a4a",
+                            "description": "Something isn't working",
+                            "description_html": "",
+                            "text_color": "#FFFFFF",
+                            "subscribed": False,
+                            "priority": None,
+                            "is_project_label": True,
+                        }
+                    ],
+                ),
+            ],
+            provider_return_value={
+                "data": [
+                    {
+                        "id": "42",
+                        "name": "bug",
+                        "color": "#d73a4a",
+                        "description": "Something isn't working",
+                    }
+                ],
+                "type": "gitlab",
+                "raw": {
+                    "data": [
+                        {
+                            "id": 42,
+                            "name": "bug",
+                            "color": "#d73a4a",
+                            "description": "Something isn't working",
+                            "description_html": "",
+                            "text_color": "#FFFFFF",
+                            "subscribed": False,
+                            "priority": None,
+                            "is_project_label": True,
+                        }
+                    ],
+                    "headers": None,
+                },
+                "meta": {"next_cursor": None},
+            },
+        ),
         # Actual calls made with an actual GitLab integration, captured for this file.
         ForwardToClientTest(
             provider_method=GitLabProvider.get_pull_requests,
