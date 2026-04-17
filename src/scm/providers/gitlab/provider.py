@@ -925,10 +925,12 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 
 def map_label(raw: dict[str, Any]) -> Label:
+    color = raw["color"]
+    assert isinstance(color, str)
     return Label(
         id=str(raw["id"]),
         name=raw["name"],
-        color=raw["color"],
+        color=color.removeprefix("#"),
         description=raw.get("description"),
     )
 

@@ -160,7 +160,7 @@ def _make_mock_response(json_data):
                     {
                         "id": "42",
                         "name": "bug",
-                        "color": "#d73a4a",
+                        "color": "d73a4a",
                         "description": "Something isn't working",
                     }
                 ],
