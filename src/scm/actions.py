@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from scm.types import (
     SHA,
     ActionResult,
@@ -335,6 +337,8 @@ def get_commits(
     scm: GetCommitsProtocol,
     ref: str | None = None,
     pagination: PaginationParams | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     request_options: RequestOptions | None = None,
 ) -> PaginatedActionResult[Commit]:
     """
@@ -343,9 +347,18 @@ def get_commits(
     `ref` is either a branch name, a tag name, or a commit SHA.
     Specifying a commit SHA retrieves commits up to the given commit SHA.
 
+    `since` and `until` restrict results to commits authored within the given
+    (inclusive) datetime range.
+
     Commits are returned in descending order. Equivalent to `git log ref`.
     """
-    return scm.get_commits(ref=ref, pagination=pagination, request_options=request_options)
+    return scm.get_commits(
+        ref=ref,
+        pagination=pagination,
+        since=since,
+        until=until,
+        request_options=request_options,
+    )
 
 
 def get_commits_by_path(
@@ -353,6 +366,8 @@ def get_commits_by_path(
     path: str,
     ref: str | None = None,
     pagination: PaginationParams | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     request_options: RequestOptions | None = None,
 ) -> PaginatedActionResult[Commit]:
     """
@@ -361,9 +376,19 @@ def get_commits_by_path(
     `ref` is either a branch name, a tag name, or a commit SHA.
     Specifying a commit SHA retrieves commits up to the given commit SHA.
 
+    `since` and `until` restrict results to commits authored within the given
+    (inclusive) datetime range.
+
     Commits are returned in descending order. Equivalent to `git log ref`.
     """
-    return scm.get_commits_by_path(path=path, ref=ref, pagination=pagination, request_options=request_options)
+    return scm.get_commits_by_path(
+        path=path,
+        ref=ref,
+        pagination=pagination,
+        since=since,
+        until=until,
+        request_options=request_options,
+    )
 
 
 def compare_commits(

@@ -574,11 +574,17 @@ class GitHubProvider:
         self,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
         params: dict[str, str] = {}
         if ref:
             params["sha"] = ref
+        if since:
+            params["since"] = since.isoformat()
+        if until:
+            params["until"] = until.isoformat()
         response = self.get(
             f"/repos/{self.repository['name']}/commits",
             params=params,
@@ -592,11 +598,17 @@ class GitHubProvider:
         path: str,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
         params: dict[str, str] = {"path": path}
         if ref:
             params["sha"] = ref
+        if since:
+            params["since"] = since.isoformat()
+        if until:
+            params["until"] = until.isoformat()
         response = self.get(
             f"/repos/{self.repository['name']}/commits",
             params=params,

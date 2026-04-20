@@ -725,6 +725,8 @@ class GetCommitsProtocol(Protocol):
         self,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]: ...
 
@@ -736,6 +738,8 @@ class GetCommitsByPathProtocol(Protocol):
         path: str,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]: ...
 
