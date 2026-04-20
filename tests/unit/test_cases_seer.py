@@ -242,12 +242,15 @@ def _make_commit(
 
 
 class _CommitHistoryProvider(BaseTestProvider):
-    def __init__(self, pages: list[list[Commit]]):
-        self._pages = pages
-        self._commits_by_sha: dict[str, Commit] = {}
-        for page in pages:
-            for c in page:
-                self._commits_by_sha[c["id"]] = c
+    """
+    Returns the same flat list of commits on every call, regardless of the `cursor`
+    value. `get_commit_history` slices client-side via `start_index:end_index`, so a
+    single-page provider is enough to exercise its pagination logic.
+    """
+
+    def __init__(self, commits: list[Commit]):
+        self._commits = commits
+        self._commits_by_sha = {c["id"]: c for c in commits}
 
     def get_commits_by_path(
         self,
@@ -256,12 +259,7 @@ class _CommitHistoryProvider(BaseTestProvider):
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ):
-        cursor = (pagination or {}).get("cursor", "1")
-        idx = int(cursor) - 1
-        if idx >= len(self._pages):
-            return _paginated([], next_cursor=None)
-        next_cursor = str(idx + 2) if idx + 1 < len(self._pages) else None
-        return _paginated(self._pages[idx], next_cursor=next_cursor)
+        return _paginated(self._commits, next_cursor=None)
 
     def get_commit(self, sha, request_options=None):
         commit = self._commits_by_sha[sha]
@@ -281,7 +279,7 @@ def test_get_commit_history_formats_one_block_per_commit():
         _make_commit("aaaaaaaaaaaa", datetime(2026, 1, 1, tzinfo=UTC), files=files, message="first"),
         _make_commit("bbbbbbbbbbbb", datetime(2026, 1, 2, tzinfo=UTC), files=files, message="second"),
     ]
-    scm = SourceCodeManager(_CommitHistoryProvider([commits]))
+    scm = SourceCodeManager(_CommitHistoryProvider(commits))
 
     blocks = seer.get_commit_history(scm, path="src/main.py", sha="HEAD", build_file_tree_string=_build_file_tree)
     assert len(blocks) == 2
@@ -296,7 +294,7 @@ def test_get_commit_history_respects_pagination():
     commits = [
         _make_commit(str(i) * 12, datetime(2026, 1, i + 1, tzinfo=UTC), files=files, message=f"m{i}") for i in range(5)
     ]
-    scm = SourceCodeManager(_CommitHistoryProvider([commits]))
+    scm = SourceCodeManager(_CommitHistoryProvider(commits))
 
     page1 = seer.get_commit_history(
         scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree, max_commits=2, page=1
@@ -317,7 +315,7 @@ def test_get_commit_history_filters_by_since_and_until():
         _make_commit("bbbbbbbbbbbb", datetime(2026, 2, 1, tzinfo=UTC), files=files, message="mid"),
         _make_commit("cccccccccccc", datetime(2026, 3, 1, tzinfo=UTC), files=files, message="new"),
     ]
-    scm = SourceCodeManager(_CommitHistoryProvider([commits]))
+    scm = SourceCodeManager(_CommitHistoryProvider(commits))
 
     blocks = seer.get_commit_history(
         scm,
@@ -334,7 +332,7 @@ def test_get_commit_history_filters_by_since_and_until():
 def test_get_commit_history_skips_missing_author_dates_when_filtering():
     files = [CommitFile(filename="f.py", status="modified", patch=None)]
     commits = [_make_commit("aaaaaaaaaaaa", date=None, files=files, message="no-author")]
-    scm = SourceCodeManager(_CommitHistoryProvider([commits]))
+    scm = SourceCodeManager(_CommitHistoryProvider(commits))
 
     blocks = seer.get_commit_history(
         scm,
@@ -350,7 +348,7 @@ def test_get_commit_history_falls_back_to_get_commit_for_missing_files():
     """Commits returned without files should trigger a secondary fetch."""
     authored = datetime(2026, 1, 1, tzinfo=UTC)
     listing = [_make_commit("aaaaaaaaaaaa", authored, files=None, message="needs-fetch")]
-    scm = SourceCodeManager(_CommitHistoryProvider([listing]))
+    scm = SourceCodeManager(_CommitHistoryProvider(listing))
 
     blocks = seer.get_commit_history(scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree)
     assert len(blocks) == 1
@@ -363,7 +361,7 @@ def test_get_commit_history_caps_files_per_commit():
     files = [CommitFile(filename=f"f{i}.py", status="modified", patch=None) for i in range(25)]
     authored = datetime(2026, 1, 1, tzinfo=UTC)
     commits = [_make_commit("aaaaaaaaaaaa", authored, files=files, message="big")]
-    scm = SourceCodeManager(_CommitHistoryProvider([commits]))
+    scm = SourceCodeManager(_CommitHistoryProvider(commits))
 
     [block] = seer.get_commit_history(scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree)
     assert "and 5 more files were changed" in block
@@ -372,7 +370,7 @@ def test_get_commit_history_caps_files_per_commit():
 def test_get_commit_history_handles_missing_author_entirely():
     files = [CommitFile(filename="f.py", status="modified", patch=None)]
     commits = [_make_commit("aaaaaaaaaaaa", date=None, files=files, message="anon")]
-    scm = SourceCodeManager(_CommitHistoryProvider([commits]))
+    scm = SourceCodeManager(_CommitHistoryProvider(commits))
 
     [block] = seer.get_commit_history(scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree)
     assert "unknown" in block  # both date and author name render as "unknown"

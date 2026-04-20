@@ -139,7 +139,11 @@ def get_commit_history(
     end_index = start_index + max_commits
 
     matching: list[Commit] = []
-    for result in iter_all_pages(lambda p: scm.get_commits_by_path(path=path, ref=sha, pagination=p), cursor=str(page)):
+    for result in iter_all_pages(
+        lambda p: scm.get_commits_by_path(path=path, ref=sha, pagination=p),
+        per_page=min(50, max_commits),
+        cursor=str(page),
+    ):
         for commit in result["data"]:
             author = commit["author"]
             commit_date = author["date"] if author else None
