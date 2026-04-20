@@ -28,11 +28,11 @@ def deserialize_error(error: bytes) -> None:
     response = msgspec.json.decode(error, type=ErrorResponse)
 
     if len(response.errors) == 1:
-        raise SCMCodedError(code=response.errors[0].code)
+        raise SCMCodedError(code=response.errors[0].code, detail=response.errors[0].detail)
     else:
         raise ExceptionGroup(
             "Several exceptions were raise while processing your request.",
-            [SCMCodedError(code=e.code) for e in response.errors],
+            [SCMCodedError(code=e.code, detail=response.errors[0].detail) for e in response.errors],
         )
 
 
