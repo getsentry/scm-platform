@@ -234,15 +234,17 @@ def _make_commit(
 
 class _CommitHistoryProvider(BaseTestProvider):
     """
-    Returns the same flat list of commits on every call, regardless of the `cursor`
-    value. `get_commit_history` slices client-side via `start_index:end_index`, so a
-    single-page provider is enough to exercise its pagination logic. Honors
-    `since` / `until` server-side, mirroring the real providers.
+    Paginates `self._commits` using `cursor` (1-indexed page number as a string)
+    and `per_page` from `PaginationParams`, mirroring how the real GitHub/GitLab
+    providers behave. Records every (cursor, per_page) pair so tests can assert
+    that only the necessary API pages were fetched. Honors `since` / `until`
+    server-side.
     """
 
     def __init__(self, commits: list[Commit]):
         self._commits = commits
         self._commits_by_sha = {c["id"]: c for c in commits}
+        self.calls: list[tuple[str, int]] = []
 
     def _filter(self, since: datetime | None, until: datetime | None) -> list[Commit]:
         result: list[Commit] = []
@@ -265,7 +267,16 @@ class _CommitHistoryProvider(BaseTestProvider):
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ):
-        return _paginated(self._filter(since, until), next_cursor=None)
+        cursor = pagination["cursor"] if pagination else "1"
+        per_page = pagination["per_page"] if pagination else 50
+        self.calls.append((cursor, per_page))
+
+        filtered = self._filter(since, until)
+        page_index = int(cursor) - 1
+        start = page_index * per_page
+        end = start + per_page
+        next_cursor = str(int(cursor) + 1) if end < len(filtered) else None
+        return _paginated(filtered[start:end], next_cursor=next_cursor)
 
     def get_commit(self, sha, request_options=None):
         commit = self._commits_by_sha[sha]
@@ -295,33 +306,19 @@ def test_get_commit_history_formats_one_block_per_commit():
     assert "modified src/main.py" in blocks[0]
 
 
-def test_get_commit_history_respects_pagination():
+def _numbered_commits(n: int) -> list[Commit]:
     files = [CommitFile(filename="f.py", status="modified", patch=None)]
-    commits = [
-        _make_commit(str(i) * 12, datetime(2026, 1, i + 1, tzinfo=UTC), files=files, message=f"m{i}") for i in range(5)
-    ]
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    return [_make_commit(f"{i:012d}", base, files=files, message=f"m{i}") for i in range(n)]
 
-    class CursorAwareProvider(_CommitHistoryProvider):
-        """Honors cursor as a 1-indexed page number, paging through `commits`."""
 
-        def get_commits_by_path(
-            self,
-            path: str,
-            ref: str | None = None,
-            pagination: PaginationParams | None = None,
-            since: datetime | None = None,
-            until: datetime | None = None,
-            request_options: RequestOptions | None = None,
-        ):
-            filtered = self._filter(since, until)
-            per_page = pagination["per_page"] if pagination else 50
-            cursor = int(pagination["cursor"]) if pagination else 1
-            start = (cursor - 1) * per_page
-            end = start + per_page
-            next_cursor = str(cursor + 1) if end < len(filtered) else None
-            return _paginated(filtered[start:end], next_cursor=next_cursor)
-
-    scm = SourceCodeManager(CursorAwareProvider(commits))
+def test_get_commit_history_window_fits_in_first_api_page():
+    """
+    `default_per_page` is 30. max_commits=2 with page=1 or page=2 both land inside
+    the first API page, so only cursor "1" should be fetched.
+    """
+    provider = _CommitHistoryProvider(_numbered_commits(5))
+    scm = SourceCodeManager(provider)
 
     page1 = seer.get_commit_history(
         scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree, max_commits=2, page=1
@@ -329,10 +326,46 @@ def test_get_commit_history_respects_pagination():
     page2 = seer.get_commit_history(
         scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree, max_commits=2, page=2
     )
-    assert len(page1) == 2
-    assert len(page2) == 2
-    assert "m0" in page1[0] and "m1" in page1[1]
-    assert "m2" in page2[0] and "m3" in page2[1]
+    assert "- m0 (" in page1[0] and "- m1 (" in page1[1]
+    assert "- m2 (" in page2[0] and "- m3 (" in page2[1]
+    # Both calls should hit api page 1 with the default per_page of 30.
+    assert provider.calls == [("1", 30), ("1", 30)]
+
+
+def test_get_commit_history_jumps_to_target_api_page():
+    """
+    max_commits=10 with page=4 requests commits [30:40]. Those live entirely on
+    api page 2, so api page 1 should be skipped (cursor "2" only).
+    """
+    provider = _CommitHistoryProvider(_numbered_commits(60))
+    scm = SourceCodeManager(provider)
+
+    blocks = seer.get_commit_history(
+        scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree, max_commits=10, page=4
+    )
+
+    assert len(blocks) == 10
+    for i, block in enumerate(blocks):
+        assert f"- m{30 + i} (" in block
+    assert provider.calls == [("2", 30)]
+
+
+def test_get_commit_history_spans_multiple_api_pages():
+    """
+    max_commits=20 with page=2 requests commits [20:40], which straddles the
+    boundary between api page 1 and api page 2. Both pages must be fetched.
+    """
+    provider = _CommitHistoryProvider(_numbered_commits(60))
+    scm = SourceCodeManager(provider)
+
+    blocks = seer.get_commit_history(
+        scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree, max_commits=20, page=2
+    )
+
+    assert len(blocks) == 20
+    for i, block in enumerate(blocks):
+        assert f"- m{20 + i} (" in block
+    assert provider.calls == [("1", 30), ("2", 30)]
 
 
 def test_get_commit_history_filters_by_since_and_until():
