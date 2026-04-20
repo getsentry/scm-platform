@@ -1,7 +1,29 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 from scm.errors import SCMCodedError, SCMError
-from scm.types import Provider, Referrer, Repository, RepositoryId
+from scm.types import PaginatedActionResult, PaginationParams, Provider, Referrer, Repository, RepositoryId
+
+
+def iter_all_pages[T](
+    action_fn: Callable[[PaginationParams], PaginatedActionResult[T]],
+    per_page: int = 50,
+    cursor: str = "1",
+) -> Iterator[PaginatedActionResult[T]]:
+    while True:
+        result = action_fn({"per_page": per_page, "cursor": cursor})
+
+        # If page is empty exit the loop.
+        if len(result["data"]) == 0:
+            return None
+
+        yield result
+
+        # If the next-cursor value is empty exit the loop.
+        next_cursor = result["meta"]["next_cursor"]
+        if next_cursor is None:
+            return None
+
+        cursor = next_cursor
 
 
 def initialize_provider(
