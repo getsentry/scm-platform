@@ -147,7 +147,7 @@ def main():
     p.add_argument("commit_id")
     p.add_argument("body")
     p.add_argument("path")
-    p.add_argument("side", choices=["LEFT", "RIGHT"])
+    p.add_argument("side", choices=["base", "head"])
     p.add_argument("line", type=int)
 
     p = sub.add_parser("create-review-comment-multiline")
@@ -155,8 +155,8 @@ def main():
     p.add_argument("commit_id")
     p.add_argument("body")
     p.add_argument("path")
-    p.add_argument("side", choices=["LEFT", "RIGHT"])
-    p.add_argument("start_side", choices=["LEFT", "RIGHT"])
+    p.add_argument("side", choices=["base", "head"])
+    p.add_argument("start_side", choices=["base", "head"])
     p.add_argument("start_line", type=int)
     p.add_argument("end_line", type=int)
 

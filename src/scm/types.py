@@ -112,11 +112,11 @@ type TreeEntryType = Literal["blob", "tree", "commit"]
 - commit: a submodule reference
 """
 
-type ReviewSide = Literal["LEFT", "RIGHT"]
+type ReviewSide = Literal["base", "head"]
 """Which side of a diff a review comment is anchored to.
 
-- LEFT: the base (original) side of the diff
-- RIGHT: the head (modified) side of the diff
+- base: the base (original) side of the diff
+- head: the head (modified) side of the diff
 """
 
 type BranchName = str

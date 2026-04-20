@@ -119,6 +119,11 @@ GITHUB_REVIEW_EVENT_MAP: dict[ReviewEvent, str] = {
     "comment": "COMMENT",
 }
 
+GITHUB_REVIEW_SIDE_MAP: dict[ReviewSide, str] = {
+    "base": "LEFT",
+    "head": "RIGHT",
+}
+
 
 MINIMIZE_COMMENT_MUTATION = """
 mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) {
@@ -800,7 +805,7 @@ class GitHubProvider:
                 "body": body,
                 "commit_id": commit_id,
                 "path": path,
-                "side": side,
+                "side": GITHUB_REVIEW_SIDE_MAP[side],
                 "subject_type": "file",
             },
         )
@@ -823,7 +828,7 @@ class GitHubProvider:
                 "commit_id": commit_id,
                 "path": path,
                 "line": line,
-                "side": side,
+                "side": GITHUB_REVIEW_SIDE_MAP[side],
             },
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
@@ -847,9 +852,9 @@ class GitHubProvider:
                 "commit_id": commit_id,
                 "path": path,
                 "line": end_line,
-                "side": side,
+                "side": GITHUB_REVIEW_SIDE_MAP[side],
                 "start_line": start_line,
-                "start_side": start_side,
+                "start_side": GITHUB_REVIEW_SIDE_MAP[start_side],
             },
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
@@ -878,10 +883,19 @@ class GitHubProvider:
         comments: list[ReviewCommentInput],
         body: str | None = None,
     ) -> ActionResult[Review]:
+        translated_comments: list[dict[str, Any]] = []
+        for comment in comments:
+            translated: dict[str, Any] = dict(comment)
+            if "side" in translated:
+                translated["side"] = GITHUB_REVIEW_SIDE_MAP[translated["side"]]
+            if "start_side" in translated:
+                translated["start_side"] = GITHUB_REVIEW_SIDE_MAP[translated["start_side"]]
+            translated_comments.append(translated)
+
         data: dict[str, Any] = {
             "commit_id": commit_sha,
             "event": GITHUB_REVIEW_EVENT_MAP[event],
-            "comments": comments,
+            "comments": translated_comments,
         }
         if body is not None:
             data["body"] = body
