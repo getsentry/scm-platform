@@ -3,8 +3,8 @@ import pytest
 from scm.errors import SCMCodedError
 from scm.facade import Facade
 from scm.manager import SourceCodeManager
+from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
-from tests.test_fixtures import BaseTestProvider
 
 
 def make_repository(**overrides) -> Repository:

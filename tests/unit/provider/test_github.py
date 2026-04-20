@@ -10,8 +10,7 @@ from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     GitHubProvider,
 )
-from scm.types import ApiClient, Referrer, Repository
-from tests.test_fixtures import (
+from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
     make_github_check_run,
@@ -33,6 +32,7 @@ from tests.test_fixtures import (
     make_github_review,
     make_github_review_comment,
 )
+from scm.types import ApiClient, Referrer, Repository
 
 
 def make_repository() -> Repository:

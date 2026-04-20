@@ -14,8 +14,7 @@ from scm.rpc.client import SourceCodeManager, deserialize_repository
 from scm.rpc.errors import deserialize_error
 from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
-from scm.types import Repository
-from tests.test_fixtures import (
+from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
     make_github_check_run,
@@ -37,6 +36,7 @@ from tests.test_fixtures import (
     make_github_review,
     make_github_review_comment,
 )
+from scm.types import Repository
 
 SIGNING_SECRET = "test-secret"
 BASE_URL = "http://rpc-server"
