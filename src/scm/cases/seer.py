@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from scm.errors import SCMError
-from scm.helpers import iter_all_pages
 from scm.manager import SourceCodeManager
 from scm.rpc.client import SourceCodeManager as ScmRpcClient
 from scm.types import (
@@ -122,28 +121,34 @@ def get_commit_history(
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> list[str]:
-    start_index = (page - 1) * max_commits
-    end_index = start_index + max_commits
+    # Calculate which commits we want (0-based indexing)
+    start_commit_index = (page - 1) * max_commits
+    end_commit_index = start_commit_index + max_commits
 
-    matching: list[Commit] = []
-    for result in iter_all_pages(
-        lambda p: scm.get_commits_by_path(path=path, ref=sha, pagination=p),
-        per_page=min(50, max_commits),
-    ):
-        for commit in result["data"]:
-            author = commit["author"]
-            commit_date = author["date"] if author else None
-            if since is not None and (commit_date is None or commit_date < since):
-                continue
-            if until is not None and (commit_date is None or commit_date > until):
-                continue
-            matching.append(commit)
-            if len(matching) >= end_index:
-                break
-        if len(matching) >= end_index:
+    # Calculate which pages we need to fetch
+    default_per_page = 30
+    start_page = start_commit_index // default_per_page
+    end_page = (end_commit_index - 1) // default_per_page
+
+    # Collect commits from the required pages
+    all_commits: list[Commit] = []
+    for github_page in range(start_page, end_page + 1):
+        page_commits = scm.get_commits_by_path(
+            path=path,
+            ref=sha,
+            pagination={"cursor": str(github_page + 1), "per_page": default_per_page},
+            since=since,
+            until=until,
+        )
+        all_commits.extend(page_commits["data"])
+        # Stop early if we've collected enough commits
+        if len(all_commits) >= end_commit_index - start_page * default_per_page:
             break
 
-    commit_list = matching[start_index:end_index]
+    # Extract the specific range we want
+    start_offset = start_commit_index - start_page * default_per_page
+    end_offset = start_offset + max_commits
+    commit_list = all_commits[start_offset:end_offset]
 
     def process_commit(commit: Commit) -> str:
         MAX_COMMIT_FILES = 20

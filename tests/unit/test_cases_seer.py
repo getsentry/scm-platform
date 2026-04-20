@@ -246,21 +246,36 @@ class _CommitHistoryProvider(BaseTestProvider):
     """
     Returns the same flat list of commits on every call, regardless of the `cursor`
     value. `get_commit_history` slices client-side via `start_index:end_index`, so a
-    single-page provider is enough to exercise its pagination logic.
+    single-page provider is enough to exercise its pagination logic. Honors
+    `since` / `until` server-side, mirroring the real providers.
     """
 
     def __init__(self, commits: list[Commit]):
         self._commits = commits
         self._commits_by_sha = {c["id"]: c for c in commits}
 
+    def _filter(self, since: datetime | None, until: datetime | None) -> list[Commit]:
+        result: list[Commit] = []
+        for commit in self._commits:
+            author = commit["author"]
+            commit_date = author["date"] if author else None
+            if since is not None and (commit_date is None or commit_date < since):
+                continue
+            if until is not None and (commit_date is None or commit_date > until):
+                continue
+            result.append(commit)
+        return result
+
     def get_commits_by_path(
         self,
         path: str,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ):
-        return _paginated(self._commits, next_cursor=None)
+        return _paginated(self._filter(since, until), next_cursor=None)
 
     def get_commit(self, sha, request_options=None):
         commit = self._commits_by_sha[sha]
@@ -304,14 +319,17 @@ def test_get_commit_history_respects_pagination():
             path: str,
             ref: str | None = None,
             pagination: PaginationParams | None = None,
+            since: datetime | None = None,
+            until: datetime | None = None,
             request_options: RequestOptions | None = None,
         ):
+            filtered = self._filter(since, until)
             per_page = pagination["per_page"] if pagination else 50
             cursor = int(pagination["cursor"]) if pagination else 1
             start = (cursor - 1) * per_page
             end = start + per_page
-            next_cursor = str(cursor + 1) if end < len(self._commits) else None
-            return _paginated(self._commits[start:end], next_cursor=next_cursor)
+            next_cursor = str(cursor + 1) if end < len(filtered) else None
+            return _paginated(filtered[start:end], next_cursor=next_cursor)
 
     scm = SourceCodeManager(CursorAwareProvider(commits))
 
