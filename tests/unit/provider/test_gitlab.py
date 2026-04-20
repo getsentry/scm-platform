@@ -11056,7 +11056,7 @@ def _make_mock_response(json_data):
                 "commit_id": "7497e018d01503b6abc3053b7896266115e631f6",
                 "body": "A review comment, on a file, made by the API on 2026-03-11 11:06:19.945026.",
                 "path": "BLAH.md",
-                "side": "RIGHT",
+                "side": "head",
             },
             client_calls=[
                 ClientForwardedCall(

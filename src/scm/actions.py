@@ -27,6 +27,7 @@ from scm.types import (
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
     CreateReviewCommentFileProtocol,
+    CreateReviewCommentLineProtocol,
     CreateReviewCommentMultilineProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
@@ -488,6 +489,19 @@ def create_review_comment_file(
     return scm.create_review_comment_file(pull_request_id, commit_id, body, path, side)
 
 
+def create_review_comment_line(
+    scm: CreateReviewCommentLineProtocol,
+    pull_request_id: str,
+    commit_id: SHA,
+    body: str,
+    path: str,
+    side: ReviewSide,
+    line: int,
+) -> ActionResult[ReviewComment]:
+    """Leave a review comment on a line."""
+    return scm.create_review_comment_line(pull_request_id, commit_id, body, path, side, line)
+
+
 def create_review_comment_multiline(
     scm: CreateReviewCommentMultilineProtocol,
     pull_request_id: str,
@@ -495,11 +509,14 @@ def create_review_comment_multiline(
     body: str,
     path: str,
     side: ReviewSide,
+    start_side: ReviewSide,
     start_line: int,
     end_line: int,
 ) -> ActionResult[ReviewComment]:
     """Leave a review comment on a line span."""
-    return scm.create_review_comment_multiline(pull_request_id, commit_id, body, path, side, start_line, end_line)
+    return scm.create_review_comment_multiline(
+        pull_request_id, commit_id, body, path, side, start_side, start_line, end_line
+    )
 
 
 def create_review_comment_reply(
@@ -599,6 +616,7 @@ __all__ = (
     "create_pull_request_reaction",
     "create_pull_request",
     "create_review_comment_file",
+    "create_review_comment_line",
     "create_review_comment_reply",
     "create_review",
     "delete_issue_comment_reaction",

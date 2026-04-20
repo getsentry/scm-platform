@@ -23,6 +23,8 @@ Commands:
     get-pull-request-comments <pr_id>
     create-issue-comment <issue_id> <body>
     create-pull-request-comment <pr_id> <body>
+    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
+    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
     get-branch <name>
     get-commit <sha>
     get-file-content <path> [--ref <ref>]
@@ -43,6 +45,8 @@ from scm.types import (
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
+    CreateReviewCommentLineProtocol,
+    CreateReviewCommentMultilineProtocol,
     DownloadArchiveProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
@@ -138,6 +142,24 @@ def main():
     p.add_argument("pr_id")
     p.add_argument("body")
 
+    p = sub.add_parser("create-review-comment-line")
+    p.add_argument("pr_id")
+    p.add_argument("commit_id")
+    p.add_argument("body")
+    p.add_argument("path")
+    p.add_argument("side", choices=["base", "head"])
+    p.add_argument("line", type=int)
+
+    p = sub.add_parser("create-review-comment-multiline")
+    p.add_argument("pr_id")
+    p.add_argument("commit_id")
+    p.add_argument("body")
+    p.add_argument("path")
+    p.add_argument("side", choices=["base", "head"])
+    p.add_argument("start_side", choices=["base", "head"])
+    p.add_argument("start_line", type=int)
+    p.add_argument("end_line", type=int)
+
     p = sub.add_parser("get-branch")
     p.add_argument("name")
 
@@ -220,6 +242,25 @@ def main():
     elif args.command == "create-pull-request-comment":
         assert isinstance(scm, CreatePullRequestCommentProtocol)
         dump(scm.create_pull_request_comment(args.pr_id, args.body))
+
+    elif args.command == "create-review-comment-line":
+        assert isinstance(scm, CreateReviewCommentLineProtocol)
+        dump(scm.create_review_comment_line(args.pr_id, args.commit_id, args.body, args.path, args.side, args.line))
+
+    elif args.command == "create-review-comment-multiline":
+        assert isinstance(scm, CreateReviewCommentMultilineProtocol)
+        dump(
+            scm.create_review_comment_multiline(
+                args.pr_id,
+                args.commit_id,
+                args.body,
+                args.path,
+                args.side,
+                args.start_side,
+                args.start_line,
+                args.end_line,
+            )
+        )
 
     elif args.command == "get-branch":
         assert isinstance(scm, GetBranchProtocol)
