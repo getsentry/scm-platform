@@ -60,8 +60,8 @@ from scm.actions import (
     update_pull_request,
 )
 from scm.errors import SCMCodedError
+from scm.test_fixtures import BaseTestProvider, SourceCodeManager
 from scm.types import GetBranchProtocol, Referrer, Repository
-from tests.test_fixtures import BaseTestProvider, SourceCodeManager
 
 
 @contextmanager
