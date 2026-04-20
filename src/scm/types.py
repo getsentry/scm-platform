@@ -1083,7 +1083,7 @@ ALL_PROTOCOLS = (
 
 
 class ApiClient[T](Protocol):
-    def _request(
+    def request(
         self,
         method: str,
         path: str,

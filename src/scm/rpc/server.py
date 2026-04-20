@@ -101,7 +101,7 @@ class RpcServer:
         action = action_request.data
         response = exec_provider_fn(
             scm.provider,
-            provider_fn=lambda: scm.provider._request(
+            provider_fn=lambda: scm.provider.request(
                 method=action.method,
                 path=action.path,
                 headers={k: v for k, v in action.headers.items() if k.lower() in ALLOWED_HEADERS}

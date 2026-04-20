@@ -145,7 +145,7 @@ class GitLabProvider:
     def is_rate_limited(self, referrer: Referrer) -> bool:
         return False
 
-    def _request(
+    def request(
         self,
         method: str,
         path: str,
@@ -156,7 +156,7 @@ class GitLabProvider:
         stream: bool | None = None,
         raw_response: bool = True,
     ) -> requests.Response:
-        response = self.client._request(
+        response = self.client.request(
             method=method,
             path=path,
             headers=headers,
@@ -192,7 +192,7 @@ class GitLabProvider:
             params["per_page"] = str(pagination["per_page"])
             params["page"] = str(pagination["cursor"])
 
-        return self._request(
+        return self.request(
             "GET",
             path=path,
             params=params,
@@ -206,7 +206,7 @@ class GitLabProvider:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self._request("POST", path=path, data=data, headers=headers)
+        return self.request("POST", path=path, data=data, headers=headers)
 
     def put(
         self,
@@ -214,10 +214,10 @@ class GitLabProvider:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self._request("PUT", path=path, data=data, headers=headers)
+        return self.request("PUT", path=path, data=data, headers=headers)
 
     def delete(self, path: str) -> requests.Response:
-        return self._request("DELETE", path=path)
+        return self.request("DELETE", path=path)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})

@@ -185,7 +185,7 @@ class GitHubProvider:
         else:
             return self.rate_limiter.is_rate_limited("shared")
 
-    def _request(
+    def request(
         self,
         method: str,
         path: str,
@@ -196,7 +196,7 @@ class GitHubProvider:
         stream: bool | None = None,
         raw_response: bool = True,
     ) -> requests.Response:
-        response = self.client._request(
+        response = self.client.request(
             method=method,
             path=path,
             headers=headers,
@@ -255,7 +255,7 @@ class GitHubProvider:
             params["per_page"] = str(pagination["per_page"])
             params["page"] = str(pagination["cursor"])
 
-        return self._request(
+        return self.request(
             "GET",
             path=path,
             params=params,
@@ -269,7 +269,7 @@ class GitHubProvider:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self._request("POST", path=path, data=data, headers=headers)
+        return self.request("POST", path=path, data=data, headers=headers)
 
     def patch(
         self,
@@ -277,10 +277,10 @@ class GitHubProvider:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        return self._request("PATCH", path=path, data=data, headers=headers)
+        return self.request("PATCH", path=path, data=data, headers=headers)
 
     def delete(self, path: str) -> requests.Response:
-        return self._request("DELETE", path=path)
+        return self.request("DELETE", path=path)
 
     def graphql(
         self,

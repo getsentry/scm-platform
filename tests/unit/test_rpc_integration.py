@@ -565,14 +565,14 @@ class TestRpcIntegration:
         server_provider.repository = repo
         server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
-        server_provider._request.return_value = mock_response
+        server_provider.request.return_value = mock_response
 
         server = make_rpc_server(repo, server_provider)
         scm = make_client_scm(1, 1, server)
 
         action_fn(scm)
 
-        server_provider._request.assert_called_once()
+        server_provider.request.assert_called_once()
 
     def test_multi_chunk_streaming_response(self):
         """Verify that a response split across multiple chunks is reassembled correctly."""
@@ -595,7 +595,7 @@ class TestRpcIntegration:
         server_provider.repository = repo
         server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
-        server_provider._request.return_value = mock_response
+        server_provider.request.return_value = mock_response
 
         server = make_rpc_server(repo, server_provider)
         scm = make_client_scm(1, 1, server)

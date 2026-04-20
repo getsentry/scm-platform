@@ -96,7 +96,7 @@ class GitHubApiClient:
     def __init__(self, token_manager: InstallationTokenManager) -> None:
         self.token_manager = token_manager
 
-    def _request(
+    def request(
         self,
         method: str,
         path: str,

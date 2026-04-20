@@ -12138,14 +12138,14 @@ def _make_mock_response(json_data):
 def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToClientTest):
     # Setup client mock to return responses based on call order
     responses = [_make_mock_response(call.json_response) for call in param.client_calls]
-    client._request.side_effect = responses
+    client.request.side_effect = responses
 
     # Call the provider, check the return value
     assert param.provider_method(provider, **param.provider_args) == param.provider_return_value
 
-    # Check client._request calls
-    assert client._request.call_count == len(param.client_calls)
-    for client_call, mock_call in zip(param.client_calls, client._request.call_args_list, strict=False):
+    # Check client.request calls
+    assert client.request.call_count == len(param.client_calls)
+    for client_call, mock_call in zip(param.client_calls, client.request.call_args_list, strict=False):
         assert mock_call.kwargs["method"] == client_call.method
         assert mock_call.kwargs["path"] == client_call.path
         if client_call.params is not None:
@@ -12155,7 +12155,7 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
 
 
 def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProvider):
-    client._request.return_value = _make_mock_response(
+    client.request.return_value = _make_mock_response(
         {
             "id": 1,
             "iid": 1,
@@ -12168,7 +12168,7 @@ def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProv
 
     provider.create_issue(title="bug", body="it broke", assignees=["42", "99"], labels=["bug", "p1"])
 
-    call = client._request.call_args
+    call = client.request.call_args
     assert call.kwargs["method"] == "POST"
     assert call.kwargs["path"] == "/projects/79787061/issues"
     assert call.kwargs["data"] == {
@@ -12183,11 +12183,11 @@ def test_download_archive_returns_bytes_from_response(client, provider: GitLabPr
     response = unittest.mock.MagicMock()
     response.content = b"tarball-bytes"
     response.status_code = 200
-    client._request.return_value = response
+    client.request.return_value = response
 
     assert provider.download_archive("main") == b"tarball-bytes"
 
-    call = client._request.call_args
+    call = client.request.call_args
     assert call.kwargs["method"] == "GET"
     assert call.kwargs["path"] == "/projects/79787061/repository/archive.tar.gz"
     assert call.kwargs["params"] == {"sha": "main"}
@@ -12197,9 +12197,9 @@ def test_download_archive_zip_uses_zip_extension(client, provider: GitLabProvide
     response = unittest.mock.MagicMock()
     response.content = b"zip-bytes"
     response.status_code = 200
-    client._request.return_value = response
+    client.request.return_value = response
 
     assert provider.download_archive("main", archive_format="zip") == b"zip-bytes"
 
-    call = client._request.call_args
+    call = client.request.call_args
     assert call.kwargs["path"] == "/projects/79787061/repository/archive.zip"
