@@ -1,6 +1,6 @@
 [project]
 name = "sentry-scm"
-version = "0.4.2"
+version = "0.5.0"
 description = "A unified interface for source code management providers"
 readme = "README.md"
 license = "LicenseRef-FSL-1.1-Apache-2.0"
