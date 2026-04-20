@@ -557,6 +557,8 @@ class GitHubProvider:
             params=params,
             request_options=request_options,
         )
+        if isinstance(response.json(), list):
+            raise SCMCodedError(code="path_is_directory", detail=path)
         return map_action(response, map_file_content)
 
     def get_commit(
