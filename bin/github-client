@@ -24,7 +24,7 @@ Commands:
     create-issue-comment <issue_id> <body>
     create-pull-request-comment <pr_id> <body>
     create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
-    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_line> <end_line>
+    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
     get-branch <name>
     get-commit <sha>
     get-file-content <path> [--ref <ref>]
@@ -156,6 +156,7 @@ def main():
     p.add_argument("body")
     p.add_argument("path")
     p.add_argument("side", choices=["LEFT", "RIGHT"])
+    p.add_argument("start_side", choices=["LEFT", "RIGHT"])
     p.add_argument("start_line", type=int)
     p.add_argument("end_line", type=int)
 
@@ -250,7 +251,14 @@ def main():
         assert isinstance(scm, CreateReviewCommentMultilineProtocol)
         dump(
             scm.create_review_comment_multiline(
-                args.pr_id, args.commit_id, args.body, args.path, args.side, args.start_line, args.end_line
+                args.pr_id,
+                args.commit_id,
+                args.body,
+                args.path,
+                args.side,
+                args.start_side,
+                args.start_line,
+                args.end_line,
             )
         )
 

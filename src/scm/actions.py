@@ -509,11 +509,14 @@ def create_review_comment_multiline(
     body: str,
     path: str,
     side: ReviewSide,
+    start_side: ReviewSide,
     start_line: int,
     end_line: int,
 ) -> ActionResult[ReviewComment]:
     """Leave a review comment on a line span."""
-    return scm.create_review_comment_multiline(pull_request_id, commit_id, body, path, side, start_line, end_line)
+    return scm.create_review_comment_multiline(
+        pull_request_id, commit_id, body, path, side, start_side, start_line, end_line
+    )
 
 
 def create_review_comment_reply(

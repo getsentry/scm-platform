@@ -981,6 +981,7 @@ class CreateReviewCommentMultilineProtocol(Protocol):
         body: str,
         path: str,
         side: ReviewSide,
+        start_side: ReviewSide,
         start_line: int,
         end_line: int,
     ) -> ActionResult[ReviewComment]: ...

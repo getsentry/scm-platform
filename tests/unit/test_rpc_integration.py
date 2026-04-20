@@ -479,7 +479,7 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
     (
         "create_review_comment_multiline",
         lambda scm: actions.create_review_comment_multiline(
-            scm, "1", "abc123", "Span comment", "file.py", "RIGHT", 1, 5
+            scm, "1", "abc123", "Span comment", "file.py", "RIGHT", "LEFT", 1, 5
         ),
         make_github_review_comment(),
         201,

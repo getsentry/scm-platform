@@ -835,6 +835,7 @@ class GitHubProvider:
         body: str,
         path: str,
         side: ReviewSide,
+        start_side: ReviewSide,
         start_line: int,
         end_line: int,
     ) -> ActionResult[ReviewComment]:
@@ -848,6 +849,7 @@ class GitHubProvider:
                 "line": end_line,
                 "side": side,
                 "start_line": start_line,
+                "start_side": start_side,
             },
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
