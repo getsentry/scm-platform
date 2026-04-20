@@ -32,7 +32,7 @@ def deserialize_error(error: bytes) -> None:
     else:
         raise ExceptionGroup(
             "Several exceptions were raise while processing your request.",
-            [SCMCodedError(code=e.code, detail=response.errors[0].detail) for e in response.errors],
+            [SCMCodedError(code=e.code, detail=e.detail) for e in response.errors],
         )
 
 
