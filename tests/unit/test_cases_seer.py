@@ -157,10 +157,11 @@ def test_get_git_tree_returns_sha_and_namespaces():
     tree_sha, ns_iter = seer.get_git_tree(scm, "abc123")
     assert tree_sha == "treeX"
     materialised = list(ns_iter)
-    assert [n.sha for n in materialised] == ["s1", "s2"]
-    assert [n.size for n in materialised] == [42, 0]  # None coerced to 0
-    assert [n.type for n in materialised] == ["blob", "blob"]
-    assert [n.mode for n in materialised] == ["100644", "100644"]
+    assert [n["sha"] for n in materialised] == ["s1", "s2"]
+    assert [n["size"] for n in materialised] == [42, None]
+    assert [n["type"] for n in materialised] == ["blob", "blob"]
+    assert [n["mode"] for n in materialised] == ["100644", "100644"]
+    assert [n["path"] for n in materialised] == ["README.md", "no_size"]
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +295,25 @@ def test_get_commit_history_respects_pagination():
     commits = [
         _make_commit(str(i) * 12, datetime(2026, 1, i + 1, tzinfo=UTC), files=files, message=f"m{i}") for i in range(5)
     ]
-    scm = SourceCodeManager(_CommitHistoryProvider(commits))
+
+    class CursorAwareProvider(_CommitHistoryProvider):
+        """Honors cursor as a 1-indexed page number, paging through `commits`."""
+
+        def get_commits_by_path(
+            self,
+            path: str,
+            ref: str | None = None,
+            pagination: PaginationParams | None = None,
+            request_options: RequestOptions | None = None,
+        ):
+            per_page = pagination["per_page"] if pagination else 50
+            cursor = int(pagination["cursor"]) if pagination else 1
+            start = (cursor - 1) * per_page
+            end = start + per_page
+            next_cursor = str(cursor + 1) if end < len(self._commits) else None
+            return _paginated(self._commits[start:end], next_cursor=next_cursor)
+
+    scm = SourceCodeManager(CursorAwareProvider(commits))
 
     page1 = seer.get_commit_history(
         scm, path="f.py", sha="HEAD", build_file_tree_string=_build_file_tree, max_commits=2, page=1

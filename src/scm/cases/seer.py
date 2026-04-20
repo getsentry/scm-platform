@@ -2,10 +2,9 @@ import base64
 import logging
 import os
 import textwrap
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from types import SimpleNamespace
 
 from scm.errors import SCMError
 from scm.helpers import iter_all_pages
@@ -71,25 +70,13 @@ def get_valid_file_paths(scm: SeerCapabilities, commit_sha: SHA, max_file_size: 
     return (valid_file_paths, oversized_file_paths)
 
 
-def get_git_tree(scm: SeerCapabilities, commit_sha: str) -> tuple[SHA, Iterable[SimpleNamespace]]:
+def get_git_tree(scm: SeerCapabilities, commit_sha: str) -> tuple[SHA, list[TreeEntry]]:
     """
     Fetch the full git tree for a commit via the SCM client. Truncation is
     handled by _walk_tree_entries (divide and conquer across subtrees).
     """
     git_commit = scm.get_git_commit(commit_sha)["data"]
-
-    return (
-        git_commit["tree"]["sha"],
-        (
-            SimpleNamespace(
-                type=entry["type"],
-                size=entry.get("size") or 0,
-                sha=entry["sha"],
-                mode=entry["mode"],
-            )
-            for entry in _walk_tree_entries(scm, git_commit["tree"]["sha"])
-        ),
-    )
+    return (git_commit["tree"]["sha"], _walk_tree_entries(scm, git_commit["tree"]["sha"]))
 
 
 def _walk_tree_entries(scm: SeerCapabilities, tree_sha: str) -> list[TreeEntry]:
@@ -142,7 +129,6 @@ def get_commit_history(
     for result in iter_all_pages(
         lambda p: scm.get_commits_by_path(path=path, ref=sha, pagination=p),
         per_page=min(50, max_commits),
-        cursor=str(page),
     ):
         for commit in result["data"]:
             author = commit["author"]
