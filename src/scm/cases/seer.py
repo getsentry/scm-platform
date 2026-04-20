@@ -6,7 +6,6 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-from scm.errors import SCMError
 from scm.manager import SourceCodeManager
 from scm.rpc.client import SourceCodeManager as ScmRpcClient
 from scm.types import (
@@ -35,15 +34,12 @@ class SeerCapabilities(
 ): ...
 
 
-def get_file_content(scm: SeerCapabilities, path: str, sha: str) -> bytes | None:
-    try:
-        file_content = scm.get_file_content(path=path, ref=sha)["data"]
-        if file_content["encoding"] == "base64":
-            return base64.b64decode(file_content["content"])
-        else:
-            return file_content["content"].encode("utf-8")
-    except SCMError:
-        return None
+def get_file_content(scm: SeerCapabilities, path: str, sha: str) -> bytes:
+    file_content = scm.get_file_content(path=path, ref=sha)["data"]
+    if file_content["encoding"] == "base64":
+        return base64.b64decode(file_content["content"])
+    else:
+        return file_content["content"].encode("utf-8")
 
 
 def get_commit_patch_for_file(scm: SeerCapabilities, path: str, commit_sha: str) -> str | None:

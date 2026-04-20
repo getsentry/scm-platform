@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 from scm.cases import seer
-from scm.errors import SCMError
 from scm.types import (
     ActionResult,
     Commit,
@@ -55,15 +54,6 @@ def test_get_file_content_plain_text_encodes_utf8():
 
     scm = SourceCodeManager(Provider())
     assert seer.get_file_content(scm, "README.md", "abc123") == "héllo".encode()
-
-
-def test_get_file_content_returns_none_on_scm_error():
-    class Provider(BaseTestProvider):
-        def get_file_content(self, path, ref=None, request_options=None):
-            raise SCMError("not found")
-
-    scm = SourceCodeManager(Provider())
-    assert seer.get_file_content(scm, "missing.py", "abc123") is None
 
 
 # ---------------------------------------------------------------------------
