@@ -5,6 +5,7 @@ from scm.rpc.types import Error, ErrorResponse
 
 STATUS_MAP: dict[ErrorCode, int] = {
     "malformed_external_id": 400,
+    "path_is_directory": 400,
     "provider_not_found": 404,
     "rate_limit_exceeded": 429,
     "repository_inactive": 404,

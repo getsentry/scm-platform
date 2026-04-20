@@ -1047,6 +1047,17 @@ def test_create_issue_forwards_assignees_and_labels() -> None:
     ]
 
 
+def test_get_file_content_raises_when_path_is_directory() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse([FILE_CONTENT_RAW, FILE_CONTENT_RAW]))
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_file_content(path="src", ref="main")
+
+    assert exc_info.value.code == "path_is_directory"
+    assert exc_info.value.detail == "src"
+
+
 def test_get_pull_request_diff_uses_raw_request_and_extracts_meta() -> None:
     provider, client = make_provider()
     response = FakeResponse(

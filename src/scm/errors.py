@@ -2,6 +2,7 @@ from typing import Literal
 
 type ErrorCode = Literal[
     "malformed_external_id",
+    "path_is_directory",
     "provider_not_found",
     "rate_limit_exceeded",
     "repository_could_not_be_deserialized",
@@ -23,6 +24,7 @@ type ErrorCode = Literal[
 
 ERROR_CODES: dict[ErrorCode, str] = {
     "malformed_external_id": "The repository's external ID was malformed.",
+    "path_is_directory": "The requested path is a directory, not a file.",
     "provider_not_found": "An unsupported integration provider was found.",
     "rate_limit_exceeded": "Exhausted allocated service-provider quota.",
     "repository_could_not_be_deserialized": "The repository could not be deserialized.",
