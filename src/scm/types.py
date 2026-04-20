@@ -967,8 +967,8 @@ class CreateReviewCommentLineProtocol(Protocol):
         commit_id: SHA,
         body: str,
         path: str,
-        line: int,
         side: ReviewSide,
+        line: int,
     ) -> ActionResult[ReviewComment]: ...
 
 

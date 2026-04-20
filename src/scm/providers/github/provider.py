@@ -806,6 +806,28 @@ class GitHubProvider:
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
+    def create_review_comment_line(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+        line: int,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment on a line."""
+        response = self.post(
+            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/comments",
+            data={
+                "body": body,
+                "commit_id": commit_id,
+                "path": path,
+                "line": line,
+                "side": side,
+            },
+        )
+        return deserialize_action(response, deserialize_pull_request_review_comment)
+
     def create_review_comment_multiline(
         self,
         pull_request_id: str,
