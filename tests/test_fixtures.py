@@ -934,6 +934,8 @@ class BaseTestProvider(Provider):
         self,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
         inner = self.get_commit("abc123")
@@ -949,6 +951,8 @@ class BaseTestProvider(Provider):
         path: str,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
         inner = self.get_commit("abc123")

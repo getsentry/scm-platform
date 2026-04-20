@@ -2,13 +2,10 @@ import base64
 import logging
 import os
 import textwrap
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from types import SimpleNamespace
 
-from scm.errors import SCMError
-from scm.helpers import iter_all_pages
 from scm.manager import SourceCodeManager
 from scm.rpc.client import SourceCodeManager as ScmRpcClient
 from scm.types import (
@@ -37,15 +34,12 @@ class SeerCapabilities(
 ): ...
 
 
-def get_file_content(scm: SeerCapabilities, path: str, sha: str) -> bytes | None:
-    try:
-        file_content = scm.get_file_content(path=path, ref=sha)["data"]
-        if file_content["encoding"] == "base64":
-            return base64.b64decode(file_content["content"])
-        else:
-            return file_content["content"].encode("utf-8")
-    except SCMError:
-        return None
+def get_file_content(scm: SeerCapabilities, path: str, sha: str) -> bytes:
+    file_content = scm.get_file_content(path=path, ref=sha)["data"]
+    if file_content["encoding"] == "base64":
+        return base64.b64decode(file_content["content"])
+    else:
+        return file_content["content"].encode("utf-8")
 
 
 def get_commit_patch_for_file(scm: SeerCapabilities, path: str, commit_sha: str) -> str | None:
@@ -71,25 +65,13 @@ def get_valid_file_paths(scm: SeerCapabilities, commit_sha: SHA, max_file_size: 
     return (valid_file_paths, oversized_file_paths)
 
 
-def get_git_tree(scm: SeerCapabilities, commit_sha: str) -> tuple[SHA, Iterable[SimpleNamespace]]:
+def get_git_tree(scm: SeerCapabilities, commit_sha: str) -> tuple[SHA, list[TreeEntry]]:
     """
     Fetch the full git tree for a commit via the SCM client. Truncation is
     handled by _walk_tree_entries (divide and conquer across subtrees).
     """
     git_commit = scm.get_git_commit(commit_sha)["data"]
-
-    return (
-        git_commit["tree"]["sha"],
-        (
-            SimpleNamespace(
-                type=entry["type"],
-                size=entry.get("size") or 0,
-                sha=entry["sha"],
-                mode=entry["mode"],
-            )
-            for entry in _walk_tree_entries(scm, git_commit["tree"]["sha"])
-        ),
-    )
+    return (git_commit["tree"]["sha"], _walk_tree_entries(scm, git_commit["tree"]["sha"]))
 
 
 def _walk_tree_entries(scm: SeerCapabilities, tree_sha: str) -> list[TreeEntry]:
@@ -135,29 +117,34 @@ def get_commit_history(
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> list[str]:
-    start_index = (page - 1) * max_commits
-    end_index = start_index + max_commits
+    # Calculate which commits we want (0-based indexing)
+    start_commit_index = (page - 1) * max_commits
+    end_commit_index = start_commit_index + max_commits
 
-    matching: list[Commit] = []
-    for result in iter_all_pages(
-        lambda p: scm.get_commits_by_path(path=path, ref=sha, pagination=p),
-        per_page=min(50, max_commits),
-        cursor=str(page),
-    ):
-        for commit in result["data"]:
-            author = commit["author"]
-            commit_date = author["date"] if author else None
-            if since is not None and (commit_date is None or commit_date < since):
-                continue
-            if until is not None and (commit_date is None or commit_date > until):
-                continue
-            matching.append(commit)
-            if len(matching) >= end_index:
-                break
-        if len(matching) >= end_index:
+    # Calculate which pages we need to fetch
+    default_per_page = 30
+    start_page = start_commit_index // default_per_page
+    end_page = (end_commit_index - 1) // default_per_page
+
+    # Collect commits from the required pages
+    all_commits: list[Commit] = []
+    for github_page in range(start_page, end_page + 1):
+        page_commits = scm.get_commits_by_path(
+            path=path,
+            ref=sha,
+            pagination={"cursor": str(github_page + 1), "per_page": default_per_page},
+            since=since,
+            until=until,
+        )
+        all_commits.extend(page_commits["data"])
+        # Stop early if we've collected enough commits
+        if len(all_commits) >= end_commit_index - start_page * default_per_page:
             break
 
-    commit_list = matching[start_index:end_index]
+    # Extract the specific range we want
+    start_offset = start_commit_index - start_page * default_per_page
+    end_offset = start_offset + max_commits
+    commit_list = all_commits[start_offset:end_offset]
 
     def process_commit(commit: Commit) -> str:
         MAX_COMMIT_FILES = 20

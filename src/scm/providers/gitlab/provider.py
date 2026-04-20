@@ -603,11 +603,17 @@ class GitLabProvider:
         self,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime.datetime | None = None,
+        until: datetime.datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
         params: dict[str, str] = {}
         if ref:
             params["ref_name"] = ref
+        if since:
+            params["since"] = since.isoformat()
+        if until:
+            params["until"] = until.isoformat()
         response = self.get(
             GitLab.commits.format(project=self.project_id),
             params=params,
@@ -621,11 +627,17 @@ class GitLabProvider:
         path: str,
         ref: str | None = None,
         pagination: PaginationParams | None = None,
+        since: datetime.datetime | None = None,
+        until: datetime.datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
         params: dict[str, str] = {"path": path}
         if ref:
             params["ref_name"] = ref
+        if since:
+            params["since"] = since.isoformat()
+        if until:
+            params["until"] = until.isoformat()
         response = self.get(
             GitLab.commits.format(project=self.project_id),
             params=params,
