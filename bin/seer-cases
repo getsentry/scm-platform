@@ -131,7 +131,7 @@ def main():
 
     elif args.command == "get-git-tree":
         tree_sha, entries = seer.get_git_tree(scm, args.commit_sha)
-        dump({"tree_sha": tree_sha, "entries": [vars(e) for e in entries]})
+        dump({"tree_sha": tree_sha, "entries": list(entries)})
 
     elif args.command == "get-commit-history":
         blocks = seer.get_commit_history(
