@@ -229,7 +229,7 @@ class TestPost:
         mock_response.iter_content.return_value = [b"ok"]
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
-        provider._request.return_value = mock_response
+        provider.request.return_value = mock_response
 
         server = make_server(
             fetch_repository=lambda org_id, repo_id: repo,
@@ -248,7 +248,7 @@ class TestPost:
         response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
 
         assert response.status_code == 200
-        forwarded_headers = provider._request.call_args.kwargs["headers"]
+        forwarded_headers = provider.request.call_args.kwargs["headers"]
         assert forwarded_headers == {
             "Accept": "application/json",
             "Content-Type": "text/plain",
@@ -268,7 +268,7 @@ class TestPost:
         mock_response.iter_content.return_value = [b'{"ref": "main"}']
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
-        provider._request.return_value = mock_response
+        provider.request.return_value = mock_response
 
         server = make_server(
             fetch_repository=lambda org_id, repo_id: repo,

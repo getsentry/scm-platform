@@ -702,10 +702,10 @@ class MinimalProvider:
         "provider_name": "github",
     }
 
-    def _request(
+    def request(
         self, method, path, headers=None, data=None, params=None, allow_redirects=None, stream=None, raw_response=True
     ):
-        raise NotImplementedError("MinimalProvider does not support _request")
+        raise NotImplementedError("MinimalProvider does not support request")
 
     def is_rate_limited(self, referrer: Referrer) -> bool:
         return False

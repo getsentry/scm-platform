@@ -161,7 +161,7 @@ class TestRpcApiClient:
         client.session = MagicMock()
         client.session.post.return_value = mock_response
 
-        result = client._request(
+        result = client.request(
             method="GET",
             path="/repos/org/repo/pulls/1",
             headers={"Accept": "application/json"},
@@ -200,7 +200,7 @@ class TestRpcApiClient:
         client.session = MagicMock()
         client.session.post.return_value = MagicMock()
 
-        client._request(method="GET", path="/test")
+        client.request(method="GET", path="/test")
 
         headers = client.session.post.call_args.kwargs["headers"]
         assert headers["X-Repository-Id"] == '["github","ext-123"]'

@@ -176,7 +176,7 @@ class RpcApiClient(ApiClient):
         self.repository_id = repository_id
         self.session = session()
 
-    def _request(
+    def request(
         self,
         method: str,
         path: str,

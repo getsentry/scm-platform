@@ -1265,6 +1265,7 @@ def test_download_archive_zip_uses_zipball_path() -> None:
 
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
+        "request",
         "is_rate_limited",
         "get_pull_request_diff",
         "download_archive",
