@@ -140,7 +140,8 @@ class GitLabProvider:
         if repository["external_id"] is None or ":" not in repository["external_id"]:
             raise SCMCodedError(code="malformed_external_id")
 
-        self.project_id = repository["external_id"].rsplit(":", maxsplit=1)[1]
+        netloc, self.project_id = repository["external_id"].rsplit(":", maxsplit=1)
+        self.web_base_url = f"https://{netloc}"
 
     def is_rate_limited(self, referrer: Referrer) -> bool:
         return False
@@ -522,6 +523,25 @@ class GitLabProvider:
             data={"branch": branch, "ref": sha},
         )
         return make_result(map_git_ref, response.json())
+
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: SHA,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str:
+        url = f"{self.web_base_url}/{self.repository['name']}/-/blob/{sha}/{file_path}"
+        if start_line:
+            url += f"#L{start_line}"
+        if start_line and end_line:
+            url += f"-L{end_line}"
+        elif end_line:
+            url += f"#L{end_line}"
+        return url
+
+    def get_commit_url(self, commit_sha: SHA) -> str:
+        return f"{self.web_base_url}/{self.repository['name']}/-/commit/{commit_sha}"
 
     def get_tree(
         self,

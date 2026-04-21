@@ -551,6 +551,22 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
 ]
 
 
+# URL-building actions are computed locally from the provider's state and don't
+# trigger a round-trip to the RPC server.
+LOCAL_ACTION_TEST_CASES: list[tuple[str, Callable, Any]] = [
+    (
+        "get_file_url",
+        lambda scm: actions.get_file_url(scm, "src/main.py", "abc123", start_line=10, end_line=20),
+        "https://github.com/org/repo/blob/abc123/src/main.py#L10-L20",
+    ),
+    (
+        "get_commit_url",
+        lambda scm: actions.get_commit_url(scm, "abc123"),
+        "https://github.com/org/repo/commit/abc123",
+    ),
+]
+
+
 class TestRpcIntegration:
     @pytest.mark.parametrize(
         "action_name, action_fn, response_body, status_code, extra_headers",
@@ -611,8 +627,32 @@ class TestRpcIntegration:
 
         assert result["data"]["title"] == "Test PR"
 
+    @pytest.mark.parametrize(
+        "action_name, action_fn, expected_result",
+        LOCAL_ACTION_TEST_CASES,
+        ids=[case[0] for case in LOCAL_ACTION_TEST_CASES],
+    )
+    def test_local_action_through_rpc(
+        self,
+        action_name: str,
+        action_fn: Callable[[Any], Any],
+        expected_result: Any,
+    ):
+        repo = make_repository()
+
+        server_provider = MagicMock()
+        server_provider.repository = repo
+        server_provider.is_rate_limited.return_value = False
+        server_provider.__class__.__name__ = "GitHubProvider"
+
+        server = make_rpc_server(repo, server_provider)
+        scm = make_client_scm(1, 1, server)
+
+        assert action_fn(scm) == expected_result
+        server_provider.request.assert_not_called()
+
     def test_all_actions_covered(self):
-        tested_actions = {case[0] for case in ACTION_TEST_CASES}
+        tested_actions = {case[0] for case in ACTION_TEST_CASES} | {case[0] for case in LOCAL_ACTION_TEST_CASES}
         all_action_fns = {
             name for name, obj in inspect.getmembers(actions, inspect.isfunction) if not name.startswith("_")
         }

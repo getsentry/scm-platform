@@ -1298,12 +1298,37 @@ def test_download_archive_zip_uses_zipball_path() -> None:
     assert client.calls[0]["path"] == "/repos/test-org/test-repo/zipball/main"
 
 
+def test_get_file_url_builds_blob_url() -> None:
+    provider, _ = make_provider()
+
+    assert provider.get_file_url("src/main.py", "abc123") == (
+        "https://github.com/test-org/test-repo/blob/abc123/src/main.py"
+    )
+    assert provider.get_file_url("src/main.py", "abc123", start_line=10) == (
+        "https://github.com/test-org/test-repo/blob/abc123/src/main.py#L10"
+    )
+    assert provider.get_file_url("src/main.py", "abc123", start_line=10, end_line=20) == (
+        "https://github.com/test-org/test-repo/blob/abc123/src/main.py#L10-L20"
+    )
+    assert provider.get_file_url("src/main.py", "abc123", end_line=20) == (
+        "https://github.com/test-org/test-repo/blob/abc123/src/main.py#L20"
+    )
+
+
+def test_get_commit_url_builds_commit_url() -> None:
+    provider, _ = make_provider()
+
+    assert provider.get_commit_url("abc123") == "https://github.com/test-org/test-repo/commit/abc123"
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
         "is_rate_limited",
         "get_pull_request_diff",
         "download_archive",
+        "get_file_url",
+        "get_commit_url",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},
