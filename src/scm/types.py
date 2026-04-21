@@ -1,7 +1,7 @@
 import dataclasses
 from collections.abc import MutableMapping
 from datetime import datetime
-from typing import Any, Literal, Protocol, Required, TypedDict, runtime_checkable
+from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict, runtime_checkable
 
 import requests
 
@@ -377,7 +377,8 @@ class InputTreeEntry(TypedDict):
     path: str
     mode: TreeEntryMode
     type: TreeEntryType
-    sha: SHA | None  # None for deletions
+    sha: NotRequired[SHA | None]  # None deletes the entry; omit when using `content`
+    content: NotRequired[str]  # UTF-8 text inlined into the tree; mutually exclusive with sha
 
 
 class GitTree(TypedDict):

@@ -1350,7 +1350,6 @@ def test_get_commit_url_builds_commit_url() -> None:
 def test_create_commit_chains_low_level_git_calls() -> None:
     provider, client = make_provider()
 
-    client.queue("post", FakeResponse(make_github_git_blob(sha="blob_new")))
     client.queue("post", FakeResponse(make_github_git_blob(sha="blob_upd")))
     client.queue("get", FakeResponse(make_github_file_content(path="old.md", sha="blob_moved")))
     client.queue("get", FakeResponse(make_github_file_content(path="run.sh", sha="blob_chmod")))
@@ -1381,7 +1380,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     assert result["data"]["files"] is None
 
     expected_tree_entries = [
-        {"path": "new.md", "mode": "100644", "type": "blob", "sha": "blob_new"},
+        {"path": "new.md", "mode": "100644", "type": "blob", "content": "hello"},
         {"path": "README.md", "mode": "100644", "type": "blob", "sha": "blob_upd"},
         {"path": "obsolete.md", "mode": "100644", "type": "blob", "sha": None},
         {"path": "old.md", "mode": "100644", "type": "blob", "sha": None},
@@ -1390,12 +1389,6 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     ]
 
     assert client.calls == [
-        {
-            "operation": "post",
-            "path": "/repos/test-org/test-repo/git/blobs",
-            "data": {"content": "hello", "encoding": "utf-8"},
-            "headers": None,
-        },
         {
             "operation": "post",
             "path": "/repos/test-org/test-repo/git/blobs",

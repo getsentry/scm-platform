@@ -687,15 +687,25 @@ class GitHubProvider:
         tree_entries: list[InputTreeEntry] = []
         for action in actions:
             if isinstance(action, WriteCommitAction):
-                blob = self.create_git_blob(action.content, action.encoding)["data"]
-                tree_entries.append(
-                    InputTreeEntry(
-                        path=action.filename,
-                        mode="100644",
-                        type="blob",
-                        sha=blob["sha"],
+                if action.encoding == "utf-8":
+                    tree_entries.append(
+                        InputTreeEntry(
+                            path=action.filename,
+                            mode="100644",
+                            type="blob",
+                            content=action.content,
+                        )
                     )
-                )
+                else:
+                    blob = self.create_git_blob(action.content, action.encoding)["data"]
+                    tree_entries.append(
+                        InputTreeEntry(
+                            path=action.filename,
+                            mode="100644",
+                            type="blob",
+                            sha=blob["sha"],
+                        )
+                    )
             elif isinstance(action, DeleteCommitAction):
                 tree_entries.append(
                     InputTreeEntry(

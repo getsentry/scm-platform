@@ -577,7 +577,6 @@ MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list |
             actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
         ),
         [
-            (make_github_git_blob(sha="blob1"), 201, None),
             (make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree"), 200, None),
             (make_github_git_tree(sha="new_tree"), 201, None),
             (make_github_git_commit_object(sha="new_commit", message="msg"), 201, None),
