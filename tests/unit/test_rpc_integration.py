@@ -36,7 +36,7 @@ from scm.test_fixtures import (
     make_github_review,
     make_github_review_comment,
 )
-from scm.types import Repository
+from scm.types import Repository, WriteCommitAction
 
 SIGNING_SECRET = "test-secret"
 BASE_URL = "http://rpc-server"
@@ -565,6 +565,28 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
 ]
 
 
+# Multi-call actions issue several provider HTTP requests per invocation.
+MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list | str, int, dict[str, str] | None]]]] = [
+    (
+        "create_commit",
+        lambda scm: actions.create_commit(
+            scm,
+            branch="topic",
+            parent_sha="parent_sha",
+            message="msg",
+            actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        ),
+        [
+            (make_github_git_blob(sha="blob1"), 201, None),
+            (make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree"), 200, None),
+            (make_github_git_tree(sha="new_tree"), 201, None),
+            (make_github_git_commit_object(sha="new_commit", message="msg"), 201, None),
+            (make_github_git_ref(ref="refs/heads/topic", sha="new_commit"), 200, None),
+        ],
+    ),
+]
+
+
 # URL-building actions are computed locally from the provider's state and don't
 # trigger a round-trip to the RPC server.
 LOCAL_ACTION_TEST_CASES: list[tuple[str, Callable, Any]] = [
@@ -665,8 +687,39 @@ class TestRpcIntegration:
         assert action_fn(scm) == expected_result
         server_provider.request.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "action_name, action_fn, responses",
+        MULTI_CALL_ACTION_TEST_CASES,
+        ids=[case[0] for case in MULTI_CALL_ACTION_TEST_CASES],
+    )
+    def test_multi_call_action_through_rpc(
+        self,
+        action_name: str,
+        action_fn: Callable[[Any], Any],
+        responses: list[tuple[dict | list | str, int, dict[str, str] | None]],
+    ):
+        repo = make_repository()
+        mock_responses = [make_github_api_response(body, status, headers) for body, status, headers in responses]
+
+        server_provider = MagicMock()
+        server_provider.repository = repo
+        server_provider.is_rate_limited.return_value = False
+        server_provider.__class__.__name__ = "GitHubProvider"
+        server_provider.request.side_effect = mock_responses
+
+        server = make_rpc_server(repo, server_provider)
+        scm = make_client_scm(1, 1, server)
+
+        action_fn(scm)
+
+        assert server_provider.request.call_count == len(responses)
+
     def test_all_actions_covered(self):
-        tested_actions = {case[0] for case in ACTION_TEST_CASES} | {case[0] for case in LOCAL_ACTION_TEST_CASES}
+        tested_actions = (
+            {case[0] for case in ACTION_TEST_CASES}
+            | {case[0] for case in MULTI_CALL_ACTION_TEST_CASES}
+            | {case[0] for case in LOCAL_ACTION_TEST_CASES}
+        )
         all_action_fns = {
             name for name, obj in inspect.getmembers(actions, inspect.isfunction) if not name.startswith("_")
         }

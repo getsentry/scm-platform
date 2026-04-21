@@ -13,9 +13,12 @@ from scm.types import (
     ArchiveFormat,
     Author,
     BranchName,
+    ChmodCommitAction,
     Comment,
     Commit,
     CommitAuthor,
+    DeleteCommitAction,
+    Encoding,
     FileContent,
     GitCommitObject,
     GitCommitTree,
@@ -24,6 +27,7 @@ from scm.types import (
     GitTree,
     Issue,
     Label,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -40,6 +44,7 @@ from scm.types import (
     ReviewComment,
     ReviewSide,
     TreeEntry,
+    WriteCommitAction,
 )
 
 API_VERSION = "/api/v4"
@@ -117,6 +122,11 @@ REACTION_BY_AWARD_NAME: dict[str, Reaction] = {award: reaction for reaction, awa
 GITLAB_ARCHIVE_FORMAT_MAP: dict[ArchiveFormat, str] = {
     "tarball": ".tar.gz",
     "zip": ".zip",
+}
+
+GITLAB_ENCODING_MAP: dict[Encoding, str] = {
+    "utf-8": "text",
+    "base64": "base64",
 }
 
 PULL_REQUEST_STATE_RETRIEVE_MAP: dict[PullRequestState, list[str]] = {
@@ -685,6 +695,26 @@ class GitLabProvider:
         raw = response.json()
         return make_paginated_result(map_commit, raw, raw_items=raw["commits"])
 
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+    ) -> ActionResult[Commit]:
+        response = self.post(
+            GitLab.commits.format(project=self.project_id),
+            data={
+                "branch": branch,
+                "commit_message": message,
+                "start_sha": parent_sha,
+                "force": force,
+                "actions": [map_commit_action(a) for a in actions],
+            },
+        )
+        return make_result(map_commit, response.json())
+
     def get_pull_request_files(
         self,
         pull_request_id: str,
@@ -907,6 +937,34 @@ def map_comment(raw: dict[str, Any]) -> Comment:
         body=raw["body"],
         author=map_author(raw["author"]),
     )
+
+
+def map_commit_action(
+    action: ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction,
+) -> dict[str, Any]:
+    if isinstance(action, ChmodCommitAction):
+        return {
+            "action": "chmod",
+            "file_path": action.filename,
+            "execute_filemode": action.executable,
+        }
+    if isinstance(action, DeleteCommitAction):
+        return {
+            "action": "delete",
+            "file_path": action.filename,
+        }
+    if isinstance(action, MoveCommitAction):
+        return {
+            "action": "move",
+            "file_path": action.new_filename,
+            "previous_path": action.old_filename,
+        }
+    return {
+        "action": action.action,
+        "file_path": action.filename,
+        "content": action.content,
+        "encoding": GITLAB_ENCODING_MAP[action.encoding],
+    }
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:

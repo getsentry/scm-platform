@@ -25,10 +25,12 @@ from scm.types import (
     BuildStatus,
     CheckRun,
     CheckRunOutput,
+    ChmodCommitAction,
     Comment,
     Commit,
     CommitAuthor,
     CommitFile,
+    DeleteCommitAction,
     FileContent,
     FileStatus,
     GitBlob,
@@ -40,6 +42,7 @@ from scm.types import (
     InputTreeEntry,
     Issue,
     Label,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -61,6 +64,7 @@ from scm.types import (
     ReviewEvent,
     ReviewSide,
     TreeEntry,
+    WriteCommitAction,
 )
 
 # GitHub's Checks API status values map to generic BuildStatus.
@@ -671,6 +675,82 @@ class GitHubProvider:
             request_options=request_options,
         )
         return map_paginated_action(pagination, response, lambda r: [map_commit(c) for c in r["commits"]])
+
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+    ) -> ActionResult[Commit]:
+        tree_entries: list[InputTreeEntry] = []
+        for action in actions:
+            if isinstance(action, WriteCommitAction):
+                blob = self.create_git_blob(action.content, action.encoding)["data"]
+                tree_entries.append(
+                    InputTreeEntry(
+                        path=action.filename,
+                        mode="100644",
+                        type="blob",
+                        sha=blob["sha"],
+                    )
+                )
+            elif isinstance(action, DeleteCommitAction):
+                tree_entries.append(
+                    InputTreeEntry(
+                        path=action.filename,
+                        mode="100644",
+                        type="blob",
+                        sha=None,
+                    )
+                )
+            elif isinstance(action, MoveCommitAction):
+                existing = self.get_file_content(action.old_filename, ref=parent_sha)["data"]
+                tree_entries.append(
+                    InputTreeEntry(
+                        path=action.old_filename,
+                        mode="100644",
+                        type="blob",
+                        sha=None,
+                    )
+                )
+                tree_entries.append(
+                    InputTreeEntry(
+                        path=action.new_filename,
+                        mode="100644",
+                        type="blob",
+                        sha=existing["sha"],
+                    )
+                )
+            else:
+                existing = self.get_file_content(action.filename, ref=parent_sha)["data"]
+                tree_entries.append(
+                    InputTreeEntry(
+                        path=action.filename,
+                        mode="100755" if action.executable else "100644",
+                        type="blob",
+                        sha=existing["sha"],
+                    )
+                )
+
+        parent_commit = self.get_git_commit(parent_sha)["data"]
+        new_tree = self.create_git_tree(tree_entries, base_tree=parent_commit["tree"]["sha"])["data"]
+        new_commit = self.create_git_commit(message, new_tree["sha"], [parent_sha])
+        self.update_branch(branch, new_commit["data"]["sha"], force=force)
+
+        raw = new_commit["raw"]["data"]
+        return ActionResult(
+            data=Commit(
+                id=raw["sha"],
+                message=raw.get("message", ""),
+                author=map_commit_author(raw.get("author")),
+                files=None,
+            ),
+            type="github",
+            raw=new_commit["raw"],
+            meta=new_commit["meta"],
+        )
 
     def get_tree(
         self,

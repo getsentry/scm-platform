@@ -32,7 +32,15 @@ from scm.test_fixtures import (
     make_github_review,
     make_github_review_comment,
 )
-from scm.types import ApiClient, Referrer, Repository
+from scm.types import (
+    ApiClient,
+    ChmodCommitAction,
+    DeleteCommitAction,
+    MoveCommitAction,
+    Referrer,
+    Repository,
+    WriteCommitAction,
+)
 
 
 def make_repository() -> Repository:
@@ -1339,6 +1347,106 @@ def test_get_commit_url_builds_commit_url() -> None:
     assert provider.get_commit_url("abc123") == "https://github.com/test-org/test-repo/commit/abc123"
 
 
+def test_create_commit_chains_low_level_git_calls() -> None:
+    provider, client = make_provider()
+
+    client.queue("post", FakeResponse(make_github_git_blob(sha="blob_new")))
+    client.queue("post", FakeResponse(make_github_git_blob(sha="blob_upd")))
+    client.queue("get", FakeResponse(make_github_file_content(path="old.md", sha="blob_moved")))
+    client.queue("get", FakeResponse(make_github_file_content(path="run.sh", sha="blob_chmod")))
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+    result = provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[
+            WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8"),
+            WriteCommitAction(action="update", filename="README.md", content="Zm9v", encoding="base64"),
+            DeleteCommitAction(filename="obsolete.md"),
+            MoveCommitAction(old_filename="old.md", new_filename="renamed.md"),
+            ChmodCommitAction(filename="run.sh", executable=True),
+        ],
+    )
+
+    assert result["type"] == "github"
+    assert result["data"]["id"] == "new_commit_sha"
+    assert result["data"]["message"] == "Edits"
+    assert result["data"]["files"] is None
+
+    expected_tree_entries = [
+        {"path": "new.md", "mode": "100644", "type": "blob", "sha": "blob_new"},
+        {"path": "README.md", "mode": "100644", "type": "blob", "sha": "blob_upd"},
+        {"path": "obsolete.md", "mode": "100644", "type": "blob", "sha": None},
+        {"path": "old.md", "mode": "100644", "type": "blob", "sha": None},
+        {"path": "renamed.md", "mode": "100644", "type": "blob", "sha": "blob_moved"},
+        {"path": "run.sh", "mode": "100755", "type": "blob", "sha": "blob_chmod"},
+    ]
+
+    assert client.calls == [
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/git/blobs",
+            "data": {"content": "hello", "encoding": "utf-8"},
+            "headers": None,
+        },
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/git/blobs",
+            "data": {"content": "Zm9v", "encoding": "base64"},
+            "headers": None,
+        },
+        {
+            "operation": "get",
+            "path": "/repos/test-org/test-repo/contents/old.md",
+            "params": {"ref": "parent_sha"},
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+        },
+        {
+            "operation": "get",
+            "path": "/repos/test-org/test-repo/contents/run.sh",
+            "params": {"ref": "parent_sha"},
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+        },
+        {
+            "operation": "get",
+            "path": "/repos/test-org/test-repo/git/commits/parent_sha",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+        },
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/git/trees",
+            "data": {"tree": expected_tree_entries, "base_tree": "parent_tree"},
+            "headers": None,
+        },
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/git/commits",
+            "data": {"message": "Edits", "tree": "new_tree_sha", "parents": ["parent_sha"]},
+            "headers": None,
+        },
+        {
+            "operation": "patch",
+            "path": "/repos/test-org/test-repo/git/refs/heads/topic",
+            "data": {"sha": "new_commit_sha", "force": False},
+            "headers": None,
+        },
+    ]
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
@@ -1347,6 +1455,7 @@ def test_public_methods_are_accounted_for() -> None:
         "download_archive",
         "get_file_url",
         "get_commit_url",
+        "create_commit",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

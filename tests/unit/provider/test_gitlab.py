@@ -6,7 +6,13 @@ from typing import Any, NamedTuple
 import pytest
 
 from scm.providers.gitlab.provider import ApiClient, GitLabProvider
-from scm.types import Repository
+from scm.types import (
+    ChmodCommitAction,
+    DeleteCommitAction,
+    MoveCommitAction,
+    Repository,
+    WriteCommitAction,
+)
 
 
 @pytest.fixture
@@ -10797,6 +10803,114 @@ def _make_mock_response(json_data):
                     "headers": None,
                 },
                 "meta": {"next_cursor": None},
+            },
+        ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.create_commit,
+            provider_args={
+                "branch": "topics/blah",
+                "parent_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                "message": "Various edits",
+                "actions": [
+                    WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8"),
+                    WriteCommitAction(action="update", filename="README.md", content="Zm9v", encoding="base64"),
+                    DeleteCommitAction(filename="obsolete.md"),
+                    MoveCommitAction(old_filename="old.md", new_filename="renamed.md"),
+                    ChmodCommitAction(filename="run.sh", executable=True),
+                ],
+                "force": False,
+            },
+            client_calls=[
+                ClientForwardedCall(
+                    method="POST",
+                    path="/projects/79787061/repository/commits",
+                    data={
+                        "branch": "topics/blah",
+                        "commit_message": "Various edits",
+                        "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                        "force": False,
+                        "actions": [
+                            {
+                                "action": "create",
+                                "file_path": "new.md",
+                                "content": "hello",
+                                "encoding": "text",
+                            },
+                            {
+                                "action": "update",
+                                "file_path": "README.md",
+                                "content": "Zm9v",
+                                "encoding": "base64",
+                            },
+                            {"action": "delete", "file_path": "obsolete.md"},
+                            {
+                                "action": "move",
+                                "file_path": "renamed.md",
+                                "previous_path": "old.md",
+                            },
+                            {
+                                "action": "chmod",
+                                "file_path": "run.sh",
+                                "execute_filemode": True,
+                            },
+                        ],
+                    },
+                    json_response={
+                        "id": "7497e018d01503b6abc3053b7896266115e631f6",
+                        "short_id": "7497e018",
+                        "created_at": "2026-03-05T12:15:50.000+01:00",
+                        "parent_ids": ["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],
+                        "title": "Various edits",
+                        "message": "Various edits",
+                        "author_name": "Vincent Jacques",
+                        "author_email": "vincent@vincent-jacques.net",
+                        "authored_date": "2026-03-05T12:15:50.000+01:00",
+                        "committer_name": "Vincent Jacques",
+                        "committer_email": "vincent@vincent-jacques.net",
+                        "committed_date": "2026-03-05T12:15:50.000+01:00",
+                        "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
+                    },
+                ),
+            ],
+            provider_return_value={
+                "data": {
+                    "id": "7497e018d01503b6abc3053b7896266115e631f6",
+                    "message": "Various edits",
+                    "author": {
+                        "name": "Vincent Jacques",
+                        "email": "vincent@vincent-jacques.net",
+                        "date": datetime.datetime(
+                            2026,
+                            3,
+                            5,
+                            12,
+                            15,
+                            50,
+                            tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
+                        ),
+                    },
+                    "files": None,
+                },
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "id": "7497e018d01503b6abc3053b7896266115e631f6",
+                        "short_id": "7497e018",
+                        "created_at": "2026-03-05T12:15:50.000+01:00",
+                        "parent_ids": ["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],
+                        "title": "Various edits",
+                        "message": "Various edits",
+                        "author_name": "Vincent Jacques",
+                        "author_email": "vincent@vincent-jacques.net",
+                        "authored_date": "2026-03-05T12:15:50.000+01:00",
+                        "committer_name": "Vincent Jacques",
+                        "committer_email": "vincent@vincent-jacques.net",
+                        "committed_date": "2026-03-05T12:15:50.000+01:00",
+                        "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
+                    },
+                    "headers": None,
+                },
+                "meta": {},
             },
         ),
         ForwardToClientTest(
