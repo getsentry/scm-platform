@@ -149,6 +149,8 @@ GITHUB_RATE_LIMIT_RESET = "x-ratelimit-reset"
 GITHUB_RATE_LIMIT_REMAINING = "x-ratelimit-remaining"
 GITHUB_RATE_LIMIT_RETRY_AFTER = "retry-after"
 
+GITHUB_WEB_BASE_URL = "https://github.com"
+
 
 def _extract_response_meta(response: requests.Response) -> ResponseMeta:
     meta: ResponseMeta = {}
@@ -535,6 +537,25 @@ class GitHubProvider:
             response,
             lambda r: GitRef(ref=r["ref"].removeprefix("refs/heads/"), sha=r["object"]["sha"]),
         )
+
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: SHA,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str:
+        url = f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/blob/{sha}/{file_path}"
+        if start_line:
+            url += f"#L{start_line}"
+        if start_line and end_line:
+            url += f"-L{end_line}"
+        elif end_line:
+            url += f"#L{end_line}"
+        return url
+
+    def get_commit_url(self, commit_sha: SHA) -> str:
+        return f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/commit/{commit_sha}"
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
         response = self.post(

@@ -47,7 +47,9 @@ from scm.types import (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitUrlProtocol,
     GetFileContentProtocol,
+    GetFileUrlProtocol,
     GetGitCommitProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
@@ -309,6 +311,22 @@ def create_branch(scm: CreateBranchProtocol, branch: BranchName, sha: SHA) -> Ac
 def update_branch(scm: UpdateBranchProtocol, branch: BranchName, sha: SHA, force: bool = False) -> ActionResult[GitRef]:
     """Update a branch to point at a new SHA."""
     return scm.update_branch(branch, sha, force)
+
+
+def get_file_url(
+    scm: GetFileUrlProtocol,
+    file_path: str,
+    sha: SHA,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> str:
+    """Build a web URL pointing at a file (optionally a line or range) at a given commit."""
+    return scm.get_file_url(file_path, sha, start_line, end_line)
+
+
+def get_commit_url(scm: GetCommitUrlProtocol, commit_sha: SHA) -> str:
+    """Build a web URL pointing at a commit."""
+    return scm.get_commit_url(commit_sha)
 
 
 def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> ActionResult[GitBlob]:
@@ -654,10 +672,12 @@ __all__ = (
     "get_archive_link",
     "get_branch",
     "get_check_run",
+    "get_commit_url",
     "get_commit",
     "get_commits_by_path",
     "get_commits",
     "get_file_content",
+    "get_file_url",
     "get_git_commit",
     "get_issue_comment_reactions",
     "get_issue_comments",
