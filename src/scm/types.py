@@ -724,6 +724,25 @@ class GetGitRefProtocol(Protocol):
     ) -> ActionResult[GitRef]: ...
 
 
+# URL Protocols
+
+
+@runtime_checkable
+class GetFileUrlProtocol(Protocol):
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: SHA,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str: ...
+
+
+@runtime_checkable
+class GetCommitUrlProtocol(Protocol):
+    def get_commit_url(self, commit_sha: SHA) -> str: ...
+
+
 # Commit Protocols
 
 
@@ -1078,7 +1097,9 @@ ALL_PROTOCOLS = (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitUrlProtocol,
     GetFileContentProtocol,
+    GetFileUrlProtocol,
     GetGitCommitProtocol,
     GetGitRefProtocol,
     GetIssueCommentReactionsProtocol,

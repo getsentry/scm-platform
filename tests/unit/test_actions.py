@@ -35,9 +35,11 @@ from scm.actions import (
     get_branch,
     get_check_run,
     get_commit,
+    get_commit_url,
     get_commits,
     get_commits_by_path,
     get_file_content,
+    get_file_url,
     get_git_commit,
     get_git_ref,
     get_issue,
@@ -131,6 +133,9 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (delete_branch, {"branch": "feature"}),
     # Git ref operations
     (get_git_ref, {"ref": "heads/main"}),
+    # URL builders
+    (get_file_url, {"file_path": "src/main.py", "sha": "abc123"}),
+    (get_commit_url, {"commit_sha": "abc123"}),
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
     # File content operations
@@ -351,6 +356,14 @@ def _check_get_git_ref(result: Any) -> None:
     assert result["data"]["ref"] == "heads/main"
     assert result["data"]["sha"] == "abc123def456"
     assert result["type"] == "github"
+
+
+def _check_get_file_url(result: Any) -> None:
+    assert result == "https://github.com/test-org/test-repo/blob/abc123/src/main.py"
+
+
+def _check_get_commit_url(result: Any) -> None:
+    assert result == "https://github.com/test-org/test-repo/commit/abc123"
 
 
 def _check_create_git_blob(result: Any) -> None:
@@ -597,6 +610,8 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (update_branch, {"branch": "feature", "sha": "def456"}, _check_update_branch),
     (delete_branch, {"branch": "feature"}, _check_none),
     (get_git_ref, {"ref": "heads/main"}, _check_get_git_ref),
+    (get_file_url, {"file_path": "src/main.py", "sha": "abc123"}, _check_get_file_url),
+    (get_commit_url, {"commit_sha": "abc123"}, _check_get_commit_url),
     (
         create_git_blob,
         {"content": "hello", "encoding": "utf-8"},

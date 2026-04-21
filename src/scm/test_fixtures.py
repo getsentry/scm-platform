@@ -893,6 +893,27 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    # URL builders
+
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: str,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str:
+        url = f"https://github.com/test-org/test-repo/blob/{sha}/{file_path}"
+        if start_line:
+            url += f"#L{start_line}"
+        if start_line and end_line:
+            url += f"-L{end_line}"
+        elif end_line:
+            url += f"#L{end_line}"
+        return url
+
+    def get_commit_url(self, commit_sha: str) -> str:
+        return f"https://github.com/test-org/test-repo/commit/{commit_sha}"
+
     # Git blob operations
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:

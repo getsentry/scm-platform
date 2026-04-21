@@ -30,7 +30,9 @@ Commands:
     get-branch <name>
     delete-branch <name>
     get-commit <sha>
+    get-commit-url <sha>
     get-file-content <path> [--ref <ref>]
+    get-file-url <path> <sha> [--start-line <n>] [--end-line <n>]
     compare-commits <start_sha> <end_sha>
     get-repository-assignees
     get-repository-labels
@@ -52,7 +54,9 @@ from scm.types import (
     DownloadArchiveProtocol,
     GetBranchProtocol,
     GetCommitProtocol,
+    GetCommitUrlProtocol,
     GetFileContentProtocol,
+    GetFileUrlProtocol,
     GetIssueCommentsProtocol,
     GetIssueProtocol,
     GetPullRequestCommentsProtocol,
@@ -151,9 +155,18 @@ def main():
     p = sub.add_parser("get-commit")
     p.add_argument("sha")
 
+    p = sub.add_parser("get-commit-url")
+    p.add_argument("sha")
+
     p = sub.add_parser("get-file-content")
     p.add_argument("path")
     p.add_argument("--ref", default=None)
+
+    p = sub.add_parser("get-file-url")
+    p.add_argument("path")
+    p.add_argument("sha")
+    p.add_argument("--start-line", type=int, default=None)
+    p.add_argument("--end-line", type=int, default=None)
 
     p = sub.add_parser("compare-commits")
     p.add_argument("start_sha")
@@ -233,9 +246,17 @@ def main():
         assert isinstance(scm, GetCommitProtocol)
         dump(scm.get_commit(args.sha))
 
+    elif args.command == "get-commit-url":
+        assert isinstance(scm, GetCommitUrlProtocol)
+        dump(scm.get_commit_url(args.sha))
+
     elif args.command == "get-file-content":
         assert isinstance(scm, GetFileContentProtocol)
         dump(scm.get_file_content(args.path, ref=args.ref))
+
+    elif args.command == "get-file-url":
+        assert isinstance(scm, GetFileUrlProtocol)
+        dump(scm.get_file_url(args.path, args.sha, start_line=args.start_line, end_line=args.end_line))
 
     elif args.command == "compare-commits":
         assert isinstance(scm, CompareCommitsProtocol)

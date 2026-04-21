@@ -48,7 +48,9 @@ from scm.types import (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitUrlProtocol,
     GetFileContentProtocol,
+    GetFileUrlProtocol,
     GetGitCommitProtocol,
     GetGitRefProtocol,
     GetIssueCommentReactionsProtocol,
@@ -325,6 +327,22 @@ def get_git_ref(
 ) -> ActionResult[GitRef]:
     """Get a git ref (e.g. ``heads/main`` or ``tags/v1.0.0``)."""
     return scm.get_git_ref(ref, request_options)
+
+
+def get_file_url(
+    scm: GetFileUrlProtocol,
+    file_path: str,
+    sha: SHA,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> str:
+    """Build a web URL pointing at a file (optionally a line or range) at a given commit."""
+    return scm.get_file_url(file_path, sha, start_line, end_line)
+
+
+def get_commit_url(scm: GetCommitUrlProtocol, commit_sha: SHA) -> str:
+    """Build a web URL pointing at a commit."""
+    return scm.get_commit_url(commit_sha)
 
 
 def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> ActionResult[GitBlob]:
@@ -671,10 +689,12 @@ __all__ = (
     "get_archive_link",
     "get_branch",
     "get_check_run",
+    "get_commit_url",
     "get_commit",
     "get_commits_by_path",
     "get_commits",
     "get_file_content",
+    "get_file_url",
     "get_git_commit",
     "get_git_ref",
     "get_issue_comment_reactions",

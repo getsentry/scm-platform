@@ -12215,3 +12215,20 @@ def test_download_archive_zip_uses_zip_extension(client, provider: GitLabProvide
 
     call = client.request.call_args
     assert call.kwargs["path"] == "/projects/79787061/repository/archive.zip"
+
+
+def test_get_file_url_builds_blob_url(provider: GitLabProvider):
+    assert provider.get_file_url("src/main.py", "abc123") == ("https://gitlab.com/test-repo/-/blob/abc123/src/main.py")
+    assert provider.get_file_url("src/main.py", "abc123", start_line=10) == (
+        "https://gitlab.com/test-repo/-/blob/abc123/src/main.py#L10"
+    )
+    assert provider.get_file_url("src/main.py", "abc123", start_line=10, end_line=20) == (
+        "https://gitlab.com/test-repo/-/blob/abc123/src/main.py#L10-L20"
+    )
+    assert provider.get_file_url("src/main.py", "abc123", end_line=20) == (
+        "https://gitlab.com/test-repo/-/blob/abc123/src/main.py#L20"
+    )
+
+
+def test_get_commit_url_builds_commit_url(provider: GitLabProvider):
+    assert provider.get_commit_url("abc123") == "https://gitlab.com/test-repo/-/commit/abc123"
