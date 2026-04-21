@@ -353,6 +353,17 @@ class InputTreeEntry(TypedDict):
     sha: SHA | None  # None for deletions
 
 
+CommitActionKind = Literal["create", "update", "delete", "move"]
+
+
+class CommitAction(TypedDict, total=False):
+    action: Required[CommitActionKind]
+    path: Required[str]
+    content: str
+    encoding: Literal["text", "base64"]
+    previous_path: str  # required when action == "move"
+
+
 class GitTree(TypedDict):
     sha: SHA
     tree: list[TreeEntry]
@@ -904,6 +915,18 @@ class GetGitCommitProtocol(Protocol):
 
 
 @runtime_checkable
+class CreateCommitWithActionsProtocol(Protocol):
+    def create_commit_with_actions(
+        self,
+        branch: BranchName,
+        base_sha: SHA,
+        message: str,
+        actions: list[CommitAction],
+        force: bool = False,
+    ) -> ActionResult[GitCommitObject]: ...
+
+
+@runtime_checkable
 class CreateGitBlobProtocol(Protocol):
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]: ...
 
@@ -1066,6 +1089,7 @@ ALL_PROTOCOLS = (
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
+    CreateCommitWithActionsProtocol,
     CreateGitBlobProtocol,
     CreateGitCommitProtocol,
     CreateGitTreeProtocol,

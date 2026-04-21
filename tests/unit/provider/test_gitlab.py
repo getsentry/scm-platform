@@ -12144,6 +12144,62 @@ def _make_mock_response(json_data):
                 "meta": {},
             },
         ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.create_commit_with_actions,
+            provider_args={
+                "branch": "feature/xyz",
+                "base_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                "message": "Apply autofix",
+                "actions": [
+                    {"action": "create", "path": "new.txt", "content": "hello\n"},
+                    {"action": "update", "path": "existing.txt", "content": "goodbye\n"},
+                    {"action": "delete", "path": "stale.txt"},
+                ],
+            },
+            client_calls=[
+                ClientForwardedCall(
+                    method="POST",
+                    path="/projects/79787061/repository/commits",
+                    data={
+                        "branch": "feature/xyz",
+                        "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                        "commit_message": "Apply autofix",
+                        "force": False,
+                        "actions": [
+                            {"action": "create", "file_path": "new.txt", "content": "hello\n"},
+                            {"action": "update", "file_path": "existing.txt", "content": "goodbye\n"},
+                            {"action": "delete", "file_path": "stale.txt"},
+                        ],
+                    },
+                    json_response={
+                        "id": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                        "short_id": "6d8ca33d",
+                        "title": "Apply autofix",
+                        "message": "Apply autofix\n",
+                        "parent_ids": ["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],
+                    },
+                ),
+            ],
+            provider_return_value={
+                "data": {
+                    "sha": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                    "tree": {"sha": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c"},
+                    "message": "Apply autofix\n",
+                },
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "id": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                        "short_id": "6d8ca33d",
+                        "title": "Apply autofix",
+                        "message": "Apply autofix\n",
+                        "parent_ids": ["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],
+                    },
+                    "headers": None,
+                },
+                "meta": {},
+            },
+        ),
     ],
     ids=lambda param: param.provider_method.__name__,
 )
@@ -12232,3 +12288,59 @@ def test_get_file_url_builds_blob_url(provider: GitLabProvider):
 
 def test_get_commit_url_builds_commit_url(provider: GitLabProvider):
     assert provider.get_commit_url("abc123") == "https://gitlab.com/test-repo/-/commit/abc123"
+
+
+def _commit_response(sha: str = "abc123", message: str = "msg") -> dict:
+    return {"id": sha, "message": message}
+
+
+def test_create_commit_with_actions_forwards_move(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_commit_response())
+
+    provider.create_commit_with_actions(
+        branch="main",
+        base_sha="base",
+        message="rename",
+        actions=[{"action": "move", "path": "new.txt", "previous_path": "old.txt"}],
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "POST"
+    assert call.kwargs["path"] == "/projects/79787061/repository/commits"
+    assert call.kwargs["data"]["actions"] == [
+        {"action": "move", "file_path": "new.txt", "previous_path": "old.txt"},
+    ]
+
+
+def test_create_commit_with_actions_forwards_base64_encoding(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_commit_response())
+
+    provider.create_commit_with_actions(
+        branch="main",
+        base_sha="base",
+        message="add binary",
+        actions=[{"action": "create", "path": "logo.png", "content": "AAAA", "encoding": "base64"}],
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["data"]["actions"] == [
+        {"action": "create", "file_path": "logo.png", "content": "AAAA", "encoding": "base64"},
+    ]
+
+
+def test_create_commit_with_actions_forwards_force(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_commit_response())
+
+    provider.create_commit_with_actions(
+        branch="main",
+        base_sha="base",
+        message="msg",
+        actions=[{"action": "create", "path": "a.txt", "content": "x"}],
+        force=True,
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["data"]["force"] is True
+    assert call.kwargs["data"]["branch"] == "main"
+    assert call.kwargs["data"]["start_sha"] == "base"
+    assert call.kwargs["data"]["commit_message"] == "msg"

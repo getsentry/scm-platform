@@ -1339,6 +1339,152 @@ def test_get_commit_url_builds_commit_url() -> None:
     assert provider.get_commit_url("abc123") == "https://github.com/test-org/test-repo/commit/abc123"
 
 
+def test_create_commit_with_actions_inlines_text_content() -> None:
+    provider, client = make_provider()
+    client.queue("post", FakeResponse({"sha": "tree_new"}))  # tree
+    client.queue("post", FakeResponse(GIT_COMMIT_OBJECT_RAW))  # commit
+    client.queue("patch", FakeResponse(GIT_REF_RAW))  # update_branch
+
+    result = provider.create_commit_with_actions(
+        branch="feature/xyz",
+        base_sha="base_sha_123",
+        message="Apply autofix",
+        actions=[
+            {"action": "create", "path": "new.txt", "content": "hello\n"},
+            {"action": "update", "path": "existing.txt", "content": "goodbye\n"},
+            {"action": "delete", "path": "stale.txt"},
+        ],
+    )
+
+    assert result["data"]["sha"] == GIT_COMMIT_OBJECT_RAW["sha"]
+    assert client.calls == [
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/git/trees",
+            "data": {
+                "tree": [
+                    {"path": "new.txt", "mode": "100644", "type": "blob", "content": "hello\n"},
+                    {"path": "existing.txt", "mode": "100644", "type": "blob", "content": "goodbye\n"},
+                    {"path": "stale.txt", "mode": "100644", "type": "blob", "sha": None},
+                ],
+                "base_tree": "base_sha_123",
+            },
+            "headers": None,
+        },
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/git/commits",
+            "data": {
+                "message": "Apply autofix",
+                "tree": "tree_new",
+                "parents": ["base_sha_123"],
+            },
+            "headers": None,
+        },
+        {
+            "operation": "patch",
+            "path": "/repos/test-org/test-repo/git/refs/heads/feature/xyz",
+            "data": {"sha": GIT_COMMIT_OBJECT_RAW["sha"], "force": False},
+            "headers": None,
+        },
+    ]
+
+
+def test_create_commit_with_actions_creates_blob_for_base64() -> None:
+    provider, client = make_provider()
+    client.queue("post", FakeResponse(GIT_BLOB_RAW))  # blob
+    client.queue("post", FakeResponse({"sha": "tree_new"}))  # tree
+    client.queue("post", FakeResponse(GIT_COMMIT_OBJECT_RAW))  # commit
+    client.queue("patch", FakeResponse(GIT_REF_RAW))  # update_branch
+
+    provider.create_commit_with_actions(
+        branch="main",
+        base_sha="base",
+        message="add binary",
+        actions=[
+            {"action": "create", "path": "logo.png", "content": "AAAA", "encoding": "base64"},
+        ],
+    )
+
+    assert client.calls[0] == {
+        "operation": "post",
+        "path": "/repos/test-org/test-repo/git/blobs",
+        "data": {"content": "AAAA", "encoding": "base64"},
+        "headers": None,
+    }
+    assert client.calls[1]["data"]["tree"] == [
+        {"path": "logo.png", "mode": "100644", "type": "blob", "sha": GIT_BLOB_RAW["sha"]},
+    ]
+
+
+def test_create_commit_with_actions_synthesizes_move() -> None:
+    provider, client = make_provider()
+    client.queue("post", FakeResponse({"sha": "tree_new"}))  # tree
+    client.queue("post", FakeResponse(GIT_COMMIT_OBJECT_RAW))  # commit
+    client.queue("patch", FakeResponse(GIT_REF_RAW))  # update_branch
+
+    provider.create_commit_with_actions(
+        branch="main",
+        base_sha="base",
+        message="rename",
+        actions=[
+            {"action": "move", "path": "new.txt", "previous_path": "old.txt", "content": "stuff"},
+        ],
+    )
+
+    assert client.calls[0]["data"]["tree"] == [
+        {"path": "old.txt", "mode": "100644", "type": "blob", "sha": None},
+        {"path": "new.txt", "mode": "100644", "type": "blob", "content": "stuff"},
+    ]
+
+
+def test_create_commit_with_actions_force_passes_to_update_branch() -> None:
+    provider, client = make_provider()
+    client.queue("post", FakeResponse({"sha": "tree_new"}))
+    client.queue("post", FakeResponse(GIT_COMMIT_OBJECT_RAW))
+    client.queue("patch", FakeResponse(GIT_REF_RAW))
+
+    provider.create_commit_with_actions(
+        branch="main",
+        base_sha="base",
+        message="msg",
+        actions=[{"action": "create", "path": "a.txt", "content": "x"}],
+        force=True,
+    )
+
+    patch_call = client.calls[-1]
+    assert patch_call["operation"] == "patch"
+    assert patch_call["data"] == {"sha": GIT_COMMIT_OBJECT_RAW["sha"], "force": True}
+
+
+def test_create_commit_with_actions_raises_when_create_missing_content() -> None:
+    provider, _ = make_provider()
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit_with_actions(
+            branch="main",
+            base_sha="base",
+            message="msg",
+            actions=[{"action": "create", "path": "a.txt"}],
+        )
+
+    assert exc_info.value.code == "resource_unprocessable_content"
+
+
+def test_create_commit_with_actions_raises_when_move_missing_previous_path() -> None:
+    provider, _ = make_provider()
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit_with_actions(
+            branch="main",
+            base_sha="base",
+            message="msg",
+            actions=[{"action": "move", "path": "new.txt", "content": "x"}],
+        )
+
+    assert exc_info.value.code == "resource_unprocessable_content"
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
@@ -1347,6 +1493,7 @@ def test_public_methods_are_accounted_for() -> None:
         "download_archive",
         "get_file_url",
         "get_commit_url",
+        "create_commit_with_actions",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

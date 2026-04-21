@@ -27,6 +27,7 @@ from scm.types import (
     CheckRunOutput,
     Comment,
     Commit,
+    CommitAction,
     CommitAuthor,
     CommitFile,
     FileContent,
@@ -728,6 +729,71 @@ class GitHubProvider:
             },
         )
         return map_action(response, map_git_commit_object)
+
+    def create_commit_with_actions(
+        self,
+        branch: BranchName,
+        base_sha: SHA,
+        message: str,
+        actions: list[CommitAction],
+        force: bool = False,
+    ) -> ActionResult[GitCommitObject]:
+        tree_entries: list[dict[str, Any]] = []
+        for action in actions:
+            tree_entries.extend(self._action_to_github_tree_entries(action))
+
+        tree_response = self.post(
+            f"/repos/{self.repository['name']}/git/trees",
+            data={"tree": tree_entries, "base_tree": base_sha},
+        )
+        tree_sha = tree_response.json()["sha"]
+
+        commit = self.create_git_commit(message, tree_sha, [base_sha])
+        self.update_branch(branch, commit["data"]["sha"], force=force)
+        return commit
+
+    def _action_to_github_tree_entries(self, action: CommitAction) -> list[dict[str, Any]]:
+        kind = action["action"]
+        path = action["path"]
+
+        if kind == "delete":
+            return [{"path": path, "mode": "100644", "type": "blob", "sha": None}]
+
+        if kind == "move":
+            previous_path = action.get("previous_path")
+            if previous_path is None:
+                raise SCMCodedError(
+                    code="resource_unprocessable_content",
+                    detail="move action requires previous_path",
+                )
+            if "content" not in action:
+                raise SCMCodedError(
+                    code="resource_unprocessable_content",
+                    detail="move action on GitHub requires content",
+                )
+            return [
+                {"path": previous_path, "mode": "100644", "type": "blob", "sha": None},
+                self._content_tree_entry(path, action),
+            ]
+
+        # create or update
+        if "content" not in action:
+            raise SCMCodedError(
+                code="resource_unprocessable_content",
+                detail=f"{kind} action requires content",
+            )
+        return [self._content_tree_entry(path, action)]
+
+    def _content_tree_entry(self, path: str, action: CommitAction) -> dict[str, Any]:
+        entry: dict[str, Any] = {"path": path, "mode": "100644", "type": "blob"}
+        content = action["content"]
+        encoding = action.get("encoding", "text")
+        if encoding == "base64":
+            blob = self.create_git_blob(content, encoding="base64")
+            entry["sha"] = blob["data"]["sha"]
+        else:
+            entry["content"] = content
+        return entry
 
     def get_pull_request_files(
         self,

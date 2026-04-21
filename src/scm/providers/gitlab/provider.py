@@ -15,6 +15,7 @@ from scm.types import (
     BranchName,
     Comment,
     Commit,
+    CommitAction,
     CommitAuthor,
     FileContent,
     GitCommitObject,
@@ -622,6 +623,27 @@ class GitLabProvider:
         )
         return make_result(map_commit, response.json())
 
+    def create_commit_with_actions(
+        self,
+        branch: BranchName,
+        base_sha: SHA,
+        message: str,
+        actions: list[CommitAction],
+        force: bool = False,
+    ) -> ActionResult[GitCommitObject]:
+        payload: dict[str, Any] = {
+            "branch": branch,
+            "start_sha": base_sha,
+            "commit_message": message,
+            "force": force,
+            "actions": [_to_gitlab_action(a) for a in actions],
+        }
+        response = self.post(
+            GitLab.commits.format(project=self.project_id),
+            data=payload,
+        )
+        return make_result(map_git_commit_object, response.json())
+
     def get_commits(
         self,
         ref: str | None = None,
@@ -1026,6 +1048,17 @@ def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
         tree=GitCommitTree(sha=raw["id"]),
         message=raw["message"],
     )
+
+
+def _to_gitlab_action(action: CommitAction) -> dict[str, Any]:
+    out: dict[str, Any] = {"action": action["action"], "file_path": action["path"]}
+    if "content" in action:
+        out["content"] = action["content"]
+    if "encoding" in action:
+        out["encoding"] = action["encoding"]
+    if "previous_path" in action:
+        out["previous_path"] = action["previous_path"]
+    return out
 
 
 def map_tree_entry(raw: dict[str, Any]) -> TreeEntry:
