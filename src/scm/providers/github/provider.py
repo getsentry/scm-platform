@@ -552,10 +552,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/git/ref/{ref}",
             request_options=request_options,
         )
-        return map_action(
-            response,
-            lambda r: GitRef(ref=r["ref"].removeprefix("refs/heads/"), sha=r["object"]["sha"]),
-        )
+        return map_action(response, lambda r: GitRef(ref=r["ref"], sha=r["object"]["sha"]))
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
         response = self.post(

@@ -257,6 +257,10 @@ def expected_git_ref(raw: dict[str, Any]) -> dict[str, Any]:
     return {"ref": raw["ref"].removeprefix("refs/heads/"), "sha": raw["object"]["sha"]}
 
 
+def expected_git_ref_full(raw: dict[str, Any]) -> dict[str, Any]:
+    return {"ref": raw["ref"], "sha": raw["object"]["sha"]}
+
+
 def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "path": raw["path"],
@@ -620,7 +624,7 @@ ACTION_CASES: list[dict[str, Any]] = [
         "kwargs": {"ref": "heads/main"},
         "path": "/repos/test-org/test-repo/git/ref/heads/main",
         "raw": GIT_REF_RAW,
-        "expected_data": expected_git_ref(GIT_REF_RAW),
+        "expected_data": expected_git_ref_full(GIT_REF_RAW),
     },
     {
         "name": "create_git_blob",
