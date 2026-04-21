@@ -758,6 +758,23 @@ class GitLabProvider:
         )
         return make_result(map_pull_request, response.json())
 
+    def create_pull_request_draft(
+        self,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+    ) -> ActionResult[PullRequest]:
+        # GitLab has no draft flag on the create-MR endpoint. The documented
+        # mechanism is a "Draft:" (or "[Draft]" / "(Draft)") title prefix.
+        # See https://docs.gitlab.com/user/project/merge_requests/drafts/.
+        return self.create_pull_request(
+            title=_with_draft_prefix(title),
+            body=body,
+            head=head,
+            base=base,
+        )
+
     def update_pull_request(
         self,
         pull_request_id: str,
@@ -934,6 +951,17 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
 
 def map_git_ref(raw: dict[str, Any]) -> GitRef:
     return GitRef(ref=raw["name"], sha=raw["commit"]["id"])
+
+
+# Prefixes GitLab recognizes as marking a merge request as draft.
+# Reference: https://docs.gitlab.com/user/project/merge_requests/drafts/
+_DRAFT_TITLE_PREFIXES = ("draft:", "[draft]", "(draft)")
+
+
+def _with_draft_prefix(title: str) -> str:
+    if title.lstrip().lower().startswith(_DRAFT_TITLE_PREFIXES):
+        return title
+    return f"Draft: {title}"
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
