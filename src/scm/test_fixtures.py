@@ -876,6 +876,23 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def delete_branch(self, branch: str) -> None:
+        return None
+
+    # Git ref operations
+
+    def get_git_ref(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        return ActionResult(
+            data=GitRef(ref=ref, sha="abc123def456"),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
     # Git blob operations
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:

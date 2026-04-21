@@ -523,6 +523,9 @@ class GitLabProvider:
         )
         return make_result(map_git_ref, response.json())
 
+    def delete_branch(self, branch: BranchName) -> None:
+        self.delete(GitLab.branch.format(project_id=self.project_id, branch=quote(branch, safe="")))
+
     def get_tree(
         self,
         tree_sha: SHA,

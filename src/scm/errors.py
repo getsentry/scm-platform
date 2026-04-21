@@ -18,6 +18,8 @@ type ErrorCode = Literal[
     "resource_bad_request",
     "resource_forbidden",
     "resource_not_found",
+    "resource_conflict",
+    "resource_unprocessable_content",
     "unexpected_response_format",
     "unhandled_exception",
 ]
@@ -40,6 +42,8 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_bad_request": "An error response was received from the service-provider.",
     "resource_forbidden": "You are not authorized to access the requested service-provider resource.",
     "resource_not_found": "The requested resource could not be found on the service-provider.",
+    "resource_conflict": "Request could not be processed because it conflicts with the target resource on the server.",
+    "resource_unprocessable_content": "Request could not be processed.",
     "unexpected_response_format": "The response format was in an unexpected format.",
     "unhandled_exception": "An unhandled exception occurred.",
 }

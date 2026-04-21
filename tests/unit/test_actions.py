@@ -24,6 +24,7 @@ from scm.actions import (
     create_review_comment_file,
     create_review_comment_line,
     create_review_comment_reply,
+    delete_branch,
     delete_issue_comment,
     delete_issue_comment_reaction,
     delete_issue_reaction,
@@ -38,6 +39,7 @@ from scm.actions import (
     get_commits_by_path,
     get_file_content,
     get_git_commit,
+    get_git_ref,
     get_issue,
     get_issue_comment_reactions,
     get_issue_comments,
@@ -126,6 +128,9 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_branch, {"branch": "main"}),
     (create_branch, {"branch": "feature", "sha": "abc123"}),
     (update_branch, {"branch": "feature", "sha": "def456"}),
+    (delete_branch, {"branch": "feature"}),
+    # Git ref operations
+    (get_git_ref, {"ref": "heads/main"}),
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
     # File content operations
@@ -339,6 +344,12 @@ def _check_create_branch(result: Any) -> None:
 def _check_update_branch(result: Any) -> None:
     assert result["data"]["ref"] == "feature"
     assert result["data"]["sha"] == "def456"
+    assert result["type"] == "github"
+
+
+def _check_get_git_ref(result: Any) -> None:
+    assert result["data"]["ref"] == "heads/main"
+    assert result["data"]["sha"] == "abc123def456"
     assert result["type"] == "github"
 
 
@@ -584,6 +595,8 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_branch, {"branch": "main"}, _check_get_branch),
     (create_branch, {"branch": "feature", "sha": "abc123"}, _check_create_branch),
     (update_branch, {"branch": "feature", "sha": "def456"}, _check_update_branch),
+    (delete_branch, {"branch": "feature"}, _check_none),
+    (get_git_ref, {"ref": "heads/main"}, _check_get_git_ref),
     (
         create_git_blob,
         {"content": "hello", "encoding": "utf-8"},

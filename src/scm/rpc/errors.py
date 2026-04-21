@@ -19,6 +19,8 @@ STATUS_MAP: dict[ErrorCode, int] = {
     "resource_bad_request": 400,
     "resource_forbidden": 403,
     "resource_not_found": 404,
+    "resource_conflict": 409,
+    "resource_unprocessable_content": 422,
     "unexpected_response_format": 500,
     "unhandled_exception": 500,
 }

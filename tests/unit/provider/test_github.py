@@ -615,6 +615,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_git_ref(GIT_REF_RAW),
     },
     {
+        "name": "get_git_ref",
+        "operation": "get",
+        "kwargs": {"ref": "heads/main"},
+        "path": "/repos/test-org/test-repo/git/ref/heads/main",
+        "raw": GIT_REF_RAW,
+        "expected_data": expected_git_ref(GIT_REF_RAW),
+    },
+    {
         "name": "create_git_blob",
         "operation": "post",
         "kwargs": {"content": "hello", "encoding": "utf-8"},
@@ -891,6 +899,12 @@ ACTION_CASES: list[dict[str, Any]] = [
 
 
 VOID_CASES: list[dict[str, Any]] = [
+    {
+        "name": "delete_branch",
+        "operation": "delete",
+        "kwargs": {"branch": "feature"},
+        "path": "/repos/test-org/test-repo/git/refs/heads/feature",
+    },
     {
         "name": "delete_issue_comment",
         "operation": "delete",
