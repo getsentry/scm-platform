@@ -387,6 +387,20 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    (
+        "delete_branch",
+        lambda scm: actions.delete_branch(scm, "feature"),
+        {},
+        204,
+        None,
+    ),
+    (
+        "get_git_ref",
+        lambda scm: actions.get_git_ref(scm, "heads/main"),
+        make_github_git_ref(),
+        200,
+        None,
+    ),
     # Git blob operations
     (
         "create_git_blob",

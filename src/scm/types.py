@@ -707,6 +707,23 @@ class UpdateBranchProtocol(Protocol):
     def update_branch(self, branch: BranchName, sha: SHA, force: bool = False) -> ActionResult[GitRef]: ...
 
 
+@runtime_checkable
+class DeleteBranchProtocol(Protocol):
+    def delete_branch(self, branch: BranchName) -> None: ...
+
+
+# Git Ref Protocols
+
+
+@runtime_checkable
+class GetGitRefProtocol(Protocol):
+    def get_git_ref(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]: ...
+
+
 # URL Protocols
 
 
@@ -1066,6 +1083,7 @@ ALL_PROTOCOLS = (
     CreateReviewCommentMultilineProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
+    DeleteBranchProtocol,
     DeleteIssueCommentProtocol,
     DeleteIssueCommentReactionProtocol,
     DeleteIssueReactionProtocol,
@@ -1083,6 +1101,7 @@ ALL_PROTOCOLS = (
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetGitCommitProtocol,
+    GetGitRefProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueProtocol,

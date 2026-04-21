@@ -33,6 +33,7 @@ from scm.types import (
     CreateReviewCommentMultilineProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
+    DeleteBranchProtocol,
     DeleteIssueCommentProtocol,
     DeleteIssueCommentReactionProtocol,
     DeleteIssueReactionProtocol,
@@ -51,6 +52,7 @@ from scm.types import (
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetGitCommitProtocol,
+    GetGitRefProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueProtocol,
@@ -311,6 +313,20 @@ def create_branch(scm: CreateBranchProtocol, branch: BranchName, sha: SHA) -> Ac
 def update_branch(scm: UpdateBranchProtocol, branch: BranchName, sha: SHA, force: bool = False) -> ActionResult[GitRef]:
     """Update a branch to point at a new SHA."""
     return scm.update_branch(branch, sha, force)
+
+
+def delete_branch(scm: DeleteBranchProtocol, branch: BranchName) -> None:
+    """Delete a branch."""
+    return scm.delete_branch(branch)
+
+
+def get_git_ref(
+    scm: GetGitRefProtocol,
+    ref: str,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[GitRef]:
+    """Get a git ref (e.g. ``heads/main`` or ``tags/v1.0.0``)."""
+    return scm.get_git_ref(ref, request_options)
 
 
 def get_file_url(
@@ -662,6 +678,7 @@ __all__ = (
     "create_review_comment_line",
     "create_review_comment_reply",
     "create_review",
+    "delete_branch",
     "delete_issue_comment_reaction",
     "delete_issue_comment",
     "delete_issue_reaction",
@@ -679,6 +696,7 @@ __all__ = (
     "get_file_content",
     "get_file_url",
     "get_git_commit",
+    "get_git_ref",
     "get_issue_comment_reactions",
     "get_issue_comments",
     "get_issue_reactions",

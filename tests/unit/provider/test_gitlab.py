@@ -10579,6 +10579,18 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.delete_branch,
+            provider_args={"branch": "tests/20260311-110504"},
+            client_calls=[
+                ClientForwardedCall(
+                    method="DELETE",
+                    path="/projects/79787061/repository/branches/tests%2F20260311-110504",
+                    json_response={},
+                ),
+            ],
+            provider_return_value=None,
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_file_content,
             provider_args={"path": "README.md", "ref": "main", "request_options": None},
             client_calls=[

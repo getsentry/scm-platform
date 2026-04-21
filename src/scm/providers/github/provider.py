@@ -229,6 +229,10 @@ class GitHubProvider:
             raise SCMCodedError(code="resource_forbidden")
         elif response.status_code == 404:
             raise SCMCodedError(code="resource_not_found")
+        elif response.status_code == 409:
+            raise SCMCodedError(code="resource_conflict")
+        elif response.status_code == 422:
+            raise SCMCodedError(code="resource_unprocessable_content")
         elif response.status_code >= 400:
             raise SCMCodedError(code="unhandled_exception")
 
@@ -537,6 +541,20 @@ class GitHubProvider:
             response,
             lambda r: GitRef(ref=r["ref"].removeprefix("refs/heads/"), sha=r["object"]["sha"]),
         )
+
+    def delete_branch(self, branch: BranchName) -> None:
+        self.delete(f"/repos/{self.repository['name']}/git/refs/heads/{branch}")
+
+    def get_git_ref(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/git/ref/{ref}",
+            request_options=request_options,
+        )
+        return map_action(response, lambda r: GitRef(ref=r["ref"], sha=r["object"]["sha"]))
 
     def get_file_url(
         self,

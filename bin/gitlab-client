@@ -28,6 +28,7 @@ Commands:
     create-issue-comment <issue_id> <body>
     create-pull-request-comment <pr_id> <body>
     get-branch <name>
+    delete-branch <name>
     get-commit <sha>
     get-commit-url <sha>
     get-file-content <path> [--ref <ref>]
@@ -49,6 +50,7 @@ from scm.types import (
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
+    DeleteBranchProtocol,
     DownloadArchiveProtocol,
     GetBranchProtocol,
     GetCommitProtocol,
@@ -147,6 +149,9 @@ def main():
     p = sub.add_parser("get-branch")
     p.add_argument("name")
 
+    p = sub.add_parser("delete-branch")
+    p.add_argument("name")
+
     p = sub.add_parser("get-commit")
     p.add_argument("sha")
 
@@ -232,6 +237,10 @@ def main():
     elif args.command == "get-branch":
         assert isinstance(scm, GetBranchProtocol)
         dump(scm.get_branch(args.name))
+
+    elif args.command == "delete-branch":
+        assert isinstance(scm, DeleteBranchProtocol)
+        scm.delete_branch(args.name)
 
     elif args.command == "get-commit":
         assert isinstance(scm, GetCommitProtocol)

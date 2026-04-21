@@ -26,6 +26,8 @@ Commands:
     create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
     create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
     get-branch <name>
+    delete-branch <name>
+    get-git-ref <ref>
     get-commit <sha>
     get-commit-url <sha>
     get-file-content <path> [--ref <ref>]
@@ -49,6 +51,7 @@ from scm.types import (
     CreatePullRequestCommentProtocol,
     CreateReviewCommentLineProtocol,
     CreateReviewCommentMultilineProtocol,
+    DeleteBranchProtocol,
     DownloadArchiveProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
@@ -56,6 +59,7 @@ from scm.types import (
     GetCommitUrlProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
+    GetGitRefProtocol,
     GetIssueCommentsProtocol,
     GetIssueProtocol,
     GetPullRequestCommentsProtocol,
@@ -166,6 +170,12 @@ def main():
 
     p = sub.add_parser("get-branch")
     p.add_argument("name")
+
+    p = sub.add_parser("delete-branch")
+    p.add_argument("name")
+
+    p = sub.add_parser("get-git-ref")
+    p.add_argument("ref", help="e.g. heads/main or tags/v1.0.0")
 
     p = sub.add_parser("download-archive")
     p.add_argument("ref")
@@ -278,6 +288,14 @@ def main():
     elif args.command == "get-branch":
         assert isinstance(scm, GetBranchProtocol)
         dump(scm.get_branch(args.name))
+
+    elif args.command == "delete-branch":
+        assert isinstance(scm, DeleteBranchProtocol)
+        scm.delete_branch(args.name)
+
+    elif args.command == "get-git-ref":
+        assert isinstance(scm, GetGitRefProtocol)
+        dump(scm.get_git_ref(args.ref))
 
     elif args.command == "get-commit":
         assert isinstance(scm, GetCommitProtocol)
