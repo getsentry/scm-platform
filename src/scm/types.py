@@ -141,8 +141,8 @@ class DeleteCommitAction:
 
 @dataclasses.dataclass
 class MoveCommitAction:
-    new_filename: str
     old_filename: str
+    new_filename: str
 
 
 @dataclasses.dataclass
