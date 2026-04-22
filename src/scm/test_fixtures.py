@@ -12,10 +12,12 @@ from scm.types import (
     BuildStatus,
     CheckRun,
     CheckRunOutput,
+    ChmodCommitAction,
     Comment,
     Commit,
     CommitAuthor,
     CommitFile,
+    DeleteCommitAction,
     FileContent,
     GitBlob,
     GitCommitObject,
@@ -25,6 +27,7 @@ from scm.types import (
     InputTreeEntry,
     Issue,
     Label,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -44,6 +47,7 @@ from scm.types import (
     ReviewCommentInput,
     ReviewSide,
     TreeEntry,
+    WriteCommitAction,
 )
 
 
@@ -1014,6 +1018,30 @@ class BaseTestProvider(Provider):
             type="github",
             raw={"headers": None, "data": None},
             meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def create_commit(
+        self,
+        branch: str,
+        parent_sha: str,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+    ) -> ActionResult[Commit]:
+        return ActionResult(
+            data=Commit(
+                id="newcommit456",
+                message=message,
+                author=CommitAuthor(
+                    name="Test User",
+                    email="test@example.com",
+                    date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
+                ),
+                files=None,
+            ),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
         )
 
     # Git data operations

@@ -8,6 +8,7 @@ from scm.actions import (
     compare_commits,
     create_branch,
     create_check_run,
+    create_commit,
     create_git_blob,
     create_git_commit,
     create_git_tree,
@@ -65,7 +66,7 @@ from scm.actions import (
 )
 from scm.errors import SCMCodedError
 from scm.test_fixtures import BaseTestProvider, SourceCodeManager
-from scm.types import GetBranchProtocol, Referrer, Repository
+from scm.types import GetBranchProtocol, Referrer, Repository, WriteCommitAction
 
 
 @contextmanager
@@ -145,6 +146,15 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_commits, {}),
     (get_commits_by_path, {"path": "src/main.py"}),
     (compare_commits, {"start_sha": "aaa", "end_sha": "bbb"}),
+    (
+        create_commit,
+        {
+            "branch": "main",
+            "parent_sha": "abc123",
+            "message": "msg",
+            "actions": [WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        },
+    ),
     # Git data operations
     (get_tree, {"tree_sha": "tree123"}),
     (get_git_commit, {"sha": "abc123"}),
@@ -401,6 +411,13 @@ def _check_compare_commits(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_create_commit(result: Any) -> None:
+    c = result["data"]
+    assert c["id"] == "newcommit456"
+    assert c["message"] == "msg"
+    assert result["type"] == "github"
+
+
 def _check_get_tree(result: Any) -> None:
     gt = result["data"]
     assert len(gt["tree"]) == 1
@@ -625,6 +642,16 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         compare_commits,
         {"start_sha": "aaa", "end_sha": "bbb"},
         _check_compare_commits,
+    ),
+    (
+        create_commit,
+        {
+            "branch": "main",
+            "parent_sha": "abc123",
+            "message": "msg",
+            "actions": [WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        },
+        _check_create_commit,
     ),
     (get_tree, {"tree_sha": "tree123"}, _check_get_tree),
     (get_git_commit, {"sha": "abc123"}, _check_get_git_commit),

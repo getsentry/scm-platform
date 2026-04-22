@@ -1,6 +1,7 @@
+import dataclasses
 from collections.abc import MutableMapping
 from datetime import datetime
-from typing import Any, Literal, Protocol, Required, TypedDict, runtime_checkable
+from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict, runtime_checkable
 
 import requests
 
@@ -124,6 +125,32 @@ type SHA = str
 type IssueState = Literal["open", "closed"]
 type PullRequestState = Literal["open", "closed"]
 type ReviewEvent = Literal["approve", "change_request", "comment"]
+type Encoding = Literal["utf-8", "base64"]
+
+
+@dataclasses.dataclass
+class ChmodCommitAction:
+    executable: bool
+    filename: str
+
+
+@dataclasses.dataclass
+class DeleteCommitAction:
+    filename: str
+
+
+@dataclasses.dataclass
+class MoveCommitAction:
+    old_filename: str
+    new_filename: str
+
+
+@dataclasses.dataclass
+class WriteCommitAction:
+    action: Literal["create", "update"]
+    filename: str
+    content: str
+    encoding: Encoding
 
 
 class PaginationParams(TypedDict, total=False):
@@ -350,7 +377,8 @@ class InputTreeEntry(TypedDict):
     path: str
     mode: TreeEntryMode
     type: TreeEntryType
-    sha: SHA | None  # None for deletions
+    sha: NotRequired[SHA | None]  # None deletes the entry; omit when using `content`
+    content: NotRequired[str]  # UTF-8 text inlined into the tree; mutually exclusive with sha
 
 
 class GitTree(TypedDict):
@@ -791,6 +819,18 @@ class CompareCommitsProtocol(Protocol):
     ) -> PaginatedActionResult[Commit]: ...
 
 
+@runtime_checkable
+class CreateCommitProtocol(Protocol):
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+    ) -> ActionResult[Commit]: ...
+
+
 # Pull Request Protocols
 
 
@@ -1066,6 +1106,7 @@ ALL_PROTOCOLS = (
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
+    CreateCommitProtocol,
     CreateGitBlobProtocol,
     CreateGitCommitProtocol,
     CreateGitTreeProtocol,

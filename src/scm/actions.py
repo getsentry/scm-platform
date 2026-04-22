@@ -11,11 +11,13 @@ from scm.types import (
     BuildStatus,
     CheckRun,
     CheckRunOutput,
+    ChmodCommitAction,
     Comment,
     Commit,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
+    CreateCommitProtocol,
     CreateGitBlobProtocol,
     CreateGitCommitProtocol,
     CreateGitTreeProtocol,
@@ -34,6 +36,7 @@ from scm.types import (
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
+    DeleteCommitAction,
     DeleteIssueCommentProtocol,
     DeleteIssueCommentReactionProtocol,
     DeleteIssueReactionProtocol,
@@ -78,6 +81,7 @@ from scm.types import (
     Issue,
     Label,
     MinimizeCommentProtocol,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginationParams,
     PullRequest,
@@ -97,6 +101,7 @@ from scm.types import (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    WriteCommitAction,
 )
 
 
@@ -435,6 +440,17 @@ def compare_commits(
     return scm.compare_commits(start_sha, end_sha, pagination, request_options)
 
 
+def create_commit(
+    scm: CreateCommitProtocol,
+    branch: str,
+    parent_sha: SHA,
+    message: str,
+    actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+    force: bool = False,
+) -> ActionResult[Commit]:
+    return scm.create_commit(branch, parent_sha, message, actions, force)
+
+
 def get_tree(
     scm: GetTreeProtocol,
     tree_sha: SHA,
@@ -662,6 +678,7 @@ __all__ = (
     "compare_commits",
     "create_branch",
     "create_check_run",
+    "create_commit",
     "create_git_blob",
     "create_git_commit",
     "create_git_tree",
