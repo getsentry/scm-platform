@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -6,12 +5,11 @@ import msgspec
 import requests
 
 from scm.errors import SCMCodedError
-from scm.manager import SourceCodeManager as ScmBase
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse
-from scm.types import ApiClient, Provider, Referrer, Repository, RepositoryId
+from scm.types import ApiClient, Provider, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
 
@@ -102,47 +100,6 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
         return GitLabProvider(client, organization_id, repository)
     else:
         return None
-
-
-class SourceCodeManager(ScmBase):
-    @classmethod
-    def make_from_repository_id(  # type: ignore[override]
-        cls,
-        organization_id: int,
-        repository_id: RepositoryId,
-        *,
-        base_url: str | None = None,
-        signing_secret: str | None = None,
-        referrer: Referrer = "shared",
-        session: Callable[[], Session] = lambda: RequestsSession(),
-        fetch_repository: Callable[
-            [str, str, int, RepositoryId, Callable[[], Session]], Repository | None
-        ] = fetch_repository,
-        fetch_provider: Callable[[ApiClient, int, Repository], Provider | None] = fetch_provider,
-    ):
-        full_url = SCM_API_URL.format(base_url=base_url if base_url is not None else os.environ["SCM_RPC_BASE_URL"])
-        signing_secret = signing_secret or os.environ["SCM_RPC_SIGNING_SECRET"]
-
-        # A specialized RpcApiClient is initialized. It will proxy the service-provider requests through Sentry. This
-        # forces clients to obey Sentry's strict access control requirements.
-        client = RpcApiClient(
-            full_url=full_url,
-            signing_secret=signing_secret,
-            organization_id=organization_id,
-            referrer=referrer,
-            repository_id=repository_id,
-            session=session,
-        )
-
-        return super().make_from_repository_id(
-            organization_id,
-            repository_id,
-            referrer=referrer,
-            fetch_repository=lambda oid, rid: fetch_repository(full_url, signing_secret, oid, rid, session),
-            fetch_provider=lambda oid, repo: fetch_provider(client, oid, repo),
-            # Metrics are not recorded in the client environment. Metrics are collected server-side.
-            record_count=lambda name, value, tags: None,
-        )
 
 
 class RpcApiClient(ApiClient):

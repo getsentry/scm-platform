@@ -10,7 +10,9 @@ import pytest
 import requests
 
 from scm import actions
-from scm.rpc.client import SourceCodeManager, deserialize_repository
+from scm.manager import SourceCodeManager
+from scm.rpc.client import RpcApiClient, deserialize_repository
+from scm.rpc.client import fetch_provider as fetch_proxy_provider
 from scm.rpc.errors import deserialize_error
 from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
@@ -119,14 +121,29 @@ def bridge_session_to_server(session: requests.Session, server: RpcServer) -> No
 
 def make_client_scm(organization_id, repository_id, server):
     """Build an RPC client SourceCodeManager wired to the given RPC server."""
-    scm = SourceCodeManager.make_from_repository_id(
+    # This is a real AoiClient but we'll
+    client = RpcApiClient(
+        full_url=BASE_URL,
+        signing_secret=SIGNING_SECRET,
+        organization_id=organization_id,
+        referrer="shared",
+        repository_id=repository_id,
+    )
+
+    # Forces a call to `server.get` rather than making a network call.
+    fetch_proxy_repository = bridged_fetch_repository(server)
+
+    scm = SourceCodeManager.make_client(
         organization_id,
         repository_id,
-        base_url=BASE_URL,
-        signing_secret=SIGNING_SECRET,
-        fetch_repository=bridged_fetch_repository(server),
+        fetch_repository=lambda oid, rid: fetch_proxy_repository(BASE_URL, SIGNING_SECRET, oid, rid, client.session),
+        fetch_provider=lambda oid, repo: fetch_proxy_provider(client, oid, repo),
+        record_count=lambda a, b, c: None,
     )
+
+    # Forces a call to `server.post` rather than making a network call.
     bridge_session_to_server(scm.provider.client.session, server)
+
     return scm
 
 

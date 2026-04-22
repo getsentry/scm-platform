@@ -25,11 +25,11 @@ def mock_record_count(a, b, c):
 
 
 class TestMakeFromRepositoryId:
-    def test_make_from_repository_id(self):
+    def test_make_client(self):
         repo = make_repository()
         provider = BaseTestProvider()
 
-        result = SourceCodeManager.make_from_repository_id(
+        result = SourceCodeManager.make_client(
             organization_id=1,
             repository_id=1,
             referrer="test-referrer",
@@ -49,7 +49,7 @@ class TestMakeFromRepositoryId:
         repo = make_repository()
         provider = BaseTestProvider()
 
-        result = SourceCodeManager.make_from_repository_id(
+        result = SourceCodeManager.make_client(
             organization_id=1,
             repository_id=1,
             fetch_repository=lambda org, rid: repo,
@@ -62,7 +62,7 @@ class TestMakeFromRepositoryId:
     def test_repository_not_found_raises(self):
 
         with pytest.raises(SCMCodedError, check=lambda e: e.code == "repository_not_found"):
-            SourceCodeManager.make_from_repository_id(
+            SourceCodeManager.make_client(
                 organization_id=1,
                 repository_id=1,
                 fetch_repository=lambda org, rid: None,
@@ -74,7 +74,7 @@ class TestMakeFromRepositoryId:
         repo = make_repository(is_active=False)
 
         with pytest.raises(SCMCodedError, check=lambda e: e.code == "repository_inactive"):
-            SourceCodeManager.make_from_repository_id(
+            SourceCodeManager.make_client(
                 organization_id=1,
                 repository_id=1,
                 fetch_repository=lambda org, rid: repo,
@@ -86,7 +86,7 @@ class TestMakeFromRepositoryId:
         repo = make_repository(organization_id=999)
 
         with pytest.raises(SCMCodedError, check=lambda e: e.code == "repository_organization_mismatch"):
-            SourceCodeManager.make_from_repository_id(
+            SourceCodeManager.make_client(
                 organization_id=1,
                 repository_id=1,
                 fetch_repository=lambda org, rid: repo,
@@ -98,7 +98,7 @@ class TestMakeFromRepositoryId:
         repo = make_repository()
 
         with pytest.raises(SCMCodedError, check=lambda e: e.code == "provider_not_found"):
-            SourceCodeManager.make_from_repository_id(
+            SourceCodeManager.make_client(
                 organization_id=1,
                 repository_id=1,
                 fetch_repository=lambda org, rid: repo,
@@ -110,7 +110,7 @@ class TestMakeFromRepositoryId:
         repo = make_repository()
         provider = BaseTestProvider()
 
-        result = SourceCodeManager.make_from_repository_id(
+        result = SourceCodeManager.make_client(
             organization_id=1,
             repository_id=("github", "abc123"),
             fetch_repository=lambda org, rid: repo,

@@ -44,7 +44,7 @@ import logging
 import pathlib
 import sys
 
-from scm.rpc.client import SourceCodeManager
+from scm.manager import SourceCodeManager
 from scm.types import (
     CompareCommitsProtocol,
     CreateIssueCommentProtocol,
@@ -188,7 +188,7 @@ def main():
         "signing_secret": args.secret if args.secret else "secret",
     }
 
-    scm = SourceCodeManager.make_from_repository_id(
+    scm = SourceCodeManager.make_proxy_client(
         args.org_id,
         ("gitlab", args.repo),
         **kwargs,

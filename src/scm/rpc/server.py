@@ -38,7 +38,7 @@ class RpcServer:
             if not verify_get(self.secrets, organization_id, repository_id, authorization):
                 raise SCMCodedError(code="rpc_invalid_grant")
 
-            scm = SourceCodeManager.make_from_repository_id(
+            scm = SourceCodeManager.make_client(
                 organization_id,
                 repository_id,
                 referrer=headers.get("X-Referrer", "shared"),
@@ -89,7 +89,7 @@ class RpcServer:
         if not is_safe_path(action_request.data.path):
             raise SCMCodedError(code="rpc_invalid_path")
 
-        scm = SourceCodeManager.make_from_repository_id(
+        scm = SourceCodeManager.make_client(
             organization_id,
             repository_id,
             referrer=headers.get("X-Referrer", "shared"),
