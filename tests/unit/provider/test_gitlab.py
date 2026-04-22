@@ -12232,3 +12232,53 @@ def test_get_file_url_builds_blob_url(provider: GitLabProvider):
 
 def test_get_commit_url_builds_commit_url(provider: GitLabProvider):
     assert provider.get_commit_url("abc123") == "https://gitlab.com/test-repo/-/commit/abc123"
+
+
+def _minimal_mr_response(title: str = "whatever") -> dict:
+    return {
+        "id": 1,
+        "iid": 1,
+        "title": title,
+        "description": "body",
+        "state": "opened",
+        "target_branch": "main",
+        "source_branch": "feature",
+        "sha": "abc",
+        "merged_at": None,
+        "web_url": "https://gitlab.com/x/y/-/merge_requests/1",
+    }
+
+
+def test_create_pull_request_draft_prepends_draft_prefix(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_minimal_mr_response(title="Draft: My change"))
+
+    provider.create_pull_request_draft(title="My change", body="body", head="feature", base="main")
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "POST"
+    assert call.kwargs["path"] == "/projects/79787061/merge_requests"
+    assert call.kwargs["data"] == {
+        "title": "Draft: My change",
+        "description": "body",
+        "source_branch": "feature",
+        "target_branch": "main",
+    }
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Draft: already drafted",
+        "draft: lowercase",
+        "DRAFT: upper",
+        "[Draft] bracketed",
+        "(Draft) parenthesized",
+        "  Draft: with leading whitespace",
+    ],
+)
+def test_create_pull_request_draft_does_not_double_prefix(client, provider: GitLabProvider, title: str):
+    client.request.return_value = _make_mock_response(_minimal_mr_response(title=title))
+
+    provider.create_pull_request_draft(title=title, body="body", head="feature", base="main")
+
+    assert client.request.call_args.kwargs["data"]["title"] == title
