@@ -350,6 +350,9 @@ class CommitFile(TypedDict):
     filename: str
     status: FileStatus
     patch: str | None
+    additions: int | None
+    deletions: int | None
+    previous_filename: str | None
 
 
 class Commit(TypedDict):
@@ -357,6 +360,8 @@ class Commit(TypedDict):
     message: str
     author: CommitAuthor | None
     files: list[CommitFile] | None
+    additions: int | None
+    deletions: int | None
 
 
 class CommitComparison(TypedDict):

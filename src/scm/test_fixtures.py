@@ -226,11 +226,21 @@ def make_github_commit_file(
     filename: str = "src/main.py",
     status: str = "modified",
     patch: str | None = "@@ -1,3 +1,4 @@\n+new line",
+    additions: int = 1,
+    deletions: int = 0,
+    previous_filename: str | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub commit file entries."""
-    result: dict[str, Any] = {"filename": filename, "status": status}
+    result: dict[str, Any] = {
+        "filename": filename,
+        "status": status,
+        "additions": additions,
+        "deletions": deletions,
+    }
     if patch is not None:
         result["patch"] = patch
+    if previous_filename is not None:
+        result["previous_filename"] = previous_filename
     return result
 
 
@@ -241,6 +251,7 @@ def make_github_commit(
     author_email: str = "test@example.com",
     author_date: str = "2026-02-04T10:00:00Z",
     files: list[dict[str, Any]] | None = None,
+    stats: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub commit API responses."""
     return {
@@ -254,6 +265,7 @@ def make_github_commit(
             },
         },
         "files": files if files is not None else [make_github_commit_file()],
+        "stats": stats if stats is not None else {"additions": 1, "deletions": 0, "total": 1},
     }
 
 
@@ -965,7 +977,18 @@ class BaseTestProvider(Provider):
                     email="test@example.com",
                     date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
                 ),
-                files=[CommitFile(filename="src/main.py", status="modified", patch="@@ -1 +1 @@")],
+                files=[
+                    CommitFile(
+                        filename="src/main.py",
+                        status="modified",
+                        patch="@@ -1 +1 @@",
+                        additions=1,
+                        deletions=0,
+                        previous_filename=None,
+                    )
+                ],
+                additions=1,
+                deletions=0,
             ),
             type="github",
             raw={"headers": None, "data": None},
@@ -1038,6 +1061,8 @@ class BaseTestProvider(Provider):
                     date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
                 ),
                 files=None,
+                additions=None,
+                deletions=None,
             ),
             type="github",
             raw={"headers": None, "data": None},

@@ -281,6 +281,7 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
 
 def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
     author = raw["commit"]["author"]
+    stats = raw.get("stats") or {}
     return {
         "id": raw["sha"],
         "message": raw["commit"]["message"],
@@ -294,9 +295,14 @@ def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
                 "filename": entry["filename"],
                 "status": entry.get("status", "modified"),
                 "patch": entry.get("patch"),
+                "additions": entry.get("additions"),
+                "deletions": entry.get("deletions"),
+                "previous_filename": entry.get("previous_filename"),
             }
             for entry in raw.get("files", [])
         ],
+        "additions": stats.get("additions"),
+        "deletions": stats.get("deletions"),
     }
 
 

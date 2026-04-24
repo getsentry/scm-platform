@@ -640,7 +640,7 @@ class GitLabProvider:
         until: datetime.datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
-        params: dict[str, str] = {}
+        params: dict[str, str] = {"with_stats": "true"}
         if ref:
             params["ref_name"] = ref
         if since:
@@ -664,7 +664,7 @@ class GitLabProvider:
         until: datetime.datetime | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Commit]:
-        params: dict[str, str] = {"path": path}
+        params: dict[str, str] = {"path": path, "with_stats": "true"}
         if ref:
             params["ref_name"] = ref
         if since:
@@ -985,6 +985,7 @@ def map_commit_action(
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:
+    stats = raw.get("stats") or {}
     return Commit(
         id=str(raw["id"]),
         message=raw["message"],
@@ -994,6 +995,8 @@ def map_commit(raw: dict[str, Any]) -> Commit:
             date=datetime.datetime.fromisoformat(raw["created_at"]),
         ),
         files=None,
+        additions=stats.get("additions"),
+        deletions=stats.get("deletions"),
     )
 
 

@@ -756,6 +756,8 @@ class GitHubProvider:
                 message=raw.get("message", ""),
                 author=map_commit_author(raw.get("author")),
                 files=None,
+                additions=None,
+                deletions=None,
             ),
             type="github",
             raw=new_commit["raw"],
@@ -1230,16 +1232,22 @@ def map_commit_file(raw_file: dict[str, Any]) -> CommitFile:
         filename=raw_file["filename"],
         status=cast(FileStatus, status),
         patch=raw_file.get("patch"),
+        additions=raw_file.get("additions"),
+        deletions=raw_file.get("deletions"),
+        previous_filename=raw_file.get("previous_filename"),
     )
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:
     commit = raw.get("commit", {})
+    stats = raw.get("stats") or {}
     return Commit(
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
         files=[map_commit_file(f) for f in raw.get("files", [])],
+        additions=stats.get("additions"),
+        deletions=stats.get("deletions"),
     )
 
 
