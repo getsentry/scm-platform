@@ -1557,9 +1557,10 @@ def _make_mock_response(json_data):
                             "trailers": {},
                             "extended_trailers": {},
                             "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                            "stats": {"additions": 12, "deletions": 3, "total": 15},
                         }
                     ],
-                    params={"ref_name": "1403774c82d64068af027d0b5d0cc4f52473b6f2"},
+                    params={"with_stats": "true", "ref_name": "1403774c82d64068af027d0b5d0cc4f52473b6f2"},
                 ),
             ],
             provider_return_value={
@@ -1581,6 +1582,8 @@ def _make_mock_response(json_data):
                             ),
                         },
                         "files": None,
+                        "additions": 12,
+                        "deletions": 3,
                     }
                 ],
                 "type": "gitlab",
@@ -1602,6 +1605,7 @@ def _make_mock_response(json_data):
                             "trailers": {},
                             "extended_trailers": {},
                             "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                            "stats": {"additions": 12, "deletions": 3, "total": 15},
                         }
                     ],
                     "headers": None,
@@ -1638,9 +1642,14 @@ def _make_mock_response(json_data):
                             "trailers": {},
                             "extended_trailers": {},
                             "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                            "stats": {"additions": 7, "deletions": 2, "total": 9},
                         }
                     ],
-                    params={"path": "src/main.py", "ref_name": "1403774c82d64068af027d0b5d0cc4f52473b6f2"},
+                    params={
+                        "path": "src/main.py",
+                        "with_stats": "true",
+                        "ref_name": "1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                    },
                 ),
             ],
             provider_return_value={
@@ -1662,6 +1671,8 @@ def _make_mock_response(json_data):
                             ),
                         },
                         "files": None,
+                        "additions": 7,
+                        "deletions": 2,
                     }
                 ],
                 "type": "gitlab",
@@ -1683,6 +1694,7 @@ def _make_mock_response(json_data):
                             "trailers": {},
                             "extended_trailers": {},
                             "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                            "stats": {"additions": 7, "deletions": 2, "total": 9},
                         }
                     ],
                     "headers": None,
@@ -10694,6 +10706,7 @@ def _make_mock_response(json_data):
                                 "trailers": {},
                                 "extended_trailers": {},
                                 "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                                "stats": {"additions": 5, "deletions": 1, "total": 6},
                             }
                         ],
                         "diffs": [
@@ -10740,6 +10753,8 @@ def _make_mock_response(json_data):
                             ),
                         },
                         "files": None,
+                        "additions": 5,
+                        "deletions": 1,
                     }
                 ],
                 "type": "gitlab",
@@ -10779,6 +10794,7 @@ def _make_mock_response(json_data):
                                 "trailers": {},
                                 "extended_trailers": {},
                                 "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                                "stats": {"additions": 5, "deletions": 1, "total": 6},
                             }
                         ],
                         "diffs": [
@@ -10869,6 +10885,7 @@ def _make_mock_response(json_data):
                         "committer_email": "vincent@vincent-jacques.net",
                         "committed_date": "2026-03-05T12:15:50.000+01:00",
                         "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
+                        "stats": {"additions": 4, "deletions": 2, "total": 6},
                     },
                 ),
             ],
@@ -10890,6 +10907,8 @@ def _make_mock_response(json_data):
                         ),
                     },
                     "files": None,
+                    "additions": 4,
+                    "deletions": 2,
                 },
                 "type": "gitlab",
                 "raw": {
@@ -10907,6 +10926,7 @@ def _make_mock_response(json_data):
                         "committer_email": "vincent@vincent-jacques.net",
                         "committed_date": "2026-03-05T12:15:50.000+01:00",
                         "web_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
+                        "stats": {"additions": 4, "deletions": 2, "total": 6},
                     },
                     "headers": None,
                 },
@@ -10964,6 +10984,8 @@ def _make_mock_response(json_data):
                         ),
                     },
                     "files": None,
+                    "additions": 0,
+                    "deletions": 0,
                 },
                 "type": "gitlab",
                 "raw": {
