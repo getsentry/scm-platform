@@ -15,7 +15,7 @@ class ActionAttributes(msgspec.Struct):
     params: dict[str, Any] | None
     allow_redirects: bool | None
     stream: bool | None
-    credentials_level: CredentialsLevel
+    credentials_level: CredentialsLevel = "installation"
 
 
 class ActionRequest(msgspec.Struct):
