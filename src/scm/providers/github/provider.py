@@ -17,6 +17,7 @@ from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    AppInstallation,
     ArchiveFormat,
     ArchiveLink,
     Author,
@@ -322,6 +323,10 @@ class GitHubProvider:
             raise SCMCodedError(code="resource_bad_request", detail="\n".join(e.get("message", "") for e in errors))
 
         return response_data.get("data", {})
+
+    def get_app_installation(self) -> ActionResult[AppInstallation]:
+        response = self.get(f"/repos/{self.repository['name']}/installation", credentials_level="application")
+        return map_action(response, map_app_installation)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
@@ -1158,6 +1163,12 @@ class GitHubProvider:
         )
 
     # resolve_review_thread: not supported
+
+
+def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
+    return AppInstallation(
+        permissions=raw.get("permissions", {}),
+    )
 
 
 def map_author(raw_user: dict[str, Any] | None) -> Author | None:

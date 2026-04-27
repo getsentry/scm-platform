@@ -541,6 +541,15 @@ PAGINATED_CASES: list[dict[str, Any]] = [
 
 ACTION_CASES: list[dict[str, Any]] = [
     {
+        "name": "get_app_installation",
+        "operation": "get",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/installation",
+        "raw": {"permissions": {"foo": "write"}, "bar": "baz"},
+        "expected_data": {"permissions": {"foo": "write"}},
+        "credentials_level": "application",
+    },
+    {
         "name": "get_repository",
         "operation": "get",
         "kwargs": {},

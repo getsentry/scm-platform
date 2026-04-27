@@ -151,6 +151,13 @@ def make_client_scm(organization_id, repository_id, server):
 # action_callable receives the scm instance and calls the action with appropriate args.
 ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, str] | None]] = [
     (
+        "get_app_installation",
+        lambda scm: actions.get_app_installation(scm),
+        {},
+        200,
+        None,
+    ),
+    (
         "get_repository",
         lambda scm: actions.get_repository(scm),
         make_github_repository(),

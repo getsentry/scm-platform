@@ -263,6 +263,12 @@ class Issue(TypedDict):
     html_url: str
 
 
+class AppInstallation(TypedDict):
+    """Represents an installation of an SCM app (e.g. GitHub App, GitLab Application)."""
+
+    permissions: dict[str, str]
+
+
 class RawResult(TypedDict):
     headers: MutableMapping[str, str] | None
     data: Any
@@ -524,6 +530,11 @@ class PullRequestEventData(TypedDict):
 
 
 # Basic protocols
+
+
+@runtime_checkable
+class GetAppInstallationProtocol(Protocol):
+    def get_app_installation(self) -> ActionResult[AppInstallation]: ...
 
 
 @runtime_checkable
@@ -1137,6 +1148,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
+    GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
