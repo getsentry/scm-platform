@@ -223,7 +223,8 @@ class GitHubProvider:
         )
 
         if (
-            GITHUB_RATE_LIMIT_CAPACITY in response.headers
+            credentials_level == "installation"
+            and GITHUB_RATE_LIMIT_CAPACITY in response.headers
             and GITHUB_RATE_LIMIT_USED in response.headers
             and GITHUB_RATE_LIMIT_RESET in response.headers
         ):
