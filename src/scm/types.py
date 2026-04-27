@@ -266,7 +266,7 @@ class Issue(TypedDict):
 class AppInstallation(TypedDict):
     """Represents an installation of an SCM app (e.g. GitHub App, GitLab Application)."""
 
-    permissions: dict[str, str]
+    has_write_access: bool
 
 
 class RawResult(TypedDict):
