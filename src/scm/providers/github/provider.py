@@ -30,6 +30,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CredentialsLevel,
     DeleteCommitAction,
     FileContent,
     FileStatus,
@@ -206,6 +207,7 @@ class GitHubProvider:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
+        credentials_level: CredentialsLevel = "installation",
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -216,6 +218,7 @@ class GitHubProvider:
             raw_response=raw_response,
             allow_redirects=allow_redirects,
             stream=stream,
+            credentials_level=credentials_level,
         )
 
         if (
@@ -250,6 +253,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
+        credentials_level: CredentialsLevel = "installation",
     ) -> requests.Response:
         headers = {"Accept": "application/vnd.github+json"}
 
@@ -276,6 +280,7 @@ class GitHubProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
+            credentials_level=credentials_level,
         )
 
     def post(

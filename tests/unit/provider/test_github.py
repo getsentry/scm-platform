@@ -35,6 +35,7 @@ from scm.test_fixtures import (
 from scm.types import (
     ApiClient,
     ChmodCommitAction,
+    CredentialsLevel,
     DeleteCommitAction,
     MoveCommitAction,
     Referrer,
@@ -107,6 +108,7 @@ class RecordingClient:
         request_options: Any | None = None,
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
+        credentials_level: CredentialsLevel = "installation",
     ) -> FakeResponse:
         self.calls.append(
             {
@@ -116,6 +118,7 @@ class RecordingClient:
                 "pagination": pagination,
                 "request_options": request_options,
                 "extra_headers": extra_headers,
+                "credentials_level": credentials_level,
             }
         )
         return self._pop("get")
@@ -1024,6 +1027,7 @@ def test_paginated_methods(case: dict[str, Any]) -> None:
             "pagination": case["pagination"],
             "request_options": None,
             "extra_headers": None,
+            "credentials_level": "installation",
         }
     ]
 
@@ -1051,6 +1055,7 @@ def test_action_methods(case: dict[str, Any]) -> None:
         expected_call["pagination"] = None
         expected_call["request_options"] = None
         expected_call["extra_headers"] = None
+        expected_call["credentials_level"] = case.get("credentials_level", "installation")
     else:
         if "params" in case:
             expected_call["params"] = case["params"]
@@ -1123,6 +1128,7 @@ def test_get_pull_request_diff_uses_raw_request_and_extracts_meta() -> None:
             "pagination": None,
             "request_options": None,
             "extra_headers": {"Accept": "application/vnd.github.v3.diff"},
+            "credentials_level": "installation",
         }
     ]
 
@@ -1316,6 +1322,7 @@ def test_download_archive_returns_bytes_from_response() -> None:
             "pagination": None,
             "request_options": None,
             "extra_headers": None,
+            "credentials_level": "installation",
         }
     ]
 
@@ -1408,6 +1415,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
             "pagination": None,
             "request_options": None,
             "extra_headers": None,
+            "credentials_level": "installation",
         },
         {
             "operation": "get",
@@ -1416,6 +1424,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
             "pagination": None,
             "request_options": None,
             "extra_headers": None,
+            "credentials_level": "installation",
         },
         {
             "operation": "get",
@@ -1424,6 +1433,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
             "pagination": None,
             "request_options": None,
             "extra_headers": None,
+            "credentials_level": "installation",
         },
         {
             "operation": "post",
