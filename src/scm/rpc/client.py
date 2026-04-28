@@ -156,7 +156,6 @@ class RpcApiClient(ApiClient):
                     params=params,
                     allow_redirects=allow_redirects,
                     stream=stream,
-                    credentials_set=credentials_set,
                 ),
             )
         )
@@ -170,6 +169,7 @@ class RpcApiClient(ApiClient):
                 "X-Organization-Id": str(self.organization_id),
                 "X-Referrer": self.referrer,
                 "X-Repository-Id": msgspec.json.encode(self.repository_id).decode("utf-8"),
+                "X-Credentials-Set": credentials_set,
             },
         )
         return response

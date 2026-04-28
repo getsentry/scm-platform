@@ -144,7 +144,6 @@ class TestPost:
             "params": None,
             "allow_redirects": True,
             "stream": None,
-            "credentials_set": "installation",
             **data_overrides,
         }
         return msgspec.json.encode({"type": "action", "data": data})

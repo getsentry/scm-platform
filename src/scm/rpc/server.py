@@ -111,7 +111,7 @@ class RpcServer:
                 params=action.params,
                 allow_redirects=action.allow_redirects,
                 raw_response=True,
-                credentials_set=action.credentials_set,
+                credentials_set=headers.get("X-Credentials-Set", "installation"),
             ),
             referrer=scm.referrer,
             record_count=scm.record_count,
