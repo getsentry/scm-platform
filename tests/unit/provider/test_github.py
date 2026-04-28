@@ -546,7 +546,7 @@ ACTION_CASES: list[dict[str, Any]] = [
         "kwargs": {},
         "path": "/repos/test-org/test-repo/installation",
         "raw": {"permissions": {"contents": "write", "pull_requests": "write"}, "bar": "baz"},
-        "expected_data": {"has_write_access": True},
+        "expected_data": {"has_read_access": True, "has_write_access": True},
         "credentials_set": "application",
     },
     {

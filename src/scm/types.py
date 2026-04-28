@@ -266,6 +266,7 @@ class Issue(TypedDict):
 class AppInstallation(TypedDict):
     """Represents an installation of an SCM app (e.g. GitHub App, GitLab Application)."""
 
+    has_read_access: bool
     has_write_access: bool
 
 

@@ -1169,7 +1169,8 @@ class GitHubProvider:
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     permissions = raw.get("permissions", {})
     return AppInstallation(
-        has_write_access=permissions.get("contents") == "write" and permissions.get("pull_requests") == "write"
+        has_read_access=True,
+        has_write_access=permissions.get("contents") == "write" and permissions.get("pull_requests") == "write",
     )
 
 
