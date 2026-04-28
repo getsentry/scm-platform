@@ -10,6 +10,7 @@ from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    AppInstallation,
     ArchiveFormat,
     Author,
     BranchName,
@@ -232,6 +233,10 @@ class GitLabProvider:
 
     def delete(self, path: str) -> requests.Response:
         return self.request("DELETE", path=path)
+
+    def get_app_installation(self) -> ActionResult[AppInstallation]:
+        response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
+        return make_result(map_app_installation, response.json())
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
@@ -1075,6 +1080,19 @@ def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
         changes=0,
         patch=raw.get("diff"),
         sha="",
+    )
+
+
+def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
+    permissions = raw.get("permissions", {})
+    project_access_level = (permissions.get("project_access") or {}).get("access_level", 0)
+    group_access_level = (permissions.get("group_access") or {}).get("access_level", 0)
+    access_level = max(project_access_level, group_access_level)
+    # Numerical levels are described e.g. in https://docs.gitlab.com/api/access_requests/#approve-an-access-request
+    # Roles associated to levels are described in https://docs.gitlab.com/user/permissions/#default-roles
+    return AppInstallation(
+        has_read_access=access_level >= 15,  # Planner
+        has_write_access=access_level >= 30,  # Developer
     )
 
 
