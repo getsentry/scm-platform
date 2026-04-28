@@ -791,7 +791,7 @@ class MinimalProvider:
         allow_redirects=None,
         stream=None,
         raw_response=True,
-        credentials_level="installation",
+        credentials_set="installation",
     ):
         raise NotImplementedError("MinimalProvider does not support request")
 

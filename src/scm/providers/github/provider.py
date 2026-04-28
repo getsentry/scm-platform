@@ -31,7 +31,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
-    CredentialsLevel,
+    CredentialsSet,
     DeleteCommitAction,
     FileContent,
     FileStatus,
@@ -208,7 +208,7 @@ class GitHubProvider:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
-        credentials_level: CredentialsLevel = "installation",
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -219,11 +219,11 @@ class GitHubProvider:
             raw_response=raw_response,
             allow_redirects=allow_redirects,
             stream=stream,
-            credentials_level=credentials_level,
+            credentials_set=credentials_set,
         )
 
         if (
-            credentials_level == "installation"
+            credentials_set == "installation"
             and GITHUB_RATE_LIMIT_CAPACITY in response.headers
             and GITHUB_RATE_LIMIT_USED in response.headers
             and GITHUB_RATE_LIMIT_RESET in response.headers
@@ -255,7 +255,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        credentials_level: CredentialsLevel = "installation",
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         headers = {"Accept": "application/vnd.github+json"}
 
@@ -282,7 +282,7 @@ class GitHubProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
-            credentials_level=credentials_level,
+            credentials_set=credentials_set,
         )
 
     def post(
@@ -326,7 +326,7 @@ class GitHubProvider:
         return response_data.get("data", {})
 
     def get_app_installation(self) -> ActionResult[AppInstallation]:
-        response = self.get(f"/repos/{self.repository['name']}/installation", credentials_level="application")
+        response = self.get(f"/repos/{self.repository['name']}/installation", credentials_set="application")
         return map_action(response, map_app_installation)
 
     def get_repository(self) -> ActionResult[GitRepository]:

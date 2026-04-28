@@ -17,7 +17,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
-    CredentialsLevel,
+    CredentialsSet,
     DeleteCommitAction,
     Encoding,
     FileContent,
@@ -167,7 +167,7 @@ class GitLabProvider:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
-        credentials_level: CredentialsLevel = "installation",
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -178,7 +178,7 @@ class GitLabProvider:
             raw_response=raw_response,
             allow_redirects=allow_redirects,
             stream=stream,
-            credentials_level=credentials_level,
+            credentials_set=credentials_set,
         )
         if response.status_code == 403:
             raise SCMCodedError(code="resource_forbidden")

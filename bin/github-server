@@ -41,7 +41,7 @@ import requests
 from scm.providers.github.provider import GitHubProvider
 from scm.rpc.client import NoOpRateLimitProvider
 from scm.rpc.server import RpcServer
-from scm.types import CredentialsLevel, Provider, Repository, RepositoryId
+from scm.types import CredentialsSet, Provider, Repository, RepositoryId
 
 logger = logging.getLogger(__name__)
 
@@ -112,12 +112,12 @@ class GitHubApiClient:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
-        credentials_level: CredentialsLevel = "installation",
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         url = f"{GITHUB_API_BASE}{path}"
         token = (
             self.token_manager.installation_token
-            if credentials_level == "installation"
+            if credentials_set == "installation"
             else self.token_manager.application_token
         )
         req_headers = {"Authorization": f"Bearer {token}"}

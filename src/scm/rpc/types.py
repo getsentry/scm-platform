@@ -4,7 +4,7 @@ from typing import Any, Literal
 import msgspec
 
 from scm.errors import ErrorCode
-from scm.types import CredentialsLevel, ProviderName
+from scm.types import CredentialsSet, ProviderName
 
 
 class ActionAttributes(msgspec.Struct):
@@ -15,7 +15,7 @@ class ActionAttributes(msgspec.Struct):
     params: dict[str, Any] | None
     allow_redirects: bool | None
     stream: bool | None
-    credentials_level: CredentialsLevel = "installation"
+    credentials_set: CredentialsSet = "installation"
 
 
 class ActionRequest(msgspec.Struct):

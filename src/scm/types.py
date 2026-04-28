@@ -1184,7 +1184,7 @@ ALL_PROTOCOLS = (
     UpdatePullRequestProtocol,
 )
 
-type CredentialsLevel = Literal["application", "installation"]
+type CredentialsSet = str
 
 
 class ApiClient[T](Protocol):
@@ -1198,7 +1198,7 @@ class ApiClient[T](Protocol):
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
-        credentials_level: CredentialsLevel = "installation",
+        credentials_set: CredentialsSet = "installation",
     ) -> T | requests.Response: ...
 
 

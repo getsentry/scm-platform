@@ -111,7 +111,7 @@ class RpcServer:
                 params=action.params,
                 allow_redirects=action.allow_redirects,
                 raw_response=True,
-                credentials_level=action.credentials_level,
+                credentials_set=action.credentials_set,
             ),
             referrer=scm.referrer,
             record_count=scm.record_count,
