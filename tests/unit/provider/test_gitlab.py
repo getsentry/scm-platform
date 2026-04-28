@@ -10735,28 +10735,31 @@ def _make_mock_response(json_data):
                 ),
             ],
             provider_return_value={
-                "data": [
-                    {
-                        "id": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
-                        "message": "Add blah\n",
-                        "author": {
-                            "name": "Vincent Jacques",
-                            "email": "vincent@vincent-jacques.net",
-                            "date": datetime.datetime(
-                                2026,
-                                2,
-                                26,
-                                9,
-                                47,
-                                45,
-                                tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
-                            ),
-                        },
-                        "files": None,
-                        "additions": 5,
-                        "deletions": 1,
-                    }
-                ],
+                "data": {
+                    "ahead_by": 1,
+                    "commits": [
+                        {
+                            "id": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                            "message": "Add blah\n",
+                            "author": {
+                                "name": "Vincent Jacques",
+                                "email": "vincent@vincent-jacques.net",
+                                "date": datetime.datetime(
+                                    2026,
+                                    2,
+                                    26,
+                                    9,
+                                    47,
+                                    45,
+                                    tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
+                                ),
+                            },
+                            "files": None,
+                            "additions": 5,
+                            "deletions": 1,
+                        }
+                    ],
+                },
                 "type": "gitlab",
                 "raw": {
                     "data": {
