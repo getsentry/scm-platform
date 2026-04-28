@@ -686,7 +686,7 @@ class GitLabProvider:
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[list[CommitComparison]]:
+    ) -> PaginatedActionResult[CommitComparison]:
         response = self.get(
             GitLab.compare.format(project=self.project_id),
             params={"from": start_sha, "to": end_sha},
@@ -694,9 +694,12 @@ class GitLabProvider:
             request_options=request_options,
         )
         raw = response.json()
-
-        return make_paginated_result(
-            map_commit, raw, raw_items=CommitComparison(ahead_by=len(raw["commits"]), commits=raw["commits"])
+        commits = [map_commit(c) for c in raw["commits"]]
+        return PaginatedActionResult(
+            data=CommitComparison(ahead_by=len(commits), commits=commits),
+            type="gitlab",
+            raw={"data": raw, "headers": None},
+            meta=PaginatedResponseMeta(next_cursor=None),
         )
 
     def create_commit(
@@ -915,7 +918,7 @@ def make_paginated_result[T](
     raw: Any,
     *,
     raw_items: Iterable[dict[str, Any]] | None = None,
-) -> PaginatedActionResult[T]:
+) -> PaginatedActionResult[list[T]]:
     if raw_items is None:
         assert isinstance(raw, list)
         raw_items = raw

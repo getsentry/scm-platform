@@ -820,7 +820,7 @@ class CompareCommitsProtocol(Protocol):
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[list[Commit]]: ...
+    ) -> PaginatedActionResult[CommitComparison]: ...
 
 
 @runtime_checkable
