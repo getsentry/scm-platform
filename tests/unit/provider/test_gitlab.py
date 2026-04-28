@@ -12370,6 +12370,10 @@ def test_get_commit_url_builds_commit_url(provider: GitLabProvider):
     assert provider.get_commit_url("abc123") == "https://gitlab.com/test-repo/-/commit/abc123"
 
 
+def test_get_pull_request_url_builds_mr_url(provider: GitLabProvider):
+    assert provider.get_pull_request_url("42") == "https://gitlab.com/test-repo/-/merge_requests/42"
+
+
 def _minimal_mr_response(title: str = "whatever") -> dict:
     return {
         "id": 1,

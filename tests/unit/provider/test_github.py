@@ -1353,6 +1353,12 @@ def test_get_commit_url_builds_commit_url() -> None:
     assert provider.get_commit_url("abc123") == "https://github.com/test-org/test-repo/commit/abc123"
 
 
+def test_get_pull_request_url_builds_pr_url() -> None:
+    provider, _ = make_provider()
+
+    assert provider.get_pull_request_url("42") == "https://github.com/test-org/test-repo/pull/42"
+
+
 def test_create_commit_chains_low_level_git_calls() -> None:
     provider, client = make_provider()
 
@@ -1454,6 +1460,7 @@ def test_public_methods_are_accounted_for() -> None:
         "download_archive",
         "get_file_url",
         "get_commit_url",
+        "get_pull_request_url",
         "create_commit",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},

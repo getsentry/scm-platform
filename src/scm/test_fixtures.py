@@ -930,6 +930,9 @@ class BaseTestProvider(Provider):
     def get_commit_url(self, commit_sha: str) -> str:
         return f"https://github.com/test-org/test-repo/commit/{commit_sha}"
 
+    def get_pull_request_url(self, pull_request_id: str) -> str:
+        return f"https://github.com/test-org/test-repo/pull/{pull_request_id}"
+
     # Git blob operations
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
