@@ -496,7 +496,7 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "params": None,
         "pagination": None,
         "raw": COMPARISON_RAW,
-        "expected_data": [expected_commit(COMMIT_RAW)],
+        "expected_data": {"ahead_by": 3, "commits": [expected_commit(COMMIT_RAW)]},
         "next_cursor": "2",
     },
     {

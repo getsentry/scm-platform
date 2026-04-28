@@ -5,10 +5,10 @@ from scm.types import PaginatedActionResult, PaginationParams, Provider, Referre
 
 
 def iter_all_pages[T](
-    action_fn: Callable[[PaginationParams], PaginatedActionResult[T]],
+    action_fn: Callable[[PaginationParams], PaginatedActionResult[list[T]]],
     per_page: int = 50,
     cursor: str = "1",
-) -> Iterator[PaginatedActionResult[T]]:
+) -> Iterator[PaginatedActionResult[list[T]]]:
     while True:
         result = action_fn({"per_page": per_page, "cursor": cursor})
 
