@@ -21,6 +21,7 @@ Commands:
     get-pull-request-files <id>
     get-pull-request-commits <id>
     get-pull-request-diff <id>
+    get-pull-request-url <id>
     get-issue <id>
     create-issue <title> <body> [--assignee <user_id> ...] [--label <name> ...]
     get-issue-comments <issue_id>
@@ -74,6 +75,7 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
+    GetPullRequestUrlProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     MoveCommitAction,
@@ -133,6 +135,9 @@ def main():
     p.add_argument("id")
 
     p = sub.add_parser("get-pull-request-diff")
+    p.add_argument("id")
+
+    p = sub.add_parser("get-pull-request-url")
     p.add_argument("id")
 
     p = sub.add_parser("get-issue")
@@ -232,6 +237,10 @@ def main():
     elif args.command == "get-pull-request-commits":
         assert isinstance(scm, GetPullRequestCommitsProtocol)
         dump(scm.get_pull_request_commits(args.id))
+
+    elif args.command == "get-pull-request-url":
+        assert isinstance(scm, GetPullRequestUrlProtocol)
+        dump(scm.get_pull_request_url(args.id))
 
     elif args.command == "get-issue":
         assert isinstance(scm, GetIssueProtocol)

@@ -776,6 +776,11 @@ class GetCommitUrlProtocol(Protocol):
     def get_commit_url(self, commit_sha: SHA) -> str: ...
 
 
+@runtime_checkable
+class GetPullRequestUrlProtocol(Protocol):
+    def get_pull_request_url(self, pull_request_id: str) -> str: ...
+
+
 # Commit Protocols
 
 
@@ -1160,6 +1165,7 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetPullRequestUrlProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
