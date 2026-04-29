@@ -30,3 +30,14 @@ The SCM solves all the problems you don't want to care about.
 ### Getting Started
 
 We have extensive documentation both inline in the Sentry codebase and on the [Sentry developer documentation](https://develop.sentry.dev/backend/source-code-management-platform/) portal. If you're interested in expanding your SCM usage or in enabling new service-providers for a limited amount of effort take a took at the SCM platform.
+
+# Releasing a New Version
+
+1. On the `getsentry/scm-platform` repository page click the `Actions` tab.
+2. On the left hand side click the "release" item.
+3. Click "Run Workflow" and enter a version number.
+4. The workflow will run. After completion it will return a url to an issue on getsentry/publish.
+5. On the getsentry/pulish immediately set the "accepted" label.
+6. A pull request will opened on getsentry/pypi.
+7. Edit the file in GitHub and place `python>=3.13` on the line immediately following the changed line.
+8. The PR will merge automatically. When its merged your feature is available for use.
