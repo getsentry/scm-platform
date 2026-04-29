@@ -593,8 +593,8 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request()
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                iid=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -1210,8 +1210,8 @@ class BaseTestProvider(Provider):
         return PaginatedActionResult(
             data=[
                 PullRequest(
-                    id=str(raw["id"]),
-                    number=raw["number"],
+                    iid=str(raw["id"]),
+                    id=str(raw["number"]),
                     title=raw["title"],
                     body=raw["body"],
                     state=raw["state"],
@@ -1236,8 +1236,8 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request(title=title, body=body)
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                iid=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -1261,8 +1261,8 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request(title=title, body=body)
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                iid=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -1290,8 +1290,8 @@ class BaseTestProvider(Provider):
         )
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                iid=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],

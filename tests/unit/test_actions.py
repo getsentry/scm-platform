@@ -274,8 +274,8 @@ def _check_repository_labels(result: Any) -> None:
 
 def _check_pull_request(result: Any) -> None:
     pr = result["data"]
-    assert pr["id"] == "42"
-    assert pr["number"] == 1
+    assert pr["iid"] == "42"
+    assert pr["id"] == "1"
     assert pr["title"] == "Test PR"
     assert pr["head"]["sha"] == "abc123"
     assert pr["head"]["ref"] == "feature-branch"
@@ -472,7 +472,7 @@ def _check_pr_diff(result: Any) -> None:
 
 def _check_list_pull_requests(result: Any) -> None:
     assert len(result["data"]) == 1
-    assert result["data"][0]["number"] == 1
+    assert result["data"][0]["id"] == "1"
     assert result["type"] == "github"
 
 

@@ -241,9 +241,8 @@ class PullRequestBranch(TypedDict):
 class PullRequest(TypedDict):
     """Provider-agnostic representation of a pull request."""
 
-    # @todo Why do we have two ids here? Confusing.
-    id: ResourceId
-    number: str
+    id: str
+    iid: ResourceId
     title: str
     body: str | None
     state: PullRequestState

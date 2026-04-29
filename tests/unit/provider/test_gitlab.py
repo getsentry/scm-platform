@@ -282,8 +282,8 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "id": "459277081",
-                        "number": "1",
+                        "iid": "459277081",
+                        "id": "1",
                         "title": "Add blah",
                         "body": None,
                         "state": "open",
@@ -473,8 +473,8 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "id": "459277081",
-                    "number": "1",
+                    "iid": "459277081",
+                    "id": "1",
                     "title": "Add blah",
                     "body": None,
                     "state": "open",
@@ -682,8 +682,8 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "id": "463099183",
-                    "number": "26",
+                    "iid": "463099183",
+                    "id": "26",
                     "title": "PR from API 2026-03-11 11:01:25.358068",
                     "body": "Another PR, made through the API.",
                     "state": "open",
@@ -945,8 +945,8 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "id": "463099183",
-                        "number": "26",
+                        "iid": "463099183",
+                        "id": "26",
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "body": "Another PR, made through the API.",
                         "state": "open",
@@ -959,8 +959,8 @@ def _make_mock_response(json_data):
                         "base": {"sha": None, "ref": "main"},
                     },
                     {
-                        "id": "459277081",
-                        "number": "1",
+                        "iid": "459277081",
+                        "id": "1",
                         "title": "Add blah",
                         "body": None,
                         "state": "open",
@@ -1230,8 +1230,8 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "id": "463099183",
-                    "number": "26",
+                    "iid": "463099183",
+                    "id": "26",
                     "title": "PR from API 2026-03-11 11:01:25.358068",
                     "body": "Another PR, made through the API.",
                     "state": "closed",
@@ -1435,8 +1435,8 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "id": "459277081",
-                        "number": "1",
+                        "iid": "459277081",
+                        "id": "1",
                         "title": "Add blah",
                         "body": None,
                         "state": "open",
@@ -11780,15 +11780,15 @@ def _make_mock_response(json_data):
                             "sha": "7497e018d01503b6abc3053b7896266115e631f6",
                         },
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/28",
-                        "id": "464365398",
+                        "iid": "464365398",
                         "merged": False,
-                        "number": "28",
+                        "id": "28",
                         "state": "closed",
                         "title": "Add content",
                     },
                     {
-                        "id": "464363971",
-                        "number": "27",
+                        "iid": "464363971",
+                        "id": "27",
                         "title": "Add blah",
                         "body": None,
                         "state": "closed",
@@ -11801,8 +11801,8 @@ def _make_mock_response(json_data):
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/27",
                     },
                     {
-                        "id": "464363971",
-                        "number": "27",
+                        "iid": "464363971",
+                        "id": "27",
                         "title": "Add blah",
                         "body": None,
                         "state": "closed",
