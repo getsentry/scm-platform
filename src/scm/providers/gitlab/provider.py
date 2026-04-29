@@ -564,6 +564,9 @@ class GitLabProvider:
     def get_commit_url(self, commit_sha: SHA) -> str:
         return f"{self.web_base_url}/{self.repository['name']}/-/commit/{commit_sha}"
 
+    def get_pull_request_url(self, pull_request_id: str) -> str:
+        return f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}"
+
     def get_tree(
         self,
         tree_sha: SHA,

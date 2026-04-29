@@ -70,6 +70,7 @@ from scm.types import (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetPullRequestUrlProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
@@ -355,6 +356,11 @@ def get_file_url(
 def get_commit_url(scm: GetCommitUrlProtocol, commit_sha: SHA) -> str:
     """Build a web URL pointing at a commit."""
     return scm.get_commit_url(commit_sha)
+
+
+def get_pull_request_url(scm: GetPullRequestUrlProtocol, pull_request_id: str) -> str:
+    """Returns the HTML URL of the pull-request."""
+    return scm.get_pull_request_url(pull_request_id)
 
 
 def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> ActionResult[GitBlob]:
@@ -732,6 +738,7 @@ __all__ = (
     "get_pull_request_diff",
     "get_pull_request_files",
     "get_pull_request_reactions",
+    "get_pull_request_url",
     "get_pull_request",
     "get_pull_requests",
     "get_repository_assignees",

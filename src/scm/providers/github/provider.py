@@ -590,6 +590,9 @@ class GitHubProvider:
     def get_commit_url(self, commit_sha: SHA) -> str:
         return f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/commit/{commit_sha}"
 
+    def get_pull_request_url(self, pull_request_id: str) -> str:
+        return f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/pull/{pull_request_id}"
+
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
         response = self.post(
             f"/repos/{self.repository['name']}/git/blobs",
