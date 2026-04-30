@@ -58,4 +58,4 @@ class SCMCodedError(SCMError):
         self.code = code
         self.message = ERROR_CODES[code]
         self.detail = detail
-        super().__init__(self.code, self.message, *args, **kwargs)
+        super().__init__(self.code, self.message, *args, *((k, v) for k, v in kwargs.items()))
