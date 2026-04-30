@@ -242,7 +242,7 @@ class PullRequest(TypedDict):
     """Provider-agnostic representation of a pull request."""
 
     id: str
-    iid: ResourceId
+    internal_id: ResourceId
     title: str
     body: str | None
     state: PullRequestState

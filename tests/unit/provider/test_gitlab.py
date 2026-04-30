@@ -207,7 +207,7 @@ def _make_mock_response(json_data):
                     json_response=[
                         {
                             "id": 459277081,
-                            "iid": 1,
+                            "internal_id": 1,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -282,7 +282,7 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "iid": "459277081",
+                        "internal_id": "459277081",
                         "id": "1",
                         "title": "Add blah",
                         "body": None,
@@ -302,7 +302,7 @@ def _make_mock_response(json_data):
                     "data": [
                         {
                             "id": 459277081,
-                            "iid": 1,
+                            "internal_id": 1,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -386,7 +386,7 @@ def _make_mock_response(json_data):
                     path="/projects/79787061/merge_requests/1",
                     json_response={
                         "id": 459277081,
-                        "iid": 1,
+                        "internal_id": 1,
                         "project_id": 79787061,
                         "title": "Add blah",
                         "description": "",
@@ -474,7 +474,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "iid": "459277081",
+                    "internal_id": "459277081",
                     "id": "1",
                     "title": "Add blah",
                     "body": None,
@@ -492,7 +492,7 @@ def _make_mock_response(json_data):
                 "raw": {
                     "data": {
                         "id": 459277081,
-                        "iid": 1,
+                        "internal_id": 1,
                         "project_id": 79787061,
                         "title": "Add blah",
                         "description": "",
@@ -595,7 +595,7 @@ def _make_mock_response(json_data):
                     path="/projects/79787061/merge_requests",
                     json_response={
                         "id": 463099183,
-                        "iid": 26,
+                        "internal_id": 26,
                         "project_id": 79787061,
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "description": "Another PR, made through the API.",
@@ -684,7 +684,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "iid": "463099183",
+                    "internal_id": "463099183",
                     "id": "26",
                     "title": "PR from API 2026-03-11 11:01:25.358068",
                     "body": "Another PR, made through the API.",
@@ -702,7 +702,7 @@ def _make_mock_response(json_data):
                 "raw": {
                     "data": {
                         "id": 463099183,
-                        "iid": 26,
+                        "internal_id": 26,
                         "project_id": 79787061,
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "description": "Another PR, made through the API.",
@@ -801,7 +801,7 @@ def _make_mock_response(json_data):
                     json_response=[
                         {
                             "id": 463099183,
-                            "iid": 26,
+                            "internal_id": 26,
                             "project_id": 79787061,
                             "title": "PR from API 2026-03-11 11:01:25.358068",
                             "description": "Another PR, made through the API.",
@@ -872,7 +872,7 @@ def _make_mock_response(json_data):
                         },
                         {
                             "id": 459277081,
-                            "iid": 1,
+                            "internal_id": 1,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -948,7 +948,7 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "iid": "463099183",
+                        "internal_id": "463099183",
                         "id": "26",
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "body": "Another PR, made through the API.",
@@ -963,7 +963,7 @@ def _make_mock_response(json_data):
                         "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
-                        "iid": "459277081",
+                        "internal_id": "459277081",
                         "id": "1",
                         "title": "Add blah",
                         "body": None,
@@ -983,7 +983,7 @@ def _make_mock_response(json_data):
                     "data": [
                         {
                             "id": 463099183,
-                            "iid": 26,
+                            "internal_id": 26,
                             "project_id": 79787061,
                             "title": "PR from API 2026-03-11 11:01:25.358068",
                             "description": "Another PR, made through the API.",
@@ -1054,7 +1054,7 @@ def _make_mock_response(json_data):
                         },
                         {
                             "id": 459277081,
-                            "iid": 1,
+                            "internal_id": 1,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -1138,7 +1138,7 @@ def _make_mock_response(json_data):
                     path="/projects/79787061/merge_requests/26",
                     json_response={
                         "id": 463099183,
-                        "iid": 26,
+                        "internal_id": 26,
                         "project_id": 79787061,
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "description": "Another PR, made through the API.",
@@ -1235,7 +1235,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "iid": "463099183",
+                    "internal_id": "463099183",
                     "id": "26",
                     "title": "PR from API 2026-03-11 11:01:25.358068",
                     "body": "Another PR, made through the API.",
@@ -1253,7 +1253,7 @@ def _make_mock_response(json_data):
                 "raw": {
                     "data": {
                         "id": 463099183,
-                        "iid": 26,
+                        "internal_id": 26,
                         "project_id": 79787061,
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "description": "Another PR, made through the API.",
@@ -1365,7 +1365,7 @@ def _make_mock_response(json_data):
                     json_response=[
                         {
                             "id": 459277081,
-                            "iid": 1,
+                            "internal_id": 1,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -1441,7 +1441,7 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "iid": "459277081",
+                        "internal_id": "459277081",
                         "id": "1",
                         "title": "Add blah",
                         "body": None,
@@ -1461,7 +1461,7 @@ def _make_mock_response(json_data):
                     "data": [
                         {
                             "id": 459277081,
-                            "iid": 1,
+                            "internal_id": 1,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -1742,7 +1742,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         }
                     ],
@@ -1784,7 +1784,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         }
                     ],
@@ -1825,7 +1825,7 @@ def _make_mock_response(json_data):
                         "internal": False,
                         "imported": False,
                         "imported_from": "none",
-                        "noteable_iid": 1,
+                        "noteable_internal_id": 1,
                         "commands_changes": {},
                     },
                     data={"body": "Another comment, made through the API."},
@@ -1864,7 +1864,7 @@ def _make_mock_response(json_data):
                         "internal": False,
                         "imported": False,
                         "imported_from": "none",
-                        "noteable_iid": 1,
+                        "noteable_internal_id": 1,
                         "commands_changes": {},
                     },
                     "headers": None,
@@ -1905,7 +1905,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -1933,7 +1933,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -1980,7 +1980,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -2008,7 +2008,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -2062,7 +2062,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         }
                     ],
@@ -2104,7 +2104,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         }
                     ],
@@ -3363,7 +3363,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3413,7 +3413,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3463,7 +3463,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3491,7 +3491,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3519,7 +3519,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3569,7 +3569,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3619,7 +3619,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3669,7 +3669,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3719,7 +3719,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3769,7 +3769,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3819,7 +3819,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3869,7 +3869,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3919,7 +3919,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -3969,7 +3969,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4019,7 +4019,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4069,7 +4069,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4119,7 +4119,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4147,7 +4147,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4197,7 +4197,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4247,7 +4247,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -4289,7 +4289,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4339,7 +4339,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4389,7 +4389,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4417,7 +4417,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4445,7 +4445,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4495,7 +4495,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4545,7 +4545,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4595,7 +4595,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4645,7 +4645,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4695,7 +4695,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4745,7 +4745,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4795,7 +4795,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4845,7 +4845,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4895,7 +4895,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4945,7 +4945,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -4995,7 +4995,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5045,7 +5045,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5073,7 +5073,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5123,7 +5123,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5173,7 +5173,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -5217,7 +5217,7 @@ def _make_mock_response(json_data):
                         "internal": False,
                         "imported": False,
                         "imported_from": "none",
-                        "noteable_iid": 1,
+                        "noteable_internal_id": 1,
                         "commands_changes": {},
                     },
                     data={"body": "Another comment, made through the API."},
@@ -5256,7 +5256,7 @@ def _make_mock_response(json_data):
                         "internal": False,
                         "imported": False,
                         "imported_from": "none",
-                        "noteable_iid": 1,
+                        "noteable_internal_id": 1,
                         "commands_changes": {},
                     },
                     "headers": None,
@@ -5297,7 +5297,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5325,7 +5325,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5375,7 +5375,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5425,7 +5425,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5453,7 +5453,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5481,7 +5481,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5531,7 +5531,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5581,7 +5581,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5631,7 +5631,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5681,7 +5681,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5731,7 +5731,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5781,7 +5781,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5831,7 +5831,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5881,7 +5881,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5931,7 +5931,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -5981,7 +5981,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6031,7 +6031,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6081,7 +6081,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6109,7 +6109,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6159,7 +6159,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -6206,7 +6206,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6234,7 +6234,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6284,7 +6284,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6334,7 +6334,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6362,7 +6362,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6390,7 +6390,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6440,7 +6440,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6490,7 +6490,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6540,7 +6540,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6590,7 +6590,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6640,7 +6640,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6690,7 +6690,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6740,7 +6740,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6790,7 +6790,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6840,7 +6840,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6890,7 +6890,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6940,7 +6940,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -6990,7 +6990,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7018,7 +7018,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7068,7 +7068,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -7122,7 +7122,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7172,7 +7172,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7222,7 +7222,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7250,7 +7250,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7278,7 +7278,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7328,7 +7328,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7378,7 +7378,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7428,7 +7428,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7478,7 +7478,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7528,7 +7528,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7578,7 +7578,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7628,7 +7628,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7678,7 +7678,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7728,7 +7728,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7778,7 +7778,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7828,7 +7828,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7878,7 +7878,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7906,7 +7906,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -7956,7 +7956,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8006,7 +8006,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -8048,7 +8048,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8098,7 +8098,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8148,7 +8148,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8176,7 +8176,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8204,7 +8204,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8254,7 +8254,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8304,7 +8304,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8354,7 +8354,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8404,7 +8404,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8454,7 +8454,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8504,7 +8504,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8554,7 +8554,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8604,7 +8604,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8654,7 +8654,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8704,7 +8704,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8754,7 +8754,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8804,7 +8804,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8832,7 +8832,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8882,7 +8882,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                         {
@@ -8932,7 +8932,7 @@ def _make_mock_response(json_data):
                             "internal": False,
                             "imported": False,
                             "imported_from": "none",
-                            "noteable_iid": 1,
+                            "noteable_internal_id": 1,
                             "commands_changes": {},
                         },
                     ],
@@ -11287,7 +11287,7 @@ def _make_mock_response(json_data):
                                 "internal": False,
                                 "imported": False,
                                 "imported_from": "none",
-                                "noteable_iid": 1,
+                                "noteable_internal_id": 1,
                                 "commands_changes": {},
                             }
                         ],
@@ -11364,7 +11364,7 @@ def _make_mock_response(json_data):
                                 "internal": False,
                                 "imported": False,
                                 "imported_from": "none",
-                                "noteable_iid": 1,
+                                "noteable_internal_id": 1,
                                 "commands_changes": {},
                             }
                         ],
@@ -11423,7 +11423,7 @@ def _make_mock_response(json_data):
                         "internal": False,
                         "imported": False,
                         "imported_from": "none",
-                        "noteable_iid": 1,
+                        "noteable_internal_id": 1,
                         "commands_changes": {},
                     },
                     data={"body": "A reply to the previous comment, made by the API on 2026-03-11 11:06:21.487947."},
@@ -11484,7 +11484,7 @@ def _make_mock_response(json_data):
                         "internal": False,
                         "imported": False,
                         "imported_from": "none",
-                        "noteable_iid": 1,
+                        "noteable_internal_id": 1,
                         "commands_changes": {},
                     },
                     "headers": None,
@@ -11507,7 +11507,7 @@ def _make_mock_response(json_data):
                     json_response=[
                         {
                             "id": 464365398,
-                            "iid": 28,
+                            "internal_id": 28,
                             "project_id": 79787061,
                             "title": "Add content",
                             "description": "",
@@ -11594,7 +11594,7 @@ def _make_mock_response(json_data):
                     json_response=[
                         {
                             "id": 464363971,
-                            "iid": 27,
+                            "internal_id": 27,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -11683,7 +11683,7 @@ def _make_mock_response(json_data):
                         },
                         {
                             "id": 464363971,
-                            "iid": 27,
+                            "internal_id": 27,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -11787,7 +11787,7 @@ def _make_mock_response(json_data):
                             "sha": "7497e018d01503b6abc3053b7896266115e631f6",
                         },
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/28",
-                        "iid": "464365398",
+                        "internal_id": "464365398",
                         "merged": False,
                         "id": "28",
                         "state": "closed",
@@ -11795,7 +11795,7 @@ def _make_mock_response(json_data):
                         "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
-                        "iid": "464363971",
+                        "internal_id": "464363971",
                         "id": "27",
                         "title": "Add blah",
                         "body": None,
@@ -11810,7 +11810,7 @@ def _make_mock_response(json_data):
                         "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
-                        "iid": "464363971",
+                        "internal_id": "464363971",
                         "id": "27",
                         "title": "Add blah",
                         "body": None,
@@ -11830,7 +11830,7 @@ def _make_mock_response(json_data):
                     "data": [
                         {
                             "id": 464365398,
-                            "iid": 28,
+                            "internal_id": 28,
                             "project_id": 79787061,
                             "title": "Add content",
                             "description": "",
@@ -11910,7 +11910,7 @@ def _make_mock_response(json_data):
                         },
                         {
                             "id": 464363971,
-                            "iid": 27,
+                            "internal_id": 27,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -11999,7 +11999,7 @@ def _make_mock_response(json_data):
                         },
                         {
                             "id": 464363971,
-                            "iid": 27,
+                            "internal_id": 27,
                             "project_id": 79787061,
                             "title": "Add blah",
                             "description": "",
@@ -12214,7 +12214,7 @@ def _make_mock_response(json_data):
                     path="/projects/79787061/issues/7",
                     json_response={
                         "id": 98765,
-                        "iid": 7,
+                        "internal_id": 7,
                         "project_id": 79787061,
                         "title": "Bug: something broken",
                         "description": "It broke.",
@@ -12235,7 +12235,7 @@ def _make_mock_response(json_data):
                 "raw": {
                     "data": {
                         "id": 98765,
-                        "iid": 7,
+                        "internal_id": 7,
                         "project_id": 79787061,
                         "title": "Bug: something broken",
                         "description": "It broke.",
@@ -12257,7 +12257,7 @@ def _make_mock_response(json_data):
                     data={"title": "New issue", "description": "Details"},
                     json_response={
                         "id": 98766,
-                        "iid": 8,
+                        "internal_id": 8,
                         "project_id": 79787061,
                         "title": "New issue",
                         "description": "Details",
@@ -12278,7 +12278,7 @@ def _make_mock_response(json_data):
                 "raw": {
                     "data": {
                         "id": 98766,
-                        "iid": 8,
+                        "internal_id": 8,
                         "project_id": 79787061,
                         "title": "New issue",
                         "description": "Details",
@@ -12316,7 +12316,7 @@ def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProv
     client.request.return_value = _make_mock_response(
         {
             "id": 1,
-            "iid": 1,
+            "internal_id": 1,
             "title": "bug",
             "description": "it broke",
             "state": "opened",
@@ -12387,7 +12387,7 @@ def test_get_pull_request_url_builds_mr_url(provider: GitLabProvider):
 def _minimal_mr_response(title: str = "whatever") -> dict:
     return {
         "id": 1,
-        "iid": 1,
+        "internal_id": 1,
         "title": title,
         "description": "body",
         "state": "opened",

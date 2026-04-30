@@ -235,7 +235,7 @@ def expected_reaction(raw: dict[str, Any]) -> dict[str, Any]:
 
 def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
     return {
-        "iid": str(raw["id"]),
+        "internal_id": str(raw["id"]),
         "id": str(raw["number"]),
         "title": raw["title"],
         "body": raw.get("body"),

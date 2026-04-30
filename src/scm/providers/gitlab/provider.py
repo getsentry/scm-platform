@@ -1030,8 +1030,8 @@ def _with_draft_prefix(title: str) -> str:
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
     return PullRequest(
-        iid=str(raw["id"]),
-        id=str(raw["iid"]),
+        internal_id=str(raw["id"]),
+        id=str(raw["internal_id"]),
         title=raw["title"],
         body=raw["description"] or None,
         state="open" if raw["state"] == "opened" else "closed",
@@ -1048,7 +1048,7 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
 
 def map_issue(raw: dict[str, Any]) -> Issue:
     return Issue(
-        id=str(raw["iid"]),
+        id=str(raw["internal_id"]),
         title=raw["title"],
         body=raw.get("description") or None,
         state="open" if raw["state"] == "opened" else "closed",
