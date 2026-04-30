@@ -1042,6 +1042,7 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         ),
         merged=raw["merged_at"] is not None,
         html_url=raw["web_url"],
+        author=map_author(raw["author"]),
     )
 
 

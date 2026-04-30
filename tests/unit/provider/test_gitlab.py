@@ -294,6 +294,7 @@ def _make_mock_response(json_data):
                             "ref": "topics/blah",
                         },
                         "base": {"sha": None, "ref": "main"},
+                        "author": {"id": "150871", "username": "jacquev6"},
                     }
                 ],
                 "type": "gitlab",
@@ -485,6 +486,7 @@ def _make_mock_response(json_data):
                         "ref": "topics/blah",
                     },
                     "base": {"sha": None, "ref": "main"},
+                    "author": {"id": "150871", "username": "jacquev6"},
                 },
                 "type": "gitlab",
                 "raw": {
@@ -694,6 +696,7 @@ def _make_mock_response(json_data):
                         "ref": "topics/blih",
                     },
                     "base": {"sha": None, "ref": "main"},
+                    "author": {"id": "150871", "username": "jacquev6"},
                 },
                 "type": "gitlab",
                 "raw": {
@@ -957,6 +960,7 @@ def _make_mock_response(json_data):
                             "ref": "topics/blih",
                         },
                         "base": {"sha": None, "ref": "main"},
+                        "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
                         "iid": "459277081",
@@ -971,6 +975,7 @@ def _make_mock_response(json_data):
                             "ref": "topics/blah",
                         },
                         "base": {"sha": None, "ref": "main"},
+                        "author": {"id": "150871", "username": "jacquev6"},
                     },
                 ],
                 "type": "gitlab",
@@ -1242,6 +1247,7 @@ def _make_mock_response(json_data):
                         "ref": "topics/blih",
                     },
                     "base": {"sha": None, "ref": "main"},
+                    "author": {"id": "150871", "username": "jacquev6"},
                 },
                 "type": "gitlab",
                 "raw": {
@@ -1447,6 +1453,7 @@ def _make_mock_response(json_data):
                             "ref": "topics/blah",
                         },
                         "base": {"sha": None, "ref": "main"},
+                        "author": {"id": "150871", "username": "jacquev6"},
                     }
                 ],
                 "type": "gitlab",
@@ -11785,6 +11792,7 @@ def _make_mock_response(json_data):
                         "id": "28",
                         "state": "closed",
                         "title": "Add content",
+                        "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
                         "iid": "464363971",
@@ -11799,6 +11807,7 @@ def _make_mock_response(json_data):
                         },
                         "merged": True,
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/27",
+                        "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
                         "iid": "464363971",
@@ -11813,6 +11822,7 @@ def _make_mock_response(json_data):
                         },
                         "merged": True,
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/27",
+                        "author": {"id": "150871", "username": "jacquev6"},
                     },
                 ],
                 "type": "gitlab",
@@ -12386,6 +12396,7 @@ def _minimal_mr_response(title: str = "whatever") -> dict:
         "sha": "abc",
         "merged_at": None,
         "web_url": "https://gitlab.com/x/y/-/merge_requests/1",
+        "author": {"id": 1, "username": "testuser"},
     }
 
 

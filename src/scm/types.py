@@ -250,6 +250,7 @@ class PullRequest(TypedDict):
     html_url: str
     head: PullRequestBranch
     base: PullRequestBranch
+    author: Author
 
 
 class Issue(TypedDict):

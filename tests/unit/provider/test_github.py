@@ -244,6 +244,7 @@ def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
         "html_url": raw.get("html_url", ""),
         "head": {"sha": raw["head"]["sha"], "ref": raw["head"]["ref"]},
         "base": {"sha": raw["base"]["sha"], "ref": raw["base"]["ref"]},
+        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]},
     }
 
 
