@@ -46,6 +46,7 @@ from scm.types import (
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
+    ProviderName,
     PullRequest,
     PullRequestBranch,
     PullRequestCommit,
@@ -173,17 +174,21 @@ class GitHubProvider:
         repository: Repository,
         rate_limit_provider: RateLimitProvider,
         get_time_in_seconds: Callable[[], int] = lambda: int(time.time()),
+        web_base_url: str = GITHUB_WEB_BASE_URL,
+        provider_name: ProviderName = "github",
+        referrer_allocation: dict[Referrer, float] = REFERRER_ALLOCATION,
     ) -> None:
         self.client = client
         self.organization_id = organization_id
         self.repository = repository
+        self._web_base_url = web_base_url
         self.rate_limiter = DynamicRateLimiter(
             get_time_in_seconds=get_time_in_seconds,
             organization_id=organization_id,
-            provider="github",
+            provider=provider_name,
             rate_limit_provider=rate_limit_provider,
             rate_limit_window_seconds=GITHUB_RATE_LIMIT_WINDOW,
-            referrer_allocation=REFERRER_ALLOCATION,
+            referrer_allocation=referrer_allocation,
             recorded_capacity=None,
         )
 
@@ -567,7 +572,7 @@ class GitHubProvider:
         start_line: int | None = None,
         end_line: int | None = None,
     ) -> str:
-        url = f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/blob/{sha}/{file_path}"
+        url = f"{self._web_base_url}/{self.repository['name']}/blob/{sha}/{file_path}"
         if start_line:
             url += f"#L{start_line}"
         if start_line and end_line:
@@ -577,10 +582,10 @@ class GitHubProvider:
         return url
 
     def get_commit_url(self, commit_sha: SHA) -> str:
-        return f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/commit/{commit_sha}"
+        return f"{self._web_base_url}/{self.repository['name']}/commit/{commit_sha}"
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
-        return f"{GITHUB_WEB_BASE_URL}/{self.repository['name']}/pull/{pull_request_id}"
+        return f"{self._web_base_url}/{self.repository['name']}/pull/{pull_request_id}"
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
         response = self.post(

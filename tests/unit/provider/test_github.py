@@ -1359,6 +1359,26 @@ def test_get_pull_request_url_builds_pr_url() -> None:
     assert provider.get_pull_request_url("42") == "https://github.com/test-org/test-repo/pull/42"
 
 
+def test_ghe_web_base_url_used_in_url_methods() -> None:
+    provider = GitHubProvider(
+        MagicMock(spec=ApiClient),
+        organization_id=1,
+        repository=make_repository(),
+        rate_limit_provider=NoOpRateLimitProvider(),
+        web_base_url="https://github.example.com",
+    )
+
+    assert provider.get_file_url("src/main.py", "abc123") == (
+        "https://github.example.com/test-org/test-repo/blob/abc123/src/main.py"
+    )
+    assert provider.get_commit_url("abc123") == (
+        "https://github.example.com/test-org/test-repo/commit/abc123"
+    )
+    assert provider.get_pull_request_url("42") == (
+        "https://github.example.com/test-org/test-repo/pull/42"
+    )
+
+
 def test_create_commit_chains_low_level_git_calls() -> None:
     provider, client = make_provider()
 
