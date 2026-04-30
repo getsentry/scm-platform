@@ -63,6 +63,7 @@ from scm.types import (
     DeleteBranchProtocol,
     DeleteCommitAction,
     DownloadArchiveProtocol,
+    GetAppInstallationProtocol,
     GetBranchProtocol,
     GetCommitProtocol,
     GetCommitUrlProtocol,
@@ -205,6 +206,7 @@ def main():
 
     sub.add_parser("get-repository-assignees")
     sub.add_parser("get-repository-labels")
+    sub.add_parser("get-app-installation")
 
     args = parser.parse_args()
     if not args.command:
@@ -324,6 +326,10 @@ def main():
     elif args.command == "get-repository-labels":
         assert isinstance(scm, GetRepositoryLabelsProtocol)
         dump(scm.get_repository_labels())
+
+    elif args.command == "get-app-installation":
+        assert isinstance(scm, GetAppInstallationProtocol)
+        dump(scm.get_app_installation())
 
 
 if __name__ == "__main__":

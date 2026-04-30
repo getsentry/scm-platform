@@ -263,6 +263,13 @@ class Issue(TypedDict):
     html_url: str
 
 
+class AppInstallation(TypedDict):
+    """Represents an installation of an SCM app (e.g. GitHub App, GitLab Application)."""
+
+    has_read_access: bool
+    has_write_access: bool
+
+
 class RawResult(TypedDict):
     headers: MutableMapping[str, str] | None
     data: Any
@@ -524,6 +531,11 @@ class PullRequestEventData(TypedDict):
 
 
 # Basic protocols
+
+
+@runtime_checkable
+class GetAppInstallationProtocol(Protocol):
+    def get_app_installation(self) -> ActionResult[AppInstallation]: ...
 
 
 @runtime_checkable
@@ -1142,6 +1154,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
+    GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
@@ -1178,6 +1191,8 @@ ALL_PROTOCOLS = (
     UpdatePullRequestProtocol,
 )
 
+type CredentialsSet = str
+
 
 class ApiClient[T](Protocol):
     def request(
@@ -1190,6 +1205,7 @@ class ApiClient[T](Protocol):
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
     ) -> T | requests.Response: ...
 
 

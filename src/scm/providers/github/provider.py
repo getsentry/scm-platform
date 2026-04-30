@@ -17,6 +17,7 @@ from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    AppInstallation,
     ArchiveFormat,
     ArchiveLink,
     Author,
@@ -30,6 +31,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CredentialsSet,
     DeleteCommitAction,
     FileContent,
     FileStatus,
@@ -206,6 +208,7 @@ class GitHubProvider:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -216,10 +219,12 @@ class GitHubProvider:
             raw_response=raw_response,
             allow_redirects=allow_redirects,
             stream=stream,
+            credentials_set=credentials_set,
         )
 
         if (
-            GITHUB_RATE_LIMIT_CAPACITY in response.headers
+            credentials_set == "installation"
+            and GITHUB_RATE_LIMIT_CAPACITY in response.headers
             and GITHUB_RATE_LIMIT_USED in response.headers
             and GITHUB_RATE_LIMIT_RESET in response.headers
         ):
@@ -250,6 +255,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         headers = {"Accept": "application/vnd.github+json"}
 
@@ -276,6 +282,7 @@ class GitHubProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
+            credentials_set=credentials_set,
         )
 
     def post(
@@ -317,6 +324,10 @@ class GitHubProvider:
             raise SCMCodedError(code="resource_bad_request", detail="\n".join(e.get("message", "") for e in errors))
 
         return response_data.get("data", {})
+
+    def get_app_installation(self) -> ActionResult[AppInstallation]:
+        response = self.get(f"/repos/{self.repository['name']}/installation", credentials_set="application")
+        return map_action(response, map_app_installation)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
@@ -1156,6 +1167,14 @@ class GitHubProvider:
         )
 
     # resolve_review_thread: not supported
+
+
+def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
+    permissions = raw.get("permissions", {})
+    return AppInstallation(
+        has_read_access=True,
+        has_write_access=permissions.get("contents") == "write" and permissions.get("pull_requests") == "write",
+    )
 
 
 def map_author(raw_user: dict[str, Any] | None) -> Author | None:

@@ -41,7 +41,7 @@ import requests
 from scm.providers.github.provider import GitHubProvider
 from scm.rpc.client import NoOpRateLimitProvider
 from scm.rpc.server import RpcServer
-from scm.types import Provider, Repository, RepositoryId
+from scm.types import CredentialsSet, Provider, Repository, RepositoryId
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,13 @@ class InstallationTokenManager:
         self._expires_at = time.time() + 3300
 
     @property
-    def token(self) -> str:
+    def application_token(self) -> str:
+        """Returns a JWT for the GitHub App itself (not tied to an installation)."""
+        return self._make_jwt()
+
+    @property
+    def installation_token(self) -> str:
+        """Returns a valid access token for the installation, refreshing if needed."""
         if self._token is None or time.time() >= self._expires_at:
             self._refresh()
         assert self._token is not None
@@ -106,9 +112,15 @@ class GitHubApiClient:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         url = f"{GITHUB_API_BASE}{path}"
-        req_headers = {"Authorization": f"Bearer {self.token_manager.token}"}
+        token = (
+            self.token_manager.installation_token
+            if credentials_set == "installation"
+            else self.token_manager.application_token
+        )
+        req_headers = {"Authorization": f"Bearer {token}"}
         if headers:
             req_headers.update(headers)
 

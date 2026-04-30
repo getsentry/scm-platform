@@ -9,7 +9,7 @@ from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse
-from scm.types import ApiClient, Provider, Repository, RepositoryId
+from scm.types import ApiClient, CredentialsSet, Provider, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
 
@@ -143,6 +143,7 @@ class RpcApiClient(ApiClient):
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
     ) -> Response:
         body = msgspec.json.encode(
             ActionRequest(
@@ -168,6 +169,7 @@ class RpcApiClient(ApiClient):
                 "X-Organization-Id": str(self.organization_id),
                 "X-Referrer": self.referrer,
                 "X-Repository-Id": msgspec.json.encode(self.repository_id).decode("utf-8"),
+                "X-Credentials-Set": credentials_set,
             },
         )
         return response

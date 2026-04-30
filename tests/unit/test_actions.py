@@ -789,7 +789,16 @@ class MinimalProvider:
     }
 
     def request(
-        self, method, path, headers=None, data=None, params=None, allow_redirects=None, stream=None, raw_response=True
+        self,
+        method,
+        path,
+        headers=None,
+        data=None,
+        params=None,
+        allow_redirects=None,
+        stream=None,
+        raw_response=True,
+        credentials_set="installation",
     ):
         raise NotImplementedError("MinimalProvider does not support request")
 

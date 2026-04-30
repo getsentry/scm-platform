@@ -36,7 +36,7 @@ import requests
 
 from scm.providers.gitlab.provider import API_VERSION, GitLabProvider
 from scm.rpc.server import RpcServer
-from scm.types import Provider, Repository, RepositoryId
+from scm.types import CredentialsSet, Provider, Repository, RepositoryId
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,7 @@ class GitLabApiClient:
         allow_redirects: bool | None = None,
         stream: bool | None = None,
         raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         url = f"{self.base_url}{API_VERSION}{path}"
         req_headers = {"Authorization": f"Bearer {self.access_token}"}

@@ -3,6 +3,7 @@ from datetime import datetime
 from scm.types import (
     SHA,
     ActionResult,
+    AppInstallation,
     ArchiveFormat,
     ArchiveLink,
     Author,
@@ -45,6 +46,7 @@ from scm.types import (
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
     FileContent,
+    GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
@@ -109,6 +111,11 @@ from scm.types import (
 def get_repository(scm: GetRepositoryProtocol) -> ActionResult[GitRepository]:
     """Get the repository associated with this SourceCodeManager."""
     return scm.get_repository()
+
+
+def get_app_installation(scm: GetAppInstallationProtocol) -> ActionResult[AppInstallation]:
+    """Get the SCM app installation associated with this SourceCodeManager."""
+    return scm.get_app_installation()
 
 
 def get_repository_assignees(
@@ -710,6 +717,7 @@ __all__ = (
     "delete_pull_request_reaction",
     "download_archive",
     "get_archive_link",
+    "get_app_installation",
     "get_branch",
     "get_check_run",
     "get_commit_url",
