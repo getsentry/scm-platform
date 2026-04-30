@@ -1324,7 +1324,7 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
     return PullRequest(
-        internal_id=str(raw["id"]),
+        iid=str(raw["id"]),
         id=str(raw["number"]),
         title=raw["title"],
         body=raw.get("body"),
