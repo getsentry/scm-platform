@@ -1030,7 +1030,7 @@ def _with_draft_prefix(title: str) -> str:
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
     return PullRequest(
-        iid=str(raw["id"]),
+        internal_id=str(raw["id"]),
         id=str(raw["iid"]),
         title=raw["title"],
         body=raw["description"] or None,

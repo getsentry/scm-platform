@@ -593,7 +593,7 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request()
         return ActionResult(
             data=PullRequest(
-                iid=str(raw["id"]),
+                internal_id=str(raw["id"]),
                 id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
@@ -1211,7 +1211,7 @@ class BaseTestProvider(Provider):
         return PaginatedActionResult(
             data=[
                 PullRequest(
-                    iid=str(raw["id"]),
+                    internal_id=str(raw["id"]),
                     id=str(raw["number"]),
                     title=raw["title"],
                     body=raw["body"],
@@ -1238,7 +1238,7 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request(title=title, body=body)
         return ActionResult(
             data=PullRequest(
-                iid=str(raw["id"]),
+                internal_id=str(raw["id"]),
                 id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
@@ -1264,7 +1264,7 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request(title=title, body=body)
         return ActionResult(
             data=PullRequest(
-                iid=str(raw["id"]),
+                internal_id=str(raw["id"]),
                 id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
@@ -1294,7 +1294,7 @@ class BaseTestProvider(Provider):
         )
         return ActionResult(
             data=PullRequest(
-                iid=str(raw["id"]),
+                internal_id=str(raw["id"]),
                 id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],

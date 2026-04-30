@@ -282,7 +282,7 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "iid": "459277081",
+                        "internal_id": "459277081",
                         "id": "1",
                         "title": "Add blah",
                         "body": None,
@@ -474,7 +474,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "iid": "459277081",
+                    "internal_id": "459277081",
                     "id": "1",
                     "title": "Add blah",
                     "body": None,
@@ -684,7 +684,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "iid": "463099183",
+                    "internal_id": "463099183",
                     "id": "26",
                     "title": "PR from API 2026-03-11 11:01:25.358068",
                     "body": "Another PR, made through the API.",
@@ -948,7 +948,7 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "iid": "463099183",
+                        "internal_id": "463099183",
                         "id": "26",
                         "title": "PR from API 2026-03-11 11:01:25.358068",
                         "body": "Another PR, made through the API.",
@@ -963,7 +963,7 @@ def _make_mock_response(json_data):
                         "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
-                        "iid": "459277081",
+                        "internal_id": "459277081",
                         "id": "1",
                         "title": "Add blah",
                         "body": None,
@@ -1235,7 +1235,7 @@ def _make_mock_response(json_data):
             ],
             provider_return_value={
                 "data": {
-                    "iid": "463099183",
+                    "internal_id": "463099183",
                     "id": "26",
                     "title": "PR from API 2026-03-11 11:01:25.358068",
                     "body": "Another PR, made through the API.",
@@ -1441,7 +1441,7 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": [
                     {
-                        "iid": "459277081",
+                        "internal_id": "459277081",
                         "id": "1",
                         "title": "Add blah",
                         "body": None,
@@ -11787,7 +11787,7 @@ def _make_mock_response(json_data):
                             "sha": "7497e018d01503b6abc3053b7896266115e631f6",
                         },
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/28",
-                        "iid": "464365398",
+                        "internal_id": "464365398",
                         "merged": False,
                         "id": "28",
                         "state": "closed",
@@ -11795,7 +11795,7 @@ def _make_mock_response(json_data):
                         "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
-                        "iid": "464363971",
+                        "internal_id": "464363971",
                         "id": "27",
                         "title": "Add blah",
                         "body": None,
@@ -11810,7 +11810,7 @@ def _make_mock_response(json_data):
                         "author": {"id": "150871", "username": "jacquev6"},
                     },
                     {
-                        "iid": "464363971",
+                        "internal_id": "464363971",
                         "id": "27",
                         "title": "Add blah",
                         "body": None,

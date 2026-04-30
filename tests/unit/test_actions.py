@@ -274,7 +274,7 @@ def _check_repository_labels(result: Any) -> None:
 
 def _check_pull_request(result: Any) -> None:
     pr = result["data"]
-    assert pr["iid"] == "42"
+    assert pr["internal_id"] == "42"
     assert pr["id"] == "1"
     assert pr["title"] == "Test PR"
     assert pr["head"]["sha"] == "abc123"
