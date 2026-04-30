@@ -741,6 +741,7 @@ __all__ = (
     "get_pull_request_url",
     "get_pull_request",
     "get_pull_requests",
+    "get_repository",
     "get_repository_assignees",
     "get_repository_labels",
     "get_tree",

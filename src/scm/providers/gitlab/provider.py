@@ -1038,8 +1038,8 @@ def _with_draft_prefix(title: str) -> str:
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
     return PullRequest(
-        id=str(raw["id"]),
-        number=str(raw["iid"]),
+        internal_id=str(raw["id"]),
+        id=str(raw["iid"]),
         title=raw["title"],
         body=raw["description"] or None,
         state="open" if raw["state"] == "opened" else "closed",
@@ -1050,6 +1050,7 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         ),
         merged=raw["merged_at"] is not None,
         html_url=raw["web_url"],
+        author=map_author(raw["author"]),
     )
 
 

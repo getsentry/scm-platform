@@ -238,8 +238,8 @@ def expected_reaction(raw: dict[str, Any]) -> dict[str, Any]:
 
 def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
     return {
-        "id": str(raw["id"]),
-        "number": str(raw["number"]),
+        "internal_id": str(raw["id"]),
+        "id": str(raw["number"]),
         "title": raw["title"],
         "body": raw.get("body"),
         "state": raw["state"],
@@ -247,6 +247,7 @@ def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
         "html_url": raw.get("html_url", ""),
         "head": {"sha": raw["head"]["sha"], "ref": raw["head"]["ref"]},
         "base": {"sha": raw["base"]["sha"], "ref": raw["base"]["ref"]},
+        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]},
     }
 
 

@@ -593,8 +593,8 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request()
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                internal_id=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -602,6 +602,7 @@ class BaseTestProvider(Provider):
                 html_url=raw["html_url"],
                 head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
                 base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+                author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
             ),
             type="github",
             raw={"headers": None, "data": raw},
@@ -1210,8 +1211,8 @@ class BaseTestProvider(Provider):
         return PaginatedActionResult(
             data=[
                 PullRequest(
-                    id=str(raw["id"]),
-                    number=raw["number"],
+                    internal_id=str(raw["id"]),
+                    id=str(raw["number"]),
                     title=raw["title"],
                     body=raw["body"],
                     state=raw["state"],
@@ -1219,6 +1220,7 @@ class BaseTestProvider(Provider):
                     html_url=raw["html_url"],
                     head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
                     base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+                    author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
                 ),
             ],
             type="github",
@@ -1236,8 +1238,8 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request(title=title, body=body)
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                internal_id=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -1245,6 +1247,7 @@ class BaseTestProvider(Provider):
                 html_url=raw["html_url"],
                 head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
                 base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+                author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
             ),
             type="github",
             raw={"headers": None, "data": raw},
@@ -1261,8 +1264,8 @@ class BaseTestProvider(Provider):
         raw = make_github_pull_request(title=title, body=body)
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                internal_id=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -1270,6 +1273,7 @@ class BaseTestProvider(Provider):
                 html_url=raw["html_url"],
                 head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
                 base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+                author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
             ),
             type="github",
             raw={"headers": None, "data": raw},
@@ -1290,8 +1294,8 @@ class BaseTestProvider(Provider):
         )
         return ActionResult(
             data=PullRequest(
-                id=str(raw["id"]),
-                number=raw["number"],
+                internal_id=str(raw["id"]),
+                id=str(raw["number"]),
                 title=raw["title"],
                 body=raw["body"],
                 state=raw["state"],
@@ -1299,6 +1303,7 @@ class BaseTestProvider(Provider):
                 html_url=raw["html_url"],
                 head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
                 base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+                author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
             ),
             type="github",
             raw={"headers": None, "data": raw},

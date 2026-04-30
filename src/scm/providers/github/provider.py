@@ -1343,8 +1343,8 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
     return PullRequest(
-        id=str(raw["id"]),
-        number=str(raw["number"]),
+        internal_id=str(raw["id"]),
+        id=str(raw["number"]),
         title=raw["title"],
         body=raw.get("body"),
         state=raw["state"],
@@ -1352,6 +1352,7 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         html_url=raw.get("html_url", ""),
         head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
         base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
+        author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
     )
 
 
