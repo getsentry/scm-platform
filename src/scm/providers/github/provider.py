@@ -7,7 +7,7 @@ from typing import Any, cast
 import msgspec
 import requests
 
-from scm.errors import SCMCodedError
+from scm.errors import ErrorCode, SCMCodedError
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
     DynamicRateLimiter,
@@ -234,17 +234,20 @@ class GitHubProvider:
                 next_window_start=int(response.headers[GITHUB_RATE_LIMIT_RESET]),
             )
 
-        if response.status_code == 403:
-            raise SCMCodedError(code="resource_forbidden")
-        elif response.status_code == 404:
-            raise SCMCodedError(code="resource_not_found")
-        elif response.status_code == 409:
-            raise SCMCodedError(code="resource_conflict")
-        elif response.status_code == 422:
-            raise SCMCodedError(code="resource_unprocessable_content")
-        elif response.status_code >= 400:
+        if response.status_code >= 400:
+            if response.status_code == 403:
+                code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
+            elif response.status_code == 404:
+                code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
+            elif response.status_code == 409:
+                code: ErrorCode = "resource_conflict"  # type: ignore[no-redef]
+            elif response.status_code == 422:
+                code: ErrorCode = "resource_unprocessable_content"  # type: ignore[no-redef]
+            else:
+                code: ErrorCode = "unhandled_exception"  # type: ignore[no-redef]
+
             raise SCMCodedError(
-                code="unhandled_exception",
+                code=code,
                 detail=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
                 request_body=response.request.body,
