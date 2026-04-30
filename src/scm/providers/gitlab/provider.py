@@ -186,7 +186,14 @@ class GitLabProvider:
         elif response.status_code == 404:
             raise SCMCodedError(code="resource_not_found")
         elif response.status_code >= 400:
-            raise SCMCodedError(code="unhandled_exception")
+            raise SCMCodedError(
+                code="unhandled_exception",
+                detail=response.content.decode("utf-8"),
+                request_headers=response.request.headers,
+                request_body=response.request.body,
+                request_url=response.request.url,
+                request_method=response.request.method,
+            )
 
         return response
 

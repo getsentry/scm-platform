@@ -243,7 +243,14 @@ class GitHubProvider:
         elif response.status_code == 422:
             raise SCMCodedError(code="resource_unprocessable_content")
         elif response.status_code >= 400:
-            raise SCMCodedError(code="unhandled_exception")
+            raise SCMCodedError(
+                code="unhandled_exception",
+                detail=response.content.decode("utf-8"),
+                request_headers=response.request.headers,
+                request_body=response.request.body,
+                request_url=response.request.url,
+                request_method=response.request.method,
+            )
 
         return response
 
