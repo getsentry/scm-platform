@@ -322,7 +322,7 @@ class GitRepository(TypedDict):
     """Information about a git repository at an SCM provider."""
 
     full_name: str
-    default_branch: str | None
+    default_branch: str
     clone_url: str
     private: bool
     size: int
