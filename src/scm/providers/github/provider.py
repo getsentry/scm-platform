@@ -267,8 +267,7 @@ class GitHubProvider:
         allow_redirects: bool | None = None,
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
-        headers = {"Accept": "application/vnd.github+json"}
-
+        headers = {}
         if request_options:
             if_none_match = request_options.get("if_none_match")
             if if_none_match is not None:
@@ -879,7 +878,6 @@ class GitHubProvider:
         response = self.get(
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}",
             request_options=request_options,
-            extra_headers={"Accept": "application/vnd.github.v3.diff"},
         )
         return {
             "data": response.text,

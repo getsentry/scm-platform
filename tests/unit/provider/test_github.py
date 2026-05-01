@@ -1137,7 +1137,7 @@ def test_get_pull_request_diff_uses_raw_request_and_extracts_meta() -> None:
             "params": None,
             "pagination": None,
             "request_options": None,
-            "extra_headers": {"Accept": "application/vnd.github.v3.diff"},
+            "extra_headers": None,
             "credentials_set": "installation",
         }
     ]
