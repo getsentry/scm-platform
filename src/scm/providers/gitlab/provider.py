@@ -1115,7 +1115,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
     repo_size = statistics.get("repository_size", 0) if statistics else 0
     return GitRepository(
         full_name=raw["path_with_namespace"],
-        default_branch=raw.get("default_branch"),
+        default_branch=raw["default_branch"],
         clone_url=raw["http_url_to_repo"],
         private=raw["visibility"] != "public",
         # GitLab returns size in bytes. We convert to kB to match GitHub
