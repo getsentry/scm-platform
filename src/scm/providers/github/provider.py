@@ -878,6 +878,7 @@ class GitHubProvider:
         response = self.get(
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}",
             request_options=request_options,
+            extra_headers={"Accept": "application/vnd.github.v3.diff"},
         )
         return {
             "data": response.text,
