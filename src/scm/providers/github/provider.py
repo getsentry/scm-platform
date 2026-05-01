@@ -267,8 +267,7 @@ class GitHubProvider:
         allow_redirects: bool | None = None,
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
-        headers = {"Accept": "application/vnd.github+json"}
-
+        headers = {}
         if request_options:
             if_none_match = request_options.get("if_none_match")
             if if_none_match is not None:
