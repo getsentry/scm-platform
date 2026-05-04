@@ -929,10 +929,21 @@ class GitHubProvider:
         head: str,
         base: str,
     ) -> ActionResult[PullRequest]:
-        response = self.post(
-            f"/repos/{self.repository['name']}/pulls",
-            data={"title": title, "body": body, "head": head, "base": base, "draft": True},
-        )
+        try:
+            response = self.post(
+                f"/repos/{self.repository['name']}/pulls",
+                data={"title": title, "body": body, "head": head, "base": base, "draft": True},
+            )
+        except SCMCodedError as e:
+            if (
+                e.code == "resource_unprocessable_content"
+                and e.detail
+                and "Draft pull requests are not supported for this repository" in e.detail
+            ):
+                raise SCMCodedError(code="draft_pull_request_not_supported") from e
+            else:
+                raise
+
         return map_action(response, map_pull_request)
 
     def update_pull_request(

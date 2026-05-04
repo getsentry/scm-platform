@@ -1472,6 +1472,38 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     ]
 
 
+def test_create_pull_request_draft_raises_coded_error_when_drafts_not_supported() -> None:
+    provider, client = make_provider()
+    provider.post = MagicMock(  # type: ignore[assignment]
+        side_effect=SCMCodedError(
+            code="resource_unprocessable_content",
+            detail="Draft pull requests are not supported for this repository",
+        ),
+    )
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_pull_request_draft(title="T", body="B", head="feature", base="main")
+
+    assert exc_info.value.code == "draft_pull_request_not_supported"
+    assert exc_info.value.__cause__ is not None
+    assert exc_info.value.__cause__.code == "resource_unprocessable_content"
+
+
+def test_create_pull_request_draft_reraises_unrelated_unprocessable_content_error() -> None:
+    provider, client = make_provider()
+    provider.post = MagicMock(  # type: ignore[assignment]
+        side_effect=SCMCodedError(
+            code="resource_unprocessable_content",
+            detail="Validation Failed: something else went wrong",
+        ),
+    )
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_pull_request_draft(title="T", body="B", head="feature", base="main")
+
+    assert exc_info.value.code == "resource_unprocessable_content"
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",

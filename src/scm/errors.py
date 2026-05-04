@@ -22,6 +22,7 @@ type ErrorCode = Literal[
     "resource_unprocessable_content",
     "unexpected_response_format",
     "unhandled_exception",
+    "draft_pull_request_not_supported",
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
@@ -46,6 +47,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_unprocessable_content": "Request could not be processed.",
     "unexpected_response_format": "The response format was in an unexpected format.",
     "unhandled_exception": "An unhandled exception occurred.",
+    "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
 }
 
 
