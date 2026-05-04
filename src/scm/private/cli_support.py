@@ -306,7 +306,7 @@ def execute_command(args: argparse.Namespace, scm: SourceCodeManager) -> None:
 
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
-        dump(scm.download_archive(args.ref))
+        sys.stdout.buffer.write(scm.download_archive(args.ref))
 
     elif args.command == "get-archive-link":
         assert isinstance(scm, GetArchiveLinkProtocol)

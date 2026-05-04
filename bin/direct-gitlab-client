@@ -15,6 +15,8 @@ from scm.private.cli_support import (
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.types import Provider, Repository, RepositoryId
 
+logger = logging.getLogger(__name__)
+
 
 def fetch_repository(organization_id: int, repository_id: RepositoryId) -> Repository | None:
     if isinstance(repository_id, (list, tuple)):
@@ -78,6 +80,15 @@ def main():
 
     gitlab_base_url = resolve("GITLAB_BASE_URL", args.gitlab_base_url, creds)
     gitlab_access_token = resolve("GITLAB_ACCESS_TOKEN", args.gitlab_access_token, creds)
+
+    missing = []
+    if not gitlab_access_token:
+        missing.append("GITLAB_ACCESS_TOKEN")
+    if not gitlab_base_url:
+        missing.append("GITLAB_BASE_URL")
+    if missing:
+        logger.error(f"Error: missing required config: {', '.join(missing)}")
+        sys.exit(1)
 
     gitlab_client = GitLabApiClient(gitlab_base_url, gitlab_access_token)
 
