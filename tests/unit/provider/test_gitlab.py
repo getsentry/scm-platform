@@ -11493,6 +11493,93 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.create_review,
+            provider_args={
+                "pull_request_id": "1",
+                "commit_sha": "7497e018d01503b6abc3053b7896266115e631f6",
+                "event": "approve",
+                "comments": [
+                    {
+                        "path": "BLAH.md",
+                        "body": "Inline comment on line 5.",
+                        "line": 5,
+                        "side": "head",
+                    },
+                ],
+                "body": "Looks good overall.",
+            },
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/merge_requests/1/versions",
+                    json_response=[
+                        {
+                            "id": 1692137080,
+                            "head_commit_sha": "7497e018d01503b6abc3053b7896266115e631f6",
+                            "base_commit_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                            "start_commit_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                        },
+                    ],
+                ),
+                ClientForwardedCall(
+                    method="POST",
+                    path="/projects/79787061/merge_requests/1/discussions",
+                    json_response={
+                        "id": "abc123discussion",
+                        "individual_note": False,
+                        "notes": [
+                            {
+                                "id": 9999001,
+                                "type": "DiffNote",
+                                "body": "Inline comment on line 5.",
+                            },
+                        ],
+                    },
+                    data={
+                        "body": "Inline comment on line 5.",
+                        "position": {
+                            "position_type": "text",
+                            "base_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                            "head_sha": "7497e018d01503b6abc3053b7896266115e631f6",
+                            "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                            "new_path": "BLAH.md",
+                            "old_path": "BLAH.md",
+                            "new_line": 5,
+                        },
+                    },
+                ),
+                ClientForwardedCall(
+                    method="POST",
+                    path="/projects/79787061/merge_requests/1/notes",
+                    json_response={
+                        "id": 9999002,
+                        "body": "Looks good overall.",
+                    },
+                    data={"body": "Looks good overall."},
+                ),
+                ClientForwardedCall(
+                    method="POST",
+                    path="/projects/79787061/merge_requests/1/approve",
+                    json_response={
+                        "id": 459277081,
+                        "iid": 1,
+                        "title": "Test MR",
+                        "approved": True,
+                    },
+                    data={"sha": "7497e018d01503b6abc3053b7896266115e631f6"},
+                ),
+            ],
+            provider_return_value={
+                "data": {
+                    "id": "abc123discussion",
+                    "html_url": "https://gitlab.com/test-repo/-/merge_requests/1",
+                },
+                "type": "gitlab",
+                "raw": {"data": {"discussion_ids": ["abc123discussion"]}, "headers": None},
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_pull_requests,
             provider_args={
                 "state": "closed",
