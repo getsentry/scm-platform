@@ -31,6 +31,105 @@ The SCM solves all the problems you don't want to care about.
 
 We have extensive documentation both inline in the Sentry codebase and on the [Sentry developer documentation](https://develop.sentry.dev/backend/source-code-management-platform/) portal. If you're interested in expanding your SCM usage or in enabling new service-providers for a limited amount of effort take a took at the SCM platform.
 
+### Interactive testing
+
+We provide a few command-line scripts for interactive testing.
+
+You'll need to create `.credentials` according to `.credentials.template` before using them.
+
+All `bin/*-client` have the same subcommands (see [`add_commands`](src/scm/private/cli_support.py) or use the `--help` command-line option). Some subcommands will fail if attempted against a provider that doesn't implement them.
+
+Rationale for having `bin/*-github-client` and `bin/*-gitlab-client`: it lets you configure your favorite test repository in `.credentials` for each provider.
+
+Rationale for having three different kinds of clients: it lets you use the following three modes to target the SCM hosts.
+
+#### Targetting SCM hosts directly
+
+```mermaid
+flowchart LR
+    bin/direct-github-client --> GitHub
+    bin/direct-gitlab-client --> GitLab
+```
+
+Example: `bin/direct-github-client get-repository | jq .data` produces something like:
+
+```
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): api.github.com:443
+DEBUG:urllib3.connectionpool:https://api.github.com:443 "POST /app/installations/120833184/access_tokens HTTP/1.1" 201 323
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): api.github.com:443
+DEBUG:urllib3.connectionpool:https://api.github.com:443 "GET /repos/jacquev6/test-Sentry-Integration-Dev-jacquev6 HTTP/1.1" 200 None
+{
+  "full_name": "jacquev6/test-Sentry-Integration-Dev-jacquev6",
+  "default_branch": "main",
+  "clone_url": "https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6.git",
+  "private": false,
+  "size": 1
+}
+```
+
+#### Using the RCP, going through `bin/scm-rpc-server`:
+
+```mermaid
+flowchart LR
+    bin/scm-rpc-github-client --> bin/scm-rpc-server
+    bin/scm-rpc-gitlab-client --> bin/scm-rpc-server
+    bin/scm-rpc-server --> GitHub
+    bin/scm-rpc-server --> GitLab
+```
+
+Example: run `bin/scm-rpc-server` in a terminal, then `bin/scm-rpc-gitlab-client get-app-installation | jq .data` in another to produce something like:
+
+```
+DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8080
+DEBUG:urllib3.connectionpool:http://localhost:8080 "GET /api/0/internal/scm-rpc/ HTTP/1.1" 200 None
+DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8080
+DEBUG:urllib3.connectionpool:http://localhost:8080 "POST /api/0/internal/scm-rpc/ HTTP/1.1" 200 None
+{
+  "has_read_access": true,
+  "has_write_access": true
+}
+```
+
+#### Using the RPC, going through a Sentry development environment:
+
+```mermaid
+flowchart LR
+    bin/sentry-rpc-github-client --> sentry
+    bin/sentry-rpc-gitlab-client --> sentry
+    sentry --> GitHub
+    sentry --> GitLab
+```
+
+Example: with your sentry development environment running in a terminal (and the target repository configured via Sentry's "integrations" GUI), run `bin/sentry-rpc-github-client get-pull-request 2 | jq .data` from another terminal to produce something like:
+
+```
+DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8000
+DEBUG:urllib3.connectionpool:http://localhost:8000 "GET /api/0/internal/scm-rpc/ HTTP/1.1" 200 217
+DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8000
+DEBUG:urllib3.connectionpool:http://localhost:8000 "POST /api/0/internal/scm-rpc/ HTTP/1.1" 200 None
+{
+  "internal_id": "3329785233",
+  "id": "2",
+  "title": "Add blah",
+  "body": null,
+  "state": "open",
+  "merged": false,
+  "html_url": "https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2",
+  "head": {
+    "sha": "7497e018d01503b6abc3053b7896266115e631f6",
+    "ref": "topics/blah"
+  },
+  "base": {
+    "sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+    "ref": "main"
+  },
+  "author": {
+    "id": "327146",
+    "username": "jacquev6"
+  }
+}
+```
+
 # Releasing a New Version
 
 1. On the `getsentry/scm-platform` repository page click the `Actions` tab.

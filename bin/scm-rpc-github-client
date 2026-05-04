@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+import argparse
+import logging
+import sys
+
+from scm.manager import SourceCodeManager
+from scm.private.cli_support import add_commands, execute_command, load_credentials, resolve
+
+
+def main():
+    creds = load_credentials()
+
+    parser = argparse.ArgumentParser(description="RPC client for bin/scm-server, for GitHub repositories")
+
+    parser.add_argument(
+        "--base-url",
+        default="http://localhost:8080",
+        help="URL where bin/scm-server is accessible",
+    )
+    parser.add_argument(
+        "--secret",
+        default=None,
+        help="RPC shared secret. Defaults to SCM_RPC_SECRET from .credentials",
+    )
+
+    parser.add_argument("--org-id", type=int, default=1, help="Sentry organization ID owning the repository")
+    parser.add_argument(
+        "--repo",
+        default=creds.get("GITHUB_REPOSITORY_NAME"),
+        required="GITHUB_REPOSITORY_NAME" not in creds,
+        help="GitHub repository as 'owner/repo'. Defaults to GITHUB_REPOSITORY_NAME from .credentials",
+    )
+
+    add_commands(parser)
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    secret = resolve("SCM_RPC_SECRET", args.secret, creds)
+
+    scm = SourceCodeManager.make_proxy_client(
+        args.org_id,
+        ("github", args.repo),
+        base_url=args.base_url,
+        signing_secret=secret,
+    )
+
+    execute_command(args, scm)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    main()

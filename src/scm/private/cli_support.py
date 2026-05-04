@@ -1,59 +1,16 @@
-#!/usr/bin/env python
-"""
-RPC client that talks to a github-server instance.
-
-Usage:
-    bin/github-client --repo owner/repo <command> [args...]
-
-Configuration (CLI args override env vars):
-    --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8080)
-    --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
-    --org-id                            Organization ID (default: 1)
-    --repo / GITHUB_REPOSITORY_NAME     GitHub repository as owner/repo
-
-Commands:
-    get-pull-request <id>
-    get-pull-requests [--state open|closed]
-    get-pull-request-files <id>
-    get-pull-request-commits <id>
-    get-pull-request-diff <id>
-    get-pull-request-url <id>
-    get-issue <id>
-    create-issue <title> <body> [--assignee <user> ...] [--label <name> ...]
-    get-issue-comments <issue_id>
-    get-pull-request-comments <pr_id>
-    create-issue-comment <issue_id> <body>
-    create-pull-request-comment <pr_id> <body>
-    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
-    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
-    get-branch <name>
-    delete-branch <name>
-    get-git-ref <ref>
-    get-commit <sha>
-    get-commit-url <sha>
-    get-file-content <path> [--ref <ref>]
-    get-file-url <path> <sha> [--start-line <n>] [--end-line <n>]
-    compare-commits <start_sha> <end_sha>
-    create-commit <branch> <parent_sha> <message>
-        [--create <filename>=<content> ...]
-        [--update <filename>=<content> ...]
-        [--delete <filename> ...]
-        [--move <old_filename>:<new_filename> ...]
-        [--chmod <filename>:<0|1> ...]
-        [--force]
-    get-repository
-    get-repository-assignees
-    get-repository-labels
-    get-app-installation
-"""
-
 import argparse
 import json
-import logging
+import os
 import pathlib
 import sys
+import time
+from typing import Any
+
+import jwt
+import requests
 
 from scm.manager import SourceCodeManager
+from scm.providers.gitlab.provider import API_VERSION
 from scm.types import (
     ChmodCommitAction,
     CompareCommitsProtocol,
@@ -63,6 +20,7 @@ from scm.types import (
     CreatePullRequestCommentProtocol,
     CreateReviewCommentLineProtocol,
     CreateReviewCommentMultilineProtocol,
+    CredentialsSet,
     DeleteBranchProtocol,
     DeleteCommitAction,
     DownloadArchiveProtocol,
@@ -90,17 +48,11 @@ from scm.types import (
     WriteCommitAction,
 )
 
-logger = logging.getLogger(__name__)
-
-
-def dump(obj):
-    logger.info(json.dumps(obj, indent=2, default=str))
-
 
 def load_credentials() -> dict[str, str]:
     """Load KEY=VALUE pairs from .credentials, skipping blanks and comments."""
     creds: dict[str, str] = {}
-    path = pathlib.Path(__file__).resolve().parent.parent / ".credentials"
+    path = pathlib.Path(__file__).resolve().parent.parent.parent.parent / ".credentials"
     if not path.exists():
         return creds
     for line in path.read_text().splitlines():
@@ -114,20 +66,12 @@ def load_credentials() -> dict[str, str]:
     return creds
 
 
-def main():
-    creds = load_credentials()
+def resolve(key: str, cli_value: str | None, creds: dict[str, str]) -> str | None:
+    """CLI arg wins, then env var, then .credentials file."""
+    return cli_value or os.environ.get(key) or creds.get(key)
 
-    parser = argparse.ArgumentParser(description="GitHub RPC Client")
-    parser.add_argument("--base-url", default=None)
-    parser.add_argument("--secret", default=None)
-    parser.add_argument("--org-id", type=int, default=1)
-    parser.add_argument(
-        "--repo",
-        default=creds.get("GITHUB_REPOSITORY_NAME"),
-        required="GITHUB_REPOSITORY_NAME" not in creds,
-        help="owner/repo; defaults to GITHUB_REPOSITORY_NAME from .credentials",
-    )
 
+def add_commands(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="command")
 
     p = sub.add_parser("get-pull-request")
@@ -240,22 +184,8 @@ def main():
     sub.add_parser("get-repository-labels")
     sub.add_parser("get-app-installation")
 
-    args = parser.parse_args()
-    if not args.command:
-        parser.print_help()
-        sys.exit(1)
 
-    kwargs = {
-        "base_url": args.base_url if args.base_url else "http://127.0.0.1:8080",
-        "signing_secret": args.secret if args.secret else "secret",
-    }
-
-    scm = SourceCodeManager.make_proxy_client(
-        args.org_id,
-        ("github", args.repo),
-        **kwargs,
-    )
-
+def execute_command(args: argparse.Namespace, scm: SourceCodeManager) -> None:
     if args.command == "get-pull-request":
         assert isinstance(scm, GetPullRequestProtocol)
         dump(scm.get_pull_request(args.id))
@@ -376,7 +306,7 @@ def main():
 
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
-        logger.info(scm.download_archive(args.ref))
+        dump(scm.download_archive(args.ref))
 
     elif args.command == "get-archive-link":
         assert isinstance(scm, GetArchiveLinkProtocol)
@@ -399,6 +329,135 @@ def main():
         dump(scm.get_app_installation())
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    main()
+def dump(data: Any) -> None:
+    json.dump(data, sys.stdout, indent=2, default=str)
+    sys.stdout.write("\n")
+
+
+class GitLabApiClient:
+    """API client that makes authenticated HTTP requests to the GitLab API."""
+
+    def __init__(self, base_url: str, access_token: str) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.access_token = access_token
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool | None = None,
+        raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
+    ) -> requests.Response:
+        url = f"{self.base_url}{API_VERSION}{path}"
+        req_headers = {"Authorization": f"Bearer {self.access_token}"}
+        if headers:
+            req_headers.update(headers)
+
+        kwargs: dict[str, Any] = {"headers": req_headers}
+        if data is not None:
+            kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
+        if allow_redirects is not None:
+            kwargs["allow_redirects"] = allow_redirects
+        if stream is not None:
+            kwargs["stream"] = stream
+
+        return requests.request(method, url, **kwargs)
+
+
+GITHUB_API_BASE = "https://api.github.com"
+
+
+class GitHubInstallationTokenManager:
+    """Manages GitHub App installation access tokens with automatic refresh."""
+
+    def __init__(self, app_id: str, private_key: str, installation_id: str) -> None:
+        self.app_id = app_id
+        self.private_key = private_key
+        self.installation_id = installation_id
+        self._token: str | None = None
+        self._expires_at: float = 0
+
+    def _make_jwt(self) -> str:
+        now = int(time.time())
+        payload = {
+            "iat": now - 60,
+            "exp": now + (10 * 60),
+            "iss": self.app_id,
+        }
+        return jwt.encode(payload, self.private_key, algorithm="RS256")
+
+    def _refresh(self) -> None:
+        token = self._make_jwt()
+        response = requests.post(
+            f"{GITHUB_API_BASE}/app/installations/{self.installation_id}/access_tokens",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        self._token = data["token"]
+        # Refresh 5 minutes before actual expiry to avoid races.
+        self._expires_at = time.time() + 3300
+
+    @property
+    def application_token(self) -> str:
+        """Returns a JWT for the GitHub App itself (not tied to an installation)."""
+        return self._make_jwt()
+
+    @property
+    def installation_token(self) -> str:
+        """Returns a valid access token for the installation, refreshing if needed."""
+        if self._token is None or time.time() >= self._expires_at:
+            self._refresh()
+        assert self._token is not None
+        return self._token
+
+
+class GitHubApiClient:
+    """API client that makes authenticated HTTP requests to the GitHub API."""
+
+    def __init__(self, token_manager: GitHubInstallationTokenManager) -> None:
+        self.token_manager = token_manager
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool | None = None,
+        raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
+    ) -> requests.Response:
+        url = f"{GITHUB_API_BASE}{path}"
+        token = (
+            self.token_manager.installation_token
+            if credentials_set == "installation"
+            else self.token_manager.application_token
+        )
+        req_headers = {"Authorization": f"Bearer {token}"}
+        if headers:
+            req_headers.update(headers)
+
+        kwargs: dict[str, Any] = {"headers": req_headers}
+        if data is not None:
+            kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
+        if allow_redirects is not None:
+            kwargs["allow_redirects"] = allow_redirects
+        if stream is not None:
+            kwargs["stream"] = stream
+
+        return requests.request(method, url, **kwargs)

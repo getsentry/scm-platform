@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+import argparse
+import logging
+import sys
+from urllib.parse import urlparse
+
+from scm.manager import SourceCodeManager
+from scm.private.cli_support import (
+    GitLabApiClient,
+    add_commands,
+    execute_command,
+    load_credentials,
+    resolve,
+)
+from scm.providers.gitlab.provider import GitLabProvider
+from scm.types import Provider, Repository, RepositoryId
+
+
+def fetch_repository(organization_id: int, repository_id: RepositoryId) -> Repository | None:
+    if isinstance(repository_id, (list, tuple)):
+        provider_name, external_id = repository_id
+        return {
+            "id": 1,
+            "external_id": external_id,
+            "integration_id": 1,
+            "is_active": True,
+            "name": external_id,
+            "organization_id": organization_id,
+            "provider_name": provider_name,
+        }
+    return None
+
+
+def make_fetch_provider(gitlab_client: GitLabApiClient):
+    def fetch_provider(organization_id: int, repository: Repository) -> Provider | None:
+        return GitLabProvider(
+            client=gitlab_client,
+            organization_id=organization_id,
+            repository=repository,
+        )
+
+    return fetch_provider
+
+
+def main():
+    creds = load_credentials()
+
+    parser = argparse.ArgumentParser(description="Direct client for GitLab repositories")
+
+    parser.add_argument(
+        "--gitlab-base-url",
+        default=None,
+        help="Base URL for the GitLab instance. Defaults to GITLAB_BASE_URL from .credentials",
+    )
+    parser.add_argument(
+        "--gitlab-access-token",
+        default=None,
+        help="GitLab access token. Defaults to GITLAB_ACCESS_TOKEN from .credentials",
+    )
+
+    parser.add_argument("--org-id", type=int, default=1, help="Sentry organization ID owning the repository")
+    parser.add_argument(
+        "--repo",
+        default=creds.get("GITLAB_PROJECT_ID"),
+        required="GITLAB_PROJECT_ID" not in creds,
+        help=(
+            "GitLab project ID (numeric, found in the top-right '...' menu on the GitLab project page)."
+            " Defaults to GITLAB_PROJECT_ID from .credentials"
+        ),
+    )
+
+    add_commands(parser)
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    gitlab_base_url = resolve("GITLAB_BASE_URL", args.gitlab_base_url, creds)
+    gitlab_access_token = resolve("GITLAB_ACCESS_TOKEN", args.gitlab_access_token, creds)
+
+    gitlab_client = GitLabApiClient(gitlab_base_url, gitlab_access_token)
+
+    scm = SourceCodeManager.make_client(
+        args.org_id,
+        ("gitlab", f"{urlparse(gitlab_base_url).netloc}:{args.repo}"),
+        fetch_repository=fetch_repository,
+        fetch_provider=make_fetch_provider(gitlab_client),
+        record_count=lambda name, value, tags: None,
+    )
+
+    execute_command(args, scm)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    main()
