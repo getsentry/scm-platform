@@ -249,6 +249,7 @@ class GitHubProvider:
             raise SCMCodedError(
                 code=code,
                 detail=response.content.decode("utf-8"),
+                response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
                 request_body=response.request.body,
                 request_url=response.request.url,

@@ -197,6 +197,7 @@ class GitLabProvider:
             raise SCMCodedError(
                 code=code,
                 detail=response.content.decode("utf-8"),
+                response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
                 request_body=response.request.body,
                 request_url=response.request.url,
@@ -656,11 +657,17 @@ class GitLabProvider:
         params: dict[str, str] = {"path": path}
         if ref:
             params["ref"] = ref
-        response = self.get(
-            GitLab.tree.format(project=self.project_id),
-            params=params,
-            request_options=request_options,
-        )
+        try:
+            response = self.get(
+                GitLab.tree.format(project=self.project_id),
+                params=params,
+                request_options=request_options,
+            )
+        except SCMCodedError as e:
+            # GitLab returns 404 "not treeish" when the path resolves to a file.
+            if e.code == "resource_not_found" and e.detail and "not treeish" in e.detail:
+                raise SCMCodedError(code="path_is_not_directory", detail=path) from e
+            raise
         raw = response.json()
         return ActionResult(
             data=[map_tree_entry_to_file_content(item) for item in raw],

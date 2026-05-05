@@ -5,6 +5,7 @@ from typing import Any, NamedTuple
 
 import pytest
 
+from scm.errors import SCMCodedError
 from scm.providers.gitlab.provider import ApiClient, GitLabProvider
 from scm.types import (
     ChmodCommitAction,
@@ -12376,6 +12377,20 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
+
+
+def test_get_directory_contents_raises_when_path_is_not_directory(client, provider: GitLabProvider):
+    response = unittest.mock.MagicMock()
+    response.status_code = 404
+    response.content = b'{"message":"404 Tree Not Found - path README.md is not treeish"}'
+    response.request = unittest.mock.MagicMock(headers={}, body=None)
+    client.request.return_value = response
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_directory_contents(path="README.md", ref="main")
+
+    assert exc_info.value.code == "path_is_not_directory"
+    assert exc_info.value.detail == "README.md"
 
 
 def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProvider):
