@@ -521,6 +521,7 @@ type PullRequestAction = Literal[
 
 
 class PullRequestEventData(TypedDict):
+    repo_id: str
     id: str
     title: str
     description: str | None
