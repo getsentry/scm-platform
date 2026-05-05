@@ -39,45 +39,17 @@ You'll need to create `.credentials` according to `.credentials.template` before
 
 All `bin/*-client` have the same subcommands (see [`add_commands`](src/scm/private/cli_support.py) or use the `--help` command-line option). Some subcommands will fail if attempted against a provider that doesn't implement them.
 
-Rationale for having `bin/*-github-client` and `bin/*-gitlab-client`: it lets you configure your favorite test repository in `.credentials` for each provider.
-
-Rationale for having three different kinds of clients: it lets you use the following three modes to target the SCM hosts.
-
-#### Targetting SCM hosts directly
+#### Using the RCP, going through `bin/rpc-server`:
 
 ```mermaid
 flowchart LR
-    bin/direct-github-client --> GitHub
-    bin/direct-gitlab-client --> GitLab
+    bin/rpc-github-client --> bin/rpc-server
+    bin/rpc-gitlab-client --> bin/rpc-server
+    bin/rpc-server --> GitHub
+    bin/rpc-server --> GitLab
 ```
 
-Example: `bin/direct-github-client get-repository | jq .data` produces something like:
-
-```
-DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): api.github.com:443
-DEBUG:urllib3.connectionpool:https://api.github.com:443 "POST /app/installations/120833184/access_tokens HTTP/1.1" 201 323
-DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): api.github.com:443
-DEBUG:urllib3.connectionpool:https://api.github.com:443 "GET /repos/jacquev6/test-Sentry-Integration-Dev-jacquev6 HTTP/1.1" 200 None
-{
-  "full_name": "jacquev6/test-Sentry-Integration-Dev-jacquev6",
-  "default_branch": "main",
-  "clone_url": "https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6.git",
-  "private": false,
-  "size": 1
-}
-```
-
-#### Using the RCP, going through `bin/scm-rpc-server`:
-
-```mermaid
-flowchart LR
-    bin/scm-rpc-github-client --> bin/scm-rpc-server
-    bin/scm-rpc-gitlab-client --> bin/scm-rpc-server
-    bin/scm-rpc-server --> GitHub
-    bin/scm-rpc-server --> GitLab
-```
-
-Example: run `bin/scm-rpc-server` in a terminal, then `bin/scm-rpc-gitlab-client get-app-installation | jq .data` in another to produce something like:
+Example: run `bin/rpc-server` in a terminal, then `bin/rpc-gitlab-client get-app-installation | jq .data` in another to produce something like:
 
 ```
 DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8080
@@ -94,13 +66,13 @@ DEBUG:urllib3.connectionpool:http://localhost:8080 "POST /api/0/internal/scm-rpc
 
 ```mermaid
 flowchart LR
-    bin/sentry-rpc-github-client --> sentry
-    bin/sentry-rpc-gitlab-client --> sentry
+    bin/sentry-github-client --> sentry
+    bin/sentry-gitlab-client --> sentry
     sentry --> GitHub
     sentry --> GitLab
 ```
 
-Example: with your sentry development environment running in a terminal (and the target repository configured via Sentry's "integrations" GUI), run `bin/sentry-rpc-github-client get-pull-request 2 | jq .data` from another terminal to produce something like:
+Example: with your sentry development environment running in a terminal (and the target repository configured via Sentry's "integrations" GUI), run `bin/sentry-github-client get-pull-request 2 | jq .data` from another terminal to produce something like:
 
 ```
 DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8000
