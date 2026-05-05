@@ -1,5 +1,6 @@
 import datetime
 from collections.abc import Callable, Iterable
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Any
 from urllib.parse import quote
 
@@ -43,7 +44,10 @@ from scm.types import (
     Referrer,
     Repository,
     RequestOptions,
+    Review,
     ReviewComment,
+    ReviewCommentInput,
+    ReviewEvent,
     ReviewSide,
     TreeEntry,
     WriteCommitAction,
@@ -88,6 +92,7 @@ class GitLab:
     merge_request_discussions = "/projects/{project_id}/merge_requests/{pr_key}/discussions"
     merge_request_discussion = "/projects/{project_id}/merge_requests/{pr_key}/discussions/{discussion_id}"
     merge_request_discussion_notes = "/projects/{project_id}/merge_requests/{pr_key}/discussions/{discussion_id}/notes"
+    merge_request_approve = "/projects/{project_id}/merge_requests/{pr_key}/approve"
     pr_diffs = "/projects/{project}/merge_requests/{pr_key}/diffs"
     project = "/projects/{project}"
     project_issues = "/projects/{project}/issues"
@@ -911,6 +916,103 @@ class GitLabProvider:
         return make_result(
             map_review_comment(discussion_id),
             raw,
+        )
+
+    def create_review(
+        self,
+        pull_request_id: str,
+        commit_sha: SHA,
+        event: ReviewEvent,
+        comments: list[ReviewCommentInput],
+        body: str | None = None,
+    ) -> ActionResult[Review]:
+        """Create a review on a GitLab merge request.
+
+        Unlike GitHub's atomic review API, GitLab has no single endpoint that
+        bundles inline comments with an approval action.  This method emulates
+        that by creating each inline comment as a separate MR discussion and,
+        when *event* is ``"approve"``, calling the MR approve endpoint.  The
+        operation is therefore **not atomic**: individual API calls may succeed
+        independently.
+        """
+        versions_response = self.get(
+            GitLab.merge_request_versions.format(project_id=self.project_id, pr_key=pull_request_id),
+        )
+        versions = versions_response.json()
+
+        def _create_review_comment(comment: ReviewCommentInput) -> str:
+            position: dict[str, Any] = {
+                "position_type": "text",
+                "base_sha": versions[0]["base_commit_sha"],
+                "head_sha": versions[0]["head_commit_sha"],
+                "start_sha": versions[0]["start_commit_sha"],
+                "new_path": comment["path"],
+                "old_path": comment["path"],
+            }
+            if "line" in comment:
+                side = comment.get("side", "head")
+                if side == "head":
+                    position["new_line"] = comment["line"]
+                else:
+                    position["old_line"] = comment["line"]
+
+            if "start_line" in comment:
+                start_side = comment.get("start_side", "head")
+                if start_side == "head":
+                    position["line_range"] = {
+                        "start": {"new_line": comment["start_line"], "type": "new"},
+                        "end": {"new_line": comment["line"], "type": "new"},
+                    }
+                else:
+                    position["line_range"] = {
+                        "start": {"old_line": comment["start_line"], "type": "old"},
+                        "end": {"old_line": comment["line"], "type": "old"},
+                    }
+
+            resp = self.post(
+                GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
+                data={"body": comment["body"], "position": position},
+            )
+            return resp.json()["id"]
+
+        def _create_review_body() -> None:
+            self.post(
+                GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
+                data={"body": body},
+            )
+
+        def _approve_pull_request() -> None:
+            self.post(
+                GitLab.merge_request_approve.format(project_id=self.project_id, pr_key=pull_request_id),
+                data={"sha": commit_sha},
+            )
+
+        discussion_ids: list[str | None] = [None] * len(comments)
+        with ThreadPoolExecutor() as executor:
+            comment_futures = {
+                executor.submit(_create_review_comment, comment): idx for idx, comment in enumerate(comments)
+            }
+            action_futures: list[Future[None]] = []
+            if body is not None:
+                action_futures.append(executor.submit(_create_review_body))
+            if event == "approve":
+                action_futures.append(executor.submit(_approve_pull_request))
+
+            for comment_future in as_completed(comment_futures):
+                idx = comment_futures[comment_future]
+                discussion_ids[idx] = comment_future.result()
+
+            for action_future in action_futures:
+                action_future.result()
+
+        return ActionResult(
+            data=Review(
+                id="unset",
+                html_url=f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}",
+            ),
+            type="gitlab",
+            raw={"data": {}, "headers": None},
+            meta={},
         )
 
     def download_archive(

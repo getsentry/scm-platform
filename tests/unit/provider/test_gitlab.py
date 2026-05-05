@@ -12433,3 +12433,121 @@ def test_create_pull_request_draft_does_not_double_prefix(client, provider: GitL
     provider.create_pull_request_draft(title=title, body="body", head="feature", base="main")
 
     assert client.request.call_args.kwargs["data"]["title"] == title
+
+
+def _route_request(routes: dict[str, Any], **kwargs) -> Any:
+    """Return a mock response whose json_response is selected by request path."""
+    path = kwargs["path"]
+    for route_path, json_data in routes.items():
+        if path == route_path:
+            return _make_mock_response(json_data)
+    raise AssertionError(f"Unexpected request path: {path}")
+
+
+def test_create_review_with_comments_body_and_approve(client, provider: GitLabProvider):
+    routes = {
+        "/projects/79787061/merge_requests/1/versions": [
+            {
+                "id": 1692137080,
+                "head_commit_sha": "7497e018d01503b6abc3053b7896266115e631f6",
+                "base_commit_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                "start_commit_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+            },
+        ],
+        "/projects/79787061/merge_requests/1/discussions": {
+            "id": "abc123discussion",
+            "individual_note": False,
+            "notes": [{"id": 9999001, "type": "DiffNote", "body": "Inline comment on line 5."}],
+        },
+        "/projects/79787061/merge_requests/1/notes": {
+            "id": 9999002,
+            "body": "Looks good overall.",
+        },
+        "/projects/79787061/merge_requests/1/approve": {
+            "id": 459277081,
+            "iid": 1,
+            "approved": True,
+        },
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    result = provider.create_review(
+        pull_request_id="1",
+        commit_sha="7497e018d01503b6abc3053b7896266115e631f6",
+        event="approve",
+        comments=[{"path": "BLAH.md", "body": "Inline comment on line 5.", "line": 5, "side": "head"}],
+        body="Looks good overall.",
+    )
+
+    assert result == {
+        "data": {
+            "id": "unset",
+            "html_url": "https://gitlab.com/test-repo/-/merge_requests/1",
+        },
+        "type": "gitlab",
+        "raw": {"data": {}, "headers": None},
+        "meta": {},
+    }
+
+    calls_by_path: dict[str, list] = {}
+    for call in client.request.call_args_list:
+        calls_by_path.setdefault(call.kwargs["path"], []).append(call)
+
+    assert "/projects/79787061/merge_requests/1/versions" in calls_by_path
+    assert calls_by_path["/projects/79787061/merge_requests/1/versions"][0].kwargs["method"] == "GET"
+
+    disc_calls = calls_by_path["/projects/79787061/merge_requests/1/discussions"]
+    assert len(disc_calls) == 1
+    assert disc_calls[0].kwargs["data"] == {
+        "body": "Inline comment on line 5.",
+        "position": {
+            "position_type": "text",
+            "base_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+            "head_sha": "7497e018d01503b6abc3053b7896266115e631f6",
+            "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+            "new_path": "BLAH.md",
+            "old_path": "BLAH.md",
+            "new_line": 5,
+        },
+    }
+
+    note_calls = calls_by_path["/projects/79787061/merge_requests/1/notes"]
+    assert len(note_calls) == 1
+    assert note_calls[0].kwargs["data"] == {"body": "Looks good overall."}
+
+    approve_calls = calls_by_path["/projects/79787061/merge_requests/1/approve"]
+    assert len(approve_calls) == 1
+    assert approve_calls[0].kwargs["data"] == {"sha": "7497e018d01503b6abc3053b7896266115e631f6"}
+
+
+def test_create_review_comment_only(client, provider: GitLabProvider):
+    """Event is 'comment' with no body — only discussions are created, no approve or note."""
+    routes = {
+        "/projects/79787061/merge_requests/1/versions": [
+            {
+                "id": 1,
+                "head_commit_sha": "head111",
+                "base_commit_sha": "base111",
+                "start_commit_sha": "start111",
+            },
+        ],
+        "/projects/79787061/merge_requests/1/discussions": {
+            "id": "disc_only",
+            "individual_note": False,
+            "notes": [{"id": 1, "type": "DiffNote", "body": "nit"}],
+        },
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    result = provider.create_review(
+        pull_request_id="1",
+        commit_sha="head111",
+        event="comment",
+        comments=[{"path": "README.md", "body": "nit", "line": 1}],
+    )
+
+    assert result["data"]["id"] == "unset"
+
+    paths_called = [c.kwargs["path"] for c in client.request.call_args_list]
+    assert "/projects/79787061/merge_requests/1/approve" not in paths_called
+    assert "/projects/79787061/merge_requests/1/notes" not in paths_called
