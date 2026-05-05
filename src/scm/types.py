@@ -326,6 +326,7 @@ class GitRepository(TypedDict):
     clone_url: str
     private: bool
     size: int
+    topics: list[str]
 
 
 class GitRef(TypedDict):

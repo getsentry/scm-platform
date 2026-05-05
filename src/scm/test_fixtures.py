@@ -59,6 +59,7 @@ def make_github_repository() -> dict[str, Any]:
         "clone_url": "https://github.com/test-org/test-repo.git",
         "private": False,
         "size": 1234,
+        "topics": ["python", "api"],
     }
 
 

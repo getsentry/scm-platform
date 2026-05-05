@@ -1238,6 +1238,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         private=raw["visibility"] != "public",
         # GitLab returns size in bytes. We convert to kB to match GitHub
         size=repo_size // 1000,
+        topics=list(raw.get("topics", [])),
     )
 
 

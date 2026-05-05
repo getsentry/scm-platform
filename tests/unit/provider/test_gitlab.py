@@ -86,6 +86,7 @@ def _make_mock_response(json_data):
                     "clone_url": "https://gitlab.com/test-org/test-repo.git",
                     "private": False,
                     "size": 123,  # Size converted from bytes to kB
+                    "topics": [],
                 },
                 "type": "gitlab",
                 "raw": {

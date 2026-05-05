@@ -1403,6 +1403,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         clone_url=raw["clone_url"],
         private=raw["private"],
         size=raw["size"],
+        topics=list(raw.get("topics", [])),
     )
 
 
