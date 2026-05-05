@@ -1296,7 +1296,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             id=f"{discussion_id}:{raw['id']}",
             unique_id=f"{discussion_id}:{raw['id']}",
             url=None,
-            file_path=raw["position"]["new_path"],
+            file_path=raw.get("position", {}).get("new_path"),
             body=raw["body"],
             author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
             created_at=raw.get("created_at"),

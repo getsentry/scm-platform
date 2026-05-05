@@ -441,7 +441,7 @@ class ReviewComment(TypedDict):
     id: ResourceId
     unique_id: str | None
     url: str | None
-    file_path: str
+    file_path: str | None
     body: str
     author: Author | None
     created_at: str | None
