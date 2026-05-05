@@ -443,7 +443,7 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
     # File content operations
     (
         "get_file_content",
-        lambda scm: actions.get_file_content(scm, "README.md"),
+        lambda scm: actions.get_file_content(scm, "README.md", "main"),
         make_github_file_content(),
         200,
         None,

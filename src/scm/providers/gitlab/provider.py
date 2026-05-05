@@ -653,15 +653,12 @@ class GitLabProvider:
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
-        params: dict[str, str] = {}
-        if ref:
-            params["ref"] = ref
         response = self.get(
             GitLab.file.format(project=self.project_id, path=path),
-            params=params,
+            params={"ref": ref},
             request_options=request_options,
         )
         return make_result(map_file_content, response.json())

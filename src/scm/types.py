@@ -1000,7 +1000,7 @@ class GetFileContentProtocol(Protocol):
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]: ...
 

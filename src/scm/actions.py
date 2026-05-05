@@ -381,7 +381,7 @@ def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> 
 def get_file_content(
     scm: GetFileContentProtocol,
     path: str,
-    ref: str | None = None,
+    ref: str,
     request_options: RequestOptions | None = None,
 ) -> ActionResult[FileContent]:
     return scm.get_file_content(path, ref, request_options)
