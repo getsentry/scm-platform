@@ -284,6 +284,22 @@ class GitLabProvider:
         )
         return make_paginated_result(map_label, response.json())
 
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        response = self.get(
+            GitLab.project.format(project=self.project_id),
+            request_options=request_options,
+        )
+        raw = response.json()
+        return ActionResult(
+            data=list(raw.get("topics", [])),
+            type="gitlab",
+            raw={"data": raw, "headers": None},
+            meta={},
+        )
+
     def get_issue_comments(
         self,
         issue_id: str,
@@ -1247,6 +1263,8 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         private=raw["visibility"] != "public",
         # GitLab returns size in bytes. We convert to kB to match GitHub
         size=repo_size // 1000,
+        description=raw.get("description"),
+        topics=list(raw.get("topics", [])),
     )
 
 

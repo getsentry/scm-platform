@@ -59,6 +59,8 @@ def make_github_repository() -> dict[str, Any]:
         "clone_url": "https://github.com/test-org/test-repo.git",
         "private": False,
         "size": 1234,
+        "description": "A test repository",
+        "topics": ["python", "api"],
     }
 
 
@@ -675,6 +677,17 @@ class BaseTestProvider(Provider):
             type="github",
             raw={"headers": None, "data": None},
             meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        return ActionResult(
+            data=["python", "api"],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
         )
 
     # Issue comments

@@ -326,6 +326,8 @@ class GitRepository(TypedDict):
     clone_url: str
     private: bool
     size: int
+    description: str | None
+    topics: list[str]
 
 
 class GitRef(TypedDict):
@@ -559,6 +561,14 @@ class GetRepositoryLabelsProtocol(Protocol):
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Label]: ...
+
+
+@runtime_checkable
+class GetRepositoryTopicsProtocol(Protocol):
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]: ...
 
 
 # Issue Protocols
@@ -1192,6 +1202,7 @@ ALL_PROTOCOLS = (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
+    GetRepositoryTopicsProtocol,
     GetTreeProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,

@@ -74,6 +74,7 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
+    GetRepositoryTopicsProtocol,
     GetTreeProtocol,
     GitBlob,
     GitCommitObject,
@@ -135,6 +136,14 @@ def get_repository_labels(
 ) -> PaginatedActionResult[Label]:
     """Get labels defined in the repository."""
     return scm.get_repository_labels(pagination, request_options)
+
+
+def get_repository_topics(
+    scm: GetRepositoryTopicsProtocol,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[list[str]]:
+    """Get topics associated with the repository."""
+    return scm.get_repository_topics(request_options)
 
 
 def get_issue(
@@ -754,6 +763,7 @@ __all__ = (
     "get_repository",
     "get_repository_assignees",
     "get_repository_labels",
+    "get_repository_topics",
     "get_tree",
     "minimize_comment",
     "request_review",
