@@ -1,6 +1,6 @@
 import datetime
 from collections.abc import Callable, Iterable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Any
 from urllib.parse import quote
 
@@ -940,7 +940,7 @@ class GitLabProvider:
         )
         versions = versions_response.json()
 
-        def _post_discussion(comment: ReviewCommentInput) -> str:
+        def _create_review_comment(comment: ReviewCommentInput) -> str:
             position: dict[str, Any] = {
                 "position_type": "text",
                 "base_sha": versions[0]["base_commit_sha"],
@@ -975,13 +975,13 @@ class GitLabProvider:
             )
             return resp.json()["id"]
 
-        def _post_body() -> None:
+        def _create_review_body() -> None:
             self.post(
                 GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
                 data={"body": body},
             )
 
-        def _post_approve() -> None:
+        def _approve_pull_request() -> None:
             self.post(
                 GitLab.merge_request_approve.format(project_id=self.project_id, pr_key=pull_request_id),
                 data={"sha": commit_sha},
@@ -989,23 +989,29 @@ class GitLabProvider:
 
         discussion_ids: list[str | None] = [None] * len(comments)
         with ThreadPoolExecutor() as executor:
-            disc_futures = {executor.submit(_post_discussion, comment): idx for idx, comment in enumerate(comments)}
+            comment_futures = {
+                executor.submit(_create_review_comment, comment): idx for idx, comment in enumerate(comments)
+            }
+            action_futures: list[Future[None]] = []
             if body is not None:
-                executor.submit(_post_body)
+                action_futures.append(executor.submit(_create_review_body))
             if event == "approve":
-                executor.submit(_post_approve)
+                action_futures.append(executor.submit(_approve_pull_request))
 
-            for future in as_completed(disc_futures):
-                idx = disc_futures[future]
-                discussion_ids[idx] = future.result()
+            for comment_future in as_completed(comment_futures):
+                idx = comment_futures[comment_future]
+                discussion_ids[idx] = comment_future.result()
 
-        resolved_ids: list[str] = [did for did in discussion_ids if did is not None]
-        review_id = ",".join(resolved_ids) if resolved_ids else "review"
-        mr_url = f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}"
+            for action_future in action_futures:
+                action_future.result()
+
         return ActionResult(
-            data=Review(id=review_id, html_url=mr_url),
+            data=Review(
+                id="unset",
+                html_url=f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}",
+            ),
             type="gitlab",
-            raw={"data": {"discussion_ids": resolved_ids}, "headers": None},
+            raw={"data": {}, "headers": None},
             meta={},
         )
 

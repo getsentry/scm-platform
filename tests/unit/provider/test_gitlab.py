@@ -12481,11 +12481,11 @@ def test_create_review_with_comments_body_and_approve(client, provider: GitLabPr
 
     assert result == {
         "data": {
-            "id": "abc123discussion",
+            "id": "unset",
             "html_url": "https://gitlab.com/test-repo/-/merge_requests/1",
         },
         "type": "gitlab",
-        "raw": {"data": {"discussion_ids": ["abc123discussion"]}, "headers": None},
+        "raw": {"data": {}, "headers": None},
         "meta": {},
     }
 
@@ -12546,7 +12546,7 @@ def test_create_review_comment_only(client, provider: GitLabProvider):
         comments=[{"path": "README.md", "body": "nit", "line": 1}],
     )
 
-    assert result["data"]["id"] == "disc_only"
+    assert result["data"]["id"] == "unset"
 
     paths_called = [c.kwargs["path"] for c in client.request.call_args_list]
     assert "/projects/79787061/merge_requests/1/approve" not in paths_called
