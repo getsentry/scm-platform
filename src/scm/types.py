@@ -561,6 +561,14 @@ class GetRepositoryLabelsProtocol(Protocol):
     ) -> PaginatedActionResult[Label]: ...
 
 
+@runtime_checkable
+class GetRepositoryTopicsProtocol(Protocol):
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]: ...
+
+
 # Issue Protocols
 
 
@@ -1182,6 +1190,7 @@ ALL_PROTOCOLS = (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
+    GetRepositoryTopicsProtocol,
     GetTreeProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,

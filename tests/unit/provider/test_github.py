@@ -559,6 +559,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_repository(REPOSITORY_RAW),
     },
     {
+        "name": "get_repository_topics",
+        "operation": "get",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/topics",
+        "raw": {"names": ["python", "api"]},
+        "expected_data": ["python", "api"],
+    },
+    {
         "name": "create_issue_comment",
         "operation": "post",
         "kwargs": {"issue_id": "42", "body": "hello"},

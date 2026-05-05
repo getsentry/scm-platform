@@ -281,6 +281,22 @@ class GitLabProvider:
         )
         return make_paginated_result(map_label, response.json())
 
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        response = self.get(
+            GitLab.project.format(project=self.project_id),
+            request_options=request_options,
+        )
+        raw = response.json()
+        return ActionResult(
+            data=list(raw.get("topics", [])),
+            type="gitlab",
+            raw={"data": raw, "headers": None},
+            meta={},
+        )
+
     def get_issue_comments(
         self,
         issue_id: str,

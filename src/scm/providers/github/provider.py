@@ -368,6 +368,16 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_label(label) for label in r])
 
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/topics",
+            request_options=request_options,
+        )
+        return map_action(response, lambda r: list(r.get("names", [])))
+
     def get_issue_comments(
         self,
         issue_id: str,

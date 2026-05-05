@@ -140,6 +140,23 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.get_repository_topics,
+            provider_args={"request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061",
+                    json_response={"topics": ["python", "api"]},
+                ),
+            ],
+            provider_return_value={
+                "data": ["python", "api"],
+                "type": "gitlab",
+                "raw": {"data": {"topics": ["python", "api"]}, "headers": None},
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_repository_labels,
             provider_args={"pagination": None, "request_options": None},
             client_calls=[

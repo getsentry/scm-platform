@@ -44,6 +44,7 @@ Commands:
     get-repository
     get-repository-assignees
     get-repository-labels
+    get-repository-topics
     get-app-installation
 """
 
@@ -86,6 +87,7 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
+    GetRepositoryTopicsProtocol,
     MoveCommitAction,
     WriteCommitAction,
 )
@@ -238,6 +240,7 @@ def main():
     sub.add_parser("get-repository")
     sub.add_parser("get-repository-assignees")
     sub.add_parser("get-repository-labels")
+    sub.add_parser("get-repository-topics")
     sub.add_parser("get-app-installation")
 
     args = parser.parse_args()
@@ -393,6 +396,10 @@ def main():
     elif args.command == "get-repository-labels":
         assert isinstance(scm, GetRepositoryLabelsProtocol)
         dump(scm.get_repository_labels())
+
+    elif args.command == "get-repository-topics":
+        assert isinstance(scm, GetRepositoryTopicsProtocol)
+        dump(scm.get_repository_topics())
 
     elif args.command == "get-app-installation":
         assert isinstance(scm, GetAppInstallationProtocol)
