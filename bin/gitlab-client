@@ -42,6 +42,9 @@ Commands:
         [--move <old_filename>:<new_filename> ...]
         [--chmod <filename>:<0|1> ...]
         [--force]
+    create-review <pr_id> <commit_sha> <event>
+        [--body <text>]
+        [--comment <json> ...]
     get-repository-assignees
     get-repository-labels
 """
@@ -60,6 +63,7 @@ from scm.types import (
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
+    CreateReviewProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
     DownloadArchiveProtocol,
@@ -80,6 +84,7 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     MoveCommitAction,
+    ReviewCommentInput,
     WriteCommitAction,
 )
 
@@ -201,6 +206,13 @@ def main():
     p.add_argument("--chmod", action="append", dest="chmods", default=None, metavar="FILENAME:0|1")
     p.add_argument("--force", action="store_true")
 
+    p = sub.add_parser("create-review")
+    p.add_argument("pr_id")
+    p.add_argument("commit_sha")
+    p.add_argument("event", choices=["approve", "change_request", "comment"])
+    p.add_argument("--body", default=None)
+    p.add_argument("--comment", action="append", dest="comments", default=None, metavar="JSON")
+
     p = sub.add_parser("download-archive")
     p.add_argument("ref")
 
@@ -314,6 +326,11 @@ def main():
             filename, _, flag = spec.rpartition(":")
             actions.append(ChmodCommitAction(filename=filename, executable=flag == "1"))
         dump(scm.create_commit(args.branch, args.parent_sha, args.message, actions, force=args.force))
+
+    elif args.command == "create-review":
+        assert isinstance(scm, CreateReviewProtocol)
+        comments: list[ReviewCommentInput] = [json.loads(c) for c in (args.comments or [])]
+        dump(scm.create_review(args.pr_id, args.commit_sha, args.event, comments, body=args.body))
 
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
