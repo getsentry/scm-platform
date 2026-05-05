@@ -76,6 +76,7 @@ def _make_mock_response(json_data):
                         "http_url_to_repo": "https://gitlab.com/test-org/test-repo.git",
                         "visibility": "public",
                         "statistics": {"repository_size": 123456},
+                        "description": "A test repository",
                     },
                 ),
             ],
@@ -86,6 +87,7 @@ def _make_mock_response(json_data):
                     "clone_url": "https://gitlab.com/test-org/test-repo.git",
                     "private": False,
                     "size": 123,  # Size converted from bytes to kB
+                    "description": "A test repository",
                     "topics": [],
                 },
                 "type": "gitlab",
@@ -96,6 +98,7 @@ def _make_mock_response(json_data):
                         "http_url_to_repo": "https://gitlab.com/test-org/test-repo.git",
                         "visibility": "public",
                         "statistics": {"repository_size": 123456},
+                        "description": "A test repository",
                     },
                     "headers": None,
                 },

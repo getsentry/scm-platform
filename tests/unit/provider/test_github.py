@@ -204,6 +204,7 @@ def expected_repository(raw: dict[str, Any]) -> dict[str, Any]:
         "clone_url": raw["clone_url"],
         "private": raw["private"],
         "size": raw["size"],
+        "description": raw.get("description"),
         "topics": raw["topics"],
     }
 

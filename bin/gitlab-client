@@ -45,6 +45,7 @@ Commands:
     create-review <pr_id> <commit_sha> <event>
         [--body <text>]
         [--comment <json> ...]
+    get-repository
     get-repository-assignees
     get-repository-labels
 """
@@ -83,6 +84,7 @@ from scm.types import (
     GetPullRequestUrlProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
+    GetRepositoryProtocol,
     MoveCommitAction,
     ReviewCommentInput,
     WriteCommitAction,
@@ -216,6 +218,7 @@ def main():
     p = sub.add_parser("download-archive")
     p.add_argument("ref")
 
+    sub.add_parser("get-repository")
     sub.add_parser("get-repository-assignees")
     sub.add_parser("get-repository-labels")
     sub.add_parser("get-app-installation")
@@ -335,6 +338,10 @@ def main():
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)
         logger.info(scm.download_archive(args.ref))
+
+    elif args.command == "get-repository":
+        assert isinstance(scm, GetRepositoryProtocol)
+        dump(scm.get_repository())
 
     elif args.command == "get-repository-assignees":
         assert isinstance(scm, GetRepositoryAssigneesProtocol)
