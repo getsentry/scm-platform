@@ -504,6 +504,16 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "next_cursor": "2",
     },
     {
+        "name": "get_directory_contents",
+        "kwargs": {"path": "src", "ref": "main"},
+        "path": "/repos/test-org/test-repo/contents/src",
+        "params": {"ref": "main"},
+        "pagination": None,
+        "raw": [FILE_CONTENT_RAW, FILE_CONTENT_RAW],
+        "expected_data": [expected_file_content(FILE_CONTENT_RAW), expected_file_content(FILE_CONTENT_RAW)],
+        "next_cursor": "2",
+    },
+    {
         "name": "get_pull_request_files",
         "kwargs": {"pull_request_id": "42"},
         "path": "/repos/test-org/test-repo/pulls/42/files",
@@ -670,15 +680,6 @@ ACTION_CASES: list[dict[str, Any]] = [
         "params": {"ref": "main"},
         "raw": FILE_CONTENT_RAW,
         "expected_data": expected_file_content(FILE_CONTENT_RAW),
-    },
-    {
-        "name": "get_directory_contents",
-        "operation": "get",
-        "kwargs": {"path": "src", "ref": "main"},
-        "path": "/repos/test-org/test-repo/contents/src",
-        "params": {"ref": "main"},
-        "raw": [FILE_CONTENT_RAW, FILE_CONTENT_RAW],
-        "expected_data": [expected_file_content(FILE_CONTENT_RAW), expected_file_content(FILE_CONTENT_RAW)],
     },
     {
         "name": "get_commit",

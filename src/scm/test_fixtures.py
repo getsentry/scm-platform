@@ -969,9 +969,10 @@ class BaseTestProvider(Provider):
         self,
         path: str,
         ref: str | None = None,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[FileContent]]:
-        return ActionResult(
+    ) -> PaginatedActionResult[FileContent]:
+        return PaginatedActionResult(
             data=[
                 FileContent(
                     path=f"{path}/README.md",
@@ -990,7 +991,7 @@ class BaseTestProvider(Provider):
             ],
             type="github",
             raw={"headers": None, "data": None},
-            meta={},
+            meta=_DEFAULT_PAGINATED_META,
         )
 
     # Commit operations

@@ -632,25 +632,22 @@ class GitHubProvider:
         self,
         path: str,
         ref: str | None = None,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[FileContent]]:
+    ) -> PaginatedActionResult[FileContent]:
         params: dict[str, str] = {}
         if ref:
             params["ref"] = ref
         response = self.get(
             f"/repos/{self.repository['name']}/contents/{path}",
             params=params,
+            pagination=pagination,
             request_options=request_options,
         )
         raw = response.json()
         if not isinstance(raw, list):
             raise SCMCodedError(code="path_is_not_directory", detail=path)
-        return {
-            "data": [map_file_content(item) for item in raw],
-            "type": "github",
-            "raw": {"data": raw, "headers": dict(response.headers)},
-            "meta": _extract_response_meta(response),
-        }
+        return map_paginated_action(pagination, response, lambda r: [map_file_content(item) for item in r])
 
     def get_commit(
         self,

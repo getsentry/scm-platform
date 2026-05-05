@@ -382,9 +382,10 @@ def get_directory_contents(
     scm: GetDirectoryContentsProtocol,
     path: str,
     ref: str | None = None,
+    pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> ActionResult[list[FileContent]]:
-    return scm.get_directory_contents(path, ref, request_options)
+) -> PaginatedActionResult[FileContent]:
+    return scm.get_directory_contents(path, ref, pagination, request_options)
 
 
 def get_commit(

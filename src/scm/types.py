@@ -1001,8 +1001,9 @@ class GetDirectoryContentsProtocol(Protocol):
         self,
         path: str,
         ref: str | None = None,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[FileContent]]: ...
+    ) -> PaginatedActionResult[FileContent]: ...
 
 
 # Archive Protocols

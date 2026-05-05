@@ -652,8 +652,9 @@ class GitLabProvider:
         self,
         path: str,
         ref: str | None = None,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[FileContent]]:
+    ) -> PaginatedActionResult[FileContent]:
         params: dict[str, str] = {"path": path}
         if ref:
             params["ref"] = ref
@@ -661,6 +662,7 @@ class GitLabProvider:
             response = self.get(
                 GitLab.tree.format(project=self.project_id),
                 params=params,
+                pagination=pagination,
                 request_options=request_options,
             )
         except SCMCodedError as e:
@@ -668,13 +670,7 @@ class GitLabProvider:
             if e.code == "resource_not_found" and e.detail and "not treeish" in e.detail:
                 raise SCMCodedError(code="path_is_not_directory", detail=path) from e
             raise
-        raw = response.json()
-        return ActionResult(
-            data=[map_tree_entry_to_file_content(item) for item in raw],
-            type="gitlab",
-            raw={"data": raw, "headers": None},
-            meta={},
-        )
+        return make_paginated_result(map_tree_entry_to_file_content, response.json())
 
     def get_commit(
         self,

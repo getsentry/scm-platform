@@ -10669,7 +10669,7 @@ def _make_mock_response(json_data):
         ),
         ForwardToClientTest(
             provider_method=GitLabProvider.get_directory_contents,
-            provider_args={"path": "src", "ref": "main", "request_options": None},
+            provider_args={"path": "src", "ref": "main", "pagination": None, "request_options": None},
             client_calls=[
                 ClientForwardedCall(
                     method="GET",
@@ -10730,7 +10730,7 @@ def _make_mock_response(json_data):
                     ],
                     "headers": None,
                 },
-                "meta": {},
+                "meta": {"next_cursor": None},
             },
         ),
         ForwardToClientTest(
