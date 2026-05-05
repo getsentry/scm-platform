@@ -105,6 +105,7 @@ from scm.types import (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
     WriteCommitAction,
 )
 
@@ -637,6 +638,15 @@ def create_review(
     return scm.create_review(pull_request_id, commit_sha, event, comments, body=body)
 
 
+def update_review_comment(
+    scm: UpdateReviewCommentProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    body: str,
+) -> ActionResult[ReviewComment]:
+    return scm.update_review_comment(pull_request_id, comment_id, body)
+
+
 def create_check_run(
     scm: CreateCheckRunProtocol,
     name: str,
@@ -760,4 +770,5 @@ __all__ = (
     "update_branch",
     "update_check_run",
     "update_pull_request",
+    "update_review_comment",
 )

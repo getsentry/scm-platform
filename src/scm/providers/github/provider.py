@@ -1064,6 +1064,18 @@ class GitHubProvider:
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]:
+        response = self.patch(
+            f"/repos/{self.repository['name']}/pulls/comments/{comment_id}",
+            data={"body": body},
+        )
+        return deserialize_action(response, deserialize_pull_request_review_comment)
+
     def create_review(
         self,
         pull_request_id: str,

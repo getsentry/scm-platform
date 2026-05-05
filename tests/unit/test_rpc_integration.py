@@ -538,6 +538,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "update_review_comment",
+        lambda scm: actions.update_review_comment(scm, "1", "100", "Updated body"),
+        make_github_review_comment(),
+        200,
+        None,
+    ),
+    (
         "create_review",
         lambda scm: actions.create_review(scm, "1", "abc123", "comment", []),
         make_github_review(),

@@ -45,6 +45,7 @@ Commands:
     create-review <pr_id> <commit_sha> <event>
         [--body <text>]
         [--comment <json> ...]
+    update-review-comment <pr_id> <comment_id> <body>
     get-repository
     get-repository-assignees
     get-repository-labels
@@ -87,6 +88,7 @@ from scm.types import (
     GetRepositoryProtocol,
     MoveCommitAction,
     ReviewCommentInput,
+    UpdateReviewCommentProtocol,
     WriteCommitAction,
 )
 
@@ -215,6 +217,11 @@ def main():
     p.add_argument("--body", default=None)
     p.add_argument("--comment", action="append", dest="comments", default=None, metavar="JSON")
 
+    p = sub.add_parser("update-review-comment")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("body")
+
     p = sub.add_parser("download-archive")
     p.add_argument("ref")
 
@@ -334,6 +341,10 @@ def main():
         assert isinstance(scm, CreateReviewProtocol)
         comments: list[ReviewCommentInput] = [json.loads(c) for c in (args.comments or [])]
         dump(scm.create_review(args.pr_id, args.commit_sha, args.event, comments, body=args.body))
+
+    elif args.command == "update-review-comment":
+        assert isinstance(scm, UpdateReviewCommentProtocol)
+        dump(scm.update_review_comment(args.pr_id, args.comment_id, args.body))
 
     elif args.command == "download-archive":
         assert isinstance(scm, DownloadArchiveProtocol)

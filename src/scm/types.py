@@ -443,7 +443,7 @@ class ReviewComment(TypedDict):
     id: ResourceId
     unique_id: str | None
     url: str | None
-    file_path: str
+    file_path: str | None
     body: str
     author: Author | None
     created_at: str | None
@@ -1121,6 +1121,16 @@ class CreateReviewProtocol(Protocol):
     ) -> ActionResult[Review]: ...
 
 
+@runtime_checkable
+class UpdateReviewCommentProtocol(Protocol):
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]: ...
+
+
 # Moderation Protocols
 
 
@@ -1200,6 +1210,7 @@ ALL_PROTOCOLS = (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
 )
 
 type CredentialsSet = str
