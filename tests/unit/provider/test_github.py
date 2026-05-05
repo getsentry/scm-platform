@@ -506,6 +506,16 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "next_cursor": "2",
     },
     {
+        "name": "get_directory_contents",
+        "kwargs": {"path": "src", "ref": "main"},
+        "path": "/repos/test-org/test-repo/contents/src",
+        "params": {"ref": "main"},
+        "pagination": None,
+        "raw": [FILE_CONTENT_RAW, FILE_CONTENT_RAW],
+        "expected_data": [expected_file_content(FILE_CONTENT_RAW), expected_file_content(FILE_CONTENT_RAW)],
+        "next_cursor": None,
+    },
+    {
         "name": "get_pull_request_files",
         "kwargs": {"pull_request_id": "42"},
         "path": "/repos/test-org/test-repo/pulls/42/files",
@@ -1122,6 +1132,17 @@ def test_get_file_content_raises_when_path_is_directory() -> None:
 
     assert exc_info.value.code == "path_is_directory"
     assert exc_info.value.detail == "src"
+
+
+def test_get_directory_contents_raises_when_path_is_not_directory() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(FILE_CONTENT_RAW))
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_directory_contents(path="README.md", ref="main")
+
+    assert exc_info.value.code == "path_is_not_directory"
+    assert exc_info.value.detail == "README.md"
 
 
 def test_get_pull_request_diff_uses_raw_request_and_extracts_meta() -> None:

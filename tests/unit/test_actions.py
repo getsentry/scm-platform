@@ -39,6 +39,7 @@ from scm.actions import (
     get_commit_url,
     get_commits,
     get_commits_by_path,
+    get_directory_contents,
     get_file_content,
     get_file_url,
     get_git_commit,
@@ -144,6 +145,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
     # File content operations
+    (get_directory_contents, {"path": "src"}),
     (get_file_content, {"path": "README.md", "ref": "main"}),
     # Commit operations
     (get_commit, {"sha": "abc123"}),
@@ -402,6 +404,15 @@ def _check_file_content(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_directory_contents(result: Any) -> None:
+    entries = result["data"]
+    assert isinstance(entries, list)
+    assert len(entries) == 2
+    assert entries[0]["path"] == "src/README.md"
+    assert entries[1]["path"] == "src/src"
+    assert result["type"] == "github"
+
+
 def _check_get_commit(result: Any) -> None:
     c = result["data"]
     assert c["id"] == "abc123"
@@ -649,6 +660,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         {"content": "hello", "encoding": "utf-8"},
         _check_create_git_blob,
     ),
+    (get_directory_contents, {"path": "src"}, _check_directory_contents),
     (get_file_content, {"path": "README.md", "ref": "main"}, _check_file_content),
     (get_commit, {"sha": "abc123"}, _check_get_commit),
     (get_commits, {}, _check_get_commits),

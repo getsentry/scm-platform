@@ -978,6 +978,35 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[FileContent]:
+        return PaginatedActionResult(
+            data=[
+                FileContent(
+                    path=f"{path}/README.md",
+                    sha="abc123",
+                    content="",
+                    encoding="",
+                    size=11,
+                ),
+                FileContent(
+                    path=f"{path}/src",
+                    sha="def456",
+                    content="",
+                    encoding="",
+                    size=0,
+                ),
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
     # Commit operations
 
     def get_commit(

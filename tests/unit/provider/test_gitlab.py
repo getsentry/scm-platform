@@ -5,6 +5,7 @@ from typing import Any, NamedTuple
 
 import pytest
 
+from scm.errors import SCMCodedError
 from scm.providers.gitlab.provider import ApiClient, GitLabProvider
 from scm.types import (
     ChmodCommitAction,
@@ -10688,6 +10689,72 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.get_directory_contents,
+            provider_args={"path": "src", "ref": "main", "pagination": None, "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/repository/tree",
+                    json_response=[
+                        {
+                            "id": "d96986775b6793cac0a358b35650de94752a9530",
+                            "name": "README.md",
+                            "type": "blob",
+                            "path": "src/README.md",
+                            "mode": "100644",
+                        },
+                        {
+                            "id": "abc123def456",
+                            "name": "lib",
+                            "type": "tree",
+                            "path": "src/lib",
+                            "mode": "040000",
+                        },
+                    ],
+                    params={"path": "src", "ref": "main"},
+                ),
+            ],
+            provider_return_value={
+                "data": [
+                    {
+                        "path": "src/README.md",
+                        "sha": "d96986775b6793cac0a358b35650de94752a9530",
+                        "content": "",
+                        "encoding": "",
+                        "size": 0,
+                    },
+                    {
+                        "path": "src/lib",
+                        "sha": "abc123def456",
+                        "content": "",
+                        "encoding": "",
+                        "size": 0,
+                    },
+                ],
+                "type": "gitlab",
+                "raw": {
+                    "data": [
+                        {
+                            "id": "d96986775b6793cac0a358b35650de94752a9530",
+                            "name": "README.md",
+                            "type": "blob",
+                            "path": "src/README.md",
+                            "mode": "100644",
+                        },
+                        {
+                            "id": "abc123def456",
+                            "name": "lib",
+                            "type": "tree",
+                            "path": "src/lib",
+                            "mode": "040000",
+                        },
+                    ],
+                    "headers": None,
+                },
+                "meta": {"next_cursor": None},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.compare_commits,
             provider_args={
                 "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
@@ -12449,6 +12516,20 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
+
+
+def test_get_directory_contents_raises_when_path_is_not_directory(client, provider: GitLabProvider):
+    response = unittest.mock.MagicMock()
+    response.status_code = 404
+    response.content = b'{"message":"404 Tree Not Found - path README.md is not treeish"}'
+    response.request = unittest.mock.MagicMock(headers={}, body=None)
+    client.request.return_value = response
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_directory_contents(path="README.md", ref="main")
+
+    assert exc_info.value.code == "path_is_not_directory"
+    assert exc_info.value.detail == "README.md"
 
 
 def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProvider):

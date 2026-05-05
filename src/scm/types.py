@@ -1005,6 +1005,17 @@ class GetFileContentProtocol(Protocol):
     ) -> ActionResult[FileContent]: ...
 
 
+@runtime_checkable
+class GetDirectoryContentsProtocol(Protocol):
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[FileContent]: ...
+
+
 # Archive Protocols
 
 
@@ -1182,6 +1193,7 @@ ALL_PROTOCOLS = (
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
     GetCommitUrlProtocol,
+    GetDirectoryContentsProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetGitCommitProtocol,

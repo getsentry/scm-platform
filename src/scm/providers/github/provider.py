@@ -249,6 +249,7 @@ class GitHubProvider:
             raise SCMCodedError(
                 code=code,
                 detail=response.content.decode("utf-8"),
+                response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
                 request_body=response.request.body,
                 request_url=response.request.url,
@@ -633,6 +634,32 @@ class GitHubProvider:
         if isinstance(response.json(), list):
             raise SCMCodedError(code="path_is_directory", detail=path)
         return map_action(response, map_file_content)
+
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[FileContent]:
+        params: dict[str, str] = {}
+        if ref:
+            params["ref"] = ref
+        response = self.get(
+            f"/repos/{self.repository['name']}/contents/{path}",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        raw = response.json()
+        if not isinstance(raw, list):
+            raise SCMCodedError(code="path_is_not_directory", detail=path)
+        return {
+            "data": [map_file_content(item) for item in raw],
+            "type": "github",
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": {**_extract_response_meta(response), "next_cursor": None},
+        }
 
     def get_commit(
         self,
