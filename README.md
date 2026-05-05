@@ -37,19 +37,18 @@ We provide a few command-line scripts for interactive testing.
 
 You'll need to create `.credentials` according to `.credentials.template` before using them.
 
-All `bin/*-client` have the same subcommands (see [`add_commands`](src/scm/private/cli_support.py) or use the `--help` command-line option). Some subcommands will fail if attempted against a provider that doesn't implement them.
+Both `bin/*-client` have the same subcommands (see [`add_commands`](src/scm/private/cli_support.py) or use the `--help` command-line option). Some subcommands will fail if attempted against a provider that doesn't implement them.
 
 #### Using the RCP, going through `bin/rpc-server`:
 
 ```mermaid
 flowchart LR
-    bin/rpc-github-client --> bin/rpc-server
-    bin/rpc-gitlab-client --> bin/rpc-server
+    bin/rpc-client --> bin/rpc-server
     bin/rpc-server --> GitHub
     bin/rpc-server --> GitLab
 ```
 
-Example: run `bin/rpc-server` in a terminal, then `bin/rpc-gitlab-client get-app-installation | jq .data` in another to produce something like:
+Example: run `bin/rpc-server` in a terminal, then `bin/rpc-client --provider gitlab get-app-installation | jq .data` in another to produce something like:
 
 ```
 DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8080
@@ -66,13 +65,12 @@ DEBUG:urllib3.connectionpool:http://localhost:8080 "POST /api/0/internal/scm-rpc
 
 ```mermaid
 flowchart LR
-    bin/sentry-github-client --> sentry
-    bin/sentry-gitlab-client --> sentry
+    bin/sentry-client --> sentry
     sentry --> GitHub
     sentry --> GitLab
 ```
 
-Example: with your sentry development environment running in a terminal (and the target repository configured via Sentry's "integrations" GUI), run `bin/sentry-github-client get-pull-request 2 | jq .data` from another terminal to produce something like:
+Example: with your sentry development environment running in a terminal (and the target repository configured via Sentry's "integrations" GUI), run `bin/sentry-client --provider github get-pull-request 2 | jq .data` from another terminal to produce something like:
 
 ```
 DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): localhost:8000

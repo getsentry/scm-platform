@@ -2,7 +2,6 @@
 import argparse
 import logging
 import sys
-from urllib.parse import urlparse
 
 from scm.manager import SourceCodeManager
 from scm.private.cli_support import add_commands, execute_command, load_credentials, resolve
@@ -13,35 +12,33 @@ logger = logging.getLogger(__name__)
 def main():
     creds = load_credentials()
 
-    parser = argparse.ArgumentParser(description="RPC client for Sentry, for GitLab repositories")
+    parser = argparse.ArgumentParser(description="RPC client for bin/scm-server")
 
     parser.add_argument(
-        "--gitlab-base-url",
-        default=None,
-        help="Base URL for the GitLab instance. Defaults to GITLAB_BASE_URL from .credentials",
-    )
-    parser.add_argument(
         "--base-url",
-        default="http://localhost:8000",
-        help="URL where Sentry is accessible",
+        default="http://localhost:8080",
+        help="URL where bin/scm-server is accessible",
     )
     parser.add_argument(
         "--secret",
         default=None,
-        help=(
-            "RPC shared secret (value of Sentry's SCM_RPC_SHARED_SECRET setting)."
-            " Defaults to SCM_RPC_SECRET from .credentials"
-        ),
+        help="RPC shared secret. Defaults to SCM_RPC_SECRET from .credentials",
     )
 
     parser.add_argument("--org-id", type=int, default=1, help="Sentry organization ID owning the repository")
     parser.add_argument(
+        "--provider",
+        required=True,
+        choices=["github", "gitlab"],
+        help="Provider name.",
+    )
+    parser.add_argument(
         "--repo",
-        default=creds.get("GITLAB_PROJECT_ID"),
-        required="GITLAB_PROJECT_ID" not in creds,
+        default=None,
         help=(
-            "GitLab project ID (numeric, found in the top-right '...' menu on the GitLab project page)."
-            " Defaults to GITLAB_PROJECT_ID from .credentials"
+            "For GitHub: the full name of the repository, {owner}/{repo}."
+            " For GitLab: the numeric project id, found in the top-right '...' menu on the GitLab project page."
+            " Defaults to GITLAB_PROJECT_ID or GITHUB_REPOSITORY_NAME from .credentials according to the provider"
         ),
     )
 
@@ -52,21 +49,22 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    gitlab_base_url = resolve("GITLAB_BASE_URL", args.gitlab_base_url, creds)
     secret = resolve("SCM_RPC_SECRET", args.secret, creds)
+    repo_variable_name = "GITLAB_PROJECT_ID" if args.provider == "gitlab" else "GITHUB_REPOSITORY_NAME"
+    repo = resolve(repo_variable_name, args.repo, creds)
 
     missing = []
-    if not gitlab_base_url:
-        missing.append("GITLAB_BASE_URL")
     if not secret:
         missing.append("SCM_RPC_SECRET")
+    if not repo:
+        missing.append(repo_variable_name)
     if missing:
         logger.error(f"Error: missing required config: {', '.join(missing)}")
         sys.exit(1)
 
     scm = SourceCodeManager.make_proxy_client(
         args.org_id,
-        ("gitlab", f"{urlparse(gitlab_base_url).netloc}:{args.repo}"),
+        (args.provider, repo),
         base_url=args.base_url,
         signing_secret=secret,
     )
