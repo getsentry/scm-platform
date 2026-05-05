@@ -1111,6 +1111,16 @@ class CreateReviewProtocol(Protocol):
     ) -> ActionResult[Review]: ...
 
 
+@runtime_checkable
+class UpdateReviewCommentProtocol(Protocol):
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]: ...
+
+
 # Moderation Protocols
 
 
@@ -1189,6 +1199,7 @@ ALL_PROTOCOLS = (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
 )
 
 type CredentialsSet = str
