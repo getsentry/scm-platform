@@ -622,15 +622,12 @@ class GitHubProvider:
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
-        params: dict[str, str] = {}
-        if ref:
-            params["ref"] = ref
         response = self.get(
             f"/repos/{self.repository['name']}/contents/{path}",
-            params=params,
+            params={"ref": ref},
             request_options=request_options,
         )
         if isinstance(response.json(), list):

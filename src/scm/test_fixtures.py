@@ -962,7 +962,7 @@ class BaseTestProvider(Provider):
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
         return ActionResult(
@@ -1653,7 +1653,7 @@ class FakeGitHubApiClient:
             return self.git_blob_data
         return make_github_git_blob()
 
-    def get_file_content(self, repo: str, path: str, ref: str | None = None) -> dict[str, Any]:
+    def get_file_content(self, repo: str, path: str, ref: str) -> dict[str, Any]:
         self._record_call("get_file_content", repo, path, ref)
         self._maybe_raise()
         if self.file_content_data is not None:

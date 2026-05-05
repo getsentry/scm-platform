@@ -144,7 +144,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
     # File content operations
-    (get_file_content, {"path": "README.md"}),
+    (get_file_content, {"path": "README.md", "ref": "main"}),
     # Commit operations
     (get_commit, {"sha": "abc123"}),
     (get_commits, {}),
@@ -649,7 +649,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         {"content": "hello", "encoding": "utf-8"},
         _check_create_git_blob,
     ),
-    (get_file_content, {"path": "README.md"}, _check_file_content),
+    (get_file_content, {"path": "README.md", "ref": "main"}, _check_file_content),
     (get_commit, {"sha": "abc123"}, _check_get_commit),
     (get_commits, {}, _check_get_commits),
     (get_commits_by_path, {"path": "src/main.py"}, _check_get_commits),
