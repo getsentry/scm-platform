@@ -647,7 +647,12 @@ class GitHubProvider:
         raw = response.json()
         if not isinstance(raw, list):
             raise SCMCodedError(code="path_is_not_directory", detail=path)
-        return map_paginated_action(pagination, response, lambda r: [map_file_content(item) for item in r])
+        return {
+            "data": [map_file_content(item) for item in raw],
+            "type": "github",
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": {**_extract_response_meta(response), "next_cursor": None},
+        }
 
     def get_commit(
         self,

@@ -511,7 +511,7 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "pagination": None,
         "raw": [FILE_CONTENT_RAW, FILE_CONTENT_RAW],
         "expected_data": [expected_file_content(FILE_CONTENT_RAW), expected_file_content(FILE_CONTENT_RAW)],
-        "next_cursor": "2",
+        "next_cursor": None,
     },
     {
         "name": "get_pull_request_files",
