@@ -647,6 +647,28 @@ class GitLabProvider:
         )
         return make_result(map_file_content, response.json())
 
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[FileContent]]:
+        params: dict[str, str] = {"path": path}
+        if ref:
+            params["ref"] = ref
+        response = self.get(
+            GitLab.tree.format(project=self.project_id),
+            params=params,
+            request_options=request_options,
+        )
+        raw = response.json()
+        return ActionResult(
+            data=[map_tree_entry_to_file_content(item) for item in raw],
+            type="gitlab",
+            raw={"data": raw, "headers": None},
+            meta={},
+        )
+
     def get_commit(
         self,
         sha: SHA,
@@ -1130,6 +1152,16 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
         content=raw["content"],
         encoding=raw["encoding"],
         size=raw["size"],
+    )
+
+
+def map_tree_entry_to_file_content(raw: dict[str, Any]) -> FileContent:
+    return FileContent(
+        path=raw["path"],
+        sha=raw["id"],
+        content="",
+        encoding="",
+        size=0,
     )
 
 

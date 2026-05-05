@@ -965,6 +965,34 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[FileContent]]:
+        return ActionResult(
+            data=[
+                FileContent(
+                    path=f"{path}/README.md",
+                    sha="abc123",
+                    content="",
+                    encoding="",
+                    size=11,
+                ),
+                FileContent(
+                    path=f"{path}/src",
+                    sha="def456",
+                    content="",
+                    encoding="",
+                    size=0,
+                ),
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
     # Commit operations
 
     def get_commit(

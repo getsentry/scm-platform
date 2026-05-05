@@ -627,6 +627,30 @@ class GitHubProvider:
             raise SCMCodedError(code="path_is_directory", detail=path)
         return map_action(response, map_file_content)
 
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[FileContent]]:
+        params: dict[str, str] = {}
+        if ref:
+            params["ref"] = ref
+        response = self.get(
+            f"/repos/{self.repository['name']}/contents/{path}",
+            params=params,
+            request_options=request_options,
+        )
+        raw = response.json()
+        if not isinstance(raw, list):
+            raise SCMCodedError(code="path_is_not_directory", detail=path)
+        return {
+            "data": [map_file_content(item) for item in raw],
+            "type": "github",
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": _extract_response_meta(response),
+        }
+
     def get_commit(
         self,
         sha: SHA,

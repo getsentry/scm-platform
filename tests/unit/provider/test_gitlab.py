@@ -10667,6 +10667,72 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.get_directory_contents,
+            provider_args={"path": "src", "ref": "main", "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/repository/tree",
+                    json_response=[
+                        {
+                            "id": "d96986775b6793cac0a358b35650de94752a9530",
+                            "name": "README.md",
+                            "type": "blob",
+                            "path": "src/README.md",
+                            "mode": "100644",
+                        },
+                        {
+                            "id": "abc123def456",
+                            "name": "lib",
+                            "type": "tree",
+                            "path": "src/lib",
+                            "mode": "040000",
+                        },
+                    ],
+                    params={"path": "src", "ref": "main"},
+                ),
+            ],
+            provider_return_value={
+                "data": [
+                    {
+                        "path": "src/README.md",
+                        "sha": "d96986775b6793cac0a358b35650de94752a9530",
+                        "content": "",
+                        "encoding": "",
+                        "size": 0,
+                    },
+                    {
+                        "path": "src/lib",
+                        "sha": "abc123def456",
+                        "content": "",
+                        "encoding": "",
+                        "size": 0,
+                    },
+                ],
+                "type": "gitlab",
+                "raw": {
+                    "data": [
+                        {
+                            "id": "d96986775b6793cac0a358b35650de94752a9530",
+                            "name": "README.md",
+                            "type": "blob",
+                            "path": "src/README.md",
+                            "mode": "100644",
+                        },
+                        {
+                            "id": "abc123def456",
+                            "name": "lib",
+                            "type": "tree",
+                            "path": "src/lib",
+                            "mode": "040000",
+                        },
+                    ],
+                    "headers": None,
+                },
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.compare_commits,
             provider_args={
                 "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",

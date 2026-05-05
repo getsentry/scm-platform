@@ -441,6 +441,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    (
+        "get_directory_contents",
+        lambda scm: actions.get_directory_contents(scm, "src"),
+        [make_github_file_content(path="src/README.md"), make_github_file_content(path="src/main.py")],
+        200,
+        None,
+    ),
     # Commit operations
     (
         "get_commit",
