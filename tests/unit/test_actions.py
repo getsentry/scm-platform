@@ -58,6 +58,7 @@ from scm.actions import (
     get_pull_requests,
     get_repository_assignees,
     get_repository_labels,
+    get_repository_topics,
     get_tree,
     minimize_comment,
     request_review,
@@ -100,6 +101,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # Repository metadata
     (get_repository_assignees, {}),
     (get_repository_labels, {}),
+    (get_repository_topics, {}),
     # Pull request
     (get_pull_request, {"pull_request_id": "1"}),
     # Pull request comments
@@ -269,6 +271,11 @@ def _check_repository_labels(result: Any) -> None:
     assert label["name"] == "bug"
     assert label["color"] == "d73a4a"
     assert label["description"] == "Something isn't working"
+    assert result["type"] == "github"
+
+
+def _check_repository_topics(result: Any) -> None:
+    assert result["data"] == ["python", "api"]
     assert result["type"] == "github"
 
 
@@ -560,6 +567,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}, _check_none),
     (get_repository_assignees, {}, _check_repository_assignees),
     (get_repository_labels, {}, _check_repository_labels),
+    (get_repository_topics, {}, _check_repository_topics),
     (get_pull_request, {"pull_request_id": "1"}, _check_pull_request),
     (
         get_pull_request_comments,

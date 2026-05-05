@@ -205,6 +205,7 @@ def expected_repository(raw: dict[str, Any]) -> dict[str, Any]:
         "private": raw["private"],
         "size": raw["size"],
         "description": raw.get("description"),
+        "topics": raw["topics"],
     }
 
 
@@ -558,6 +559,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "path": "/repos/test-org/test-repo",
         "raw": REPOSITORY_RAW,
         "expected_data": expected_repository(REPOSITORY_RAW),
+    },
+    {
+        "name": "get_repository_topics",
+        "operation": "get",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/topics",
+        "raw": {"names": ["python", "api"]},
+        "expected_data": ["python", "api"],
     },
     {
         "name": "create_issue_comment",
