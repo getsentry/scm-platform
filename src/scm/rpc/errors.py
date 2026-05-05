@@ -23,6 +23,7 @@ STATUS_MAP: dict[ErrorCode, int] = {
     "resource_unprocessable_content": 422,
     "unexpected_response_format": 500,
     "unhandled_exception": 500,
+    "draft_pull_request_not_supported": 400,
 }
 
 

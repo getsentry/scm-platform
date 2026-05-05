@@ -1486,7 +1486,7 @@ def test_create_pull_request_draft_raises_coded_error_when_drafts_not_supported(
 
     assert exc_info.value.code == "draft_pull_request_not_supported"
     assert exc_info.value.__cause__ is not None
-    assert exc_info.value.__cause__.code == "resource_unprocessable_content"
+    assert exc_info.value.__cause__.code == "resource_unprocessable_content"  # type: ignore[attr-defined]
 
 
 def test_create_pull_request_draft_reraises_unrelated_unprocessable_content_error() -> None:
