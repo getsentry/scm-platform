@@ -326,6 +326,8 @@ class GitRepository(TypedDict):
     clone_url: str
     private: bool
     size: int
+    description: str | None
+    topics: list[str]
 
 
 class GitRef(TypedDict):
@@ -441,7 +443,7 @@ class ReviewComment(TypedDict):
     id: ResourceId
     unique_id: str | None
     url: str | None
-    file_path: str
+    file_path: str | None
     body: str
     author: Author | None
     created_at: str | None
@@ -559,6 +561,14 @@ class GetRepositoryLabelsProtocol(Protocol):
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[Label]: ...
+
+
+@runtime_checkable
+class GetRepositoryTopicsProtocol(Protocol):
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]: ...
 
 
 # Issue Protocols
@@ -990,7 +1000,7 @@ class GetFileContentProtocol(Protocol):
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]: ...
 
@@ -1122,6 +1132,16 @@ class CreateReviewProtocol(Protocol):
     ) -> ActionResult[Review]: ...
 
 
+@runtime_checkable
+class UpdateReviewCommentProtocol(Protocol):
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]: ...
+
+
 # Moderation Protocols
 
 
@@ -1194,6 +1214,7 @@ ALL_PROTOCOLS = (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
+    GetRepositoryTopicsProtocol,
     GetTreeProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,
@@ -1201,6 +1222,7 @@ ALL_PROTOCOLS = (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
 )
 
 type CredentialsSet = str

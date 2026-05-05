@@ -59,6 +59,8 @@ def make_github_repository() -> dict[str, Any]:
         "clone_url": "https://github.com/test-org/test-repo.git",
         "private": False,
         "size": 1234,
+        "description": "A test repository",
+        "topics": ["python", "api"],
     }
 
 
@@ -677,6 +679,17 @@ class BaseTestProvider(Provider):
             meta=_DEFAULT_PAGINATED_META,
         )
 
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        return ActionResult(
+            data=["python", "api"],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
     # Issue comments
 
     def get_issue_comments(
@@ -949,7 +962,7 @@ class BaseTestProvider(Provider):
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
         return ActionResult(
@@ -1669,7 +1682,7 @@ class FakeGitHubApiClient:
             return self.git_blob_data
         return make_github_git_blob()
 
-    def get_file_content(self, repo: str, path: str, ref: str | None = None) -> dict[str, Any]:
+    def get_file_content(self, repo: str, path: str, ref: str) -> dict[str, Any]:
         self._record_call("get_file_content", repo, path, ref)
         self._maybe_raise()
         if self.file_content_data is not None:

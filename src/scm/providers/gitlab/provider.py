@@ -92,6 +92,9 @@ class GitLab:
     merge_request_discussions = "/projects/{project_id}/merge_requests/{pr_key}/discussions"
     merge_request_discussion = "/projects/{project_id}/merge_requests/{pr_key}/discussions/{discussion_id}"
     merge_request_discussion_notes = "/projects/{project_id}/merge_requests/{pr_key}/discussions/{discussion_id}/notes"
+    merge_request_discussion_note = (
+        "/projects/{project_id}/merge_requests/{pr_key}/discussions/{discussion_id}/notes/{note_id}"
+    )
     merge_request_approve = "/projects/{project_id}/merge_requests/{pr_key}/approve"
     pr_diffs = "/projects/{project}/merge_requests/{pr_key}/diffs"
     project = "/projects/{project}"
@@ -281,6 +284,22 @@ class GitLabProvider:
             request_options=request_options,
         )
         return make_paginated_result(map_label, response.json())
+
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        response = self.get(
+            GitLab.project.format(project=self.project_id),
+            request_options=request_options,
+        )
+        raw = response.json()
+        return ActionResult(
+            data=list(raw.get("topics", [])),
+            type="gitlab",
+            raw={"data": raw, "headers": None},
+            meta={},
+        )
 
     def get_issue_comments(
         self,
@@ -635,15 +654,12 @@ class GitLabProvider:
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
-        params: dict[str, str] = {}
-        if ref:
-            params["ref"] = ref
         response = self.get(
             GitLab.file.format(project=self.project_id, path=path),
-            params=params,
+            params={"ref": ref},
             request_options=request_options,
         )
         return make_result(map_file_content, response.json())
@@ -934,6 +950,28 @@ class GitLabProvider:
         response = self.post(
             GitLab.merge_request_discussion_notes.format(
                 project_id=self.project_id, pr_key=pull_request_id, discussion_id=discussion_id
+            ),
+            data={"body": body},
+        )
+        raw = response.json()
+        return make_result(
+            map_review_comment(discussion_id),
+            raw,
+        )
+
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]:
+        discussion_id, note_id = comment_id.split(":")
+        response = self.put(
+            GitLab.merge_request_discussion_note.format(
+                project_id=self.project_id,
+                pr_key=pull_request_id,
+                discussion_id=discussion_id,
+                note_id=note_id,
             ),
             data={"body": body},
         )
@@ -1257,6 +1295,8 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         private=raw["visibility"] != "public",
         # GitLab returns size in bytes. We convert to kB to match GitHub
         size=repo_size // 1000,
+        description=raw.get("description"),
+        topics=list(raw.get("topics", [])),
     )
 
 
@@ -1306,7 +1346,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             id=f"{discussion_id}:{raw['id']}",
             unique_id=f"{discussion_id}:{raw['id']}",
             url=None,
-            file_path=raw["position"]["new_path"],
+            file_path=raw.get("position", {}).get("new_path"),
             body=raw["body"],
             author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
             created_at=raw.get("created_at"),

@@ -59,6 +59,7 @@ from scm.actions import (
     get_pull_requests,
     get_repository_assignees,
     get_repository_labels,
+    get_repository_topics,
     get_tree,
     minimize_comment,
     request_review,
@@ -101,6 +102,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # Repository metadata
     (get_repository_assignees, {}),
     (get_repository_labels, {}),
+    (get_repository_topics, {}),
     # Pull request
     (get_pull_request, {"pull_request_id": "1"}),
     # Pull request comments
@@ -143,8 +145,8 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
     # File content operations
-    (get_file_content, {"path": "README.md"}),
     (get_directory_contents, {"path": "src"}),
+    (get_file_content, {"path": "README.md", "ref": "main"}),
     # Commit operations
     (get_commit, {"sha": "abc123"}),
     (get_commits, {}),
@@ -271,6 +273,11 @@ def _check_repository_labels(result: Any) -> None:
     assert label["name"] == "bug"
     assert label["color"] == "d73a4a"
     assert label["description"] == "Something isn't working"
+    assert result["type"] == "github"
+
+
+def _check_repository_topics(result: Any) -> None:
+    assert result["data"] == ["python", "api"]
     assert result["type"] == "github"
 
 
@@ -571,6 +578,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}, _check_none),
     (get_repository_assignees, {}, _check_repository_assignees),
     (get_repository_labels, {}, _check_repository_labels),
+    (get_repository_topics, {}, _check_repository_topics),
     (get_pull_request, {"pull_request_id": "1"}, _check_pull_request),
     (
         get_pull_request_comments,
@@ -652,8 +660,8 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         {"content": "hello", "encoding": "utf-8"},
         _check_create_git_blob,
     ),
-    (get_file_content, {"path": "README.md"}, _check_file_content),
     (get_directory_contents, {"path": "src"}, _check_directory_contents),
+    (get_file_content, {"path": "README.md", "ref": "main"}, _check_file_content),
     (get_commit, {"sha": "abc123"}, _check_get_commit),
     (get_commits, {}, _check_get_commits),
     (get_commits_by_path, {"path": "src/main.py"}, _check_get_commits),

@@ -75,6 +75,7 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
+    GetRepositoryTopicsProtocol,
     GetTreeProtocol,
     GitBlob,
     GitCommitObject,
@@ -105,6 +106,7 @@ from scm.types import (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
     WriteCommitAction,
 )
 
@@ -135,6 +137,14 @@ def get_repository_labels(
 ) -> PaginatedActionResult[Label]:
     """Get labels defined in the repository."""
     return scm.get_repository_labels(pagination, request_options)
+
+
+def get_repository_topics(
+    scm: GetRepositoryTopicsProtocol,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[list[str]]:
+    """Get topics associated with the repository."""
+    return scm.get_repository_topics(request_options)
 
 
 def get_issue(
@@ -372,7 +382,7 @@ def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> 
 def get_file_content(
     scm: GetFileContentProtocol,
     path: str,
-    ref: str | None = None,
+    ref: str,
     request_options: RequestOptions | None = None,
 ) -> ActionResult[FileContent]:
     return scm.get_file_content(path, ref, request_options)
@@ -639,6 +649,15 @@ def create_review(
     return scm.create_review(pull_request_id, commit_sha, event, comments, body=body)
 
 
+def update_review_comment(
+    scm: UpdateReviewCommentProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    body: str,
+) -> ActionResult[ReviewComment]:
+    return scm.update_review_comment(pull_request_id, comment_id, body)
+
+
 def create_check_run(
     scm: CreateCheckRunProtocol,
     name: str,
@@ -755,10 +774,12 @@ __all__ = (
     "get_repository",
     "get_repository_assignees",
     "get_repository_labels",
+    "get_repository_topics",
     "get_tree",
     "minimize_comment",
     "request_review",
     "update_branch",
     "update_check_run",
     "update_pull_request",
+    "update_review_comment",
 )

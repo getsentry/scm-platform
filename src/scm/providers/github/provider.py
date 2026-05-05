@@ -369,6 +369,16 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_label(label) for label in r])
 
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/topics",
+            request_options=request_options,
+        )
+        return map_action(response, lambda r: list(r.get("names", [])))
+
     def get_issue_comments(
         self,
         issue_id: str,
@@ -613,15 +623,12 @@ class GitHubProvider:
     def get_file_content(
         self,
         path: str,
-        ref: str | None = None,
+        ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
-        params: dict[str, str] = {}
-        if ref:
-            params["ref"] = ref
         response = self.get(
             f"/repos/{self.repository['name']}/contents/{path}",
-            params=params,
+            params={"ref": ref},
             request_options=request_options,
         )
         if isinstance(response.json(), list):
@@ -1081,6 +1088,18 @@ class GitHubProvider:
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]:
+        response = self.patch(
+            f"/repos/{self.repository['name']}/pulls/comments/{comment_id}",
+            data={"body": body},
+        )
+        return deserialize_action(response, deserialize_pull_request_review_comment)
+
     def create_review(
         self,
         pull_request_id: str,
@@ -1420,6 +1439,8 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         clone_url=raw["clone_url"],
         private=raw["private"],
         size=raw["size"],
+        description=raw.get("description"),
+        topics=list(raw.get("topics", [])),
     )
 
 

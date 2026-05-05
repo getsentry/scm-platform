@@ -178,6 +178,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    (
+        "get_repository_topics",
+        lambda scm: actions.get_repository_topics(scm),
+        {"names": ["python", "api"]},
+        200,
+        None,
+    ),
     # Pull request operations
     (
         "get_pull_request",
@@ -436,7 +443,7 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
     # File content operations
     (
         "get_file_content",
-        lambda scm: actions.get_file_content(scm, "README.md"),
+        lambda scm: actions.get_file_content(scm, "README.md", "main"),
         make_github_file_content(),
         200,
         None,
@@ -535,6 +542,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         lambda scm: actions.create_review_comment_reply(scm, "1", "Reply", "100"),
         make_github_review_comment(),
         201,
+        None,
+    ),
+    (
+        "update_review_comment",
+        lambda scm: actions.update_review_comment(scm, "1", "100", "Updated body"),
+        make_github_review_comment(),
+        200,
         None,
     ),
     (

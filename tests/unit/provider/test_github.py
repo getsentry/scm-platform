@@ -204,6 +204,8 @@ def expected_repository(raw: dict[str, Any]) -> dict[str, Any]:
         "clone_url": raw["clone_url"],
         "private": raw["private"],
         "size": raw["size"],
+        "description": raw.get("description"),
+        "topics": raw["topics"],
     }
 
 
@@ -569,6 +571,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_repository(REPOSITORY_RAW),
     },
     {
+        "name": "get_repository_topics",
+        "operation": "get",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/topics",
+        "raw": {"names": ["python", "api"]},
+        "expected_data": ["python", "api"],
+    },
+    {
         "name": "create_issue_comment",
         "operation": "post",
         "kwargs": {"issue_id": "42", "body": "hello"},
@@ -832,6 +842,15 @@ ACTION_CASES: list[dict[str, Any]] = [
         "kwargs": {"pull_request_id": "42", "body": "reply", "comment_id": "99"},
         "path": "/repos/test-org/test-repo/pulls/42/comments",
         "data": {"body": "reply", "in_reply_to": 99},
+        "raw": REVIEW_COMMENT_RAW,
+        "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
+    },
+    {
+        "name": "update_review_comment",
+        "operation": "patch",
+        "kwargs": {"pull_request_id": "42", "comment_id": "99", "body": "updated body"},
+        "path": "/repos/test-org/test-repo/pulls/comments/99",
+        "data": {"body": "updated body"},
         "raw": REVIEW_COMMENT_RAW,
         "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
     },
