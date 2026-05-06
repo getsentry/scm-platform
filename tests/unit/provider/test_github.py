@@ -282,6 +282,7 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
         "content": raw.get("content", ""),
         "encoding": raw.get("encoding", ""),
         "size": raw["size"],
+        "type": "directory" if raw.get("type") == "dir" else raw.get("type", "file"),
     }
 
 

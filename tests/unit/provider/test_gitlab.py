@@ -10667,6 +10667,7 @@ def _make_mock_response(json_data):
                     "content": "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo=",  # noqa: E501
                     "encoding": "base64",
                     "size": 92,
+                    "type": "file",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -10738,6 +10739,7 @@ def _make_mock_response(json_data):
                     "content": "SGVsbG8gV29ybGQ=",
                     "encoding": "base64",
                     "size": 11,
+                    "type": "file",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -10792,6 +10794,7 @@ def _make_mock_response(json_data):
                         "content": "",
                         "encoding": "",
                         "size": 0,
+                        "type": "file",
                     },
                     {
                         "path": "src/lib",
@@ -10799,6 +10802,7 @@ def _make_mock_response(json_data):
                         "content": "",
                         "encoding": "",
                         "size": 0,
+                        "type": "directory",
                     },
                 ],
                 "type": "gitlab",
@@ -12586,6 +12590,39 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
+
+
+def test_get_readme_skips_directory_named_readme(client, provider: GitLabProvider):
+    file_response = _make_mock_response(
+        {
+            "file_name": "README.md",
+            "file_path": "README.md",
+            "size": 5,
+            "encoding": "base64",
+            "ref": "main",
+            "blob_id": "blobsha",
+            "commit_id": "commitsha",
+            "last_commit_id": "commitsha",
+            "execute_filemode": False,
+            "content": "aGVsbG8=",
+        }
+    )
+    tree_response = _make_mock_response(
+        [
+            {"id": "dir", "name": "readme-assets", "type": "tree", "path": "readme-assets", "mode": "040000"},
+            {"id": "blobsha", "name": "README.md", "type": "blob", "path": "README.md", "mode": "100644"},
+        ]
+    )
+    client.request.side_effect = [tree_response, file_response]
+
+    result = provider.get_readme(ref="main")
+
+    assert result["data"]["path"] == "README.md"
+    fetched_paths = [call.kwargs["path"] for call in client.request.call_args_list]
+    assert fetched_paths == [
+        "/projects/79787061/repository/tree",
+        "/projects/79787061/repository/files/README.md",
+    ]
 
 
 def test_get_readme_raises_readme_not_found_when_no_readme_in_tree(client, provider: GitLabProvider):

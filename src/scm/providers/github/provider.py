@@ -34,6 +34,7 @@ from scm.types import (
     CredentialsSet,
     DeleteCommitAction,
     FileContent,
+    FileContentType,
     FileStatus,
     GitBlob,
     GitCommitObject,
@@ -1296,6 +1297,14 @@ def map_git_blob(raw: dict[str, Any]) -> GitBlob:
     return GitBlob(sha=raw["sha"])
 
 
+_GITHUB_FILE_CONTENT_TYPES: dict[str, FileContentType] = {
+    "file": "file",
+    "dir": "directory",
+    "symlink": "symlink",
+    "submodule": "submodule",
+}
+
+
 def map_file_content(raw: dict[str, Any]) -> FileContent:
     return FileContent(
         path=raw["path"],
@@ -1303,6 +1312,7 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
         content=raw.get("content", ""),
         encoding=raw.get("encoding", ""),
         size=raw["size"],
+        type=_GITHUB_FILE_CONTENT_TYPES.get(raw.get("type", "file"), "file"),
     )
 
 

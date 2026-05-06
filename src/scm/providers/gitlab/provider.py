@@ -24,6 +24,7 @@ from scm.types import (
     DeleteCommitAction,
     Encoding,
     FileContent,
+    FileContentType,
     GitCommitObject,
     GitCommitTree,
     GitRef,
@@ -683,7 +684,7 @@ class GitLabProvider:
             **iter_kwargs,
         ):
             for entry in page["data"]:
-                if entry["path"].lower().startswith("readme"):
+                if entry["type"] == "file" and entry["path"].lower().startswith("readme"):
                     return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
         raise SCMCodedError(code="readme_not_found")
 
@@ -1216,7 +1217,15 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
         content=raw["content"],
         encoding=raw["encoding"],
         size=raw["size"],
+        type="file",
     )
+
+
+_GITLAB_TREE_ENTRY_TYPES: dict[str, FileContentType] = {
+    "blob": "file",
+    "tree": "directory",
+    "commit": "submodule",
+}
 
 
 def map_tree_entry_to_file_content(raw: dict[str, Any]) -> FileContent:
@@ -1226,6 +1235,7 @@ def map_tree_entry_to_file_content(raw: dict[str, Any]) -> FileContent:
         content="",
         encoding="",
         size=0,
+        type=_GITLAB_TREE_ENTRY_TYPES.get(raw["type"], "file"),
     )
 
 

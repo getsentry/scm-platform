@@ -341,12 +341,16 @@ class GitBlob(TypedDict):
     sha: SHA
 
 
+type FileContentType = Literal["file", "directory", "symlink", "submodule"]
+
+
 class FileContent(TypedDict):
     path: str
     sha: SHA
     content: str  # base64-encoded
     encoding: str
     size: int
+    type: FileContentType
 
 
 class CommitAuthor(TypedDict):
