@@ -636,7 +636,12 @@ class GetPullRequestCommentsProtocol(Protocol):
 
 @runtime_checkable
 class CreatePullRequestCommentProtocol(Protocol):
-    def create_pull_request_comment(self, pull_request_id: str, body: str) -> ActionResult[Comment]: ...
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list["CoPilotChatExtension"] | None = None,
+    ) -> ActionResult[Comment]: ...
 
 
 @runtime_checkable
@@ -1292,3 +1297,9 @@ class Provider(ApiClient, Protocol):
     repository: Repository
 
     def is_rate_limited(self, referrer: Referrer) -> bool: ...
+
+
+@dataclasses.dataclass(frozen=True)
+class CoPilotChatExtension:
+    name: str
+    prompt: str

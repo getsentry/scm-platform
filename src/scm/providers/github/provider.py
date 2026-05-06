@@ -32,6 +32,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
     FileContent,
@@ -465,10 +466,27 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_comment(c) for c in r])
 
-    def create_pull_request_comment(self, pull_request_id: str, body: str) -> ActionResult[Comment]:
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list[CoPilotChatExtension] | None = None,
+    ) -> ActionResult[Comment]:
+        data: dict[str, Any] = {"body": body}
+
+        if extensions:
+            data["actions"] = [
+                {
+                    "name": extension.name,
+                    "type": "copilot-chat",
+                    "prompt": extension.prompt,
+                }
+                for extension in extensions
+            ]
+
         response = self.post(
             f"/repos/{self.repository['name']}/issues/{pull_request_id}/comments",
-            data={"body": body},
+            data=data,
         )
         return map_action(response, map_comment)
 

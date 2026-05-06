@@ -1112,6 +1112,53 @@ def test_action_methods(case: dict[str, Any]) -> None:
     assert client.calls == [expected_call]
 
 
+def test_create_pull_request_comment_forwards_copilot_chat_extensions() -> None:
+    from scm.types import CoPilotChatExtension
+
+    provider, client = make_provider()
+    client.queue("post", FakeResponse(COMMENT_RAW))
+
+    provider.create_pull_request_comment(
+        pull_request_id="42",
+        body="hello",
+        extensions=[
+            CoPilotChatExtension(name="explain", prompt="Explain this PR"),
+            CoPilotChatExtension(name="review", prompt="Review this PR"),
+        ],
+    )
+
+    assert client.calls == [
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/issues/42/comments",
+            "data": {
+                "body": "hello",
+                "actions": [
+                    {"name": "explain", "type": "copilot-chat", "prompt": "Explain this PR"},
+                    {"name": "review", "type": "copilot-chat", "prompt": "Review this PR"},
+                ],
+            },
+            "headers": None,
+        }
+    ]
+
+
+def test_create_pull_request_comment_omits_actions_when_no_extensions() -> None:
+    provider, client = make_provider()
+    client.queue("post", FakeResponse(COMMENT_RAW))
+
+    provider.create_pull_request_comment(pull_request_id="42", body="hello", extensions=None)
+
+    assert client.calls == [
+        {
+            "operation": "post",
+            "path": "/repos/test-org/test-repo/issues/42/comments",
+            "data": {"body": "hello"},
+            "headers": None,
+        }
+    ]
+
+
 def test_create_issue_forwards_assignees_and_labels() -> None:
     provider, client = make_provider()
     client.queue("post", FakeResponse(ISSUE_RAW))

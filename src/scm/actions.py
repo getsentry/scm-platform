@@ -17,6 +17,7 @@ from scm.types import (
     Comment,
     Commit,
     CompareCommitsProtocol,
+    CoPilotChatExtension,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
     CreateCommitProtocol,
@@ -210,10 +211,13 @@ def get_pull_request_comments(
 
 
 def create_pull_request_comment(
-    scm: CreatePullRequestCommentProtocol, pull_request_id: str, body: str
+    scm: CreatePullRequestCommentProtocol,
+    pull_request_id: str,
+    body: str,
+    extensions: list[CoPilotChatExtension] | None = None,
 ) -> ActionResult[Comment]:
     """Create a comment on a pull request."""
-    return scm.create_pull_request_comment(pull_request_id, body)
+    return scm.create_pull_request_comment(pull_request_id, body, extensions)
 
 
 def delete_pull_request_comment(scm: DeletePullRequestCommentProtocol, pull_request_id: str, comment_id: str) -> None:
