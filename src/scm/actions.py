@@ -72,6 +72,7 @@ from scm.types import (
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
+    GetReadmeProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
@@ -396,6 +397,14 @@ def get_directory_contents(
     request_options: RequestOptions | None = None,
 ) -> PaginatedActionResult[FileContent]:
     return scm.get_directory_contents(path, ref, pagination, request_options)
+
+
+def get_readme(
+    scm: GetReadmeProtocol,
+    ref: str,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[FileContent]:
+    return scm.get_readme(ref, request_options)
 
 
 def get_commit(
@@ -771,6 +780,7 @@ __all__ = (
     "get_pull_request_url",
     "get_pull_request",
     "get_pull_requests",
+    "get_readme",
     "get_repository",
     "get_repository_assignees",
     "get_repository_labels",

@@ -635,6 +635,23 @@ class GitHubProvider:
             raise SCMCodedError(code="path_is_directory", detail=path)
         return map_action(response, map_file_content)
 
+    def get_readme(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        try:
+            response = self.get(
+                f"/repos/{self.repository['name']}/readme",
+                params={"ref": ref},
+                request_options=request_options,
+            )
+        except SCMCodedError as e:
+            if e.code == "resource_not_found":
+                raise SCMCodedError(code="readme_not_found") from e
+            raise
+        return map_action(response, map_file_content)
+
     def get_directory_contents(
         self,
         path: str,

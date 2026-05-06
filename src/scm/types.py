@@ -1016,6 +1016,15 @@ class GetDirectoryContentsProtocol(Protocol):
     ) -> PaginatedActionResult[FileContent]: ...
 
 
+@runtime_checkable
+class GetReadmeProtocol(Protocol):
+    def get_readme(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]: ...
+
+
 # Archive Protocols
 
 
@@ -1211,6 +1220,7 @@ ALL_PROTOCOLS = (
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
+    GetReadmeProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,

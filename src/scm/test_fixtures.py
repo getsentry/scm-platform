@@ -978,6 +978,24 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def get_readme(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        return ActionResult(
+            data=FileContent(
+                path="README.md",
+                sha="readme123",
+                content="SGVsbG8gV29ybGQ=",
+                encoding="base64",
+                size=11,
+            ),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
     def get_directory_contents(
         self,
         path: str,

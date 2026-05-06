@@ -10689,6 +10689,76 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.get_readme,
+            provider_args={"ref": "main", "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/repository/tree",
+                    json_response=[
+                        {
+                            "id": "abc",
+                            "name": "src",
+                            "type": "tree",
+                            "path": "src",
+                            "mode": "040000",
+                        },
+                        {
+                            "id": "d96986775b6793cac0a358b35650de94752a9530",
+                            "name": "README.md",
+                            "type": "blob",
+                            "path": "README.md",
+                            "mode": "100644",
+                        },
+                    ],
+                    params={"ref": "main"},
+                ),
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/repository/files/README.md",
+                    json_response={
+                        "file_name": "README.md",
+                        "file_path": "README.md",
+                        "size": 11,
+                        "encoding": "base64",
+                        "ref": "main",
+                        "blob_id": "d96986775b6793cac0a358b35650de94752a9530",
+                        "commit_id": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                        "last_commit_id": "1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                        "execute_filemode": False,
+                        "content": "SGVsbG8gV29ybGQ=",
+                    },
+                    params={"ref": "main"},
+                ),
+            ],
+            provider_return_value={
+                "data": {
+                    "path": "README.md",
+                    "sha": "d96986775b6793cac0a358b35650de94752a9530",
+                    "content": "SGVsbG8gV29ybGQ=",
+                    "encoding": "base64",
+                    "size": 11,
+                },
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "file_name": "README.md",
+                        "file_path": "README.md",
+                        "size": 11,
+                        "encoding": "base64",
+                        "ref": "main",
+                        "blob_id": "d96986775b6793cac0a358b35650de94752a9530",
+                        "commit_id": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
+                        "last_commit_id": "1403774c82d64068af027d0b5d0cc4f52473b6f2",
+                        "execute_filemode": False,
+                        "content": "SGVsbG8gV29ybGQ=",
+                    },
+                    "headers": None,
+                },
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_directory_contents,
             provider_args={"path": "src", "ref": "main", "pagination": None, "request_options": None},
             client_calls=[
@@ -12516,6 +12586,20 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["params"] == client_call.params
         if client_call.data is not None:
             assert mock_call.kwargs["data"] == client_call.data
+
+
+def test_get_readme_raises_readme_not_found_when_no_readme_in_tree(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        [
+            {"id": "abc", "name": "src", "type": "tree", "path": "src", "mode": "040000"},
+            {"id": "def", "name": "LICENSE", "type": "blob", "path": "LICENSE", "mode": "100644"},
+        ]
+    )
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_readme(ref="main")
+
+    assert exc_info.value.code == "readme_not_found"
 
 
 def test_get_directory_contents_raises_when_path_is_not_directory(client, provider: GitLabProvider):
