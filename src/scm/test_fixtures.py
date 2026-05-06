@@ -17,6 +17,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CoPilotChatExtension,
     DeleteCommitAction,
     FileContent,
     GitBlob,
@@ -743,7 +744,12 @@ class BaseTestProvider(Provider):
             meta=_DEFAULT_PAGINATED_META,
         )
 
-    def create_pull_request_comment(self, pull_request_id: str, body: str) -> ActionResult[Comment]:
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list[CoPilotChatExtension] | None = None,
+    ) -> ActionResult[Comment]:
         return ActionResult(
             data=Comment(id="201", body=body, author=None),
             type="github",

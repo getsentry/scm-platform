@@ -20,6 +20,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
     Encoding,
@@ -409,7 +410,12 @@ class GitLabProvider:
             ),
         )
 
-    def create_pull_request_comment(self, pull_request_id: str, body: str) -> ActionResult[Comment]:
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list[CoPilotChatExtension] | None = None,
+    ) -> ActionResult[Comment]:
         response = self.post(
             GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
             data={"body": body},

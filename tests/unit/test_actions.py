@@ -71,7 +71,7 @@ from scm.actions import (
 )
 from scm.errors import SCMCodedError
 from scm.test_fixtures import BaseTestProvider, SourceCodeManager
-from scm.types import GetBranchProtocol, Referrer, Repository, WriteCommitAction
+from scm.types import CreatePullRequestCommentProtocol, GetBranchProtocol, Referrer, Repository, WriteCommitAction
 
 
 @contextmanager
@@ -858,6 +858,52 @@ def test_exec_raises_provider_not_supported_for_all_actions(
 
     with pytest.raises(AttributeError):
         action(scm, **kwargs)
+
+
+def test_create_pull_request_comment_forwards_extensions() -> None:
+    from scm.types import CoPilotChatExtension
+
+    received: dict[str, Any] = {}
+
+    class CapturingProvider(BaseTestProvider):
+        def create_pull_request_comment(
+            self,
+            pull_request_id,
+            body,
+            extensions=None,
+        ):
+            received["pull_request_id"] = pull_request_id
+            received["body"] = body
+            received["extensions"] = extensions
+            return super().create_pull_request_comment(pull_request_id, body, extensions)
+
+    scm = SourceCodeManager(CapturingProvider())
+    extensions = [CoPilotChatExtension(name="explain", prompt="Explain this PR")]
+
+    assert isinstance(scm, CreatePullRequestCommentProtocol)
+    create_pull_request_comment(scm, "1", "hello", extensions)
+
+    assert received == {"pull_request_id": "1", "body": "hello", "extensions": extensions}
+
+
+def test_create_pull_request_comment_defaults_extensions_to_none() -> None:
+    received: dict[str, Any] = {}
+
+    class CapturingProvider(BaseTestProvider):
+        def create_pull_request_comment(
+            self,
+            pull_request_id,
+            body,
+            extensions=None,
+        ):
+            received["extensions"] = extensions
+            return super().create_pull_request_comment(pull_request_id, body, extensions)
+
+    scm = SourceCodeManager(CapturingProvider())
+    assert isinstance(scm, CreatePullRequestCommentProtocol)
+    create_pull_request_comment(scm, "1", "hello")
+
+    assert received == {"extensions": None}
 
 
 def test_exec_wraps_unhandled_exception() -> None:
