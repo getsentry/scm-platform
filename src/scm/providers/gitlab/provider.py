@@ -1,5 +1,5 @@
 import datetime
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Any
 from urllib.parse import quote
@@ -58,6 +58,8 @@ from scm.types import (
 API_VERSION = "/api/v4"
 
 VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
+
+PULL_REQUEST_TEMPLATE_DIR = ".gitlab/merge_request_templates"
 
 
 class GitLab:
@@ -694,6 +696,43 @@ class GitLabProvider:
                 if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
                     return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
         raise SCMCodedError(code="readme_not_found")
+
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]:
+        # The official endpoint (GET /projects/:id/templates/merge_requests to list, then GET
+        # /projects/:id/templates/merge_requests/:name to fetch each) is cleaner and is GitLab's blessed path, but
+        # it has two notable differences from the current behavior:
+        #
+        # 1. No ref support — the templates API always reads from the default branch, so the ref parameter on the
+        # action would become advisory/ignored on GitLab.
+        # 2. Response shape — it returns {name, content} only (no path, sha, size), so we'd need to synthesize a
+        # FileContent (e.g. set path to .gitlab/merge_request_templates/{name}.md) or accept losing some fields.
+        #
+        # It's also still N+1 (1 list call + 1 per template), same order as today.
+        iter_kwargs: dict[str, Any] = {}
+        if pagination is not None:
+            if "per_page" in pagination:
+                iter_kwargs["per_page"] = pagination["per_page"]
+            if "cursor" in pagination:
+                iter_kwargs["cursor"] = pagination["cursor"]
+
+        try:
+            pages = iter_all_pages(
+                lambda p: self.get_directory_contents(PULL_REQUEST_TEMPLATE_DIR, ref, p, request_options),
+                **iter_kwargs,
+            )
+            for page in pages:
+                for entry in page["data"]:
+                    if entry["type"] == "file" and entry["path"].lower().endswith(".md"):
+                        yield self.get_file_content(entry["path"], ref=ref, request_options=request_options)
+        except SCMCodedError as e:
+            if e.code in ("resource_not_found", "path_is_not_directory"):
+                return
+            raise
 
     def get_directory_contents(
         self,

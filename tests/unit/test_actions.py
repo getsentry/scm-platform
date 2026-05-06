@@ -55,6 +55,7 @@ from scm.actions import (
     get_pull_request_diff,
     get_pull_request_files,
     get_pull_request_reactions,
+    get_pull_request_template,
     get_pull_request_url,
     get_pull_requests,
     get_readme,
@@ -149,6 +150,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_directory_contents, {"path": "src"}),
     (get_file_content, {"path": "README.md", "ref": "main"}),
     (get_readme, {"ref": "main"}),
+    (get_pull_request_template, {"ref": "main"}),
     # Commit operations
     (get_commit, {"sha": "abc123"}),
     (get_commits, {}),
@@ -414,6 +416,15 @@ def _check_readme(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_pull_request_template(result: Any) -> None:
+    items = list(result)
+    assert len(items) == 1
+    fc = items[0]["data"]
+    assert fc["path"] == ".github/PULL_REQUEST_TEMPLATE.md"
+    assert fc["content"] == "SGVsbG8gV29ybGQ="
+    assert items[0]["type"] == "github"
+
+
 def _check_directory_contents(result: Any) -> None:
     entries = result["data"]
     assert isinstance(entries, list)
@@ -673,6 +684,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_directory_contents, {"path": "src"}, _check_directory_contents),
     (get_file_content, {"path": "README.md", "ref": "main"}, _check_file_content),
     (get_readme, {"ref": "main"}, _check_readme),
+    (get_pull_request_template, {"ref": "main"}, _check_pull_request_template),
     (get_commit, {"sha": "abc123"}, _check_get_commit),
     (get_commits, {}, _check_get_commits),
     (get_commits_by_path, {"path": "src/main.py"}, _check_get_commits),

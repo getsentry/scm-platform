@@ -620,6 +620,15 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
 # Multi-call actions issue several provider HTTP requests per invocation.
 MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list | str, int, dict[str, str] | None]]]] = [
     (
+        "get_pull_request_template",
+        lambda scm: list(actions.get_pull_request_template(scm, "main")),
+        [
+            ([], 200, None),
+            ([], 200, None),
+            ([], 200, None),
+        ],
+    ),
+    (
         "create_commit",
         lambda scm: actions.create_commit(
             scm,

@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from datetime import datetime
 
 from scm.types import (
@@ -71,6 +72,7 @@ from scm.types import (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
     GetReadmeProtocol,
     GetRepositoryAssigneesProtocol,
@@ -406,6 +408,15 @@ def get_readme(
     request_options: RequestOptions | None = None,
 ) -> ActionResult[FileContent]:
     return scm.get_readme(ref, pagination, request_options)
+
+
+def get_pull_request_template(
+    scm: GetPullRequestTemplateProtocol,
+    ref: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> Iterator[ActionResult[FileContent]]:
+    return scm.get_pull_request_template(ref, pagination, request_options)
 
 
 def get_commit(
@@ -778,6 +789,7 @@ __all__ = (
     "get_pull_request_diff",
     "get_pull_request_files",
     "get_pull_request_reactions",
+    "get_pull_request_template",
     "get_pull_request_url",
     "get_pull_request",
     "get_pull_requests",
