@@ -703,6 +703,16 @@ class GitLabProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> Iterator[ActionResult[FileContent]]:
+        # The official endpoint (GET /projects/:id/templates/merge_requests to list, then GET
+        # /projects/:id/templates/merge_requests/:name to fetch each) is cleaner and is GitLab's blessed path, but
+        # it has two notable differences from the current behavior:
+        #
+        # 1. No ref support — the templates API always reads from the default branch, so the ref parameter on the
+        # action would become advisory/ignored on GitLab.
+        # 2. Response shape — it returns {name, content} only (no path, sha, size), so we'd need to synthesize a
+        # FileContent (e.g. set path to .gitlab/merge_request_templates/{name}.md) or accept losing some fields.
+        #
+        # It's also still N+1 (1 list call + 1 per template), same order as today.
         iter_kwargs: dict[str, Any] = {}
         if pagination is not None:
             if "per_page" in pagination:
