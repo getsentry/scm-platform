@@ -57,6 +57,8 @@ from scm.types import (
 
 API_VERSION = "/api/v4"
 
+VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
+
 
 class GitLab:
     oauth_token = "/oauth/token"
@@ -689,7 +691,7 @@ class GitLabProvider:
             **iter_kwargs,
         ):
             for entry in page["data"]:
-                if entry["type"] == "file" and entry["path"].lower().startswith("readme"):
+                if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
                     return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
         raise SCMCodedError(code="readme_not_found")
 
