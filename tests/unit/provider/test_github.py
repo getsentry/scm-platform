@@ -1154,6 +1154,69 @@ def test_get_readme_raises_readme_not_found_on_404() -> None:
     assert exc_info.value.code == "readme_not_found"
 
 
+def test_get_pull_request_template_yields_root_and_multi_template_dir() -> None:
+    provider, client = make_provider()
+    template_root = make_github_file_content(path=".github/PULL_REQUEST_TEMPLATE.md")
+    template_a = make_github_file_content(path=".github/PULL_REQUEST_TEMPLATE/feature.md")
+    template_b = make_github_file_content(path=".github/PULL_REQUEST_TEMPLATE/bug.md")
+
+    # Listing of .github/ — contains the single-template file and the multi-template dir.
+    client.queue(
+        "get",
+        FakeResponse(
+            [
+                {"path": ".github/PULL_REQUEST_TEMPLATE.md", "type": "file", "sha": "a", "size": 1},
+                {"path": ".github/PULL_REQUEST_TEMPLATE", "type": "dir", "sha": "b", "size": 0},
+            ]
+        ),
+    )
+    client.queue("get", FakeResponse(template_root))
+    # Listing of .github/PULL_REQUEST_TEMPLATE/.
+    client.queue(
+        "get",
+        FakeResponse(
+            [
+                {"path": ".github/PULL_REQUEST_TEMPLATE/feature.md", "type": "file", "sha": "c", "size": 1},
+                {"path": ".github/PULL_REQUEST_TEMPLATE/bug.md", "type": "file", "sha": "d", "size": 1},
+                {"path": ".github/PULL_REQUEST_TEMPLATE/notes.txt", "type": "file", "sha": "e", "size": 1},
+            ]
+        ),
+    )
+    client.queue("get", FakeResponse(template_a))
+    client.queue("get", FakeResponse(template_b))
+    # Listings of "" and "docs" — empty.
+    client.queue("get", FakeResponse([]))
+    client.queue("get", FakeResponse([]))
+
+    results = list(provider.get_pull_request_template(ref="main"))
+
+    assert [r["data"]["path"] for r in results] == [
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        ".github/PULL_REQUEST_TEMPLATE/feature.md",
+        ".github/PULL_REQUEST_TEMPLATE/bug.md",
+    ]
+
+
+def test_get_pull_request_template_skips_missing_parent_dir() -> None:
+    provider, client = make_provider()
+    # .github 404 -> skip, "" empty, docs/ empty. No templates.
+    client.queue("get", FakeResponse({}, status_code=404))
+
+    def get_with_404(*args, **kwargs):
+        if not client.responses["get"]:
+            return FakeResponse([])
+        resp = client.responses["get"].pop(0)
+        if resp.status_code == 404:
+            raise SCMCodedError(code="resource_not_found")
+        return resp
+
+    provider.get = get_with_404  # type: ignore[assignment]
+
+    results = list(provider.get_pull_request_template(ref="main"))
+
+    assert results == []
+
+
 def test_get_directory_contents_raises_when_path_is_not_directory() -> None:
     provider, client = make_provider()
     client.queue("get", FakeResponse(FILE_CONTENT_RAW))
@@ -1569,6 +1632,7 @@ def test_public_methods_are_accounted_for() -> None:
         "request",
         "is_rate_limited",
         "get_pull_request_diff",
+        "get_pull_request_template",
         "download_archive",
         "get_file_url",
         "get_commit_url",

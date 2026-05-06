@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock
@@ -969,6 +969,26 @@ class BaseTestProvider(Provider):
             data=FileContent(
                 path=path,
                 sha="abc123",
+                content="SGVsbG8gV29ybGQ=",
+                encoding="base64",
+                size=11,
+                type="file",
+            ),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]:
+        yield ActionResult(
+            data=FileContent(
+                path=".github/PULL_REQUEST_TEMPLATE.md",
+                sha="template123",
                 content="SGVsbG8gV29ybGQ=",
                 encoding="base64",
                 size=11,

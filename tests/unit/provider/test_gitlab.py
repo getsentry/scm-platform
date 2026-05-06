@@ -12640,6 +12640,75 @@ def test_get_readme_raises_readme_not_found_when_no_readme_in_tree(client, provi
     assert exc_info.value.code == "readme_not_found"
 
 
+def test_get_pull_request_template_yields_md_files_from_template_dir(client, provider: GitLabProvider):
+    tree_response = _make_mock_response(
+        [
+            {
+                "id": "a",
+                "name": "feature.md",
+                "type": "blob",
+                "path": ".gitlab/merge_request_templates/feature.md",
+                "mode": "100644",
+            },
+            {
+                "id": "b",
+                "name": "bug.md",
+                "type": "blob",
+                "path": ".gitlab/merge_request_templates/bug.md",
+                "mode": "100644",
+            },
+            {
+                "id": "c",
+                "name": "notes.txt",
+                "type": "blob",
+                "path": ".gitlab/merge_request_templates/notes.txt",
+                "mode": "100644",
+            },
+        ]
+    )
+
+    def make_file_response(path: str):
+        return _make_mock_response(
+            {
+                "file_name": path.rsplit("/", 1)[-1],
+                "file_path": path,
+                "size": 5,
+                "encoding": "base64",
+                "ref": "main",
+                "blob_id": "blob",
+                "commit_id": "commit",
+                "last_commit_id": "commit",
+                "execute_filemode": False,
+                "content": "aGVsbG8=",
+            }
+        )
+
+    client.request.side_effect = [
+        tree_response,
+        make_file_response(".gitlab/merge_request_templates/feature.md"),
+        make_file_response(".gitlab/merge_request_templates/bug.md"),
+    ]
+
+    results = list(provider.get_pull_request_template(ref="main"))
+
+    assert [r["data"]["path"] for r in results] == [
+        ".gitlab/merge_request_templates/feature.md",
+        ".gitlab/merge_request_templates/bug.md",
+    ]
+
+
+def test_get_pull_request_template_returns_empty_when_dir_missing(client, provider: GitLabProvider):
+    response = unittest.mock.MagicMock()
+    response.status_code = 404
+    response.content = b'{"message":"404 Tree Not Found"}'
+    response.request = unittest.mock.MagicMock(headers={}, body=None)
+    client.request.return_value = response
+
+    results = list(provider.get_pull_request_template(ref="main"))
+
+    assert results == []
+
+
 def test_get_directory_contents_raises_when_path_is_not_directory(client, provider: GitLabProvider):
     response = unittest.mock.MagicMock()
     response.status_code = 404

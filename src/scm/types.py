@@ -1,5 +1,5 @@
 import dataclasses
-from collections.abc import MutableMapping
+from collections.abc import Iterator, MutableMapping
 from datetime import datetime
 from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict, runtime_checkable
 
@@ -1030,6 +1030,16 @@ class GetReadmeProtocol(Protocol):
     ) -> ActionResult[FileContent]: ...
 
 
+@runtime_checkable
+class GetPullRequestTemplateProtocol(Protocol):
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]: ...
+
+
 # Archive Protocols
 
 
@@ -1224,6 +1234,7 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
     GetReadmeProtocol,
     GetRepositoryAssigneesProtocol,

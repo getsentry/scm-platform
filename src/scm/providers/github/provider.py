@@ -1,5 +1,5 @@
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from email.utils import format_datetime, parsedate_to_datetime
 from typing import Any, cast
@@ -8,6 +8,7 @@ import msgspec
 import requests
 
 from scm.errors import ErrorCode, SCMCodedError
+from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
     DynamicRateLimiter,
@@ -157,6 +158,14 @@ GITHUB_RATE_LIMIT_REMAINING = "x-ratelimit-remaining"
 GITHUB_RATE_LIMIT_RETRY_AFTER = "retry-after"
 
 GITHUB_WEB_BASE_URL = "https://github.com"
+
+# Directories where GitHub recognizes pull-request templates. Single-template
+# files live as PULL_REQUEST_TEMPLATE.md inside one of these directories;
+# multi-template repos use a PULL_REQUEST_TEMPLATE/ subdirectory under .github.
+# Names are matched case-insensitively to mirror GitHub's own behavior.
+PULL_REQUEST_TEMPLATE_PARENT_DIRS = (".github", "", "docs")
+PULL_REQUEST_TEMPLATE_FILENAME = "pull_request_template.md"
+PULL_REQUEST_TEMPLATE_DIRNAME = "pull_request_template"
 
 
 def _extract_response_meta(response: requests.Response) -> ResponseMeta:
@@ -653,6 +662,58 @@ class GitHubProvider:
                 raise SCMCodedError(code="readme_not_found") from e
             raise
         return map_action(response, map_file_content)
+
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]:
+        # Force pagination params to the empty pagination params type if specified as none. This is so we can
+        # destructure it in the pagination-helper calls.
+        iter_kwargs = pagination or {}
+
+        for parent_dir in PULL_REQUEST_TEMPLATE_PARENT_DIRS:
+            for path in self._find_pull_request_template_paths(parent_dir, ref, request_options, iter_kwargs):
+                yield self.get_file_content(path, ref=ref, request_options=request_options)
+
+    def _find_pull_request_template_paths(
+        self,
+        parent_dir: str,
+        ref: str,
+        ro: RequestOptions | None,
+        pagination: PaginationParams,
+    ) -> Iterator[str]:
+        try:
+            for page in iter_all_pages(
+                lambda p: self.get_directory_contents(parent_dir, ref=ref, pagination=p, request_options=ro),
+                **pagination,
+            ):
+                for entry in page["data"]:
+                    basename = entry["path"].rsplit("/", 1)[-1].lower()
+                    if entry["type"] == "file" and basename == PULL_REQUEST_TEMPLATE_FILENAME:
+                        yield entry["path"]
+                    elif entry["type"] == "directory" and basename == PULL_REQUEST_TEMPLATE_DIRNAME:
+                        yield from self._iter_template_directory(entry["path"], ref, ro, pagination)
+        except SCMCodedError as e:
+            if e.code == "resource_not_found":
+                return
+            raise
+
+    def _iter_template_directory(
+        self,
+        directory: str,
+        ref: str,
+        ro: RequestOptions | None,
+        pagination: PaginationParams,
+    ):
+        for page in iter_all_pages(
+            lambda p: self.get_directory_contents(directory, ref=ref, pagination=p, request_options=ro),
+            **pagination,
+        ):
+            for entry in page["data"]:
+                if entry["type"] == "file" and entry["path"].lower().endswith(".md"):
+                    yield entry["path"]
 
     def get_directory_contents(
         self,
