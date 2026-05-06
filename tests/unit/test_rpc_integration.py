@@ -455,6 +455,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    (
+        "get_readme",
+        lambda scm: actions.get_readme(scm, "main"),
+        make_github_file_content(),
+        200,
+        None,
+    ),
     # Commit operations
     (
         "get_commit",

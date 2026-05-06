@@ -972,6 +972,27 @@ class BaseTestProvider(Provider):
                 content="SGVsbG8gV29ybGQ=",
                 encoding="base64",
                 size=11,
+                type="file",
+            ),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        return ActionResult(
+            data=FileContent(
+                path="README.md",
+                sha="readme123",
+                content="SGVsbG8gV29ybGQ=",
+                encoding="base64",
+                size=11,
+                type="file",
             ),
             type="github",
             raw={"headers": None, "data": None},
@@ -993,6 +1014,7 @@ class BaseTestProvider(Provider):
                     content="",
                     encoding="",
                     size=11,
+                    type="file",
                 ),
                 FileContent(
                     path=f"{path}/src",
@@ -1000,6 +1022,7 @@ class BaseTestProvider(Provider):
                     content="",
                     encoding="",
                     size=0,
+                    type="directory",
                 ),
             ],
             type="github",

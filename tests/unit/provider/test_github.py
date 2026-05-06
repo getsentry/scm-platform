@@ -282,6 +282,7 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
         "content": raw.get("content", ""),
         "encoding": raw.get("encoding", ""),
         "size": raw["size"],
+        "type": "directory" if raw.get("type") == "dir" else raw.get("type", "file"),
     }
 
 
@@ -687,6 +688,15 @@ ACTION_CASES: list[dict[str, Any]] = [
         "operation": "get",
         "kwargs": {"path": "README.md", "ref": "main"},
         "path": "/repos/test-org/test-repo/contents/README.md",
+        "params": {"ref": "main"},
+        "raw": FILE_CONTENT_RAW,
+        "expected_data": expected_file_content(FILE_CONTENT_RAW),
+    },
+    {
+        "name": "get_readme",
+        "operation": "get",
+        "kwargs": {"ref": "main"},
+        "path": "/repos/test-org/test-repo/readme",
         "params": {"ref": "main"},
         "raw": FILE_CONTENT_RAW,
         "expected_data": expected_file_content(FILE_CONTENT_RAW),
@@ -1132,6 +1142,16 @@ def test_get_file_content_raises_when_path_is_directory() -> None:
 
     assert exc_info.value.code == "path_is_directory"
     assert exc_info.value.detail == "src"
+
+
+def test_get_readme_raises_readme_not_found_on_404() -> None:
+    provider, _ = make_provider()
+    provider.get = MagicMock(side_effect=SCMCodedError(code="resource_not_found"))  # type: ignore[method-assign]
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_readme(ref="main")
+
+    assert exc_info.value.code == "readme_not_found"
 
 
 def test_get_directory_contents_raises_when_path_is_not_directory() -> None:

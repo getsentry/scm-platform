@@ -34,6 +34,7 @@ from scm.types import (
     CredentialsSet,
     DeleteCommitAction,
     FileContent,
+    FileContentType,
     FileStatus,
     GitBlob,
     GitCommitObject,
@@ -633,6 +634,24 @@ class GitHubProvider:
         )
         if isinstance(response.json(), list):
             raise SCMCodedError(code="path_is_directory", detail=path)
+        return map_action(response, map_file_content)
+
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        try:
+            response = self.get(
+                f"/repos/{self.repository['name']}/readme",
+                params={"ref": ref},
+                request_options=request_options,
+            )
+        except SCMCodedError as e:
+            if e.code == "resource_not_found":
+                raise SCMCodedError(code="readme_not_found") from e
+            raise
         return map_action(response, map_file_content)
 
     def get_directory_contents(
@@ -1278,6 +1297,14 @@ def map_git_blob(raw: dict[str, Any]) -> GitBlob:
     return GitBlob(sha=raw["sha"])
 
 
+_GITHUB_FILE_CONTENT_TYPES: dict[str, FileContentType] = {
+    "file": "file",
+    "dir": "directory",
+    "symlink": "symlink",
+    "submodule": "submodule",
+}
+
+
 def map_file_content(raw: dict[str, Any]) -> FileContent:
     return FileContent(
         path=raw["path"],
@@ -1285,6 +1312,7 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
         content=raw.get("content", ""),
         encoding=raw.get("encoding", ""),
         size=raw["size"],
+        type=_GITHUB_FILE_CONTENT_TYPES.get(raw.get("type", "file"), "file"),
     )
 
 

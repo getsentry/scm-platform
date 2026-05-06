@@ -57,6 +57,7 @@ from scm.actions import (
     get_pull_request_reactions,
     get_pull_request_url,
     get_pull_requests,
+    get_readme,
     get_repository_assignees,
     get_repository_labels,
     get_repository_topics,
@@ -147,6 +148,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # File content operations
     (get_directory_contents, {"path": "src"}),
     (get_file_content, {"path": "README.md", "ref": "main"}),
+    (get_readme, {"ref": "main"}),
     # Commit operations
     (get_commit, {"sha": "abc123"}),
     (get_commits, {}),
@@ -397,6 +399,14 @@ def _check_create_git_blob(result: Any) -> None:
 
 
 def _check_file_content(result: Any) -> None:
+    fc = result["data"]
+    assert fc["path"] == "README.md"
+    assert fc["content"] == "SGVsbG8gV29ybGQ="
+    assert fc["encoding"] == "base64"
+    assert result["type"] == "github"
+
+
+def _check_readme(result: Any) -> None:
     fc = result["data"]
     assert fc["path"] == "README.md"
     assert fc["content"] == "SGVsbG8gV29ybGQ="
@@ -662,6 +672,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     ),
     (get_directory_contents, {"path": "src"}, _check_directory_contents),
     (get_file_content, {"path": "README.md", "ref": "main"}, _check_file_content),
+    (get_readme, {"ref": "main"}, _check_readme),
     (get_commit, {"sha": "abc123"}, _check_get_commit),
     (get_commits, {}, _check_get_commits),
     (get_commits_by_path, {"path": "src/main.py"}, _check_get_commits),

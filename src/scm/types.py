@@ -341,12 +341,16 @@ class GitBlob(TypedDict):
     sha: SHA
 
 
+type FileContentType = Literal["file", "directory", "symlink", "submodule"]
+
+
 class FileContent(TypedDict):
     path: str
     sha: SHA
     content: str  # base64-encoded
     encoding: str
     size: int
+    type: FileContentType
 
 
 class CommitAuthor(TypedDict):
@@ -1016,6 +1020,16 @@ class GetDirectoryContentsProtocol(Protocol):
     ) -> PaginatedActionResult[FileContent]: ...
 
 
+@runtime_checkable
+class GetReadmeProtocol(Protocol):
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]: ...
+
+
 # Archive Protocols
 
 
@@ -1211,6 +1225,7 @@ ALL_PROTOCOLS = (
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
+    GetReadmeProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,

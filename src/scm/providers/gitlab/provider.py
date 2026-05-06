@@ -7,6 +7,7 @@ from urllib.parse import quote
 import requests
 
 from scm.errors import ErrorCode, SCMCodedError
+from scm.helpers import iter_all_pages
 from scm.types import (
     SHA,
     ActionResult,
@@ -23,6 +24,7 @@ from scm.types import (
     DeleteCommitAction,
     Encoding,
     FileContent,
+    FileContentType,
     GitCommitObject,
     GitCommitTree,
     GitRef,
@@ -54,6 +56,8 @@ from scm.types import (
 )
 
 API_VERSION = "/api/v4"
+
+VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
 
 
 class GitLab:
@@ -271,7 +275,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_author, response.json())
+        return make_paginated_result(map_author, response, response.json())
 
     def get_repository_labels(
         self,
@@ -283,7 +287,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_label, response.json())
+        return make_paginated_result(map_label, response, response.json())
 
     def get_repository_topics(
         self,
@@ -312,7 +316,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_comment, response.json())
+        return make_paginated_result(map_comment, response, response.json())
 
     def create_issue_comment(self, issue_id: str, body: str) -> ActionResult[Comment]:
         response = self.post(
@@ -391,6 +395,7 @@ class GitLabProvider:
         raw = response.json()
         return make_paginated_result(
             map_comment,
+            response,
             raw,
             raw_items=(
                 note
@@ -429,6 +434,7 @@ class GitLabProvider:
         raw = response.json()
         return make_paginated_result(
             map_reaction_result,
+            response,
             raw,
             raw_items=(award for award in raw if award["name"] in REACTION_BY_AWARD_NAME),
         )
@@ -474,6 +480,7 @@ class GitLabProvider:
         raw = response.json()
         return make_paginated_result(
             map_reaction_result,
+            response,
             raw,
             raw_items=(award for award in raw if award["name"] in REACTION_BY_AWARD_NAME),
         )
@@ -513,6 +520,7 @@ class GitLabProvider:
         raw = response.json()
         return make_paginated_result(
             map_reaction_result,
+            response,
             raw,
             raw_items=(award for award in raw if award["name"] in REACTION_BY_AWARD_NAME),
         )
@@ -543,6 +551,7 @@ class GitLabProvider:
         raw = response.json()
         return make_paginated_result(
             map_reaction_result,
+            response,
             raw,
             raw_items=(award for award in raw if award["name"] in REACTION_BY_AWARD_NAME),
         )
@@ -664,6 +673,28 @@ class GitLabProvider:
         )
         return make_result(map_file_content, response.json())
 
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        iter_kwargs: dict[str, Any] = {}
+        if pagination is not None:
+            if "per_page" in pagination:
+                iter_kwargs["per_page"] = pagination["per_page"]
+            if "cursor" in pagination:
+                iter_kwargs["cursor"] = pagination["cursor"]
+
+        for page in iter_all_pages(
+            lambda p: self.get_directory_contents("/", ref, p, request_options),
+            **iter_kwargs,
+        ):
+            for entry in page["data"]:
+                if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
+                    return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
+        raise SCMCodedError(code="readme_not_found")
+
     def get_directory_contents(
         self,
         path: str,
@@ -686,7 +717,7 @@ class GitLabProvider:
             if e.code == "resource_not_found" and e.detail and "not treeish" in e.detail:
                 raise SCMCodedError(code="path_is_not_directory", detail=path) from e
             raise
-        return make_paginated_result(map_tree_entry_to_file_content, response.json())
+        return make_paginated_result(map_tree_entry_to_file_content, response, response.json())
 
     def get_commit(
         self,
@@ -720,7 +751,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_commit, response.json())
+        return make_paginated_result(map_commit, response, response.json())
 
     def get_commits_by_path(
         self,
@@ -744,7 +775,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_commit, response.json())
+        return make_paginated_result(map_commit, response, response.json())
 
     def compare_commits(
         self,
@@ -760,7 +791,7 @@ class GitLabProvider:
             request_options=request_options,
         )
         raw = response.json()
-        return make_paginated_result(map_commit, raw, raw_items=raw["commits"])
+        return make_paginated_result(map_commit, response, raw, raw_items=raw["commits"])
 
     def create_commit(
         self,
@@ -793,7 +824,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_pull_request_file, response.json())
+        return make_paginated_result(map_pull_request_file, response, response.json())
 
     def get_pull_request_commits(
         self,
@@ -807,7 +838,7 @@ class GitLabProvider:
             request_options=request_options,
         )
         raw = response.json()
-        return make_paginated_result(map_pull_request_commit, raw, raw_items=reversed(raw))
+        return make_paginated_result(map_pull_request_commit, response, raw, raw_items=reversed(raw))
 
     def get_pull_requests(
         self,
@@ -834,7 +865,7 @@ class GitLabProvider:
                 request_options=request_options,
             )
             raw.extend(response.json())
-        return make_paginated_result(map_pull_request, raw)
+        return make_paginated_result(map_pull_request, response, raw)
 
     def create_pull_request(
         self,
@@ -1094,6 +1125,7 @@ class GitLabProvider:
 
 def make_paginated_result[T](
     map_item: Callable[[dict[str, Any]], T],
+    response: requests.Response,
     raw: Any,
     *,
     raw_items: Iterable[dict[str, Any]] | None = None,
@@ -1101,12 +1133,14 @@ def make_paginated_result[T](
     if raw_items is None:
         assert isinstance(raw, list)
         raw_items = raw
+
+    next_cursor = response.headers.get("X-Next-Page")
+
     return PaginatedActionResult(
         data=[map_item(item) for item in raw_items],
         type="gitlab",
         raw={"data": raw, "headers": None},
-        # No actual pagination for now
-        meta=PaginatedResponseMeta(next_cursor=None),
+        meta=PaginatedResponseMeta(next_cursor=next_cursor),
     )
 
 
@@ -1193,7 +1227,15 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
         content=raw["content"],
         encoding=raw["encoding"],
         size=raw["size"],
+        type="file",
     )
+
+
+_GITLAB_TREE_ENTRY_TYPES: dict[str, FileContentType] = {
+    "blob": "file",
+    "tree": "directory",
+    "commit": "submodule",
+}
 
 
 def map_tree_entry_to_file_content(raw: dict[str, Any]) -> FileContent:
@@ -1203,6 +1245,7 @@ def map_tree_entry_to_file_content(raw: dict[str, Any]) -> FileContent:
         content="",
         encoding="",
         size=0,
+        type=_GITLAB_TREE_ENTRY_TYPES.get(raw["type"], "file"),
     )
 
 
