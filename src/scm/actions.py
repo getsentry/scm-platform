@@ -402,9 +402,10 @@ def get_directory_contents(
 def get_readme(
     scm: GetReadmeProtocol,
     ref: str,
+    pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
 ) -> ActionResult[FileContent]:
-    return scm.get_readme(ref, request_options)
+    return scm.get_readme(ref, pagination, request_options)
 
 
 def get_commit(

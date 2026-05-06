@@ -638,6 +638,7 @@ class GitHubProvider:
     def get_readme(
         self,
         ref: str,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
         try:

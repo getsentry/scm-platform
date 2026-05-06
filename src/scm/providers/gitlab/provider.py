@@ -668,9 +668,20 @@ class GitLabProvider:
     def get_readme(
         self,
         ref: str,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
-        for page in iter_all_pages(lambda p: self.get_directory_contents("/", ref, p, request_options)):
+        iter_kwargs: dict[str, Any] = {}
+        if pagination is not None:
+            if "per_page" in pagination:
+                iter_kwargs["per_page"] = pagination["per_page"]
+            if "cursor" in pagination:
+                iter_kwargs["cursor"] = pagination["cursor"]
+
+        for page in iter_all_pages(
+            lambda p: self.get_directory_contents("/", ref, p, request_options),
+            **iter_kwargs,
+        ):
             for entry in page["data"]:
                 if entry["path"].lower().startswith("readme"):
                     return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
