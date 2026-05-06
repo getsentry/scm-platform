@@ -10711,7 +10711,7 @@ def _make_mock_response(json_data):
                             "mode": "100644",
                         },
                     ],
-                    params={"ref": "main"},
+                    params={"path": "/", "ref": "main", "per_page": "50", "page": "1"},
                 ),
                 ClientForwardedCall(
                     method="GET",

@@ -7,6 +7,7 @@ from urllib.parse import quote
 import requests
 
 from scm.errors import ErrorCode, SCMCodedError
+from scm.helpers import iter_all_pages
 from scm.types import (
     SHA,
     ActionResult,
@@ -669,31 +670,11 @@ class GitLabProvider:
         ref: str,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
-        tree_response = self.get(
-            GitLab.tree.format(project=self.project_id),
-            params={"ref": ref},
-            request_options=request_options,
-        )
-        readme_path: str | None = None
-        for entry in tree_response.json():
-            if entry.get("type") != "blob":
-                continue
-            name = entry.get("name", "")
-            stem, dot, ext = name.partition(".")
-            if stem.lower() != "readme":
-                continue
-            if dot and ext.lower() not in ("md", "rst", "txt"):
-                continue
-            readme_path = entry["path"]
-            break
-        if readme_path is None:
-            raise SCMCodedError(code="readme_not_found")
-        file_response = self.get(
-            GitLab.file.format(project=self.project_id, path=readme_path),
-            params={"ref": ref},
-            request_options=request_options,
-        )
-        return make_result(map_file_content, file_response.json())
+        for page in iter_all_pages(lambda p: self.get_directory_contents("/", ref, p, request_options)):
+            for entry in page["data"]:
+                if entry["path"].lower().startswith("readme"):
+                    return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
+        raise SCMCodedError(code="readme_not_found")
 
     def get_directory_contents(
         self,
