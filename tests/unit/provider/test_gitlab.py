@@ -57,6 +57,7 @@ def _make_mock_response(json_data):
     response = unittest.mock.MagicMock()
     response.json.return_value = json_data
     response.status_code = 200
+    response.headers = {}
     return response
 
 
