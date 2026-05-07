@@ -8,6 +8,7 @@ import pytest
 from scm.errors import SCMCodedError
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
+    RESOLVE_REVIEW_THREAD_MUTATION,
     GitHubProvider,
 )
 from scm.test_fixtures import (
@@ -1012,6 +1013,13 @@ VOID_CASES: list[dict[str, Any]] = [
         "kwargs": {"comment_node_id": "IC_123", "reason": "OUTDATED"},
         "query": MINIMIZE_COMMENT_MUTATION,
         "variables": {"commentId": "IC_123", "reason": "OUTDATED"},
+    },
+    {
+        "name": "resolve_review_thread",
+        "operation": "graphql",
+        "kwargs": {"thread_id": "PRRT_456"},
+        "query": RESOLVE_REVIEW_THREAD_MUTATION,
+        "variables": {"threadId": "PRRT_456"},
     },
 ]
 

@@ -595,6 +595,14 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    # Resolve review thread (GraphQL)
+    (
+        "resolve_review_thread",
+        lambda scm: actions.resolve_review_thread(scm, "PRRT_abc123"),
+        {"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}},
+        200,
+        None,
+    ),
     # Archive link (redirect)
     (
         "get_archive_link",
