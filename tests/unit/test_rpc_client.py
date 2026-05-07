@@ -117,9 +117,15 @@ class TestFetchProvider:
 
     def test_github_enterprise_returns_github_provider(self):
         client = MagicMock()
-        repo = make_repository(provider_name="github_enterprise")
+        repo = make_repository(provider_name="github_enterprise", web_base_url="https://github.example.com")
         provider = fetch_provider(client, 1, repo)
         assert isinstance(provider, GitHubProvider)
+
+    def test_github_enterprise_without_web_base_url_raises(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="github_enterprise")
+        with pytest.raises(SCMCodedError, match="rpc_invalid_grant"):
+            fetch_provider(client, 1, repo)
 
     def test_gitlab_returns_gitlab_provider(self):
         client = MagicMock()

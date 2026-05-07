@@ -229,7 +229,7 @@ class GitHubProvider:
         get_time_in_seconds: Callable[[], int] = lambda: int(time.time()),
         web_base_url: str = GITHUB_WEB_BASE_URL,
         provider_name: ProviderName = "github",
-        referrer_allocation: dict[Referrer, float] = REFERRER_ALLOCATION,
+        referrer_allocation: dict[Referrer, float] | None = None,
     ) -> None:
         self.client = client
         self.organization_id = organization_id
@@ -241,7 +241,7 @@ class GitHubProvider:
             provider=provider_name,
             rate_limit_provider=rate_limit_provider,
             rate_limit_window_seconds=GITHUB_RATE_LIMIT_WINDOW,
-            referrer_allocation=referrer_allocation,
+            referrer_allocation=referrer_allocation if referrer_allocation is not None else REFERRER_ALLOCATION,
             recorded_capacity=None,
         )
 

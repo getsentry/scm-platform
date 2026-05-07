@@ -299,6 +299,15 @@ class TestSerializeRepository:
     def test_null_external_id(self):
         assert deserialize_repository(serialize_repository(make_repository(external_id=None)))["external_id"] is None
 
+    def test_web_base_url_round_trips(self):
+        repo = make_repository(web_base_url="https://github.example.com")
+        decoded = deserialize_repository(serialize_repository(repo))
+        assert decoded["web_base_url"] == "https://github.example.com"
+
+    def test_web_base_url_absent_when_not_set(self):
+        decoded = deserialize_repository(serialize_repository(make_repository()))
+        assert "web_base_url" not in decoded
+
 
 class TestIterResponse:
     def test_yields_chunks(self):
