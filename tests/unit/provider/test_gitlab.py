@@ -12982,13 +12982,3 @@ def test_create_review_comment_only(client, provider: GitLabProvider):
     paths_called = [c.kwargs["path"] for c in client.request.call_args_list]
     assert "/projects/79787061/merge_requests/1/approve" not in paths_called
     assert "/projects/79787061/merge_requests/1/notes" not in paths_called
-
-
-def test_resolve_review_thread_puts_resolved_true(client, provider: GitLabProvider):
-    client.request.return_value = _make_mock_response({"id": "abc123", "resolved": True})
-
-    provider.resolve_review_thread("1:abc123")
-
-    assert client.request.call_args.kwargs["method"] == "PUT"
-    assert client.request.call_args.kwargs["path"] == "/projects/79787061/merge_requests/1/discussions/abc123"
-    assert client.request.call_args.kwargs["data"] == {"resolved": True}

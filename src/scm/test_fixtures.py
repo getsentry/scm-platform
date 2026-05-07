@@ -1446,7 +1446,7 @@ class BaseTestProvider(Provider):
     def download_archive(self, ref: str, archive_format: str = "tarball") -> bytes:
         return b"archive-bytes"
 
-    def resolve_review_thread(self, thread_id: str) -> None: ...
+    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, thread_id: str) -> None: ...
 
     def create_review_comment_reply(
         self,

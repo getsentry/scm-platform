@@ -1184,15 +1184,13 @@ class GitLabProvider:
         )
         return response.content
 
-    def resolve_review_thread(self, thread_id: str) -> None:
-        # GitLab "discussions" are the equivalent of GitHub's review threads. Resolving
-        # a discussion requires both the merge request IID and the discussion ID, so the
-        # thread_id is encoded as "{pr_key}:{discussion_id}" — matching the
-        # composite ID format the provider already uses for review comments.
-        pr_key, discussion_id = thread_id.split(":", 1)
+    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, comment_id: str) -> None:
+        discussion_id = comment_id.split(":")[0]
         self.put(
             GitLab.merge_request_discussion.format(
-                project_id=self.project_id, pr_key=pr_key, discussion_id=discussion_id
+                project_id=self.project_id,
+                pr_key=pull_request_id,
+                discussion_id=discussion_id,
             ),
             data={"resolved": True},
         )

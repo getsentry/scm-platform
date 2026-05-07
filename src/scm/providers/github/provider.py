@@ -142,10 +142,28 @@ mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) 
 }
 """
 
-RESOLVE_REVIEW_THREAD_MUTATION = """
+resolve_pull_request_review_comment_thread_MUTATION = """
 mutation ResolveReviewThread($threadId: ID!) {
     resolveReviewThread(input: {threadId: $threadId}) {
         thread { isResolved }
+    }
+}
+"""
+
+REVIEW_THREAD_BY_COMMENT_QUERY = """
+query ReviewThreadByComment($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+    repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+            reviewThreads(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    id
+                    comments(first: 100) {
+                        nodes { id }
+                    }
+                }
+            }
+        }
     }
 }
 """
@@ -1338,11 +1356,30 @@ class GitHubProvider:
             {"commentId": comment_node_id, "reason": reason},
         )
 
-    def resolve_review_thread(self, thread_id: str) -> None:
+    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, comment_id: str) -> None:
+        thread_id = self._get_pull_request_review_comment_thread_id(pull_request_id, comment_id)
         self.graphql(
-            RESOLVE_REVIEW_THREAD_MUTATION,
+            resolve_pull_request_review_comment_thread_MUTATION,
             {"threadId": thread_id},
         )
+
+    def _get_pull_request_review_comment_thread_id(self, pull_request_id: str, comment_id: str) -> str | None:
+        owner, _, name = self.repository["name"].partition("/")
+        cursor: str | None = None
+        while True:
+            data = self.graphql(
+                REVIEW_THREAD_BY_COMMENT_QUERY,
+                {"owner": owner, "name": name, "number": int(pull_request_id), "cursor": cursor},
+            )
+            review_threads = data["repository"]["pullRequest"]["reviewThreads"]
+            for thread in review_threads["nodes"]:
+                for comment in thread["comments"]["nodes"]:
+                    if comment["id"] == comment_id:
+                        return thread["id"]
+            page_info = review_threads["pageInfo"]
+            if not page_info["hasNextPage"]:
+                return None
+            cursor = page_info["endCursor"]
 
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:

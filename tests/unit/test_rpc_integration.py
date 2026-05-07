@@ -595,14 +595,6 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
-    # Resolve review thread (GraphQL)
-    (
-        "resolve_review_thread",
-        lambda scm: actions.resolve_review_thread(scm, "PRRT_abc123"),
-        {"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}},
-        200,
-        None,
-    ),
     # Archive link (redirect)
     (
         "get_archive_link",
@@ -650,6 +642,34 @@ MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list |
             (make_github_git_tree(sha="new_tree"), 201, None),
             (make_github_git_commit_object(sha="new_commit", message="msg"), 201, None),
             (make_github_git_ref(ref="refs/heads/topic", sha="new_commit"), 200, None),
+        ],
+    ),
+    (
+        "resolve_pull_request_review_comment_thread",
+        lambda scm: actions.resolve_pull_request_review_comment_thread(scm, "1", "PRRC_abc123"),
+        [
+            (
+                {
+                    "data": {
+                        "repository": {
+                            "pullRequest": {
+                                "reviewThreads": {
+                                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                    "nodes": [
+                                        {
+                                            "id": "PRRT_xyz",
+                                            "comments": {"nodes": [{"id": "PRRC_abc123"}]},
+                                        }
+                                    ],
+                                }
+                            }
+                        }
+                    }
+                },
+                200,
+                None,
+            ),
+            ({"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}, 200, None),
         ],
     ),
 ]

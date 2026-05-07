@@ -8,8 +8,9 @@ import pytest
 from scm.errors import SCMCodedError
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
-    RESOLVE_REVIEW_THREAD_MUTATION,
+    REVIEW_THREAD_BY_COMMENT_QUERY,
     GitHubProvider,
+    resolve_pull_request_review_comment_thread_MUTATION,
 )
 from scm.test_fixtures import (
     make_github_assignee,
@@ -1014,13 +1015,6 @@ VOID_CASES: list[dict[str, Any]] = [
         "query": MINIMIZE_COMMENT_MUTATION,
         "variables": {"commentId": "IC_123", "reason": "OUTDATED"},
     },
-    {
-        "name": "resolve_review_thread",
-        "operation": "graphql",
-        "kwargs": {"thread_id": "PRRT_456"},
-        "query": RESOLVE_REVIEW_THREAD_MUTATION,
-        "variables": {"threadId": "PRRT_456"},
-    },
 ]
 
 
@@ -1118,6 +1112,119 @@ def test_action_methods(case: dict[str, Any]) -> None:
             expected_call["params"] = case["params"]
         expected_call["headers"] = case.get("headers")
     assert client.calls == [expected_call]
+
+
+def _review_threads_response(
+    threads: list[dict[str, Any]],
+    *,
+    has_next_page: bool = False,
+    end_cursor: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "repository": {
+            "pullRequest": {
+                "reviewThreads": {
+                    "pageInfo": {"hasNextPage": has_next_page, "endCursor": end_cursor},
+                    "nodes": threads,
+                }
+            }
+        }
+    }
+
+
+def test_resolve_pull_request_review_comment_thread_looks_up_thread_then_resolves() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_response(
+            [
+                {"id": "PRRT_other", "comments": {"nodes": [{"id": "PRRC_aaa"}]}},
+                {"id": "PRRT_456", "comments": {"nodes": [{"id": "PRRC_xyz"}]}},
+            ]
+        ),
+    )
+    client.queue("graphql", {"resolveReviewThread": {"thread": {"isResolved": True}}})
+
+    provider.resolve_pull_request_review_comment_thread("42", "PRRC_xyz")
+
+    assert client.calls == [
+        {
+            "operation": "graphql",
+            "query": REVIEW_THREAD_BY_COMMENT_QUERY,
+            "variables": {"owner": "test-org", "name": "test-repo", "number": 42, "cursor": None},
+        },
+        {
+            "operation": "graphql",
+            "query": resolve_pull_request_review_comment_thread_MUTATION,
+            "variables": {"threadId": "PRRT_456"},
+        },
+    ]
+
+
+def test_get_pull_request_review_comment_thread_id_returns_matching_thread() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_response(
+            [
+                {"id": "PRRT_first", "comments": {"nodes": [{"id": "PRRC_a"}, {"id": "PRRC_b"}]}},
+                {"id": "PRRT_match", "comments": {"nodes": [{"id": "PRRC_target"}]}},
+            ]
+        ),
+    )
+
+    assert provider._get_pull_request_review_comment_thread_id("42", "PRRC_target") == "PRRT_match"
+    assert client.calls == [
+        {
+            "operation": "graphql",
+            "query": REVIEW_THREAD_BY_COMMENT_QUERY,
+            "variables": {"owner": "test-org", "name": "test-repo", "number": 42, "cursor": None},
+        }
+    ]
+
+
+def test_get_pull_request_review_comment_thread_id_paginates_until_match() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_response(
+            [{"id": "PRRT_page1", "comments": {"nodes": [{"id": "PRRC_other"}]}}],
+            has_next_page=True,
+            end_cursor="cursor-1",
+        ),
+    )
+    client.queue(
+        "graphql",
+        _review_threads_response(
+            [{"id": "PRRT_page2", "comments": {"nodes": [{"id": "PRRC_target"}]}}],
+        ),
+    )
+
+    assert provider._get_pull_request_review_comment_thread_id("7", "PRRC_target") == "PRRT_page2"
+    assert client.calls == [
+        {
+            "operation": "graphql",
+            "query": REVIEW_THREAD_BY_COMMENT_QUERY,
+            "variables": {"owner": "test-org", "name": "test-repo", "number": 7, "cursor": None},
+        },
+        {
+            "operation": "graphql",
+            "query": REVIEW_THREAD_BY_COMMENT_QUERY,
+            "variables": {"owner": "test-org", "name": "test-repo", "number": 7, "cursor": "cursor-1"},
+        },
+    ]
+
+
+def test_get_pull_request_review_comment_thread_id_returns_none_when_not_found() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_response(
+            [{"id": "PRRT_only", "comments": {"nodes": [{"id": "PRRC_other"}]}}],
+        ),
+    )
+
+    assert provider._get_pull_request_review_comment_thread_id("42", "PRRC_missing") is None
 
 
 def test_create_pull_request_comment_forwards_copilot_chat_extensions() -> None:
@@ -1693,6 +1800,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_commit_url",
         "get_pull_request_url",
         "create_commit",
+        "resolve_pull_request_review_comment_thread",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

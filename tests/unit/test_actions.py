@@ -65,7 +65,7 @@ from scm.actions import (
     get_tree,
     minimize_comment,
     request_review,
-    resolve_review_thread,
+    resolve_pull_request_review_comment_thread,
     update_branch,
     update_check_run,
     update_pull_request,
@@ -225,7 +225,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (update_check_run, {"check_run_id": "300"}),
     # GraphQL mutation operations
     (minimize_comment, {"comment_node_id": "IC_abc", "reason": "OUTDATED"}),
-    (resolve_review_thread, {"thread_id": "PRRT_abc"}),
+    (resolve_pull_request_review_comment_thread, {"pull_request_id": "1", "thread_id": "PRRT_abc"}),
     # Archive operations
     (download_archive, {"ref": "main"}),
 )
@@ -800,8 +800,8 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         _check_none,
     ),
     (
-        resolve_review_thread,
-        {"thread_id": "PRRT_abc"},
+        resolve_pull_request_review_comment_thread,
+        {"pull_request_id": "1", "thread_id": "PRRT_abc"},
         _check_none,
     ),
     (download_archive, {"ref": "main"}, _check_download_archive),

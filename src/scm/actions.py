@@ -101,7 +101,7 @@ from scm.types import (
     ReactionResult,
     RequestOptions,
     RequestReviewProtocol,
-    ResolveReviewThreadProtocol,
+    ResolvePullRequestReviewThreadProtocol,
     ResourceId,
     Review,
     ReviewComment,
@@ -729,8 +729,12 @@ def minimize_comment(scm: MinimizeCommentProtocol, comment_node_id: str, reason:
     return scm.minimize_comment(comment_node_id, reason)
 
 
-def resolve_review_thread(scm: ResolveReviewThreadProtocol, thread_id: str) -> None:
-    return scm.resolve_review_thread(thread_id)
+def resolve_pull_request_review_comment_thread(
+    scm: ResolvePullRequestReviewThreadProtocol,
+    pull_request_id: str,
+    thread_id: str,
+) -> None:
+    return scm.resolve_pull_request_review_comment_thread(pull_request_id, thread_id)
 
 
 def get_archive_link(
@@ -810,7 +814,7 @@ __all__ = (
     "get_tree",
     "minimize_comment",
     "request_review",
-    "resolve_review_thread",
+    "resolve_pull_request_review_comment_thread",
     "update_branch",
     "update_check_run",
     "update_pull_request",
