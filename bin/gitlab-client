@@ -48,6 +48,8 @@ Commands:
     create-review <pr_id> <commit_sha> <event>
         [--body <text>]
         [--comment <json> ...]
+    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
+    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
     update-review-comment <pr_id> <comment_id> <body>
     get-repository
     get-repository-assignees
@@ -68,6 +70,8 @@ from scm.types import (
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
+    CreateReviewCommentLineProtocol,
+    CreateReviewCommentMultilineProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
@@ -234,6 +238,24 @@ def main():
     p.add_argument("--body", default=None)
     p.add_argument("--comment", action="append", dest="comments", default=None, metavar="JSON")
 
+    p = sub.add_parser("create-review-comment-line")
+    p.add_argument("pr_id")
+    p.add_argument("commit_id")
+    p.add_argument("body")
+    p.add_argument("path")
+    p.add_argument("side", choices=["base", "head"])
+    p.add_argument("line", type=int)
+
+    p = sub.add_parser("create-review-comment-multiline")
+    p.add_argument("pr_id")
+    p.add_argument("commit_id")
+    p.add_argument("body")
+    p.add_argument("path")
+    p.add_argument("side", choices=["base", "head"])
+    p.add_argument("start_side", choices=["base", "head"])
+    p.add_argument("start_line", type=int)
+    p.add_argument("end_line", type=int)
+
     p = sub.add_parser("update-review-comment")
     p.add_argument("pr_id")
     p.add_argument("comment_id")
@@ -374,6 +396,25 @@ def main():
         assert isinstance(scm, CreateReviewProtocol)
         comments: list[ReviewCommentInput] = [json.loads(c) for c in (args.comments or [])]
         dump(scm.create_review(args.pr_id, args.commit_sha, args.event, comments, body=args.body))
+
+    elif args.command == "create-review-comment-line":
+        assert isinstance(scm, CreateReviewCommentLineProtocol)
+        dump(scm.create_review_comment_line(args.pr_id, args.commit_id, args.body, args.path, args.side, args.line))
+
+    elif args.command == "create-review-comment-multiline":
+        assert isinstance(scm, CreateReviewCommentMultilineProtocol)
+        dump(
+            scm.create_review_comment_multiline(
+                args.pr_id,
+                args.commit_id,
+                args.body,
+                args.path,
+                args.side,
+                args.start_side,
+                args.start_line,
+                args.end_line,
+            )
+        )
 
     elif args.command == "update-review-comment":
         assert isinstance(scm, UpdateReviewCommentProtocol)

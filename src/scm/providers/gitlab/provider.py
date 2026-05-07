@@ -985,6 +985,46 @@ class GitLabProvider:
         )
         return make_result(map_pull_request, response.json())
 
+    def _fetch_mr_versions(self, pull_request_id: str) -> list[dict[str, Any]]:
+        return self.get(
+            GitLab.merge_request_versions.format(project_id=self.project_id, pr_key=pull_request_id),
+        ).json()
+
+    def _post_review_discussion(
+        self,
+        pull_request_id: str,
+        body: str,
+        path: str,
+        versions: list[dict[str, Any]],
+        *,
+        position_type: str = "text",
+        line: int | None = None,
+        side: ReviewSide = "head",
+        start_line: int | None = None,
+        start_side: ReviewSide = "head",
+    ) -> dict[str, Any]:
+        position: dict[str, Any] = {
+            "position_type": position_type,
+            "base_sha": versions[0]["base_commit_sha"],
+            "head_sha": versions[0]["head_commit_sha"],
+            "start_sha": versions[0]["start_commit_sha"],
+            "new_path": path,
+            "old_path": path,
+        }
+        if line is not None:
+            position["new_line" if side == "head" else "old_line"] = line
+        if start_line is not None:
+            line_key = "new_line" if start_side == "head" else "old_line"
+            range_type = "new" if start_side == "head" else "old"
+            position["line_range"] = {
+                "start": {line_key: start_line, "type": range_type},
+                "end": {line_key: line, "type": range_type},
+            }
+        return self.post(
+            GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
+            data={"body": body, "position": position},
+        ).json()
+
     def create_review_comment_file(
         self,
         pull_request_id: str,
@@ -1003,26 +1043,65 @@ class GitLabProvider:
         we build a comment ID made of the GitLab's discussion ID and comment ID.
         It can be passed to `create_review_comment_reply`, and uniquely identifies a note.
         """
-        versions_response = self.get(
-            GitLab.merge_request_versions.format(project_id=self.project_id, pr_key=pull_request_id),
+        raw = self._post_review_discussion(
+            pull_request_id,
+            body,
+            path,
+            self._fetch_mr_versions(pull_request_id),
+            position_type="file",
         )
-        versions = versions_response.json()
+        return make_result(
+            map_review_comment(raw["id"]),
+            raw,
+            raw_item=raw["notes"][0],
+        )
 
-        response = self.post(
-            GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
-            data={
-                "body": body,
-                "position": {
-                    "position_type": "file",
-                    "base_sha": versions[0]["base_commit_sha"],
-                    "head_sha": versions[0]["head_commit_sha"],
-                    "start_sha": versions[0]["start_commit_sha"],
-                    "new_path": path,
-                    "old_path": path,
-                },
-            },
+    def create_review_comment_line(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+        line: int,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment on a single line of a merge request diff."""
+        raw = self._post_review_discussion(
+            pull_request_id,
+            body,
+            path,
+            self._fetch_mr_versions(pull_request_id),
+            line=line,
+            side=side,
         )
-        raw = response.json()
+        return make_result(
+            map_review_comment(raw["id"]),
+            raw,
+            raw_item=raw["notes"][0],
+        )
+
+    def create_review_comment_multiline(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+        start_side: ReviewSide,
+        start_line: int,
+        end_line: int,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment on a span of lines of a merge request diff."""
+        raw = self._post_review_discussion(
+            pull_request_id,
+            body,
+            path,
+            self._fetch_mr_versions(pull_request_id),
+            line=end_line,
+            side=side,
+            start_line=start_line,
+            start_side=start_side,
+        )
         return make_result(
             map_review_comment(raw["id"]),
             raw,
@@ -1091,45 +1170,18 @@ class GitLabProvider:
         operation is therefore **not atomic**: individual API calls may succeed
         independently.
         """
-        versions_response = self.get(
-            GitLab.merge_request_versions.format(project_id=self.project_id, pr_key=pull_request_id),
-        )
-        versions = versions_response.json()
+        versions = self._fetch_mr_versions(pull_request_id)
 
         def _create_review_comment(comment: ReviewCommentInput) -> str:
-            position: dict[str, Any] = {
-                "position_type": "text",
-                "base_sha": versions[0]["base_commit_sha"],
-                "head_sha": versions[0]["head_commit_sha"],
-                "start_sha": versions[0]["start_commit_sha"],
-                "new_path": comment["path"],
-                "old_path": comment["path"],
-            }
+            kwargs: dict[str, Any] = {}
             if "line" in comment:
-                side = comment.get("side", "head")
-                if side == "head":
-                    position["new_line"] = comment["line"]
-                else:
-                    position["old_line"] = comment["line"]
-
+                kwargs["line"] = comment["line"]
+                kwargs["side"] = comment.get("side", "head")
             if "start_line" in comment:
-                start_side = comment.get("start_side", "head")
-                if start_side == "head":
-                    position["line_range"] = {
-                        "start": {"new_line": comment["start_line"], "type": "new"},
-                        "end": {"new_line": comment["line"], "type": "new"},
-                    }
-                else:
-                    position["line_range"] = {
-                        "start": {"old_line": comment["start_line"], "type": "old"},
-                        "end": {"old_line": comment["line"], "type": "old"},
-                    }
-
-            resp = self.post(
-                GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
-                data={"body": comment["body"], "position": position},
-            )
-            return resp.json()["id"]
+                kwargs["start_line"] = comment["start_line"]
+                kwargs["start_side"] = comment.get("start_side", "head")
+            raw = self._post_review_discussion(pull_request_id, comment["body"], comment["path"], versions, **kwargs)
+            return raw["id"]
 
         def _create_review_body() -> None:
             self.post(
