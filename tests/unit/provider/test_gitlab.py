@@ -12593,6 +12593,26 @@ def test_forward_to_client(client, provider: GitLabProvider, param: ForwardToCli
             assert mock_call.kwargs["data"] == client_call.data
 
 
+def test_get_pull_request_diff(client, provider: GitLabProvider):
+    diff_text = "diff --git a/f.py b/f.py\n@@ -0,0 +1 @@\n+hi\n"
+    response = unittest.mock.MagicMock()
+    response.text = diff_text
+    response.status_code = 200
+    response.headers = {}
+    client.request.return_value = response
+
+    result = provider.get_pull_request_diff("1")
+
+    assert result == {
+        "data": diff_text,
+        "type": "gitlab",
+        "raw": {"data": diff_text, "headers": None},
+        "meta": {},
+    }
+    assert client.request.call_args.kwargs["method"] == "GET"
+    assert client.request.call_args.kwargs["path"] == "/projects/79787061/merge_requests/1/raw_diffs"
+
+
 def test_get_readme_skips_directory_named_readme(client, provider: GitLabProvider):
     file_response = _make_mock_response(
         {

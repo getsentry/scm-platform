@@ -104,6 +104,7 @@ class GitLab:
     )
     merge_request_approve = "/projects/{project_id}/merge_requests/{pr_key}/approve"
     pr_diffs = "/projects/{project}/merge_requests/{pr_key}/diffs"
+    pr_raw_diffs = "/projects/{project}/merge_requests/{pr_key}/raw_diffs"
     project = "/projects/{project}"
     project_issues = "/projects/{project}/issues"
     project_hooks = "/projects/{project}/hooks"
@@ -884,6 +885,22 @@ class GitLabProvider:
         )
         raw = response.json()
         return make_paginated_result(map_pull_request_commit, response, raw, raw_items=reversed(raw))
+
+    def get_pull_request_diff(
+        self,
+        pull_request_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[str]:
+        response = self.get(
+            GitLab.pr_raw_diffs.format(project=self.project_id, pr_key=pull_request_id),
+            request_options=request_options,
+        )
+        return ActionResult(
+            data=response.text,
+            type="gitlab",
+            raw={"data": response.text, "headers": None},
+            meta={},
+        )
 
     def get_pull_requests(
         self,
