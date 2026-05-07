@@ -3,12 +3,20 @@ name: release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Version to release (or "auto")
-        required: false
+      bump:
+        description: Version bump type
+        required: true
+        type: choice
+        default: minor
+        options:
+          - minor
+          - patch
+          - major
       force:
-        description: Force a release even when there are release-blockers (optional)
+        description: Force release (bypass blockers)
         required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -21,20 +29,35 @@ jobs:
     steps:
       - name: Get auth token
         id: token
-        uses: actions/create-github-app-token@5d869da34e18e7287c1daad50e0b8ea0f506ce69 # v1.11.0
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
         with:
           app-id: ${{ vars.SENTRY_RELEASE_BOT_CLIENT_ID }}
           private-key: ${{ secrets.SENTRY_RELEASE_BOT_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           token: ${{ steps.token.outputs.token }}
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Calculate version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          CURRENT=$(uv version --short)
+          NEW=$(uv version --bump "$BUMP" --dry-run --short)
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
 
       - name: Prepare release
-        uses: getsentry/craft@c6e2f04939b6ee67030588afbb5af76b127d8203 # v2
+        uses: getsentry/action-prepare-release@v1
         env:
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         with:
-          version: ${{ github.event.inputs.version }}
-          force: ${{ github.event.inputs.force }}
+          version: ${{ steps.version.outputs.new }}
+          force: ${{ inputs.force }}
