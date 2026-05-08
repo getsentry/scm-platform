@@ -13573,6 +13573,21 @@ def test_update_check_run_output_only_reapplies_current_state(client, provider: 
     }
 
 
+def test_create_check_run_rejects_completed_without_conclusion(client, provider: GitLabProvider):
+    """GitLab has no 'completed' state, so a conclusion is required to pick the terminal state."""
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.create_check_run(name="ci/seer-review", head_sha="abc123", status="completed")
+    assert excinfo.value.code == "resource_bad_request"
+    client.request.assert_not_called()
+
+
+def test_update_check_run_rejects_completed_without_conclusion(client, provider: GitLabProvider):
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.update_check_run(check_run_id="abc123:ci/seer-review", status="completed")
+    assert excinfo.value.code == "resource_bad_request"
+    client.request.assert_not_called()
+
+
 def test_update_check_run_rejects_malformed_id(client, provider: GitLabProvider):
     with pytest.raises(SCMCodedError) as excinfo:
         provider.update_check_run(check_run_id="not-a-valid-id", status="running")

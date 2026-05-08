@@ -1662,6 +1662,11 @@ def _split_check_run_id(check_run_id: ResourceId) -> tuple[str, str]:
 def _gitlab_state_for(status: BuildStatus | None, conclusion: BuildConclusion | None) -> str:
     if conclusion is not None:
         return GITLAB_BUILD_CONCLUSION_WRITE_MAP[conclusion]
+    if status == "completed":
+        raise SCMCodedError(
+            code="resource_bad_request",
+            detail="A 'conclusion' is required when 'status' is 'completed'.",
+        )
     if status == "running":
         return "running"
     return "pending"
