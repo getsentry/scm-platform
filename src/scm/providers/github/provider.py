@@ -142,6 +142,14 @@ mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) 
 }
 """
 
+RESOLVE_REVIEW_THREAD_MUTATION = """
+mutation ResolveReviewThread($threadId: ID!) {
+    resolveReviewThread(input: {threadId: $threadId}) {
+        thread { isResolved }
+    }
+}
+"""
+
 
 # Mapping of referrer, percentage pairs. For a given referrer X% of quota is reserved for that
 # identifier. Excess use of the allocated quota does not result in a rate-limit error. Once
@@ -1330,7 +1338,8 @@ class GitHubProvider:
             {"commentId": comment_node_id, "reason": reason},
         )
 
-    # resolve_review_thread: not supported
+    def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
+        self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
@@ -1603,4 +1612,5 @@ def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:
         "review_id": str(comment.pull_request_review_id),
         "unique_id": comment.node_id,
         "url": comment.html_url,
+        "thread_id": None,
     }
