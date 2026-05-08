@@ -13356,3 +13356,255 @@ def test_get_thread_id_from_review_comment_unique_id_extracts_discussion_id(clie
 def test_get_thread_id_from_review_comment_unique_id_returns_none_for_malformed(client, provider: GitLabProvider):
     assert provider.get_thread_id_from_review_comment_unique_id("1", "") is None
     client.request.assert_not_called()
+
+
+def _gitlab_status_response(
+    name: str = "ci/seer-review",
+    state: str = "running",
+    sha: str = "abc123",
+    description: str | None = None,
+    status_id: int = 5001,
+) -> dict[str, Any]:
+    return {
+        "id": status_id,
+        "sha": sha,
+        "ref": "main",
+        "status": state,
+        "name": name,
+        "target_url": None,
+        "description": description,
+        "created_at": "2026-05-01T00:00:00Z",
+        "finished_at": None,
+        "allow_failure": False,
+        "coverage": None,
+        "author": {"id": 1, "username": "ci-bot"},
+    }
+
+
+def test_create_check_run_posts_status_and_returns_check_run(client, provider: GitLabProvider):
+    raw = _gitlab_status_response(name="ci/seer-review", state="running")
+    client.request.return_value = _make_mock_response(raw)
+
+    result = provider.create_check_run(
+        name="ci/seer-review",
+        head_sha="abc123",
+        status="running",
+        output={"title": "Reviewing", "summary": "in progress"},
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "POST"
+    assert call.kwargs["path"] == "/projects/79787061/statuses/abc123"
+    assert call.kwargs["data"] == {
+        "name": "ci/seer-review",
+        "state": "running",
+        "description": "Reviewing",
+    }
+    assert result["data"] == {
+        "id": "abc123:ci/seer-review",
+        "name": "ci/seer-review",
+        "status": "running",
+        "conclusion": None,
+        "html_url": "https://gitlab.com/test-repo/-/commit/abc123",
+    }
+
+
+def test_create_check_run_maps_completed_failure_to_failed(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_gitlab_status_response(state="failed"))
+
+    provider.create_check_run(name="ci/seer-review", head_sha="abc123", status="completed", conclusion="failure")
+
+    assert client.request.call_args.kwargs["data"] == {"name": "ci/seer-review", "state": "failed"}
+
+
+@pytest.mark.parametrize(
+    ("conclusion", "expected_state"),
+    [
+        ("success", "success"),
+        ("failure", "failed"),
+        ("cancelled", "canceled"),
+        ("skipped", "skipped"),
+        ("timed_out", "failed"),
+        ("neutral", "success"),
+        ("action_required", "failed"),
+        ("unknown", "failed"),
+    ],
+)
+def test_create_check_run_conclusion_write_mapping(
+    client, provider: GitLabProvider, conclusion: str, expected_state: str
+):
+    client.request.return_value = _make_mock_response(_gitlab_status_response(state=expected_state))
+
+    provider.create_check_run(name="ci/seer-review", head_sha="abc123", status="completed", conclusion=conclusion)  # type: ignore[arg-type]
+
+    assert client.request.call_args.kwargs["data"]["state"] == expected_state
+
+
+def test_create_check_run_truncates_output_title_to_255_chars(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_gitlab_status_response(state="success"))
+    long_title = "x" * 400
+
+    provider.create_check_run(
+        name="ci/seer-review",
+        head_sha="abc123",
+        status="completed",
+        conclusion="success",
+        output={"title": long_title, "summary": "ignored"},
+    )
+
+    description = client.request.call_args.kwargs["data"]["description"]
+    assert len(description) == 255
+    assert description == "x" * 255
+
+
+def test_create_check_run_ignores_unsupported_fields(client, provider: GitLabProvider):
+    """external_id, started_at, completed_at have no GitLab equivalent and are dropped."""
+    client.request.return_value = _make_mock_response(_gitlab_status_response(state="running"))
+
+    provider.create_check_run(
+        name="ci/seer-review",
+        head_sha="abc123",
+        status="running",
+        external_id="ext-1",
+        started_at="2026-05-01T00:00:00Z",
+        completed_at="2026-05-01T00:05:00Z",
+    )
+
+    data = client.request.call_args.kwargs["data"]
+    assert "external_id" not in data
+    assert "started_at" not in data
+    assert "finished_at" not in data
+    assert "completed_at" not in data
+
+
+def test_get_check_run_returns_latest_status_for_name(client, provider: GitLabProvider):
+    raw = [
+        _gitlab_status_response(name="ci/seer-review", state="success", status_id=5002),
+        _gitlab_status_response(name="ci/other", state="failed", status_id=5003),
+    ]
+    client.request.return_value = _make_mock_response(raw)
+
+    result = provider.get_check_run(check_run_id="abc123:ci/seer-review")
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "GET"
+    assert call.kwargs["path"] == "/projects/79787061/repository/commits/abc123/statuses"
+    assert call.kwargs["params"] == {"name": "ci/seer-review"}
+    assert result["data"] == {
+        "id": "abc123:ci/seer-review",
+        "name": "ci/seer-review",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://gitlab.com/test-repo/-/commit/abc123",
+    }
+
+
+def test_get_check_run_raises_when_no_match(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response([_gitlab_status_response(name="ci/other", state="success")])
+
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.get_check_run(check_run_id="abc123:ci/seer-review")
+    assert excinfo.value.code == "resource_not_found"
+
+
+@pytest.mark.parametrize("malformed", ["", "no-colon", ":missing-sha", "abc123:"])
+def test_get_check_run_rejects_malformed_id(client, provider: GitLabProvider, malformed: str):
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.get_check_run(check_run_id=malformed)
+    assert excinfo.value.code == "resource_bad_request"
+    client.request.assert_not_called()
+
+
+def test_get_check_run_preserves_colons_in_name(client, provider: GitLabProvider):
+    """Names like 'ci/build:linux' contain colons; only the first ':' separates sha from name."""
+    raw = [_gitlab_status_response(name="ci/build:linux", state="running")]
+    client.request.return_value = _make_mock_response(raw)
+
+    provider.get_check_run(check_run_id="abc123:ci/build:linux")
+
+    assert client.request.call_args.kwargs["params"] == {"name": "ci/build:linux"}
+
+
+def test_update_check_run_with_status_posts_new_row(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_gitlab_status_response(state="success", status_id=5005))
+
+    result = provider.update_check_run(
+        check_run_id="abc123:ci/seer-review",
+        status="completed",
+        conclusion="success",
+        output={"title": "Done", "summary": "passed"},
+    )
+
+    assert client.request.call_count == 1
+    call = client.request.call_args
+    assert call.kwargs["method"] == "POST"
+    assert call.kwargs["path"] == "/projects/79787061/statuses/abc123"
+    assert call.kwargs["data"] == {
+        "name": "ci/seer-review",
+        "state": "success",
+        "description": "Done",
+    }
+    assert result["data"]["id"] == "abc123:ci/seer-review"
+    assert result["data"]["status"] == "completed"
+    assert result["data"]["conclusion"] == "success"
+
+
+def test_update_check_run_output_only_reapplies_current_state(client, provider: GitLabProvider):
+    """When neither status nor conclusion is given, fetch the current state and reapply it."""
+    list_raw = [_gitlab_status_response(name="ci/seer-review", state="running")]
+    post_raw = _gitlab_status_response(name="ci/seer-review", state="running", description="New summary")
+    client.request.side_effect = [_make_mock_response(list_raw), _make_mock_response(post_raw)]
+
+    provider.update_check_run(
+        check_run_id="abc123:ci/seer-review",
+        output={"title": "New summary", "summary": "still running"},
+    )
+
+    calls = client.request.call_args_list
+    assert len(calls) == 2
+    assert calls[0].kwargs["method"] == "GET"
+    assert calls[0].kwargs["path"] == "/projects/79787061/repository/commits/abc123/statuses"
+    assert calls[1].kwargs["method"] == "POST"
+    assert calls[1].kwargs["path"] == "/projects/79787061/statuses/abc123"
+    assert calls[1].kwargs["data"] == {
+        "name": "ci/seer-review",
+        "state": "running",
+        "description": "New summary",
+    }
+
+
+def test_update_check_run_rejects_malformed_id(client, provider: GitLabProvider):
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.update_check_run(check_run_id="not-a-valid-id", status="running")
+    assert excinfo.value.code == "resource_bad_request"
+    client.request.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("gitlab_state", "expected_status", "expected_conclusion"),
+    [
+        ("created", "pending", None),
+        ("pending", "pending", None),
+        ("manual", "pending", None),
+        ("scheduled", "pending", None),
+        ("running", "running", None),
+        ("cancelling", "running", None),
+        ("success", "completed", "success"),
+        ("failed", "completed", "failure"),
+        ("canceled", "completed", "cancelled"),
+        ("skipped", "completed", "skipped"),
+    ],
+)
+def test_check_run_state_read_mapping(
+    client,
+    provider: GitLabProvider,
+    gitlab_state: str,
+    expected_status: str,
+    expected_conclusion: str | None,
+):
+    client.request.return_value = _make_mock_response(_gitlab_status_response(state=gitlab_state))
+
+    result = provider.create_check_run(name="ci/seer-review", head_sha="abc123", status="running")
+
+    assert result["data"]["status"] == expected_status
+    assert result["data"]["conclusion"] == expected_conclusion
