@@ -33,11 +33,11 @@ We have extensive documentation both inline in the Sentry codebase and on the [S
 
 # Releasing a New Version
 
-1. On the `getsentry/scm-platform` repository page click the `Actions` tab.
-2. On the left hand side click the "release" item.
-3. Click "Run Workflow" and enter a version number.
-4. The workflow will run. After completion it will return a url to an issue on getsentry/publish.
-5. On the getsentry/pulish immediately set the "accepted" label.
-6. A pull request will opened on getsentry/pypi.
+1. On the `getsentry/scm-platform` repository page click the **Actions** tab.
+2. On the left-hand side click the **release** workflow.
+3. Click **Run workflow**, choose a bump type (`patch`, `minor`, or `major`), and run it. The next version is calculated automatically from the current version in `pyproject.toml`.
+4. The workflow will create a release branch and PR via `getsentry/action-prepare-release`. After completion it will return a URL to an issue on `getsentry/publish`.
+5. On the `getsentry/publish` issue immediately set the **accepted** label.
+6. A pull request will be opened on `getsentry/pypi`.
 7. Edit the file in GitHub and place `python>=3.13` on the line immediately following the changed line.
-8. The PR will merge automatically. When its merged your feature is available for use.
+8. The PR will merge automatically. When it's merged your new version is available for use.
