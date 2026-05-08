@@ -13114,7 +13114,7 @@ def test_download_archive_returns_bytes_from_response(client, provider: GitLabPr
     response.status_code = 200
     client.request.return_value = response
 
-    assert provider.download_archive("main") == b"tarball-bytes"
+    assert provider.download_archive("main").content == b"tarball-bytes"
 
     call = client.request.call_args
     assert call.kwargs["method"] == "GET"
@@ -13128,7 +13128,7 @@ def test_download_archive_zip_uses_zip_extension(client, provider: GitLabProvide
     response.status_code = 200
     client.request.return_value = response
 
-    assert provider.download_archive("main", archive_format="zip") == b"zip-bytes"
+    assert provider.download_archive("main", archive_format="zip").content == b"zip-bytes"
 
     call = client.request.call_args
     assert call.kwargs["path"] == "/projects/79787061/repository/archive.zip"
