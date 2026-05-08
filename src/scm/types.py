@@ -1055,7 +1055,7 @@ class GetArchiveLinkProtocol(Protocol):
 
 @runtime_checkable
 class DownloadArchiveProtocol(Protocol):
-    def download_archive(self, ref: str, archive_format: ArchiveFormat = "tarball") -> bytes: ...
+    def download_archive(self, ref: str, archive_format: ArchiveFormat = "tarball") -> requests.Response: ...
 
 
 # Check Run Protocols
