@@ -13343,3 +13343,16 @@ def test_create_review_comment_only(client, provider: GitLabProvider):
     paths_called = [c.kwargs["path"] for c in client.request.call_args_list]
     assert "/projects/79787061/merge_requests/1/approve" not in paths_called
     assert "/projects/79787061/merge_requests/1/notes" not in paths_called
+
+
+def test_get_thread_id_from_review_comment_unique_id_extracts_discussion_id(client, provider: GitLabProvider):
+    result = provider.get_thread_id_from_review_comment_unique_id(
+        "1", "c4604a0d82de5427ec0cdc8780c8f810ea9bec86:3149948866"
+    )
+    assert result == "c4604a0d82de5427ec0cdc8780c8f810ea9bec86"
+    client.request.assert_not_called()
+
+
+def test_get_thread_id_from_review_comment_unique_id_returns_none_for_malformed(client, provider: GitLabProvider):
+    assert provider.get_thread_id_from_review_comment_unique_id("1", "") is None
+    client.request.assert_not_called()

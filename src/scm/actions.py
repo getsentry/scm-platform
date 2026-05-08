@@ -735,6 +735,14 @@ def resolve_review_thread(scm: ResolveReviewThreadProtocol, pull_request_id: str
     return scm.resolve_review_thread(pull_request_id, thread_id)
 
 
+def get_thread_id_from_review_comment_unique_id(
+    scm: ResolveReviewThreadProtocol,
+    pull_request_id: str,
+    review_comment_unique_id: str,
+) -> str | None:
+    return scm.get_thread_id_from_review_comment_unique_id(pull_request_id, review_comment_unique_id)
+
+
 def get_archive_link(
     scm: GetArchiveLinkProtocol,
     ref: str,
@@ -811,6 +819,7 @@ __all__ = (
     "get_repository_assignees",
     "get_repository_labels",
     "get_repository_topics",
+    "get_thread_id_from_review_comment_unique_id",
     "get_tree",
     "minimize_comment",
     "resolve_review_thread",

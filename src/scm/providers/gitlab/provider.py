@@ -1243,6 +1243,12 @@ class GitLabProvider:
             data={"resolved": True},
         )
 
+    def get_thread_id_from_review_comment_unique_id(
+        self, pull_request_id: str, review_comment_unique_id: str
+    ) -> str | None:
+        discussion_id, _, _ = review_comment_unique_id.partition(":")
+        return discussion_id or None
+
 
 def make_paginated_result[T](
     map_item: Callable[[dict[str, Any]], T],

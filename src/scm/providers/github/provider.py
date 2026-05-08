@@ -150,6 +150,24 @@ mutation ResolveReviewThread($threadId: ID!) {
 }
 """
 
+REVIEW_THREAD_BY_COMMENT_QUERY = """
+query ReviewThreadByComment($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+    repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+            reviewThreads(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    id
+                    comments(first: 100) {
+                        nodes { id }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
 
 # Mapping of referrer, percentage pairs. For a given referrer X% of quota is reserved for that
 # identifier. Excess use of the allocated quota does not result in a rate-limit error. Once
@@ -1340,6 +1358,26 @@ class GitHubProvider:
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
+
+    def get_thread_id_from_review_comment_unique_id(
+        self, pull_request_id: str, review_comment_unique_id: str
+    ) -> str | None:
+        owner, name = self.repository["name"].split("/", 1)
+        cursor: str | None = None
+        while True:
+            data = self.graphql(
+                REVIEW_THREAD_BY_COMMENT_QUERY,
+                {"owner": owner, "name": name, "number": int(pull_request_id), "cursor": cursor},
+            )
+            review_threads = data["repository"]["pullRequest"]["reviewThreads"]
+            for thread in review_threads["nodes"]:
+                for comment in thread["comments"]["nodes"]:
+                    if comment["id"] == review_comment_unique_id:
+                        return thread["id"]
+            page_info = review_threads["pageInfo"]
+            if not page_info["hasNextPage"]:
+                return None
+            cursor = page_info["endCursor"]
 
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:

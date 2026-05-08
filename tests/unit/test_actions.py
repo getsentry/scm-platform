@@ -62,6 +62,7 @@ from scm.actions import (
     get_repository_assignees,
     get_repository_labels,
     get_repository_topics,
+    get_thread_id_from_review_comment_unique_id,
     get_tree,
     minimize_comment,
     request_review,
@@ -226,6 +227,10 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # GraphQL mutation operations
     (minimize_comment, {"comment_node_id": "IC_abc", "reason": "OUTDATED"}),
     (resolve_review_thread, {"pull_request_id": "1", "thread_id": "PRRT_abc"}),
+    (
+        get_thread_id_from_review_comment_unique_id,
+        {"pull_request_id": "1", "review_comment_unique_id": "PRRC_abc"},
+    ),
     # Archive operations
     (download_archive, {"ref": "main"}),
 )
@@ -802,6 +807,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (
         resolve_review_thread,
         {"pull_request_id": "1", "thread_id": "PRRT_abc"},
+        _check_none,
+    ),
+    (
+        get_thread_id_from_review_comment_unique_id,
+        {"pull_request_id": "1", "review_comment_unique_id": "PRRC_abc"},
         _check_none,
     ),
     (download_archive, {"ref": "main"}, _check_download_archive),

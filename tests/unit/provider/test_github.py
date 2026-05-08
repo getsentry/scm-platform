@@ -9,6 +9,7 @@ from scm.errors import SCMCodedError
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
+    REVIEW_THREAD_BY_COMMENT_QUERY,
     GitHubProvider,
 )
 from scm.test_fixtures import (
@@ -1683,6 +1684,106 @@ def test_create_pull_request_draft_reraises_unrelated_unprocessable_content_erro
     assert exc_info.value.code == "resource_unprocessable_content"
 
 
+def test_get_thread_id_from_review_comment_unique_id_returns_match_in_first_page() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "PRRT_other",
+                                "comments": {"nodes": [{"id": "PRRC_unrelated"}]},
+                            },
+                            {
+                                "id": "PRRT_target",
+                                "comments": {
+                                    "nodes": [{"id": "PRRC_a"}, {"id": "PRRC_match"}],
+                                },
+                            },
+                        ],
+                    }
+                }
+            }
+        },
+    )
+
+    result = provider.get_thread_id_from_review_comment_unique_id("42", "PRRC_match")
+
+    assert result == "PRRT_target"
+    assert client.calls == [
+        {
+            "operation": "graphql",
+            "query": REVIEW_THREAD_BY_COMMENT_QUERY,
+            "variables": {"owner": "test-org", "name": "test-repo", "number": 42, "cursor": None},
+        }
+    ]
+
+
+def test_get_thread_id_from_review_comment_unique_id_paginates_until_found() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": True, "endCursor": "page2"},
+                        "nodes": [
+                            {"id": "PRRT_1", "comments": {"nodes": [{"id": "PRRC_other"}]}},
+                        ],
+                    }
+                }
+            }
+        },
+    )
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {"id": "PRRT_2", "comments": {"nodes": [{"id": "PRRC_match"}]}},
+                        ],
+                    }
+                }
+            }
+        },
+    )
+
+    result = provider.get_thread_id_from_review_comment_unique_id("42", "PRRC_match")
+
+    assert result == "PRRT_2"
+    assert [call["variables"]["cursor"] for call in client.calls] == [None, "page2"]
+
+
+def test_get_thread_id_from_review_comment_unique_id_returns_none_when_not_found() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {"id": "PRRT_1", "comments": {"nodes": [{"id": "PRRC_other"}]}},
+                        ],
+                    }
+                }
+            }
+        },
+    )
+
+    assert provider.get_thread_id_from_review_comment_unique_id("42", "PRRC_missing") is None
+    assert len(client.calls) == 1
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
@@ -1694,6 +1795,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_commit_url",
         "get_pull_request_url",
         "create_commit",
+        "get_thread_id_from_review_comment_unique_id",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

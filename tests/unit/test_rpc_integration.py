@@ -603,6 +603,30 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    # Look up thread id by review comment unique id (GraphQL)
+    (
+        "get_thread_id_from_review_comment_unique_id",
+        lambda scm: actions.get_thread_id_from_review_comment_unique_id(scm, "1", "PRRC_abc123"),
+        {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                            "nodes": [
+                                {
+                                    "id": "PRRT_abc123",
+                                    "comments": {"nodes": [{"id": "PRRC_abc123"}]},
+                                },
+                            ],
+                        }
+                    }
+                }
+            }
+        },
+        200,
+        None,
+    ),
     # Archive link (redirect)
     (
         "get_archive_link",
