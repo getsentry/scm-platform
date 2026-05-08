@@ -616,7 +616,10 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
                             "nodes": [
                                 {
                                     "id": "PRRT_abc123",
-                                    "comments": {"nodes": [{"id": "PRRC_abc123"}]},
+                                    "comments": {
+                                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                        "nodes": [{"id": "PRRC_abc123"}],
+                                    },
                                 },
                             ],
                         }

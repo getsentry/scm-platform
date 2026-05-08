@@ -159,9 +159,23 @@ query ReviewThreadByComment($owner: String!, $name: String!, $number: Int!, $cur
                 nodes {
                     id
                     comments(first: 100) {
+                        pageInfo { hasNextPage endCursor }
                         nodes { id }
                     }
                 }
+            }
+        }
+    }
+}
+"""
+
+THREAD_COMMENTS_QUERY = """
+query ThreadComments($threadId: ID!, $cursor: String) {
+    node(id: $threadId) {
+        ... on PullRequestReviewThread {
+            comments(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes { id }
             }
         }
     }
@@ -1371,13 +1385,27 @@ class GitHubProvider:
             )
             review_threads = data["repository"]["pullRequest"]["reviewThreads"]
             for thread in review_threads["nodes"]:
-                for comment in thread["comments"]["nodes"]:
-                    if comment["id"] == review_comment_unique_id:
-                        return thread["id"]
+                if self._thread_contains_review_comment(thread, review_comment_unique_id):
+                    return thread["id"]
             page_info = review_threads["pageInfo"]
             if not page_info["hasNextPage"]:
                 return None
             cursor = page_info["endCursor"]
+
+    def _thread_contains_review_comment(self, thread: dict[str, Any], review_comment_unique_id: str) -> bool:
+        comments = thread["comments"]
+        for comment in comments["nodes"]:
+            if comment["id"] == review_comment_unique_id:
+                return True
+        cursor = comments["pageInfo"]["endCursor"] if comments["pageInfo"]["hasNextPage"] else None
+        while cursor is not None:
+            data = self.graphql(THREAD_COMMENTS_QUERY, {"threadId": thread["id"], "cursor": cursor})
+            page = data["node"]["comments"]
+            for comment in page["nodes"]:
+                if comment["id"] == review_comment_unique_id:
+                    return True
+            cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+        return False
 
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
