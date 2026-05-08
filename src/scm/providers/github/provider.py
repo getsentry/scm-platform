@@ -1383,7 +1383,14 @@ class GitHubProvider:
                 REVIEW_THREAD_BY_COMMENT_QUERY,
                 {"owner": owner, "name": name, "number": int(pull_request_id), "cursor": cursor},
             )
-            review_threads = data["repository"]["pullRequest"]["reviewThreads"]
+            repository = data.get("repository") or {}
+            pull_request = repository.get("pullRequest")
+            if pull_request is None:
+                raise SCMCodedError(
+                    code="resource_not_found",
+                    detail=f"pull request {self.repository['name']}#{pull_request_id}",
+                )
+            review_threads = pull_request["reviewThreads"]
             for thread in review_threads["nodes"]:
                 if self._thread_contains_review_comment(thread, review_comment_unique_id):
                     return thread["id"]
@@ -1400,7 +1407,11 @@ class GitHubProvider:
         cursor = comments["pageInfo"]["endCursor"] if comments["pageInfo"]["hasNextPage"] else None
         while cursor is not None:
             data = self.graphql(THREAD_COMMENTS_QUERY, {"threadId": thread["id"], "cursor": cursor})
-            page = data["node"]["comments"]
+            node = data.get("node")
+            if node is None:
+                # Thread was deleted between the outer query and this follow-up.
+                return False
+            page = node["comments"]
             for comment in page["nodes"]:
                 if comment["id"] == review_comment_unique_id:
                     return True

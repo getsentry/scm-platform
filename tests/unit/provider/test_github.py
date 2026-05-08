@@ -1823,6 +1823,53 @@ def test_get_thread_id_from_review_comment_unique_id_paginates_inner_comments() 
     ]
 
 
+def test_get_thread_id_from_review_comment_unique_id_raises_when_pull_request_missing() -> None:
+    provider, client = make_provider()
+    client.queue("graphql", {"repository": {"pullRequest": None}})
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_thread_id_from_review_comment_unique_id("999", "PRRC_match")
+
+    assert exc_info.value.code == "resource_not_found"
+
+
+def test_get_thread_id_from_review_comment_unique_id_raises_when_repository_missing() -> None:
+    provider, client = make_provider()
+    client.queue("graphql", {"repository": None})
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_thread_id_from_review_comment_unique_id("42", "PRRC_match")
+
+    assert exc_info.value.code == "resource_not_found"
+
+
+def test_get_thread_id_from_review_comment_unique_id_handles_deleted_thread_during_inner_pagination() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            _thread_node(
+                                "PRRT_target",
+                                ["PRRC_first_page"],
+                                has_more_comments=True,
+                                end_cursor="comments_p2",
+                            ),
+                        ],
+                    }
+                }
+            }
+        },
+    )
+    client.queue("graphql", {"node": None})
+
+    assert provider.get_thread_id_from_review_comment_unique_id("42", "PRRC_match") is None
+
+
 def test_get_thread_id_from_review_comment_unique_id_returns_none_when_not_found() -> None:
     provider, client = make_provider()
     client.queue(
