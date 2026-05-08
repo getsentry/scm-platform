@@ -571,6 +571,7 @@ def _make_review_comment_data(raw: dict[str, Any]) -> ReviewComment:
         author_association=raw.get("author_association"),
         commit_sha=raw.get("original_commit_id"),
         head=raw.get("commit_id"),
+        thread_id=raw.get("thread_id"),
     )
 
 
@@ -1446,7 +1447,8 @@ class BaseTestProvider(Provider):
     def download_archive(self, ref: str, archive_format: str = "tarball") -> bytes:
         return b"archive-bytes"
 
-    def resolve_review_thread(self): ...
+    def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
+        return None
 
     def create_review_comment_reply(
         self,
