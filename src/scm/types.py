@@ -1181,7 +1181,7 @@ class MinimizeCommentProtocol(Protocol):
 
 @runtime_checkable
 class ResolvePullRequestReviewThreadProtocol(Protocol):
-    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, thread_id: str) -> None: ...
+    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, comment_id: str) -> None: ...
 
 
 ALL_PROTOCOLS = (

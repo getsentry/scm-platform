@@ -142,7 +142,7 @@ mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) 
 }
 """
 
-resolve_pull_request_review_comment_thread_MUTATION = """
+RESOLVE_PULL_REQUEST_REVIEW_COMMENT_THREAD_MUTATION = """
 mutation ResolveReviewThread($threadId: ID!) {
     resolveReviewThread(input: {threadId: $threadId}) {
         thread { isResolved }
@@ -1359,11 +1359,11 @@ class GitHubProvider:
     def resolve_pull_request_review_comment_thread(self, pull_request_id: str, comment_id: str) -> None:
         thread_id = self._get_pull_request_review_comment_thread_id(pull_request_id, comment_id)
         self.graphql(
-            resolve_pull_request_review_comment_thread_MUTATION,
+            RESOLVE_PULL_REQUEST_REVIEW_COMMENT_THREAD_MUTATION,
             {"threadId": thread_id},
         )
 
-    def _get_pull_request_review_comment_thread_id(self, pull_request_id: str, comment_id: str) -> str | None:
+    def _get_pull_request_review_comment_thread_id(self, pull_request_id: str, comment_id: str) -> str:
         owner, _, name = self.repository["name"].partition("/")
         cursor: str | None = None
         while True:
@@ -1378,7 +1378,7 @@ class GitHubProvider:
                         return thread["id"]
             page_info = review_threads["pageInfo"]
             if not page_info["hasNextPage"]:
-                return None
+                raise SCMCodedError(code="resource_not_found")
             cursor = page_info["endCursor"]
 
 
