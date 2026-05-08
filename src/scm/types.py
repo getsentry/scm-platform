@@ -1183,7 +1183,7 @@ class MinimizeCommentProtocol(Protocol):
 @runtime_checkable
 class ResolveReviewThreadProtocol(Protocol):
     def get_thread_id_from_review_comment_unique_id(
-        self, pull_request_id: str, review_comment_unique_id
+        self, pull_request_id: str, review_comment_unique_id: str
     ) -> str | None: ...
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None: ...
 
