@@ -1368,6 +1368,13 @@ class GitLabProvider:
         return make_result(_make_map_check_run(self, sha, name), response.json())
 
     def _current_status_state(self, sha: SHA, name: str) -> str:
+        """Fetch the latest status row's state, normalised to a *writable* GitLab state.
+
+        GitLab returns 12 possible states from the list endpoint but only six
+        are accepted by POST. We round-trip through the read/write maps so that
+        non-writable states like ``"manual"`` or ``"cancelling"`` collapse to
+        their writable equivalents (``"pending"``, ``"running"``).
+        """
         response = self.get(
             GitLab.commit_statuses.format(project=self.project_id, sha=sha),
             params={"name": name},
@@ -1375,7 +1382,8 @@ class GitLabProvider:
         latest = _latest_status(response.json(), name)
         if latest is None:
             raise SCMCodedError(code="resource_not_found", detail=f"No commit status named {name!r} on {sha}.")
-        return latest["status"]
+        status, conclusion = GITLAB_STATUS_READ_MAP.get(latest.get("status", ""), ("pending", None))
+        return _gitlab_state_for(status, conclusion)
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.put(

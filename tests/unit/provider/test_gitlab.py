@@ -13588,6 +13588,39 @@ def test_update_check_run_rejects_completed_without_conclusion(client, provider:
     client.request.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("raw_state", "expected_writable_state"),
+    [
+        ("manual", "pending"),
+        ("scheduled", "pending"),
+        ("created", "pending"),
+        ("preparing", "pending"),
+        ("waiting_for_resource", "pending"),
+        ("cancelling", "running"),
+        ("unrecognized_future_state", "pending"),
+    ],
+)
+def test_update_check_run_output_only_normalises_non_writable_states(
+    client, provider: GitLabProvider, raw_state: str, expected_writable_state: str
+):
+    """GitLab's list endpoint can return states (e.g. 'manual') that POST rejects.
+
+    When refetching the current state to reapply, we must collapse it to a
+    writable equivalent or GitLab will 422 the round-trip.
+    """
+    list_raw = [_gitlab_status_response(name="ci/seer-review", state=raw_state)]
+    post_raw = _gitlab_status_response(name="ci/seer-review", state=expected_writable_state)
+    client.request.side_effect = [_make_mock_response(list_raw), _make_mock_response(post_raw)]
+
+    provider.update_check_run(
+        check_run_id="abc123:ci/seer-review",
+        output={"title": "tick", "summary": "still working"},
+    )
+
+    post_call = client.request.call_args_list[1]
+    assert post_call.kwargs["data"]["state"] == expected_writable_state
+
+
 def test_update_check_run_rejects_malformed_id(client, provider: GitLabProvider):
     with pytest.raises(SCMCodedError) as excinfo:
         provider.update_check_run(check_run_id="not-a-valid-id", status="running")
