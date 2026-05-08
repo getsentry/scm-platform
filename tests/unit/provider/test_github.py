@@ -1224,7 +1224,8 @@ def test_get_pull_request_review_comment_thread_id_returns_none_when_not_found()
         ),
     )
 
-    assert provider._get_pull_request_review_comment_thread_id("42", "PRRC_missing") is None
+    with pytest.raises(SCMCodedError):
+        provider._get_pull_request_review_comment_thread_id("42", "PRRC_missing")
 
 
 def test_create_pull_request_comment_forwards_copilot_chat_extensions() -> None:
