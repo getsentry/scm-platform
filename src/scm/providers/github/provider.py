@@ -1356,8 +1356,15 @@ class GitHubProvider:
             {"commentId": comment_node_id, "reason": reason},
         )
 
-    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, comment_id: str) -> None:
-        thread_id = self._get_pull_request_review_comment_thread_id(pull_request_id, comment_id)
+    def resolve_pull_request_review_comment_thread(
+        self,
+        pull_request_id: str,
+        review_comment_unique_id: str,
+    ) -> None:
+        """
+        The "unique_id" returned on the ReviewComment type is a graphql node_id.
+        """
+        thread_id = self._get_pull_request_review_comment_thread_id(pull_request_id, review_comment_unique_id)
         self.graphql(
             RESOLVE_PULL_REQUEST_REVIEW_COMMENT_THREAD_MUTATION,
             {"threadId": thread_id},

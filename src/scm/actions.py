@@ -732,9 +732,9 @@ def minimize_comment(scm: MinimizeCommentProtocol, comment_node_id: str, reason:
 def resolve_pull_request_review_comment_thread(
     scm: ResolvePullRequestReviewThreadProtocol,
     pull_request_id: str,
-    comment_id: str,
+    review_comment_unique_id: str,
 ) -> None:
-    return scm.resolve_pull_request_review_comment_thread(pull_request_id, comment_id)
+    return scm.resolve_pull_request_review_comment_thread(pull_request_id, review_comment_unique_id)
 
 
 def get_archive_link(

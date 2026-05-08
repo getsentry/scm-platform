@@ -1184,8 +1184,12 @@ class GitLabProvider:
         )
         return response.content
 
-    def resolve_pull_request_review_comment_thread(self, pull_request_id: str, comment_id: str) -> None:
-        discussion_id = comment_id.split(":")[0]
+    def resolve_pull_request_review_comment_thread(
+        self,
+        pull_request_id: str,
+        review_comment_unique_id: str,
+    ) -> None:
+        discussion_id = review_comment_unique_id.split(":")[0]
         self.put(
             GitLab.merge_request_discussion.format(
                 project_id=self.project_id,

@@ -8,9 +8,9 @@ import pytest
 from scm.errors import SCMCodedError
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
+    RESOLVE_PULL_REQUEST_REVIEW_COMMENT_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
     GitHubProvider,
-    resolve_pull_request_review_comment_thread_MUTATION,
 )
 from scm.test_fixtures import (
     make_github_assignee,
@@ -1155,7 +1155,7 @@ def test_resolve_pull_request_review_comment_thread_looks_up_thread_then_resolve
         },
         {
             "operation": "graphql",
-            "query": resolve_pull_request_review_comment_thread_MUTATION,
+            "query": RESOLVE_PULL_REQUEST_REVIEW_COMMENT_THREAD_MUTATION,
             "variables": {"threadId": "PRRT_456"},
         },
     ]
