@@ -56,7 +56,7 @@ class GitLabApiClient:
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        stream: bool | None = None,
+        stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:

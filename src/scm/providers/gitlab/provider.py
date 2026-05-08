@@ -182,7 +182,7 @@ class GitLabProvider:
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        stream: bool | None = None,
+        stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
@@ -1228,13 +1228,12 @@ class GitLabProvider:
         ref: str,
         archive_format: ArchiveFormat = "tarball",
         request_options: RequestOptions | None = None,
-    ) -> bytes:
-        response = self.get(
+    ) -> requests.Response:
+        return self.get(
             GitLab.archive.format(project=self.project_id, format=GITLAB_ARCHIVE_FORMAT_MAP[archive_format]),
             params={"sha": ref},
             request_options=request_options,
         )
-        return response.content
 
 
 def make_paginated_result[T](

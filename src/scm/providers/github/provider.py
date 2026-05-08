@@ -217,7 +217,7 @@ class GitHubProvider:
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        stream: bool | None = None,
+        stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
@@ -1318,11 +1318,11 @@ class GitHubProvider:
         ref: str,
         archive_format: ArchiveFormat = "tarball",
         request_options: RequestOptions | None = None,
-    ) -> bytes:
+    ) -> requests.Response:
         return self.get(
             f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{ref}",
             request_options=request_options,
-        ).content
+        )
 
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:
         self.graphql(

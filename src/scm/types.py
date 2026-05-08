@@ -1259,7 +1259,7 @@ ALL_PROTOCOLS = (
 type CredentialsSet = str
 
 
-class ApiClient[T](Protocol):
+class ApiClient(Protocol):
     def request(
         self,
         method: str,
@@ -1268,10 +1268,10 @@ class ApiClient[T](Protocol):
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        stream: bool | None = None,
+        stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
-    ) -> T | requests.Response: ...
+    ) -> requests.Response: ...
 
 
 class Provider(ApiClient, Protocol):

@@ -14,26 +14,16 @@ from scm.types import ApiClient, CredentialsSet, Provider, Repository, Repositor
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
 
 
-class Response(Protocol):
-    @property
-    def content(self) -> bytes: ...
-
-    @property
-    def status_code(self) -> int: ...
-
-    def json(self, *args, **kwargs) -> Any: ...
-
-
 class Session(Protocol):
-    def get(self, url: str, headers: dict[str, str]) -> Response: ...
-    def post(self, url: str, data: bytes, headers: dict[str, str]) -> Response: ...
+    def get(self, url: str, headers: dict[str, str]) -> requests.Response: ...
+    def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response: ...
 
 
 class RequestsSession:
-    def get(self, url: str, headers: dict[str, str]) -> Response:
+    def get(self, url: str, headers: dict[str, str]) -> requests.Response:
         return requests.get(url, headers=headers)
 
-    def post(self, url: str, data: bytes, headers: dict[str, str]) -> Response:
+    def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response:
         return requests.post(url, data=data, headers=headers, allow_redirects=False)
 
 
@@ -141,10 +131,10 @@ class RpcApiClient(ApiClient):
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        stream: bool | None = None,
+        stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
-    ) -> Response:
+    ) -> requests.Response:
         body = msgspec.json.encode(
             ActionRequest(
                 type="action",

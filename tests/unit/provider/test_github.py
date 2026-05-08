@@ -1493,7 +1493,7 @@ def test_download_archive_returns_bytes_from_response() -> None:
 
     result = provider.download_archive("main")
 
-    assert result == b"tarball-bytes"
+    assert result.content == b"tarball-bytes"
     assert client.calls == [
         {
             "operation": "get",
@@ -1513,7 +1513,7 @@ def test_download_archive_zip_uses_zipball_path() -> None:
 
     result = provider.download_archive("main", archive_format="zip")
 
-    assert result == b"zip-bytes"
+    assert result.content == b"zip-bytes"
     assert client.calls[0]["path"] == "/repos/test-org/test-repo/zipball/main"
 
 
