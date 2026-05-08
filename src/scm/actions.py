@@ -1,6 +1,8 @@
 from collections.abc import Iterator
 from datetime import datetime
 
+import requests
+
 from scm.types import (
     SHA,
     ActionResult,
@@ -737,7 +739,9 @@ def get_archive_link(
     return scm.get_archive_link(ref, archive_format)
 
 
-def download_archive(scm: DownloadArchiveProtocol, ref: str, archive_format: ArchiveFormat = "tarball") -> bytes:
+def download_archive(
+    scm: DownloadArchiveProtocol, ref: str, archive_format: ArchiveFormat = "tarball"
+) -> requests.Response:
     """Download a repository archive."""
     return scm.download_archive(ref, archive_format)
 
