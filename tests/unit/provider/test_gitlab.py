@@ -11482,6 +11482,7 @@ def _make_mock_response(json_data):
                     "author_association": None,
                     "commit_sha": None,
                     "head": None,
+                    "thread_id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -11644,6 +11645,7 @@ def _make_mock_response(json_data):
                     "author_association": None,
                     "commit_sha": None,
                     "head": None,
+                    "thread_id": "a1b2c3d4e5f6789012345678901234567890abcd",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -11817,6 +11819,7 @@ def _make_mock_response(json_data):
                     "author_association": None,
                     "commit_sha": None,
                     "head": None,
+                    "thread_id": "b2c3d4e5f6789012345678901234567890abcdef",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -11946,6 +11949,7 @@ def _make_mock_response(json_data):
                     "author_association": None,
                     "commit_sha": None,
                     "head": None,
+                    "thread_id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -12064,6 +12068,7 @@ def _make_mock_response(json_data):
                     "author_association": None,
                     "commit_sha": None,
                     "head": None,
+                    "thread_id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
                 },
                 "type": "gitlab",
                 "raw": {
@@ -12112,6 +12117,22 @@ def _make_mock_response(json_data):
                 },
                 "meta": {},
             },
+        ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.resolve_review_thread,
+            provider_args={
+                "pull_request_id": "1",
+                "thread_id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
+            },
+            client_calls=[
+                ClientForwardedCall(
+                    method="PUT",
+                    path="/projects/79787061/merge_requests/1/discussions/c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
+                    json_response={"id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86", "resolved": True},
+                    data={"resolved": True},
+                ),
+            ],
+            provider_return_value=None,
         ),
         ForwardToClientTest(
             provider_method=GitLabProvider.get_pull_requests,
@@ -13322,3 +13343,16 @@ def test_create_review_comment_only(client, provider: GitLabProvider):
     paths_called = [c.kwargs["path"] for c in client.request.call_args_list]
     assert "/projects/79787061/merge_requests/1/approve" not in paths_called
     assert "/projects/79787061/merge_requests/1/notes" not in paths_called
+
+
+def test_get_thread_id_from_review_comment_unique_id_extracts_discussion_id(client, provider: GitLabProvider):
+    result = provider.get_thread_id_from_review_comment_unique_id(
+        "1", "c4604a0d82de5427ec0cdc8780c8f810ea9bec86:3149948866"
+    )
+    assert result == "c4604a0d82de5427ec0cdc8780c8f810ea9bec86"
+    client.request.assert_not_called()
+
+
+def test_get_thread_id_from_review_comment_unique_id_returns_none_for_malformed(client, provider: GitLabProvider):
+    assert provider.get_thread_id_from_review_comment_unique_id("1", "") is None
+    client.request.assert_not_called()

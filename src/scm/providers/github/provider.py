@@ -142,6 +142,46 @@ mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) 
 }
 """
 
+RESOLVE_REVIEW_THREAD_MUTATION = """
+mutation ResolveReviewThread($threadId: ID!) {
+    resolveReviewThread(input: {threadId: $threadId}) {
+        thread { isResolved }
+    }
+}
+"""
+
+REVIEW_THREAD_BY_COMMENT_QUERY = """
+query ReviewThreadByComment($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+    repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+            reviewThreads(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    id
+                    comments(first: 100) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes { id }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+THREAD_COMMENTS_QUERY = """
+query ThreadComments($threadId: ID!, $cursor: String) {
+    node(id: $threadId) {
+        ... on PullRequestReviewThread {
+            comments(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes { id }
+            }
+        }
+    }
+}
+"""
+
 
 # Mapping of referrer, percentage pairs. For a given referrer X% of quota is reserved for that
 # identifier. Excess use of the allocated quota does not result in a rate-limit error. Once
@@ -1330,7 +1370,53 @@ class GitHubProvider:
             {"commentId": comment_node_id, "reason": reason},
         )
 
-    # resolve_review_thread: not supported
+    def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
+        self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
+
+    def get_thread_id_from_review_comment_unique_id(
+        self, pull_request_id: str, review_comment_unique_id: str
+    ) -> str | None:
+        owner, name = self.repository["name"].split("/", 1)
+        cursor: str | None = None
+        while True:
+            data = self.graphql(
+                REVIEW_THREAD_BY_COMMENT_QUERY,
+                {"owner": owner, "name": name, "number": int(pull_request_id), "cursor": cursor},
+            )
+            repository = data.get("repository") or {}
+            pull_request = repository.get("pullRequest")
+            if pull_request is None:
+                raise SCMCodedError(
+                    code="resource_not_found",
+                    detail=f"pull request {self.repository['name']}#{pull_request_id}",
+                )
+            review_threads = pull_request["reviewThreads"]
+            for thread in review_threads["nodes"]:
+                if self._thread_contains_review_comment(thread, review_comment_unique_id):
+                    return thread["id"]
+            page_info = review_threads["pageInfo"]
+            if not page_info["hasNextPage"]:
+                return None
+            cursor = page_info["endCursor"]
+
+    def _thread_contains_review_comment(self, thread: dict[str, Any], review_comment_unique_id: str) -> bool:
+        comments = thread["comments"]
+        for comment in comments["nodes"]:
+            if comment["id"] == review_comment_unique_id:
+                return True
+        cursor = comments["pageInfo"]["endCursor"] if comments["pageInfo"]["hasNextPage"] else None
+        while cursor is not None:
+            data = self.graphql(THREAD_COMMENTS_QUERY, {"threadId": thread["id"], "cursor": cursor})
+            node = data.get("node")
+            if node is None:
+                # Thread was deleted between the outer query and this follow-up.
+                return False
+            page = node["comments"]
+            for comment in page["nodes"]:
+                if comment["id"] == review_comment_unique_id:
+                    return True
+            cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+        return False
 
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
@@ -1603,4 +1689,5 @@ def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:
         "review_id": str(comment.pull_request_review_id),
         "unique_id": comment.node_id,
         "url": comment.html_url,
+        "thread_id": None,
     }

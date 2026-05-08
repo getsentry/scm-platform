@@ -456,6 +456,7 @@ class ReviewComment(TypedDict):
     author_association: str | None
     commit_sha: str | None
     head: str | None
+    thread_id: str | None
 
 
 class Review(TypedDict):
@@ -1181,7 +1182,10 @@ class MinimizeCommentProtocol(Protocol):
 
 @runtime_checkable
 class ResolveReviewThreadProtocol(Protocol):
-    def resolve_review_thread(self, thread_node_id: str) -> None: ...
+    def get_thread_id_from_review_comment_unique_id(
+        self, pull_request_id: str, review_comment_unique_id: str
+    ) -> str | None: ...
+    def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None: ...
 
 
 ALL_PROTOCOLS = (

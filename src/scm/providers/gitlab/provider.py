@@ -1235,6 +1235,20 @@ class GitLabProvider:
             request_options=request_options,
         )
 
+    def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
+        self.put(
+            GitLab.merge_request_discussion.format(
+                project_id=self.project_id, pr_key=pull_request_id, discussion_id=thread_id
+            ),
+            data={"resolved": True},
+        )
+
+    def get_thread_id_from_review_comment_unique_id(
+        self, pull_request_id: str, review_comment_unique_id: str
+    ) -> str | None:
+        discussion_id, _, _ = review_comment_unique_id.partition(":")
+        return discussion_id or None
+
 
 def make_paginated_result[T](
     map_item: Callable[[dict[str, Any]], T],
@@ -1511,6 +1525,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             author_association=None,
             commit_sha=None,
             head=None,
+            thread_id=discussion_id,
         )
 
     return _map_review_comment
