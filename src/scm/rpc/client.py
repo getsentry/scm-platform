@@ -84,8 +84,24 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     makes requests to SCM Platform's RPC server. The RPC server will initialize its own SourceCodeManager and process
     the request.
     """
-    if repository["provider_name"] in ("github", "github_enterprise"):
+    if repository["provider_name"] == "github":
         return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())
+    elif repository["provider_name"] == "github_enterprise":
+        web_base_url = repository["web_base_url"]
+        if not web_base_url:
+            raise SCMCodedError(
+                code="rpc_invalid_grant",
+                detail="web_base_url is required for github_enterprise repositories",
+            )
+
+        return GitHubProvider(
+            client,
+            organization_id,
+            repository,
+            rate_limit_provider=NoOpRateLimitProvider(),
+            provider_name="github_enterprise",
+            web_base_url=web_base_url,
+        )
     elif repository["provider_name"] == "gitlab":
         return GitLabProvider(client, organization_id, repository)
     else:

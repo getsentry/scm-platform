@@ -16,6 +16,7 @@ def make_repository(**overrides) -> Repository:
         "name": "test-repo",
         "organization_id": 1,
         "provider_name": "github",
+        "web_base_url": None,
     }
     return {**defaults, **overrides}  # type: ignore[typeddict-item]
 

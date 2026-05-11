@@ -39,7 +39,7 @@ def deserialize_repository(content: bytes) -> Repository:
     except msgspec.DecodeError as e:
         raise SCMCodedError(code="repository_could_not_be_deserialized") from e
     else:
-        return {
+        result: Repository = {
             "id": int(repository.id),
             "external_id": repository.attributes.external_id,
             "integration_id": repository.attributes.integration_id,
@@ -47,7 +47,9 @@ def deserialize_repository(content: bytes) -> Repository:
             "name": repository.attributes.name,
             "organization_id": repository.attributes.organization_id,
             "provider_name": repository.attributes.provider_name,
+            "web_base_url": repository.attributes.web_base_url,
         }
+        return result
 
 
 def serialize_repository(repository: Repository) -> bytes:
@@ -64,6 +66,7 @@ def serialize_repository(repository: Repository) -> bytes:
                     name=repository["name"],
                     organization_id=repository["organization_id"],
                     provider_name=repository["provider_name"],
+                    web_base_url=repository["web_base_url"],
                 ),
             )
         )
