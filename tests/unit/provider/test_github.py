@@ -113,7 +113,6 @@ class RecordingClient:
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         credentials_set: CredentialsSet = "installation",
-        timeout: float | tuple[float, float] | None = None,
     ) -> FakeResponse:
         self.calls.append(
             {
@@ -124,7 +123,7 @@ class RecordingClient:
                 "request_options": request_options,
                 "extra_headers": extra_headers,
                 "credentials_set": credentials_set,
-                "timeout": timeout,
+                "timeout": request_options["timeout"] if request_options else None,
             }
         )
         return self._pop("get")
@@ -1508,7 +1507,7 @@ def test_download_archive_returns_bytes_from_response() -> None:
     provider, client = make_provider()
     _queue_raw_bytes(client, b"tarball-bytes")
 
-    result = provider.download_archive("main")
+    result = provider.download_archive("main", request_options={"timeout": 10.5})
 
     assert result.content == b"tarball-bytes"
     assert client.calls == [
@@ -1517,10 +1516,10 @@ def test_download_archive_returns_bytes_from_response() -> None:
             "path": "/repos/test-org/test-repo/tarball/main",
             "params": None,
             "pagination": None,
-            "request_options": None,
+            "request_options": {"timeout": 10.5},
             "extra_headers": None,
             "credentials_set": "installation",
-            "timeout": (10, 300),
+            "timeout": 10.5,
         }
     ]
 
@@ -1529,7 +1528,7 @@ def test_download_archive_zip_uses_zipball_path() -> None:
     provider, client = make_provider()
     _queue_raw_bytes(client, b"zip-bytes")
 
-    result = provider.download_archive("main", archive_format="zip")
+    result = provider.download_archive("main", archive_format="zip", request_options={"timeout": (10, 300)})
 
     assert result.content == b"zip-bytes"
     assert client.calls[0]["path"] == "/repos/test-org/test-repo/zipball/main"

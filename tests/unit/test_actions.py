@@ -861,6 +861,7 @@ class MinimalProvider:
         stream=None,
         raw_response=True,
         credentials_set="installation",
+        timeout: float | tuple[float, float] | None = None,
     ):
         raise NotImplementedError("MinimalProvider does not support request")
 
