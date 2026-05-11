@@ -169,10 +169,12 @@ class RequestOptions(TypedDict, total=False):
 
     - if_none_match: send an `If-None-Match` header (ETag-based caching)
     - if_modified_since: send an `If-Modified-Since` header (UTC datetime)
+    - timeout: connect/read timeout passed to the underlying HTTP request
     """
 
     if_none_match: str
     if_modified_since: datetime
+    timeout: float | tuple[float, float]
 
 
 class ResponseMeta(TypedDict, total=False):
