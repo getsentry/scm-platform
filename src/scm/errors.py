@@ -25,6 +25,7 @@ type ErrorCode = Literal[
     "unexpected_response_format",
     "unhandled_exception",
     "draft_pull_request_not_supported",
+    "invalid_check_run_state_transition",
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
@@ -52,6 +53,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "unexpected_response_format": "The response format was in an unexpected format.",
     "unhandled_exception": "An unhandled exception occurred.",
     "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
+    "invalid_check_run_state_transition": "The requested check run state is not reachable from its current state.",
 }
 
 

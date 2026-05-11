@@ -1,4 +1,5 @@
 import datetime
+import json
 import unittest.mock
 from collections.abc import Callable
 from typing import Any, NamedTuple
@@ -13549,28 +13550,15 @@ def test_update_check_run_with_status_posts_new_row(client, provider: GitLabProv
     assert result["data"]["conclusion"] == "success"
 
 
-def test_update_check_run_output_only_reapplies_current_state(client, provider: GitLabProvider):
-    """When neither status nor conclusion is given, fetch the current state and reapply it."""
-    list_raw = [_gitlab_status_response(name="ci/seer-review", state="running")]
-    post_raw = _gitlab_status_response(name="ci/seer-review", state="running", description="New summary")
-    client.request.side_effect = [_make_mock_response(list_raw), _make_mock_response(post_raw)]
-
-    provider.update_check_run(
-        check_run_id="abc123:ci/seer-review",
-        output={"title": "New summary", "summary": "still running"},
-    )
-
-    calls = client.request.call_args_list
-    assert len(calls) == 2
-    assert calls[0].kwargs["method"] == "GET"
-    assert calls[0].kwargs["path"] == "/projects/79787061/repository/commits/abc123/statuses"
-    assert calls[1].kwargs["method"] == "POST"
-    assert calls[1].kwargs["path"] == "/projects/79787061/statuses/abc123"
-    assert calls[1].kwargs["data"] == {
-        "name": "ci/seer-review",
-        "state": "running",
-        "description": "New summary",
-    }
+def test_update_check_run_rejects_output_only(client, provider: GitLabProvider):
+    """GitLab rejects same-state POSTs, so output cannot be updated without a state change."""
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.update_check_run(
+            check_run_id="abc123:ci/seer-review",
+            output={"title": "tick", "summary": "still working"},
+        )
+    assert excinfo.value.code == "resource_bad_request"
+    client.request.assert_not_called()
 
 
 def test_create_check_run_rejects_completed_without_conclusion(client, provider: GitLabProvider):
@@ -13588,37 +13576,55 @@ def test_update_check_run_rejects_completed_without_conclusion(client, provider:
     client.request.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    ("raw_state", "expected_writable_state"),
-    [
-        ("manual", "pending"),
-        ("scheduled", "pending"),
-        ("created", "pending"),
-        ("preparing", "pending"),
-        ("waiting_for_resource", "pending"),
-        ("cancelling", "running"),
-        ("unrecognized_future_state", "pending"),
-    ],
-)
-def test_update_check_run_output_only_normalises_non_writable_states(
-    client, provider: GitLabProvider, raw_state: str, expected_writable_state: str
-):
-    """GitLab's list endpoint can return states (e.g. 'manual') that POST rejects.
+def _make_transition_error_response(message: str) -> Any:
+    """Build a mock 400 response matching GitLab's state-machine refusal shape."""
+    response = unittest.mock.MagicMock()
+    response.status_code = 400
+    response.content = json.dumps({"message": message}).encode()
+    response.request = unittest.mock.MagicMock(headers={}, body=None, url="", method="POST")
+    return response
 
-    When refetching the current state to reapply, we must collapse it to a
-    writable equivalent or GitLab will 422 the round-trip.
-    """
-    list_raw = [_gitlab_status_response(name="ci/seer-review", state=raw_state)]
-    post_raw = _gitlab_status_response(name="ci/seer-review", state=expected_writable_state)
-    client.request.side_effect = [_make_mock_response(list_raw), _make_mock_response(post_raw)]
 
-    provider.update_check_run(
-        check_run_id="abc123:ci/seer-review",
-        output={"title": "tick", "summary": "still working"},
+def test_create_check_run_translates_state_transition_error(client, provider: GitLabProvider):
+    """A GitLab 400 with 'Cannot transition status' is re-raised as a typed code."""
+    client.request.return_value = _make_transition_error_response(
+        'Cannot transition status via :skip from :running (Reason(s): Status cannot transition via "skip")'
     )
 
-    post_call = client.request.call_args_list[1]
-    assert post_call.kwargs["data"]["state"] == expected_writable_state
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.create_check_run(
+            name="ci/seer-review",
+            head_sha="abc123",
+            status="completed",
+            conclusion="skipped",
+        )
+    assert excinfo.value.code == "invalid_check_run_state_transition"
+    assert excinfo.value.detail and "Cannot transition status" in excinfo.value.detail
+
+
+def test_update_check_run_translates_state_transition_error(client, provider: GitLabProvider):
+    client.request.return_value = _make_transition_error_response("Cannot transition status via :skip from :running")
+
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.update_check_run(
+            check_run_id="abc123:ci/seer-review",
+            status="completed",
+            conclusion="skipped",
+        )
+    assert excinfo.value.code == "invalid_check_run_state_transition"
+
+
+def test_post_status_passes_unrelated_400_through(client, provider: GitLabProvider):
+    """A 400 that doesn't match the state-transition signature is left as-is."""
+    response = unittest.mock.MagicMock()
+    response.status_code = 400
+    response.content = b'{"message":"Some other error"}'
+    response.request = unittest.mock.MagicMock(headers={}, body=None, url="", method="POST")
+    client.request.return_value = response
+
+    with pytest.raises(SCMCodedError) as excinfo:
+        provider.create_check_run(name="ci/seer-review", head_sha="abc123", status="running")
+    assert excinfo.value.code != "invalid_check_run_state_transition"
 
 
 def test_update_check_run_rejects_malformed_id(client, provider: GitLabProvider):
@@ -13636,7 +13642,7 @@ def test_update_check_run_rejects_malformed_id(client, provider: GitLabProvider)
         ("manual", "pending", None),
         ("scheduled", "pending", None),
         ("running", "running", None),
-        ("cancelling", "running", None),
+        ("canceling", "running", None),
         ("success", "completed", "success"),
         ("failed", "completed", "failure"),
         ("canceled", "completed", "cancelled"),

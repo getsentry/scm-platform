@@ -176,7 +176,7 @@ GITLAB_STATUS_READ_MAP: dict[str, tuple[BuildStatus, BuildConclusion | None]] = 
     "waiting_for_resource": ("pending", None),
     "preparing": ("pending", None),
     "running": ("running", None),
-    "cancelling": ("running", None),
+    "canceling": ("running", None),
     "success": ("completed", "success"),
     "failed": ("completed", "failure"),
     "canceled": ("completed", "cancelled"),
@@ -1296,6 +1296,10 @@ class GitLabProvider:
         and Markdown-formatted summaries are likewise unsupported; only the
         title is forwarded as the status ``description`` (truncated to 255
         chars).
+
+        Raises ``invalid_check_run_state_transition`` if GitLab's state machine
+        rejects the (state, prior-state) combination — e.g. transitioning to
+        ``skipped`` from ``running``.
         """
         data: dict[str, Any] = {
             "name": name,
@@ -1304,10 +1308,7 @@ class GitLabProvider:
         description = _description_from_output(output)
         if description is not None:
             data["description"] = description
-        response = self.post(
-            GitLab.statuses.format(project=self.project_id, sha=head_sha),
-            data=data,
-        )
+        response = self._post_check_run(head_sha, data)
         return make_result(_make_map_check_run(self, head_sha, name), response.json())
 
     def get_check_run(
@@ -1348,42 +1349,43 @@ class GitLabProvider:
         appends a new transition row that becomes the latest state. The
         returned check run id is unchanged.
 
-        ``state`` is required by GitLab on every POST. When the caller passes
-        only ``output``, the current latest state is fetched and reapplied so
-        the description can be updated without changing status.
+        Unlike GitHub, GitLab requires every POST to be a *state transition*:
+        the API rejects same-state POSTs, so output cannot be updated without
+        also changing state. Callers must therefore pass ``status`` or
+        ``conclusion``; if both are omitted, ``resource_bad_request`` is
+        raised.
+
+        Raises ``invalid_check_run_state_transition`` if GitLab's state machine
+        rejects the requested transition (e.g. ``skipped`` from ``running``).
         """
         sha, name = _split_check_run_id(check_run_id)
         if status is None and conclusion is None:
-            state = self._current_status_state(sha, name)
-        else:
-            state = _gitlab_state_for(status, conclusion)
-        data: dict[str, Any] = {"name": name, "state": state}
+            raise SCMCodedError(
+                code="resource_bad_request",
+                detail="GitLab does not support output-only updates; pass 'status' or 'conclusion'.",
+            )
+        data: dict[str, Any] = {"name": name, "state": _gitlab_state_for(status, conclusion)}
         description = _description_from_output(output)
         if description is not None:
             data["description"] = description
-        response = self.post(
-            GitLab.statuses.format(project=self.project_id, sha=sha),
-            data=data,
-        )
+        response = self._post_check_run(sha, data)
         return make_result(_make_map_check_run(self, sha, name), response.json())
 
-    def _current_status_state(self, sha: SHA, name: str) -> str:
-        """Fetch the latest status row's state, normalised to a *writable* GitLab state.
+    def _post_check_run(self, sha: SHA, data: dict[str, Any]) -> requests.Response:
+        """POST a commit status, translating GitLab state-machine errors.
 
-        GitLab returns 12 possible states from the list endpoint but only six
-        are accepted by POST. We round-trip through the read/write maps so that
-        non-writable states like ``"manual"`` or ``"cancelling"`` collapse to
-        their writable equivalents (``"pending"``, ``"running"``).
+        GitLab rejects illegal state transitions (e.g. ``skipped`` from
+        ``running``, or any same-state no-op) with a 400 whose body matches
+        ``Cannot transition status``. We re-raise these as
+        ``invalid_check_run_state_transition`` so callers can branch on a
+        typed code instead of substring-matching error text.
         """
-        response = self.get(
-            GitLab.commit_statuses.format(project=self.project_id, sha=sha),
-            params={"name": name},
-        )
-        latest = _latest_status(response.json(), name)
-        if latest is None:
-            raise SCMCodedError(code="resource_not_found", detail=f"No commit status named {name!r} on {sha}.")
-        status, conclusion = GITLAB_STATUS_READ_MAP.get(latest.get("status", ""), ("pending", None))
-        return _gitlab_state_for(status, conclusion)
+        try:
+            return self.post(GitLab.statuses.format(project=self.project_id, sha=sha), data=data)
+        except SCMCodedError as e:
+            if e.detail and "Cannot transition status" in e.detail:
+                raise SCMCodedError(code="invalid_check_run_state_transition", detail=e.detail) from e
+            raise
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.put(
