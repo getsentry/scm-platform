@@ -1274,12 +1274,13 @@ class GitLabProvider:
         ref: str,
         archive_format: ArchiveFormat = "tarball",
         request_options: RequestOptions | None = None,
+        timeout: float | tuple[float, float] | None = (10, 300),
     ) -> requests.Response:
         return self.get(
             GitLab.archive.format(project=self.project_id, format=GITLAB_ARCHIVE_FORMAT_MAP[archive_format]),
             params={"sha": ref},
             request_options=request_options,
-            timeout=(10, 300),
+            timeout=timeout,
         )
 
     def create_check_run(

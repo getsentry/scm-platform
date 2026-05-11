@@ -1367,11 +1367,12 @@ class GitHubProvider:
         ref: str,
         archive_format: ArchiveFormat = "tarball",
         request_options: RequestOptions | None = None,
+        timeout: float | tuple[float, float] | None = (10, 300),
     ) -> requests.Response:
         return self.get(
             f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{ref}",
             request_options=request_options,
-            timeout=(10, 300),
+            timeout=timeout,
         )
 
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:
