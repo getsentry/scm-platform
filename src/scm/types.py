@@ -528,6 +528,7 @@ type PullRequestAction = Literal[
 
 
 class PullRequestEventData(TypedDict):
+    repository_id: str
     id: str
     title: str
     description: str | None
@@ -535,6 +536,7 @@ class PullRequestEventData(TypedDict):
     base: PullRequestBranch
     is_private_repo: bool
     author: Author | None
+    draft: bool
 
 
 # Basic protocols
