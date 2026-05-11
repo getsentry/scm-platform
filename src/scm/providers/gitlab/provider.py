@@ -16,6 +16,10 @@ from scm.types import (
     ArchiveFormat,
     Author,
     BranchName,
+    BuildConclusion,
+    BuildStatus,
+    CheckRun,
+    CheckRunOutput,
     ChmodCommitAction,
     Comment,
     Commit,
@@ -47,6 +51,7 @@ from scm.types import (
     Referrer,
     Repository,
     RequestOptions,
+    ResourceId,
     Review,
     ReviewComment,
     ReviewCommentInput,
@@ -155,6 +160,43 @@ PULL_REQUEST_STATE_RETRIEVE_MAP: dict[PullRequestState, list[str]] = {
 PULL_REQUEST_STATE_UPDATE_MAP: dict[PullRequestState, str] = {
     "open": "reopen",
     "closed": "close",
+}
+
+# GitLab description field length limit on the commit status API.
+GITLAB_STATUS_DESCRIPTION_MAX_LENGTH = 255
+
+# GitLab commit status states map to (BuildStatus, BuildConclusion).
+# In-progress states (manual/scheduled/etc.) collapse to "pending" since the
+# generic model has no finer-grained "waiting" representation.
+GITLAB_STATUS_READ_MAP: dict[str, tuple[BuildStatus, BuildConclusion | None]] = {
+    "created": ("pending", None),
+    "pending": ("pending", None),
+    "manual": ("pending", None),
+    "scheduled": ("pending", None),
+    "waiting_for_resource": ("pending", None),
+    "preparing": ("pending", None),
+    "running": ("running", None),
+    "canceling": ("running", None),
+    "success": ("completed", "success"),
+    "failed": ("completed", "failure"),
+    "canceled": ("completed", "cancelled"),
+    "skipped": ("completed", "skipped"),
+}
+
+# Reverse map for writing: collapses (BuildStatus, BuildConclusion) into one of
+# the six writable GitLab states (pending, running, success, failed, canceled,
+# skipped). Conclusions without a direct equivalent ("timed_out",
+# "action_required", "unknown") fall back to "failed"; "neutral" maps to
+# "success" since GitLab has no neutral terminal state.
+GITLAB_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
+    "success": "success",
+    "failure": "failed",
+    "cancelled": "canceled",
+    "skipped": "skipped",
+    "timed_out": "failed",
+    "neutral": "success",
+    "action_required": "failed",
+    "unknown": "failed",
 }
 
 
@@ -1235,6 +1277,116 @@ class GitLabProvider:
             request_options=request_options,
         )
 
+    def create_check_run(
+        self,
+        name: str,
+        head_sha: SHA,
+        status: BuildStatus | None = None,
+        conclusion: BuildConclusion | None = None,
+        external_id: str | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        output: CheckRunOutput | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Create a commit status on GitLab, mapped to a check run.
+
+        GitLab's commit status API is simpler than GitHub's checks API:
+        ``external_id``, ``started_at``, and ``completed_at`` are not
+        accepted by the endpoint and are ignored. ``output.text`` (annotations)
+        and Markdown-formatted summaries are likewise unsupported; only the
+        title is forwarded as the status ``description`` (truncated to 255
+        chars).
+
+        Raises ``invalid_check_run_state_transition`` if GitLab's state machine
+        rejects the (state, prior-state) combination — e.g. transitioning to
+        ``skipped`` from ``running``.
+        """
+        data: dict[str, Any] = {
+            "name": name,
+            "state": _gitlab_state_for(status, conclusion),
+        }
+        description = _description_from_output(output)
+        if description is not None:
+            data["description"] = description
+        response = self._post_check_run(head_sha, data)
+        return make_result(_make_map_check_run(self, head_sha, name), response.json())
+
+    def get_check_run(
+        self,
+        check_run_id: ResourceId,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Get the latest commit status matching the given check run id.
+
+        ``check_run_id`` is the ``"{sha}:{name}"`` value returned by
+        ``create_check_run``. GitLab records every state transition as a
+        separate row; this returns the most recent row for that ``(sha, name)``
+        pair.
+        """
+        sha, name = _split_check_run_id(check_run_id)
+        response = self.get(
+            GitLab.commit_statuses.format(project=self.project_id, sha=sha),
+            params={"name": name},
+            request_options=request_options,
+        )
+        raw = response.json()
+        latest = _latest_status(raw, name)
+        if latest is None:
+            raise SCMCodedError(code="resource_not_found", detail=f"No commit status named {name!r} on {sha}.")
+        return make_result(_make_map_check_run(self, sha, name), raw, raw_item=latest)
+
+    def update_check_run(
+        self,
+        check_run_id: ResourceId,
+        status: BuildStatus | None = None,
+        conclusion: BuildConclusion | None = None,
+        output: CheckRunOutput | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Append a new commit status row for the given check run id.
+
+        GitLab's commit status API has no PATCH endpoint; an "update" is
+        another POST with the same ``name`` on the same ``sha``, which
+        appends a new transition row that becomes the latest state. The
+        returned check run id is unchanged.
+
+        Unlike GitHub, GitLab requires every POST to be a *state transition*:
+        the API rejects same-state POSTs, so output cannot be updated without
+        also changing state. Callers must therefore pass ``status`` or
+        ``conclusion``; if both are omitted, ``resource_bad_request`` is
+        raised.
+
+        Raises ``invalid_check_run_state_transition`` if GitLab's state machine
+        rejects the requested transition (e.g. ``skipped`` from ``running``).
+        """
+        sha, name = _split_check_run_id(check_run_id)
+        if status is None and conclusion is None:
+            raise SCMCodedError(
+                code="resource_bad_request",
+                detail="GitLab does not support output-only updates; pass 'status' or 'conclusion'.",
+            )
+        data: dict[str, Any] = {"name": name, "state": _gitlab_state_for(status, conclusion)}
+        description = _description_from_output(output)
+        if description is not None:
+            data["description"] = description
+        response = self._post_check_run(sha, data)
+        return make_result(_make_map_check_run(self, sha, name), response.json())
+
+    def _post_check_run(self, sha: SHA, data: dict[str, Any]) -> requests.Response:
+        """POST a commit status, translating GitLab state-machine errors.
+
+        GitLab rejects illegal state transitions (e.g. ``skipped`` from
+        ``running``, or any same-state no-op) with a 400 whose body matches
+        ``Cannot transition status``. We re-raise these as
+        ``invalid_check_run_state_transition`` so callers can branch on a
+        typed code instead of substring-matching error text.
+        """
+        try:
+            return self.post(GitLab.statuses.format(project=self.project_id, sha=sha), data=data)
+        except SCMCodedError as e:
+            if e.detail and "Cannot transition status" in e.detail:
+                raise SCMCodedError(code="invalid_check_run_state_transition", detail=e.detail) from e
+            raise
+
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.put(
             GitLab.merge_request_discussion.format(
@@ -1507,6 +1659,71 @@ def map_tree_entry(raw: dict[str, Any]) -> TreeEntry:
         sha=raw["id"],
         size=None,
     )
+
+
+def _split_check_run_id(check_run_id: ResourceId) -> tuple[str, str]:
+    """Parse a ``"{sha}:{name}"`` check run id. ``name`` may contain colons."""
+    sha, sep, name = check_run_id.partition(":")
+    if not sep or not sha or not name:
+        raise SCMCodedError(code="resource_bad_request", detail=f"Expected '<sha>:<name>', got {check_run_id!r}.")
+    return sha, name
+
+
+def _gitlab_state_for(status: BuildStatus | None, conclusion: BuildConclusion | None) -> str:
+    if conclusion is not None:
+        return GITLAB_BUILD_CONCLUSION_WRITE_MAP[conclusion]
+    if status == "completed":
+        raise SCMCodedError(
+            code="resource_bad_request",
+            detail="A 'conclusion' is required when 'status' is 'completed'.",
+        )
+    if status == "running":
+        return "running"
+    return "pending"
+
+
+def _description_from_output(output: CheckRunOutput | None) -> str | None:
+    """Reduce a check run output to a single description string.
+
+    GitLab commit statuses have no equivalent of GitHub's rich Markdown summary
+    or annotations; only the title is forwarded, truncated to GitLab's 255-char
+    description limit.
+    """
+    if output is None:
+        return None
+    title = output.get("title")
+    if not title:
+        return None
+    return title[:GITLAB_STATUS_DESCRIPTION_MAX_LENGTH]
+
+
+def _latest_status(raw: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    """Pick the most recent commit status row for ``name``.
+
+    GitLab's API returns rows in reverse-chronological order (latest first), but
+    we filter and pick the first match defensively in case ordering changes or
+    the caller supplied unfiltered data.
+    """
+    for entry in raw:
+        if entry.get("name") == name:
+            return entry
+    return None
+
+
+def _make_map_check_run(provider: "GitLabProvider", sha: SHA, name: str) -> Callable[[dict[str, Any]], CheckRun]:
+    def _map(raw: dict[str, Any]) -> CheckRun:
+        gitlab_state = raw.get("status", "")
+        status, conclusion = GITLAB_STATUS_READ_MAP.get(gitlab_state, ("pending", None))
+        target_url = raw.get("target_url")
+        return CheckRun(
+            id=f"{sha}:{name}",
+            name=raw.get("name") or name,
+            status=status,
+            conclusion=conclusion,
+            html_url=target_url or provider.get_commit_url(sha),
+        )
+
+    return _map
 
 
 def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewComment]:
