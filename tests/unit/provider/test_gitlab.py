@@ -13360,6 +13360,109 @@ def test_get_thread_id_from_review_comment_unique_id_returns_none_for_malformed(
     client.request.assert_not_called()
 
 
+def test_get_pull_request_review_threads_filters_non_positioned_discussions(client, provider: GitLabProvider):
+    response = unittest.mock.MagicMock()
+    response.json.return_value = [
+        # Plain MR comment (no diff position) — must be filtered out.
+        {
+            "id": "plain_discussion_id",
+            "notes": [
+                {
+                    "id": 1,
+                    "body": "just a comment",
+                    "author": {"id": 1, "username": "alice"},
+                    "created_at": "2026-03-11T11:00:00.000Z",
+                    "updated_at": "2026-03-11T11:00:00.000Z",
+                    "system": False,
+                    "position": None,
+                    "resolvable": False,
+                    "resolved": False,
+                }
+            ],
+        },
+        # Inline diff thread (has position).
+        {
+            "id": "diff_discussion_id",
+            "notes": [
+                {
+                    "id": 2,
+                    "body": "fix me",
+                    "author": {"id": 2, "username": "sentry-bot", "bot": True},
+                    "created_at": "2026-03-11T11:01:00.000Z",
+                    "updated_at": "2026-03-11T11:02:00.000Z",
+                    "system": False,
+                    "position": {
+                        "base_sha": "base",
+                        "head_sha": "head",
+                        "start_sha": "start",
+                        "old_path": "BLAH.md",
+                        "new_path": "BLAH.md",
+                        "position_type": "text",
+                        "new_line": 7,
+                        "line_range": {
+                            "start": {"new_line": 3, "type": "new"},
+                            "end": {"new_line": 7, "type": "new"},
+                        },
+                    },
+                    "resolvable": True,
+                    "resolved": True,
+                },
+                {
+                    "id": 3,
+                    "body": "reply",
+                    "author": {"id": 1, "username": "alice"},
+                    "created_at": "2026-03-11T11:03:00.000Z",
+                    "updated_at": "2026-03-11T11:03:00.000Z",
+                    "system": False,
+                    "position": {"position_type": "text"},
+                    "resolvable": True,
+                    "resolved": True,
+                },
+            ],
+        },
+    ]
+    response.status_code = 200
+    response.headers = {"X-Next-Page": ""}
+    client.request.return_value = response
+
+    result = provider.get_pull_request_review_threads("1")
+
+    assert client.request.call_args.kwargs["method"] == "GET"
+    assert client.request.call_args.kwargs["path"] == "/projects/79787061/merge_requests/1/discussions"
+    assert result["type"] == "gitlab"
+    assert result["meta"] == {"next_cursor": ""}
+    assert result["data"] == [
+        {
+            "id": "diff_discussion_id",
+            "is_resolved": True,
+            "is_outdated": False,
+            "file_path": "BLAH.md",
+            "line": 7,
+            "start_line": 3,
+            "comments": [
+                {
+                    "id": "2",
+                    "unique_id": "2",
+                    "body": "fix me",
+                    "author": {"id": "2", "username": "sentry-bot"},
+                    "is_bot": True,
+                    "created_at": "2026-03-11T11:01:00.000Z",
+                    "updated_at": "2026-03-11T11:02:00.000Z",
+                },
+                {
+                    "id": "3",
+                    "unique_id": "3",
+                    "body": "reply",
+                    "author": {"id": "1", "username": "alice"},
+                    "is_bot": False,
+                    "created_at": "2026-03-11T11:03:00.000Z",
+                    "updated_at": "2026-03-11T11:03:00.000Z",
+                },
+            ],
+        }
+    ]
+
+
 def _gitlab_status_response(
     name: str = "ci/seer-review",
     state: str = "running",

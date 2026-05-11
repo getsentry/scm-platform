@@ -10,6 +10,8 @@ from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
+    REVIEW_THREAD_FULL_COMMENTS_QUERY,
+    REVIEW_THREADS_QUERY,
     THREAD_COMMENTS_QUERY,
     GitHubProvider,
 )
@@ -1916,12 +1918,285 @@ def test_get_thread_id_from_review_comment_unique_id_returns_none_when_not_found
     assert len(client.calls) == 1
 
 
+def _make_thread_comment_node(
+    node_id: str = "PRRC_a",
+    full_database_id: int | None = 1001,
+    body: str = "hello",
+    author_login: str = "reviewer",
+    author_database_id: int | None = 42,
+    author_typename: str = "User",
+    created_at: str = "2026-02-04T10:00:00Z",
+    updated_at: str = "2026-02-04T10:00:00Z",
+) -> dict[str, Any]:
+    return {
+        "id": node_id,
+        "fullDatabaseId": full_database_id,
+        "body": body,
+        "createdAt": created_at,
+        "updatedAt": updated_at,
+        "author": {
+            "login": author_login,
+            "__typename": author_typename,
+            "databaseId": author_database_id,
+        },
+    }
+
+
+def test_get_pull_request_review_threads_returns_threads_with_comments() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "PRRT_1",
+                                "isResolved": False,
+                                "isOutdated": True,
+                                "path": "src/main.py",
+                                "line": 10,
+                                "startLine": 5,
+                                "comments": {
+                                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                    "nodes": [
+                                        _make_thread_comment_node(
+                                            node_id="PRRC_a",
+                                            full_database_id=1001,
+                                            author_login="sentry-bot",
+                                            author_typename="Bot",
+                                            author_database_id=None,
+                                        ),
+                                    ],
+                                },
+                            },
+                        ],
+                    }
+                }
+            }
+        },
+    )
+
+    result = provider.get_pull_request_review_threads("42")
+
+    assert result["type"] == "github"
+    assert result["meta"] == {"next_cursor": None}
+    assert result["data"] == [
+        {
+            "id": "PRRT_1",
+            "is_resolved": False,
+            "is_outdated": True,
+            "file_path": "src/main.py",
+            "line": 10,
+            "start_line": 5,
+            "comments": [
+                {
+                    "id": "1001",
+                    "unique_id": "PRRC_a",
+                    "body": "hello",
+                    "author": {"id": "sentry-bot", "username": "sentry-bot"},
+                    "is_bot": True,
+                    "created_at": "2026-02-04T10:00:00Z",
+                    "updated_at": "2026-02-04T10:00:00Z",
+                },
+            ],
+        },
+    ]
+    assert client.calls == [
+        {
+            "operation": "graphql",
+            "query": REVIEW_THREADS_QUERY,
+            "variables": {
+                "owner": "test-org",
+                "name": "test-repo",
+                "number": 42,
+                "cursor": None,
+                "perPage": 100,
+            },
+        }
+    ]
+
+
+def test_get_pull_request_review_threads_forwards_pagination_cursor_and_returns_next() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": True, "endCursor": "next-page-cursor"},
+                        "nodes": [],
+                    }
+                }
+            }
+        },
+    )
+
+    result = provider.get_pull_request_review_threads(
+        "42",
+        pagination={"cursor": "current-cursor", "per_page": 25},
+    )
+
+    assert result["meta"] == {"next_cursor": "next-page-cursor"}
+    assert client.calls[0]["variables"] == {
+        "owner": "test-org",
+        "name": "test-repo",
+        "number": 42,
+        "cursor": "current-cursor",
+        "perPage": 25,
+    }
+
+
+def test_get_pull_request_review_threads_paginates_inner_comments() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "PRRT_big",
+                                "isResolved": False,
+                                "isOutdated": False,
+                                "path": "f.py",
+                                "line": 1,
+                                "startLine": None,
+                                "comments": {
+                                    "pageInfo": {"hasNextPage": True, "endCursor": "c1"},
+                                    "nodes": [_make_thread_comment_node(node_id="PRRC_1", full_database_id=1)],
+                                },
+                            }
+                        ],
+                    }
+                }
+            }
+        },
+    )
+    client.queue(
+        "graphql",
+        {
+            "node": {
+                "comments": {
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    "nodes": [_make_thread_comment_node(node_id="PRRC_2", full_database_id=2)],
+                }
+            }
+        },
+    )
+
+    result = provider.get_pull_request_review_threads("42")
+
+    assert [c["id"] for c in result["data"][0]["comments"]] == ["1", "2"]
+    assert [call["query"] for call in client.calls] == [
+        REVIEW_THREADS_QUERY,
+        REVIEW_THREAD_FULL_COMMENTS_QUERY,
+    ]
+    assert client.calls[1]["variables"] == {"threadId": "PRRT_big", "cursor": "c1"}
+
+
+def test_get_pull_request_review_threads_skips_inner_pages_when_thread_deleted() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "PRRT_ghost",
+                                "isResolved": False,
+                                "isOutdated": False,
+                                "path": "f.py",
+                                "line": 1,
+                                "startLine": None,
+                                "comments": {
+                                    "pageInfo": {"hasNextPage": True, "endCursor": "c1"},
+                                    "nodes": [_make_thread_comment_node(node_id="PRRC_1", full_database_id=1)],
+                                },
+                            }
+                        ],
+                    }
+                }
+            }
+        },
+    )
+    client.queue("graphql", {"node": None})
+
+    result = provider.get_pull_request_review_threads("42")
+
+    # The thread is still returned with the comments fetched before deletion.
+    assert [c["id"] for c in result["data"][0]["comments"]] == ["1"]
+
+
+def test_get_pull_request_review_threads_raises_when_pull_request_missing() -> None:
+    provider, client = make_provider()
+    client.queue("graphql", {"repository": {"pullRequest": None}})
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.get_pull_request_review_threads("999")
+
+    assert exc_info.value.code == "resource_not_found"
+
+
+def test_get_pull_request_review_threads_handles_null_author() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "PRRT_anon",
+                                "isResolved": False,
+                                "isOutdated": False,
+                                "path": "f.py",
+                                "line": 1,
+                                "startLine": None,
+                                "comments": {
+                                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                    "nodes": [
+                                        {
+                                            "id": "PRRC_x",
+                                            "fullDatabaseId": 7,
+                                            "body": "anon",
+                                            "createdAt": "2026-02-04T10:00:00Z",
+                                            "updatedAt": "2026-02-04T10:00:00Z",
+                                            "author": None,
+                                        }
+                                    ],
+                                },
+                            }
+                        ],
+                    }
+                }
+            }
+        },
+    )
+
+    [thread] = provider.get_pull_request_review_threads("42")["data"]
+
+    assert thread["comments"][0]["author"] is None
+    assert thread["comments"][0]["is_bot"] is False
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
         "is_rate_limited",
         "get_pull_request_diff",
         "get_pull_request_template",
+        "get_pull_request_review_threads",
         "download_archive",
         "get_file_url",
         "get_commit_url",

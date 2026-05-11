@@ -47,6 +47,8 @@ from scm.types import (
     ReviewComment,
     ReviewCommentInput,
     ReviewSide,
+    ReviewThread,
+    ReviewThreadComment,
     TreeEntry,
     WriteCommitAction,
 )
@@ -1290,6 +1292,39 @@ class BaseTestProvider(Provider):
             type="github",
             raw={"headers": None, "data": None},
             meta={},
+        )
+
+    def get_pull_request_review_threads(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[ReviewThread]:
+        return PaginatedActionResult(
+            data=[
+                ReviewThread(
+                    id="PRRT_1",
+                    is_resolved=False,
+                    is_outdated=False,
+                    file_path="src/main.py",
+                    line=5,
+                    start_line=None,
+                    comments=[
+                        ReviewThreadComment(
+                            id="100",
+                            unique_id="PRRC_abc",
+                            body="Review thread comment",
+                            author={"id": "456", "username": "reviewer"},
+                            is_bot=False,
+                            created_at="2026-02-04T10:00:00Z",
+                            updated_at="2026-02-04T10:00:00Z",
+                        ),
+                    ],
+                ),
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
         )
 
     def get_pull_requests(
