@@ -96,6 +96,8 @@ from scm.types import (
     ReviewCommentInput,
     ReviewEvent,
     ReviewSide,
+    ReviewThread,
+    ReviewThreadComment,
     TreeEntry,
     WriteCommitAction,
 )
@@ -227,6 +229,60 @@ query ThreadComments($threadId: ID!, $cursor: String) {
 }
 """
 
+REVIEW_THREADS_QUERY = """
+query ReviewThreads($owner: String!, $name: String!, $number: Int!, $cursor: String, $perPage: Int!) {
+    repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+            reviewThreads(first: $perPage, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    id
+                    isResolved
+                    isOutdated
+                    path
+                    line
+                    startLine
+                    comments(first: 100) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes {
+                            id
+                            fullDatabaseId
+                            body
+                            createdAt
+                            updatedAt
+                            author { login __typename ... on User { databaseId } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+REVIEW_THREAD_FULL_COMMENTS_QUERY = """
+query ReviewThreadFullComments($threadId: ID!, $cursor: String) {
+    node(id: $threadId) {
+        ... on PullRequestReviewThread {
+            comments(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    id
+                    fullDatabaseId
+                    body
+                    createdAt
+                    updatedAt
+                    author { login __typename ... on User { databaseId } }
+                }
+            }
+        }
+    }
+}
+"""
+
+# Default page size for the reviewThreads connection. GitHub caps `first` at 100.
+GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
+
 
 # Mapping of referrer, percentage pairs. For a given referrer X% of quota is reserved for that
 # identifier. Excess use of the allocated quota does not result in a rate-limit error. Once
@@ -309,6 +365,7 @@ class GitHubProvider:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -320,6 +377,7 @@ class GitHubProvider:
             allow_redirects=allow_redirects,
             stream=stream,
             credentials_set=credentials_set,
+            timeout=timeout,
         )
 
         if (
@@ -369,14 +427,15 @@ class GitHubProvider:
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         headers = {}
-        if request_options:
-            if_none_match = request_options.get("if_none_match")
-            if if_none_match is not None:
-                headers["If-None-Match"] = if_none_match
+        options = request_options or {}
 
-            if_modified_since = request_options.get("if_modified_since")
-            if if_modified_since is not None:
-                headers["If-Modified-Since"] = format_datetime(if_modified_since)
+        if_none_match = options.get("if_none_match")
+        if if_none_match is not None:
+            headers["If-None-Match"] = if_none_match
+
+        if_modified_since = options.get("if_modified_since")
+        if if_modified_since is not None:
+            headers["If-Modified-Since"] = format_datetime(if_modified_since)
 
         if extra_headers:
             headers.update(extra_headers)
@@ -393,6 +452,7 @@ class GitHubProvider:
             headers=headers,
             allow_redirects=allow_redirects,
             credentials_set=credentials_set,
+            timeout=options.get("timeout"),
         )
 
     def post(
@@ -1414,6 +1474,76 @@ class GitHubProvider:
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
+    def get_pull_request_review_threads(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[ReviewThread]:
+        owner, name = self.repository["name"].split("/", 1)
+        cursor: str | None = (pagination or {}).get("cursor") or None
+        per_page = (pagination or {}).get("per_page") or GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE
+
+        data = self.graphql(
+            REVIEW_THREADS_QUERY,
+            {
+                "owner": owner,
+                "name": name,
+                "number": int(pull_request_id),
+                "cursor": cursor,
+                "perPage": per_page,
+            },
+        )
+        repository = data.get("repository") or {}
+        pull_request = repository.get("pullRequest")
+        if pull_request is None:
+            raise SCMCodedError(
+                code="resource_not_found",
+                detail=f"pull request {self.repository['name']}#{pull_request_id}",
+            )
+
+        review_threads = pull_request["reviewThreads"]
+        threads: list[ReviewThread] = []
+        for raw_thread in review_threads["nodes"]:
+            comments = list(self._iter_review_thread_comments(raw_thread))
+            threads.append(
+                ReviewThread(
+                    id=raw_thread["id"],
+                    is_resolved=raw_thread["isResolved"],
+                    is_outdated=raw_thread["isOutdated"],
+                    file_path=raw_thread.get("path"),
+                    line=raw_thread.get("line"),
+                    start_line=raw_thread.get("startLine"),
+                    comments=comments,
+                )
+            )
+
+        page_info = review_threads["pageInfo"]
+        next_cursor = page_info["endCursor"] if page_info["hasNextPage"] else None
+        return {
+            "data": threads,
+            "type": "github",
+            "raw": {"data": data, "headers": None},
+            "meta": {"next_cursor": next_cursor},
+        }
+
+    def _iter_review_thread_comments(self, raw_thread: dict[str, Any]) -> Iterator[ReviewThreadComment]:
+        comments_page = raw_thread["comments"]
+        for raw_comment in comments_page["nodes"]:
+            yield map_graphql_review_thread_comment(raw_comment)
+        page_info = comments_page["pageInfo"]
+        cursor = page_info["endCursor"] if page_info["hasNextPage"] else None
+        while cursor is not None:
+            data = self.graphql(REVIEW_THREAD_FULL_COMMENTS_QUERY, {"threadId": raw_thread["id"], "cursor": cursor})
+            node = data.get("node")
+            if node is None:
+                # Thread was deleted between the outer query and this follow-up.
+                return
+            page = node["comments"]
+            for raw_comment in page["nodes"]:
+                yield map_graphql_review_thread_comment(raw_comment)
+            cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+
     def get_thread_id_from_review_comment_unique_id(
         self, pull_request_id: str, review_comment_unique_id: str
     ) -> str | None:
@@ -1500,6 +1630,35 @@ def deserialize_paginated_action[T](
         "raw": {"data": response.text, "headers": dict(response.headers)},
         "meta": meta,
     }
+
+
+def map_graphql_author(raw_author: dict[str, Any] | None) -> tuple[Author | None, bool]:
+    """Map a GraphQL author selection to ``(Author, is_bot)``.
+
+    The author may be ``None`` when the account was deleted, in which case we
+    return ``(None, False)``. Otherwise ``Author.id`` uses ``databaseId`` when
+    available (Users) and falls back to ``login`` for actor types where
+    GraphQL does not expose a stable numeric id (e.g. ``Mannequin``)."""
+    if raw_author is None:
+        return None, False
+    typename = raw_author.get("__typename")
+    is_bot = typename == "Bot"
+    raw_id = raw_author.get("databaseId")
+    return Author(id=str(raw_id) if raw_id is not None else raw_author["login"], username=raw_author["login"]), is_bot
+
+
+def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+    author, is_bot = map_graphql_author(raw.get("author"))
+    full_database_id = raw.get("fullDatabaseId")
+    return ReviewThreadComment(
+        id=str(full_database_id) if full_database_id is not None else raw["id"],
+        unique_id=raw["id"],
+        body=raw.get("body", ""),
+        author=author,
+        is_bot=is_bot,
+        created_at=raw.get("createdAt"),
+        updated_at=raw.get("updatedAt"),
+    )
 
 
 def deserialize_app_installation(content: bytes) -> AppInstallation:

@@ -74,6 +74,7 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
+    GetPullRequestReviewThreadsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
@@ -110,6 +111,7 @@ from scm.types import (
     ReviewCommentInput,
     ReviewEvent,
     ReviewSide,
+    ReviewThread,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
@@ -570,6 +572,22 @@ def get_pull_request_diff(
     return scm.get_pull_request_diff(pull_request_id, request_options)
 
 
+def get_pull_request_review_threads(
+    scm: GetPullRequestReviewThreadsProtocol,
+    pull_request_id: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[ReviewThread]:
+    """Get review threads on a pull request, with their comments.
+
+    A review thread is the unit of resolution for line-anchored reviews —
+    each thread has an id accepted by ``resolve_review_thread``. Returned
+    comments include author identity (with a ``is_bot`` flag), reactions,
+    and timestamps so callers can filter threads by app/bot author.
+    """
+    return scm.get_pull_request_review_threads(pull_request_id, pagination, request_options)
+
+
 def get_pull_requests(
     scm: GetPullRequestsProtocol,
     state: PullRequestState | None = "open",
@@ -753,10 +771,13 @@ def get_archive_link(
 
 
 def download_archive(
-    scm: DownloadArchiveProtocol, ref: str, archive_format: ArchiveFormat = "tarball"
+    scm: DownloadArchiveProtocol,
+    ref: str,
+    archive_format: ArchiveFormat = "tarball",
+    request_options: RequestOptions | None = None,
 ) -> requests.Response:
     """Download a repository archive."""
-    return scm.download_archive(ref, archive_format)
+    return scm.download_archive(ref, archive_format, request_options=request_options)
 
 
 __all__ = (
@@ -810,6 +831,7 @@ __all__ = (
     "get_pull_request_diff",
     "get_pull_request_files",
     "get_pull_request_reactions",
+    "get_pull_request_review_threads",
     "get_pull_request_template",
     "get_pull_request_url",
     "get_pull_request",

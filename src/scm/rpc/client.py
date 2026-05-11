@@ -150,6 +150,7 @@ class RpcApiClient(ApiClient):
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         body = msgspec.json.encode(
             ActionRequest(
@@ -162,6 +163,7 @@ class RpcApiClient(ApiClient):
                     params=params,
                     allow_redirects=allow_redirects,
                     stream=stream,
+                    timeout=timeout,
                 ),
             )
         )

@@ -55,6 +55,7 @@ from scm.actions import (
     get_pull_request_diff,
     get_pull_request_files,
     get_pull_request_reactions,
+    get_pull_request_review_threads,
     get_pull_request_template,
     get_pull_request_url,
     get_pull_requests,
@@ -177,6 +178,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_pull_request_files, {"pull_request_id": "1"}),
     (get_pull_request_commits, {"pull_request_id": "1"}),
     (get_pull_request_diff, {"pull_request_id": "1"}),
+    (get_pull_request_review_threads, {"pull_request_id": "1"}),
     (get_pull_requests, {}),
     (create_pull_request, {"title": "T", "body": "B", "head": "h", "base": "b"}),
     (create_pull_request_draft, {"title": "T", "body": "B", "head": "h", "base": "b"}),
@@ -517,6 +519,17 @@ def _check_pr_diff(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_pr_review_threads(result: Any) -> None:
+    assert len(result["data"]) == 1
+    thread = result["data"][0]
+    assert thread["id"] == "PRRT_1"
+    assert thread["is_resolved"] is False
+    assert len(thread["comments"]) == 1
+    assert thread["comments"][0]["unique_id"] == "PRRC_abc"
+    assert thread["comments"][0]["is_bot"] is False
+    assert result["type"] == "github"
+
+
 def _check_list_pull_requests(result: Any) -> None:
     assert len(result["data"]) == 1
     assert result["data"][0]["id"] == "1"
@@ -726,6 +739,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_pull_request_files, {"pull_request_id": "1"}, _check_pr_files),
     (get_pull_request_commits, {"pull_request_id": "1"}, _check_pr_commits),
     (get_pull_request_diff, {"pull_request_id": "1"}, _check_pr_diff),
+    (
+        get_pull_request_review_threads,
+        {"pull_request_id": "1"},
+        _check_pr_review_threads,
+    ),
     (get_pull_requests, {}, _check_list_pull_requests),
     (
         create_pull_request,
@@ -861,6 +879,7 @@ class MinimalProvider:
         stream=None,
         raw_response=True,
         credentials_set="installation",
+        timeout: float | tuple[float, float] | None = None,
     ):
         raise NotImplementedError("MinimalProvider does not support request")
 

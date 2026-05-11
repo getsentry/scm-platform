@@ -244,6 +244,51 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "get_pull_request_review_threads",
+        lambda scm: actions.get_pull_request_review_threads(scm, "1"),
+        {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                            "nodes": [
+                                {
+                                    "id": "PRRT_1",
+                                    "isResolved": False,
+                                    "isOutdated": False,
+                                    "path": "src/main.py",
+                                    "line": 1,
+                                    "startLine": None,
+                                    "comments": {
+                                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                        "nodes": [
+                                            {
+                                                "id": "PRRC_1",
+                                                "fullDatabaseId": 1,
+                                                "body": "hi",
+                                                "createdAt": "2026-02-04T10:00:00Z",
+                                                "updatedAt": "2026-02-04T10:00:00Z",
+                                                "author": {
+                                                    "login": "alice",
+                                                    "__typename": "User",
+                                                    "databaseId": 7,
+                                                },
+                                                "reactions": {"nodes": []},
+                                            }
+                                        ],
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                }
+            }
+        },
+        200,
+        None,
+    ),
+    (
         "request_review",
         lambda scm: actions.request_review(scm, "1", ["reviewer1"]),
         {"id": 1},

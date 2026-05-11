@@ -57,6 +57,8 @@ from scm.types import (
     ReviewCommentInput,
     ReviewEvent,
     ReviewSide,
+    ReviewThread,
+    ReviewThreadComment,
     TreeEntry,
     WriteCommitAction,
 )
@@ -227,6 +229,7 @@ class GitLabProvider:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -238,6 +241,7 @@ class GitLabProvider:
             allow_redirects=allow_redirects,
             stream=stream,
             credentials_set=credentials_set,
+            timeout=timeout,
         )
         if response.status_code >= 400:
             if response.status_code == 403:
@@ -271,6 +275,8 @@ class GitLabProvider:
         headers = {}
         headers.update(extra_headers or {})
 
+        options = request_options or {}
+
         params = params or {}
         if pagination:
             params["per_page"] = str(pagination["per_page"])
@@ -282,6 +288,7 @@ class GitLabProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
+            timeout=options.get("timeout"),
         )
 
     def post(
@@ -1395,6 +1402,32 @@ class GitLabProvider:
             data={"resolved": True},
         )
 
+    def get_pull_request_review_threads(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[ReviewThread]:
+        """List merge request review threads (GitLab discussions with a diff position).
+
+        GitLab returns discussions inline — non-positioned discussions are ordinary
+        MR comments and are filtered out here. Reactions are not returned by the
+        discussions endpoint; per-comment reactions would require a separate
+        award_emoji call per note, so they are surfaced as empty lists.
+        """
+        response = self.get(
+            GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
+            pagination=pagination,
+            request_options=request_options,
+        )
+        raw = response.json()
+        return make_paginated_result(
+            map_review_thread,
+            response,
+            raw,
+            raw_items=(d for d in raw if _is_review_thread_discussion(d)),
+        )
+
     def get_thread_id_from_review_comment_unique_id(
         self, pull_request_id: str, review_comment_unique_id: str
     ) -> str | None:
@@ -1724,6 +1757,59 @@ def _make_map_check_run(provider: "GitLabProvider", sha: SHA, name: str) -> Call
         )
 
     return _map
+
+
+def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:
+    """A GitLab discussion is a review thread iff its first note has a ``position`` —
+    those are inline diff notes. Plain MR comments come back with ``position`` unset."""
+    notes = discussion.get("notes") or []
+    return bool(notes) and notes[0].get("position") is not None
+
+
+def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+    author_raw = raw.get("author") or {}
+    if author_raw:
+        author: Author | None = Author(id=str(author_raw["id"]), username=author_raw["username"])
+    else:
+        author = None
+    return ReviewThreadComment(
+        id=str(raw["id"]),
+        unique_id=str(raw["id"]),
+        body=raw.get("body", ""),
+        author=author,
+        # GitLab marks system actors via ``bot`` on the user object.
+        is_bot=bool(author_raw.get("bot")),
+        created_at=raw.get("created_at"),
+        updated_at=raw.get("updated_at"),
+    )
+
+
+def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
+    notes = raw.get("notes") or []
+    head_note = notes[0] if notes else {}
+    position = head_note.get("position") or {}
+    line_range = position.get("line_range") or {}
+    end_pos = line_range.get("end") or {}
+    start_pos = line_range.get("start") or {}
+
+    def _line(p: dict[str, Any]) -> int | None:
+        return p.get("new_line") if p.get("new_line") is not None else p.get("old_line")
+
+    line = _line(end_pos) if end_pos else (position.get("new_line") or position.get("old_line"))
+    start_line = _line(start_pos) if start_pos else None
+
+    return ReviewThread(
+        id=str(raw["id"]),
+        is_resolved=bool(head_note.get("resolved", False)),
+        # GitLab does not expose an "outdated" flag on discussions; an outdated
+        # discussion can be inferred from position.line_range vs the latest diff
+        # but the API surfaces no boolean. Report False conservatively.
+        is_outdated=False,
+        file_path=position.get("new_path") or position.get("old_path"),
+        line=line,
+        start_line=start_line,
+        comments=[map_review_thread_comment(n) for n in notes],
+    )
 
 
 def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewComment]:
