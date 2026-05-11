@@ -2,14 +2,40 @@ import time
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from email.utils import format_datetime, parsedate_to_datetime
-from typing import Any, cast
+from typing import Any
 
 import msgspec
 import requests
 
 from scm.errors import ErrorCode, SCMCodedError
 from scm.helpers import iter_all_pages
-from scm.providers.github.types import GitHubPullRequestReviewComment
+from scm.providers.github.types import (
+    GitHubAppInstallationResponse,
+    GitHubBranchResponse,
+    GitHubCheckRunResponse,
+    GitHubCommentResponse,
+    GitHubCommitAuthorDetail,
+    GitHubCommitComparisonResponse,
+    GitHubCommitFileResponse,
+    GitHubCommitResponse,
+    GitHubFileContentResponse,
+    GitHubFileStatus,
+    GitHubGitBlobResponse,
+    GitHubGitCommitObjectResponse,
+    GitHubGitRefResponse,
+    GitHubGitTreeResponse,
+    GitHubIssueResponse,
+    GitHubLabelResponse,
+    GitHubPullRequestCommitResponse,
+    GitHubPullRequestFileResponse,
+    GitHubPullRequestResponse,
+    GitHubPullRequestReviewComment,
+    GitHubReactionResponse,
+    GitHubRepositoryResponse,
+    GitHubReviewResponse,
+    GitHubTopicsResponse,
+    GitHubUser,
+)
 from scm.rate_limit import (
     DynamicRateLimiter,
     RateLimitProvider,
@@ -393,11 +419,11 @@ class GitHubProvider:
 
     def get_app_installation(self) -> ActionResult[AppInstallation]:
         response = self.get(f"/repos/{self.repository['name']}/installation", credentials_set="application")
-        return map_action(response, map_app_installation)
+        return deserialize_action(response, deserialize_app_installation)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
-        return map_action(response, map_repository)
+        return deserialize_action(response, deserialize_repository)
 
     def get_repository_assignees(
         self,
@@ -409,9 +435,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(
-            pagination, response, lambda r: [Author(id=str(u["id"]), username=u["login"]) for u in r]
-        )
+        return deserialize_paginated_action(pagination, response, deserialize_assignees)
 
     def get_repository_labels(
         self,
@@ -423,7 +447,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_label(label) for label in r])
+        return deserialize_paginated_action(pagination, response, deserialize_labels)
 
     def get_repository_topics(
         self,
@@ -433,7 +457,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/topics",
             request_options=request_options,
         )
-        return map_action(response, lambda r: list(r.get("names", [])))
+        return deserialize_action(response, deserialize_topics)
 
     def get_issue_comments(
         self,
@@ -446,14 +470,14 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_comment(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_comments)
 
     def create_issue_comment(self, issue_id: str, body: str) -> ActionResult[Comment]:
         response = self.post(
             f"/repos/{self.repository['name']}/issues/{issue_id}/comments",
             data={"body": body},
         )
-        return map_action(response, map_comment)
+        return deserialize_action(response, deserialize_comment)
 
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/issues/comments/{comment_id}")
@@ -467,7 +491,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/issues/{issue_id}",
             request_options=request_options,
         )
-        return map_action(response, map_issue)
+        return deserialize_action(response, deserialize_issue)
 
     def create_issue(
         self,
@@ -485,7 +509,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/issues",
             data=data,
         )
-        return map_action(response, map_issue)
+        return deserialize_action(response, deserialize_issue)
 
     def get_pull_request(
         self,
@@ -496,7 +520,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}",
             request_options=request_options,
         )
-        return map_action(response, map_pull_request)
+        return deserialize_action(response, deserialize_pull_request)
 
     def get_pull_request_comments(
         self,
@@ -509,7 +533,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_comment(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_comments)
 
     def create_pull_request_comment(
         self,
@@ -533,7 +557,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/issues/{pull_request_id}/comments",
             data=data,
         )
-        return map_action(response, map_comment)
+        return deserialize_action(response, deserialize_comment)
 
     def delete_pull_request_comment(self, pull_request_id: str, comment_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/issues/comments/{comment_id}")
@@ -550,7 +574,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_reaction(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_reactions)
 
     def create_issue_comment_reaction(
         self, issue_id: str, comment_id: str, reaction: Reaction
@@ -559,7 +583,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/issues/comments/{comment_id}/reactions",
             data={"content": reaction},
         )
-        return map_action(response, map_reaction)
+        return deserialize_action(response, deserialize_reaction)
 
     def delete_issue_comment_reaction(self, issue_id: str, comment_id: str, reaction_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/issues/comments/{comment_id}/reactions/{reaction_id}")
@@ -592,14 +616,14 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_reaction(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_reactions)
 
     def create_issue_reaction(self, issue_id: str, reaction: Reaction) -> ActionResult[ReactionResult]:
         response = self.post(
             f"/repos/{self.repository['name']}/issues/{issue_id}/reactions",
             data={"content": reaction},
         )
-        return map_action(response, map_reaction)
+        return deserialize_action(response, deserialize_reaction)
 
     def delete_issue_reaction(self, issue_id: str, reaction_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/issues/{issue_id}/reactions/{reaction_id}")
@@ -627,7 +651,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/branches/{branch}",
             request_options=request_options,
         )
-        return map_action(response, lambda r: GitRef(ref=r["name"], sha=r["commit"]["sha"]))
+        return deserialize_action(response, deserialize_branch)
 
     def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
         ref = f"refs/heads/{branch}"
@@ -635,20 +659,14 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/git/refs",
             data={"ref": ref, "sha": sha},
         )
-        return map_action(
-            response,
-            lambda r: GitRef(ref=r["ref"].removeprefix("refs/heads/"), sha=r["object"]["sha"]),
-        )
+        return deserialize_action(response, deserialize_git_ref_branch)
 
     def update_branch(self, branch: BranchName, sha: SHA, force: bool = False) -> ActionResult[GitRef]:
         response = self.patch(
             f"/repos/{self.repository['name']}/git/refs/heads/{branch}",
             data={"sha": sha, "force": force},
         )
-        return map_action(
-            response,
-            lambda r: GitRef(ref=r["ref"].removeprefix("refs/heads/"), sha=r["object"]["sha"]),
-        )
+        return deserialize_action(response, deserialize_git_ref_branch)
 
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(f"/repos/{self.repository['name']}/git/refs/heads/{branch}")
@@ -662,7 +680,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/git/ref/{ref}",
             request_options=request_options,
         )
-        return map_action(response, lambda r: GitRef(ref=r["ref"], sha=r["object"]["sha"]))
+        return deserialize_action(response, deserialize_git_ref)
 
     def get_file_url(
         self,
@@ -691,7 +709,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/git/blobs",
             data={"content": content, "encoding": encoding},
         )
-        return map_action(response, map_git_blob)
+        return deserialize_action(response, deserialize_git_blob)
 
     def get_file_content(
         self,
@@ -706,7 +724,7 @@ class GitHubProvider:
         )
         if isinstance(response.json(), list):
             raise SCMCodedError(code="path_is_directory", detail=path)
-        return map_action(response, map_file_content)
+        return deserialize_action(response, deserialize_file_content)
 
     def get_readme(
         self,
@@ -724,7 +742,7 @@ class GitHubProvider:
             if e.code == "resource_not_found":
                 raise SCMCodedError(code="readme_not_found") from e
             raise
-        return map_action(response, map_file_content)
+        return deserialize_action(response, deserialize_file_content)
 
     def get_pull_request_template(
         self,
@@ -798,9 +816,9 @@ class GitHubProvider:
         if not isinstance(raw, list):
             raise SCMCodedError(code="path_is_not_directory", detail=path)
         return {
-            "data": [map_file_content(item) for item in raw],
+            "data": deserialize_file_contents(response.content),
             "type": "github",
-            "raw": {"data": raw, "headers": dict(response.headers)},
+            "raw": {"data": response.text, "headers": dict(response.headers)},
             "meta": {**_extract_response_meta(response), "next_cursor": None},
         }
 
@@ -813,7 +831,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/commits/{sha}",
             request_options=request_options,
         )
-        return map_action(response, map_commit)
+        return deserialize_action(response, deserialize_commit)
 
     def get_commits(
         self,
@@ -836,7 +854,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_commit(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_commits)
 
     def get_commits_by_path(
         self,
@@ -860,7 +878,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_commit(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_commits)
 
     def compare_commits(
         self,
@@ -874,7 +892,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_commit(c) for c in r["commits"]])
+        return deserialize_paginated_action(pagination, response, deserialize_commit_comparison)
 
     def create_commit(
         self,
@@ -949,12 +967,12 @@ class GitHubProvider:
         new_commit = self.create_git_commit(message, new_tree["sha"], [parent_sha])
         self.update_branch(branch, new_commit["data"]["sha"], force=force)
 
-        raw = new_commit["raw"]["data"]
+        commit_obj = new_commit["data"]
         return ActionResult(
             data=Commit(
-                id=raw["sha"],
-                message=raw.get("message", ""),
-                author=map_commit_author(raw.get("author")),
+                id=commit_obj["sha"],
+                message=commit_obj["message"],
+                author=None,
                 files=None,
                 additions=None,
                 deletions=None,
@@ -978,7 +996,7 @@ class GitHubProvider:
             params=params,
             request_options=request_options,
         )
-        return map_action(response, map_git_tree)
+        return deserialize_action(response, deserialize_git_tree)
 
     def get_git_commit(
         self,
@@ -989,7 +1007,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/git/commits/{sha}",
             request_options=request_options,
         )
-        return map_action(response, map_git_commit_object)
+        return deserialize_action(response, deserialize_git_commit_object)
 
     def create_git_tree(
         self,
@@ -1003,7 +1021,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/git/trees",
             data=data,
         )
-        return map_action(response, map_git_tree)
+        return deserialize_action(response, deserialize_git_tree)
 
     def create_git_commit(
         self,
@@ -1019,7 +1037,7 @@ class GitHubProvider:
                 "parents": parent_shas,
             },
         )
-        return map_action(response, map_git_commit_object)
+        return deserialize_action(response, deserialize_git_commit_object)
 
     def get_pull_request_files(
         self,
@@ -1032,7 +1050,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_pull_request_file(f) for f in r])
+        return deserialize_paginated_action(pagination, response, deserialize_pull_request_files)
 
     def get_pull_request_commits(
         self,
@@ -1045,7 +1063,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_pull_request_commit(c) for c in r])
+        return deserialize_paginated_action(pagination, response, deserialize_pull_request_commits)
 
     def get_pull_request_diff(
         self,
@@ -1081,7 +1099,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_pull_request(pr) for pr in r])
+        return deserialize_paginated_action(pagination, response, deserialize_pull_requests)
 
     def create_pull_request(
         self,
@@ -1097,7 +1115,7 @@ class GitHubProvider:
             "base": base,
         }
         response = self.post(f"/repos/{self.repository['name']}/pulls", data=data)
-        return map_action(response, map_pull_request)
+        return deserialize_action(response, deserialize_pull_request)
 
     def create_pull_request_draft(
         self,
@@ -1121,7 +1139,7 @@ class GitHubProvider:
             else:
                 raise
 
-        return map_action(response, map_pull_request)
+        return deserialize_action(response, deserialize_pull_request)
 
     def update_pull_request(
         self,
@@ -1138,7 +1156,7 @@ class GitHubProvider:
         if state is not None:
             data["state"] = state
         response = self.patch(f"/repos/{self.repository['name']}/pulls/{pull_request_id}", data=data)
-        return map_action(response, map_pull_request)
+        return deserialize_action(response, deserialize_pull_request)
 
     def request_review(self, pull_request_id: str, reviewers: list[str]) -> None:
         self.post(
@@ -1271,7 +1289,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}/reviews",
             data=data,
         )
-        return map_action(response, map_review)
+        return deserialize_action(response, deserialize_review)
 
     def create_check_run(
         self,
@@ -1304,7 +1322,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/check-runs",
             data=data,
         )
-        return map_action(response, map_check_run)
+        return deserialize_action(response, deserialize_check_run)
 
     def get_check_run(
         self,
@@ -1315,7 +1333,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/check-runs/{check_run_id}",
             request_options=request_options,
         )
-        return map_action(response, map_check_run)
+        return deserialize_action(response, deserialize_check_run)
 
     def update_check_run(
         self,
@@ -1335,7 +1353,7 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/check-runs/{check_run_id}",
             data=data,
         )
-        return map_action(response, map_check_run)
+        return deserialize_action(response, deserialize_check_run)
 
     def get_archive_link(
         self,
@@ -1424,47 +1442,10 @@ class GitHubProvider:
         return False
 
 
-def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
-    permissions = raw.get("permissions", {})
-    return AppInstallation(
-        has_read_access=True,
-        has_write_access=permissions.get("contents") == "write" and permissions.get("pull_requests") == "write",
-    )
-
-
-def map_author(raw_user: dict[str, Any] | None) -> Author | None:
-    if raw_user is None:
+def _map_user(user: GitHubUser | None) -> Author | None:
+    if user is None:
         return None
-    return Author(id=str(raw_user["id"]), username=raw_user["login"])
-
-
-def map_comment(raw: dict[str, Any]) -> Comment:
-    return Comment(
-        id=str(raw["id"]),
-        body=raw["body"],
-        author=map_author(raw.get("user")),
-    )
-
-
-def map_label(raw: dict[str, Any]) -> Label:
-    return Label(
-        id=str(raw["id"]),
-        name=raw["name"],
-        color=raw["color"],
-        description=raw.get("description"),
-    )
-
-
-def map_reaction(raw: dict[str, Any]) -> ReactionResult:
-    return ReactionResult(
-        id=str(raw["id"]),
-        content=raw["content"],
-        author=map_author(raw.get("user")),
-    )
-
-
-def map_git_blob(raw: dict[str, Any]) -> GitBlob:
-    return GitBlob(sha=raw["sha"])
+    return Author(id=str(user.id), username=user.login)
 
 
 _GITHUB_FILE_CONTENT_TYPES: dict[str, FileContentType] = {
@@ -1474,209 +1455,276 @@ _GITHUB_FILE_CONTENT_TYPES: dict[str, FileContentType] = {
     "submodule": "submodule",
 }
 
-
-def map_file_content(raw: dict[str, Any]) -> FileContent:
-    return FileContent(
-        path=raw["path"],
-        sha=raw["sha"],
-        content=raw.get("content", ""),
-        encoding=raw.get("encoding", ""),
-        size=raw["size"],
-        type=_GITHUB_FILE_CONTENT_TYPES.get(raw.get("type", "file"), "file"),
-    )
-
-
-def map_commit_author(raw_author: dict[str, Any] | None) -> CommitAuthor | None:
-    if raw_author is None:
-        return None
-
-    raw_date = raw_author.get("date")
-    date = datetime.fromisoformat(raw_date) if raw_date else None
-
-    return CommitAuthor(
-        name=raw_author.get("name", ""),
-        email=raw_author.get("email", ""),
-        date=date,
-    )
-
-
-_VALID_FILE_STATUSES: set[str] = {
-    "added",
-    "removed",
-    "modified",
-    "renamed",
-    "copied",
-    "changed",
-    "unchanged",
+GITHUB_FILE_STATUS_MAP: dict[GitHubFileStatus, FileStatus] = {
+    "added": "added",
+    "removed": "removed",
+    "modified": "modified",
+    "renamed": "renamed",
+    "copied": "copied",
+    "changed": "changed",
+    "unchanged": "unchanged",
 }
 
 
-def map_commit_file(raw_file: dict[str, Any]) -> CommitFile:
-    raw_status = raw_file.get("status", "modified")
-    status = raw_status if raw_status in _VALID_FILE_STATUSES else "unknown"
-    return CommitFile(
-        filename=raw_file["filename"],
-        status=cast(FileStatus, status),
-        patch=raw_file.get("patch"),
-        additions=raw_file.get("additions"),
-        deletions=raw_file.get("deletions"),
-        previous_filename=raw_file.get("previous_filename"),
+def _map_commit_author(author: GitHubCommitAuthorDetail | None) -> CommitAuthor | None:
+    if author is None:
+        return None
+    return CommitAuthor(
+        name=author.name,
+        email=author.email,
+        date=datetime.fromisoformat(author.date) if author.date else None,
     )
-
-
-def map_commit(raw: dict[str, Any]) -> Commit:
-    commit = raw.get("commit", {})
-    stats = raw.get("stats") or {}
-    return Commit(
-        id=raw["sha"],
-        message=commit.get("message", ""),
-        author=map_commit_author(commit.get("author")),
-        files=[map_commit_file(f) for f in raw.get("files", [])],
-        additions=stats.get("additions"),
-        deletions=stats.get("deletions"),
-    )
-
-
-def map_tree_entry(raw_entry: dict[str, Any]) -> TreeEntry:
-    return TreeEntry(
-        path=raw_entry["path"],
-        mode=raw_entry["mode"],
-        type=raw_entry["type"],
-        sha=raw_entry["sha"],
-        size=raw_entry.get("size"),
-    )
-
-
-def map_git_tree(raw: dict[str, Any]) -> GitTree:
-    """Transform a full git tree API response (from create_git_tree)."""
-    return GitTree(
-        sha=raw["sha"],
-        tree=[map_tree_entry(e) for e in raw["tree"]],
-        truncated=raw["truncated"],
-    )
-
-
-def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
-    return GitCommitObject(
-        sha=raw["sha"],
-        tree=GitCommitTree(sha=raw["tree"]["sha"]),
-        message=raw.get("message", ""),
-    )
-
-
-def map_review(raw: dict[str, Any]) -> Review:
-    return Review(
-        id=str(raw["id"]),
-        html_url=raw["html_url"],
-    )
-
-
-def map_check_run(raw: dict[str, Any]) -> CheckRun:
-    raw_status = raw.get("status", "")
-    raw_conclusion = raw.get("conclusion")
-    return CheckRun(
-        id=str(raw["id"]),
-        name=raw.get("name", ""),
-        status=GITHUB_STATUS_MAP.get(raw_status, "pending"),
-        conclusion=GITHUB_CONCLUSION_MAP.get(raw_conclusion) if raw_conclusion else None,
-        html_url=raw.get("html_url", ""),
-    )
-
-
-def map_pull_request_file(raw_file: dict[str, Any]) -> PullRequestFile:
-    raw_status = raw_file.get("status", "modified")
-    status = raw_status if raw_status in _VALID_FILE_STATUSES else "unknown"
-    return PullRequestFile(
-        filename=raw_file["filename"],
-        status=cast(FileStatus, status),
-        patch=raw_file.get("patch"),
-        changes=raw_file.get("changes", 0),
-        sha=raw_file.get("sha", ""),
-        previous_filename=raw_file.get("previous_filename"),
-    )
-
-
-def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
-    raw_author = raw.get("commit", {}).get("author")
-    return PullRequestCommit(
-        sha=raw["sha"],
-        message=raw.get("commit", {}).get("message", ""),
-        author=map_commit_author(raw_author),
-    )
-
-
-def map_pull_request(raw: dict[str, Any]) -> PullRequest:
-    return PullRequest(
-        internal_id=str(raw["id"]),
-        id=str(raw["number"]),
-        title=raw["title"],
-        body=raw.get("body"),
-        state=raw["state"],
-        merged=raw.get("merged_at") is not None,
-        html_url=raw.get("html_url", ""),
-        head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
-        base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
-        author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
-    )
-
-
-def map_issue(raw: dict[str, Any]) -> Issue:
-    return Issue(
-        id=str(raw["number"]),
-        title=raw["title"],
-        body=raw.get("body"),
-        state=raw["state"],
-        html_url=raw.get("html_url", ""),
-    )
-
-
-def map_repository(raw: dict[str, Any]) -> GitRepository:
-    return GitRepository(
-        full_name=raw["full_name"],
-        default_branch=raw["default_branch"],
-        clone_url=raw["clone_url"],
-        private=raw["private"],
-        size=raw["size"],
-        description=raw.get("description"),
-        topics=list(raw.get("topics", [])),
-    )
-
-
-def map_action[T](response: requests.Response, fn: Callable[[dict[str, Any]], T]) -> ActionResult[T]:
-    raw = response.json()
-    return {
-        "data": fn(raw),
-        "type": "github",
-        "raw": {"data": raw, "headers": dict(response.headers)},
-        "meta": _extract_response_meta(response),
-    }
-
-
-def map_paginated_action[T](
-    pagination: PaginationParams | None,
-    response: requests.Response,
-    fn: Callable[[Any], list[T]],
-) -> PaginatedActionResult[T]:
-    raw = response.json()
-    meta: PaginatedResponseMeta = {
-        **_extract_response_meta(response),
-        "next_cursor": str(int(pagination["cursor"]) + 1 if pagination else 2),
-    }
-    return {
-        "data": fn(raw),
-        "type": "github",
-        "raw": {"data": raw, "headers": dict(response.headers)},
-        "meta": meta,
-    }
 
 
 def deserialize_action[T](response: requests.Response, fn: Callable[[bytes], T]) -> ActionResult[T]:
     return {
         "data": fn(response.content),
         "type": "github",
-        "raw": {"data": response.json(), "headers": dict(response.headers)},
+        "raw": {"data": response.text, "headers": dict(response.headers)},
         "meta": _extract_response_meta(response),
     }
+
+
+def deserialize_paginated_action[T](
+    pagination: PaginationParams | None,
+    response: requests.Response,
+    fn: Callable[[bytes], list[T]],
+) -> PaginatedActionResult[T]:
+    meta: PaginatedResponseMeta = {
+        **_extract_response_meta(response),
+        "next_cursor": str(int(pagination["cursor"]) + 1 if pagination else 2),
+    }
+    return {
+        "data": fn(response.content),
+        "type": "github",
+        "raw": {"data": response.text, "headers": dict(response.headers)},
+        "meta": meta,
+    }
+
+
+def deserialize_app_installation(content: bytes) -> AppInstallation:
+    r = msgspec.json.decode(content, type=GitHubAppInstallationResponse)
+    return AppInstallation(
+        has_read_access=True,
+        has_write_access=r.permissions.contents == "write" and r.permissions.pull_requests == "write",
+    )
+
+
+def deserialize_repository(content: bytes) -> GitRepository:
+    r = msgspec.json.decode(content, type=GitHubRepositoryResponse)
+    return GitRepository(
+        full_name=r.full_name,
+        default_branch=r.default_branch,
+        clone_url=r.clone_url,
+        private=r.private,
+        size=r.size,
+        description=r.description,
+        topics=list(r.topics),
+    )
+
+
+def deserialize_assignees(content: bytes) -> list[Author]:
+    users = msgspec.json.decode(content, type=list[GitHubUser])
+    return [Author(id=str(u.id), username=u.login) for u in users]
+
+
+def deserialize_labels(content: bytes) -> list[Label]:
+    labels = msgspec.json.decode(content, type=list[GitHubLabelResponse])
+    return [Label(id=str(lb.id), name=lb.name, color=lb.color, description=lb.description) for lb in labels]
+
+
+def deserialize_topics(content: bytes) -> list[str]:
+    r = msgspec.json.decode(content, type=GitHubTopicsResponse)
+    return list(r.names)
+
+
+def deserialize_comment(content: bytes) -> Comment:
+    c = msgspec.json.decode(content, type=GitHubCommentResponse)
+    return Comment(id=str(c.id), body=c.body, author=_map_user(c.user))
+
+
+def deserialize_comments(content: bytes) -> list[Comment]:
+    comments = msgspec.json.decode(content, type=list[GitHubCommentResponse])
+    return [Comment(id=str(c.id), body=c.body, author=_map_user(c.user)) for c in comments]
+
+
+def deserialize_reaction(content: bytes) -> ReactionResult:
+    r = msgspec.json.decode(content, type=GitHubReactionResponse)
+    return ReactionResult(id=str(r.id), content=r.content, author=_map_user(r.user))
+
+
+def deserialize_reactions(content: bytes) -> list[ReactionResult]:
+    reactions = msgspec.json.decode(content, type=list[GitHubReactionResponse])
+    return [ReactionResult(id=str(r.id), content=r.content, author=_map_user(r.user)) for r in reactions]
+
+
+def deserialize_branch(content: bytes) -> GitRef:
+    r = msgspec.json.decode(content, type=GitHubBranchResponse)
+    return GitRef(ref=r.name, sha=r.commit.sha)
+
+
+def deserialize_git_ref(content: bytes) -> GitRef:
+    r = msgspec.json.decode(content, type=GitHubGitRefResponse)
+    return GitRef(ref=r.ref, sha=r.object.sha)
+
+
+def deserialize_git_ref_branch(content: bytes) -> GitRef:
+    r = msgspec.json.decode(content, type=GitHubGitRefResponse)
+    return GitRef(ref=r.ref.removeprefix("refs/heads/"), sha=r.object.sha)
+
+
+def deserialize_git_blob(content: bytes) -> GitBlob:
+    r = msgspec.json.decode(content, type=GitHubGitBlobResponse)
+    return GitBlob(sha=r.sha)
+
+
+def deserialize_file_content(content: bytes) -> FileContent:
+    r = msgspec.json.decode(content, type=GitHubFileContentResponse)
+    return FileContent(
+        path=r.path,
+        sha=r.sha,
+        content=r.content,
+        encoding=r.encoding,
+        size=r.size,
+        type=_GITHUB_FILE_CONTENT_TYPES.get(r.type, "file"),
+    )
+
+
+def deserialize_file_contents(content: bytes) -> list[FileContent]:
+    items = msgspec.json.decode(content, type=list[GitHubFileContentResponse])
+    return [
+        FileContent(
+            path=r.path,
+            sha=r.sha,
+            content=r.content,
+            encoding=r.encoding,
+            size=r.size,
+            type=_GITHUB_FILE_CONTENT_TYPES.get(r.type, "file"),
+        )
+        for r in items
+    ]
+
+
+def deserialize_commit(content: bytes) -> Commit:
+    r = msgspec.json.decode(content, type=GitHubCommitResponse)
+    return _map_commit(r)
+
+
+def deserialize_commits(content: bytes) -> list[Commit]:
+    commits = msgspec.json.decode(content, type=list[GitHubCommitResponse])
+    return [_map_commit(c) for c in commits]
+
+
+def deserialize_commit_comparison(content: bytes) -> list[Commit]:
+    r = msgspec.json.decode(content, type=GitHubCommitComparisonResponse)
+    return [_map_commit(c) for c in r.commits]
+
+
+def _map_commit(r: GitHubCommitResponse) -> Commit:
+    return Commit(
+        id=r.sha,
+        message=r.commit.message,
+        author=_map_commit_author(r.commit.author),
+        files=[_map_commit_file(f) for f in r.files],
+        additions=r.stats.additions if r.stats else None,
+        deletions=r.stats.deletions if r.stats else None,
+    )
+
+
+def _map_commit_file(f: GitHubCommitFileResponse) -> CommitFile:
+    return CommitFile(
+        filename=f.filename,
+        status=GITHUB_FILE_STATUS_MAP.get(f.status, "unknown"),
+        patch=f.patch,
+        additions=f.additions,
+        deletions=f.deletions,
+        previous_filename=f.previous_filename,
+    )
+
+
+def deserialize_git_tree(content: bytes) -> GitTree:
+    r = msgspec.json.decode(content, type=GitHubGitTreeResponse)
+    return GitTree(
+        sha=r.sha,
+        tree=[TreeEntry(path=e.path, mode=e.mode, type=e.type, sha=e.sha, size=e.size) for e in r.tree],
+        truncated=r.truncated,
+    )
+
+
+def deserialize_git_commit_object(content: bytes) -> GitCommitObject:
+    r = msgspec.json.decode(content, type=GitHubGitCommitObjectResponse)
+    return GitCommitObject(sha=r.sha, tree=GitCommitTree(sha=r.tree.sha), message=r.message)
+
+
+def deserialize_review(content: bytes) -> Review:
+    r = msgspec.json.decode(content, type=GitHubReviewResponse)
+    return Review(id=str(r.id), html_url=r.html_url)
+
+
+def deserialize_check_run(content: bytes) -> CheckRun:
+    r = msgspec.json.decode(content, type=GitHubCheckRunResponse)
+    return CheckRun(
+        id=str(r.id),
+        name=r.name,
+        status=GITHUB_STATUS_MAP.get(r.status, "pending"),
+        conclusion=GITHUB_CONCLUSION_MAP.get(r.conclusion) if r.conclusion else None,
+        html_url=r.html_url,
+    )
+
+
+def deserialize_pull_request_files(content: bytes) -> list[PullRequestFile]:
+    files = msgspec.json.decode(content, type=list[GitHubPullRequestFileResponse])
+    return [
+        PullRequestFile(
+            filename=f.filename,
+            status=GITHUB_FILE_STATUS_MAP.get(f.status, "unknown"),
+            patch=f.patch,
+            changes=f.changes,
+            sha=f.sha,
+            previous_filename=f.previous_filename,
+        )
+        for f in files
+    ]
+
+
+def deserialize_pull_request_commits(content: bytes) -> list[PullRequestCommit]:
+    commits = msgspec.json.decode(content, type=list[GitHubPullRequestCommitResponse])
+    return [
+        PullRequestCommit(
+            sha=c.sha,
+            message=c.commit.message,
+            author=_map_commit_author(c.commit.author),
+        )
+        for c in commits
+    ]
+
+
+def _map_pull_request(r: GitHubPullRequestResponse) -> PullRequest:
+    return PullRequest(
+        internal_id=str(r.id),
+        id=str(r.number),
+        title=r.title,
+        body=r.body,
+        state=r.state,
+        merged=r.merged_at is not None,
+        html_url=r.html_url,
+        head=PullRequestBranch(sha=r.head.sha, ref=r.head.ref),
+        base=PullRequestBranch(sha=r.base.sha, ref=r.base.ref),
+        author=Author(id=str(r.user.id), username=r.user.login),
+    )
+
+
+def deserialize_pull_request(content: bytes) -> PullRequest:
+    return _map_pull_request(msgspec.json.decode(content, type=GitHubPullRequestResponse))
+
+
+def deserialize_pull_requests(content: bytes) -> list[PullRequest]:
+    return [_map_pull_request(r) for r in msgspec.json.decode(content, type=list[GitHubPullRequestResponse])]
+
+
+def deserialize_issue(content: bytes) -> Issue:
+    r = msgspec.json.decode(content, type=GitHubIssueResponse)
+    return Issue(id=str(r.number), title=r.title, body=r.body, state=r.state, html_url=r.html_url)
 
 
 def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:

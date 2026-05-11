@@ -1,8 +1,20 @@
 import datetime
+from typing import Literal
 
 import msgspec
 
-from scm.types import CheckRunAction, CommentAction, PullRequestAction
+from scm.types import (
+    CheckRunAction,
+    CommentAction,
+    IssueState,
+    PullRequestAction,
+    PullRequestState,
+    Reaction,
+    TreeEntryMode,
+    TreeEntryType,
+)
+
+type GitHubFileStatus = Literal["added", "removed", "modified", "renamed", "copied", "changed", "unchanged"]
 
 
 class GitHubUser(msgspec.Struct):
@@ -97,3 +109,189 @@ class GitHubPullRequestEvent(msgspec.Struct):
     action: PullRequestAction
     number: int
     pull_request: GitHubPullRequest
+
+
+class GitHubAppInstallationPermissions(msgspec.Struct):
+    contents: str | None = None
+    pull_requests: str | None = None
+
+
+class GitHubAppInstallationResponse(msgspec.Struct):
+    permissions: GitHubAppInstallationPermissions = msgspec.field(default_factory=GitHubAppInstallationPermissions)
+
+
+class GitHubRepositoryResponse(msgspec.Struct):
+    full_name: str
+    default_branch: str
+    clone_url: str
+    private: bool
+    size: int
+    description: str | None = None
+    topics: list[str] = msgspec.field(default_factory=list)
+
+
+class GitHubCommentResponse(msgspec.Struct):
+    id: int
+    body: str | None = None
+    user: GitHubUser | None = None
+
+
+class GitHubLabelResponse(msgspec.Struct):
+    id: int
+    name: str
+    color: str
+    description: str | None = None
+
+
+class GitHubReactionResponse(msgspec.Struct):
+    id: int
+    content: Reaction
+    user: GitHubUser | None = None
+
+
+class GitHubGitBlobResponse(msgspec.Struct):
+    sha: str
+
+
+class GitHubFileContentResponse(msgspec.Struct):
+    path: str
+    sha: str
+    size: int
+    content: str = ""
+    encoding: str = ""
+    type: str = "file"
+
+
+class GitHubCommitAuthorDetail(msgspec.Struct):
+    name: str = ""
+    email: str = ""
+    date: str | None = None
+
+
+class GitHubCommitFileResponse(msgspec.Struct):
+    filename: str
+    status: GitHubFileStatus = "modified"
+    patch: str | None = None
+    additions: int | None = None
+    deletions: int | None = None
+    previous_filename: str | None = None
+
+
+class GitHubCommitDetail(msgspec.Struct):
+    message: str = ""
+    author: GitHubCommitAuthorDetail | None = None
+
+
+class GitHubCommitStats(msgspec.Struct):
+    additions: int | None = None
+    deletions: int | None = None
+
+
+class GitHubCommitResponse(msgspec.Struct):
+    sha: str
+    commit: GitHubCommitDetail = msgspec.field(default_factory=GitHubCommitDetail)
+    files: list[GitHubCommitFileResponse] = msgspec.field(default_factory=list)
+    stats: GitHubCommitStats | None = None
+
+
+class GitHubTreeEntryResponse(msgspec.Struct):
+    path: str
+    mode: TreeEntryMode
+    type: TreeEntryType
+    sha: str
+    size: int | None = None
+
+
+class GitHubGitTreeResponse(msgspec.Struct):
+    sha: str
+    tree: list[GitHubTreeEntryResponse]
+    truncated: bool
+
+
+class GitHubGitCommitTreeResponse(msgspec.Struct):
+    sha: str
+
+
+class GitHubGitCommitObjectResponse(msgspec.Struct):
+    sha: str
+    tree: GitHubGitCommitTreeResponse
+    message: str = ""
+
+
+class GitHubReviewResponse(msgspec.Struct):
+    id: int
+    html_url: str
+
+
+class GitHubCheckRunResponse(msgspec.Struct):
+    id: int
+    name: str = ""
+    status: str = ""
+    conclusion: str | None = None
+    html_url: str = ""
+
+
+class GitHubPullRequestFileResponse(msgspec.Struct):
+    filename: str
+    status: GitHubFileStatus = "modified"
+    patch: str | None = None
+    changes: int = 0
+    sha: str = ""
+    previous_filename: str | None = None
+
+
+class GitHubPullRequestCommitResponse(msgspec.Struct):
+    sha: str
+    commit: GitHubCommitDetail = msgspec.field(default_factory=GitHubCommitDetail)
+
+
+class GitHubPullRequestBranchResponse(msgspec.Struct):
+    sha: str | None
+    ref: str
+
+
+class GitHubPullRequestResponse(msgspec.Struct):
+    id: int
+    number: int
+    title: str
+    state: PullRequestState
+    head: GitHubPullRequestBranchResponse
+    base: GitHubPullRequestBranchResponse
+    user: GitHubUser
+    html_url: str = ""
+    body: str | None = None
+    merged_at: str | None = None
+
+
+class GitHubIssueResponse(msgspec.Struct):
+    number: int
+    title: str
+    state: IssueState
+    body: str | None = None
+    html_url: str = ""
+
+
+class GitHubTopicsResponse(msgspec.Struct):
+    names: list[str] = msgspec.field(default_factory=list)
+
+
+class GitHubBranchCommit(msgspec.Struct):
+    sha: str
+
+
+class GitHubBranchResponse(msgspec.Struct):
+    name: str
+    commit: GitHubBranchCommit
+
+
+class GitHubGitRefObject(msgspec.Struct):
+    sha: str
+
+
+class GitHubGitRefResponse(msgspec.Struct):
+    ref: str
+    object: GitHubGitRefObject
+
+
+class GitHubCommitComparisonResponse(msgspec.Struct):
+    commits: list[GitHubCommitResponse]

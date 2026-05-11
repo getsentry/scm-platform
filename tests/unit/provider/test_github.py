@@ -74,8 +74,14 @@ class FakeResponse:
         self.content = json.dumps(payload).encode()
         self.headers = headers or {}
         self.status_code = status_code
-        self.text = text if text is not None else ""
+        self._text_override = text
         self.url = url
+
+    @property
+    def text(self) -> str:
+        if self._text_override is not None:
+            return self._text_override
+        return self.content.decode("utf-8")
 
     def json(self) -> Any:
         return self._payload
@@ -1076,7 +1082,7 @@ def test_paginated_methods(case: dict[str, Any]) -> None:
     result = getattr(provider, case["name"])(**case["kwargs"])
 
     assert result["type"] == "github"
-    assert result["raw"] == {"data": case["raw"], "headers": {}}
+    assert result["raw"] == {"data": json.dumps(case["raw"]), "headers": {}}
     assert result["data"] == case["expected_data"]
     assert result["meta"] == {"next_cursor": case["next_cursor"]}
 
@@ -1104,7 +1110,8 @@ def test_action_methods(case: dict[str, Any]) -> None:
     result = getattr(provider, case["name"])(**case["kwargs"])
 
     assert result["type"] == "github"
-    assert result["raw"] == {"data": case["raw"], "headers": case.get("headers", {})}
+    expected_raw_data = case["raw"] if isinstance(case["raw"], str) else json.dumps(case["raw"])
+    assert result["raw"] == {"data": expected_raw_data, "headers": case.get("headers", {})}
     assert result["data"] == case["expected_data"]
     assert result["meta"] == {}
 
