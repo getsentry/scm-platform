@@ -269,7 +269,6 @@ class GitLabProvider:
         request_options: RequestOptions | None = None,
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
-        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         headers = {}
         headers.update(extra_headers or {})

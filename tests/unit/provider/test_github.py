@@ -123,7 +123,7 @@ class RecordingClient:
                 "request_options": request_options,
                 "extra_headers": extra_headers,
                 "credentials_set": credentials_set,
-                "timeout": request_options["timeout"] if request_options else None,
+                "timeout": request_options.get("timeout") if request_options else None,
             }
         )
         return self._pop("get")
