@@ -327,14 +327,15 @@ class GitHubProvider:
         credentials_set: CredentialsSet = "installation",
     ) -> requests.Response:
         headers = {}
-        if request_options:
-            if_none_match = request_options.get("if_none_match")
-            if if_none_match is not None:
-                headers["If-None-Match"] = if_none_match
+        options = request_options or {}
 
-            if_modified_since = request_options.get("if_modified_since")
-            if if_modified_since is not None:
-                headers["If-Modified-Since"] = format_datetime(if_modified_since)
+        if_none_match = options.get("if_none_match")
+        if if_none_match is not None:
+            headers["If-None-Match"] = if_none_match
+
+        if_modified_since = options.get("if_modified_since")
+        if if_modified_since is not None:
+            headers["If-Modified-Since"] = format_datetime(if_modified_since)
 
         if extra_headers:
             headers.update(extra_headers)
@@ -351,7 +352,7 @@ class GitHubProvider:
             headers=headers,
             allow_redirects=allow_redirects,
             credentials_set=credentials_set,
-            timeout=request_options["timeout"] if request_options else None,
+            timeout=options.get("timeout"),
         )
 
     def post(

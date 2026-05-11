@@ -274,6 +274,8 @@ class GitLabProvider:
         headers = {}
         headers.update(extra_headers or {})
 
+        options = request_options or {}
+
         params = params or {}
         if pagination:
             params["per_page"] = str(pagination["per_page"])
@@ -285,7 +287,7 @@ class GitLabProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
-            timeout=timeout,
+            timeout=options.get("timeout"),
         )
 
     def post(
@@ -1279,7 +1281,6 @@ class GitLabProvider:
             GitLab.archive.format(project=self.project_id, format=GITLAB_ARCHIVE_FORMAT_MAP[archive_format]),
             params={"sha": ref},
             request_options=request_options,
-            timeout=(10, 300),
         )
 
     def create_check_run(
