@@ -169,10 +169,12 @@ class RequestOptions(TypedDict, total=False):
 
     - if_none_match: send an `If-None-Match` header (ETag-based caching)
     - if_modified_since: send an `If-Modified-Since` header (UTC datetime)
+    - timeout: connect/read timeout passed to the underlying HTTP request
     """
 
     if_none_match: str
     if_modified_since: datetime
+    timeout: float | tuple[float, float]
 
 
 class ResponseMeta(TypedDict, total=False):
@@ -1059,7 +1061,12 @@ class GetArchiveLinkProtocol(Protocol):
 
 @runtime_checkable
 class DownloadArchiveProtocol(Protocol):
-    def download_archive(self, ref: str, archive_format: ArchiveFormat = "tarball") -> requests.Response: ...
+    def download_archive(
+        self,
+        ref: str,
+        archive_format: ArchiveFormat = "tarball",
+        request_options: RequestOptions | None = None,
+    ) -> requests.Response: ...
 
 
 # Check Run Protocols
@@ -1278,6 +1285,7 @@ class ApiClient(Protocol):
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response: ...
 
 

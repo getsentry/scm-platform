@@ -227,6 +227,7 @@ class GitLabProvider:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -238,6 +239,7 @@ class GitLabProvider:
             allow_redirects=allow_redirects,
             stream=stream,
             credentials_set=credentials_set,
+            timeout=timeout,
         )
         if response.status_code >= 400:
             if response.status_code == 403:
@@ -271,6 +273,8 @@ class GitLabProvider:
         headers = {}
         headers.update(extra_headers or {})
 
+        options = request_options or {}
+
         params = params or {}
         if pagination:
             params["per_page"] = str(pagination["per_page"])
@@ -282,6 +286,7 @@ class GitLabProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
+            timeout=options.get("timeout"),
         )
 
     def post(

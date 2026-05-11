@@ -123,6 +123,7 @@ class RecordingClient:
                 "request_options": request_options,
                 "extra_headers": extra_headers,
                 "credentials_set": credentials_set,
+                "timeout": request_options.get("timeout") if request_options else None,
             }
         )
         return self._pop("get")
@@ -1089,6 +1090,7 @@ def test_paginated_methods(case: dict[str, Any]) -> None:
             "request_options": None,
             "extra_headers": None,
             "credentials_set": "installation",
+            "timeout": None,
         }
     ]
 
@@ -1117,6 +1119,7 @@ def test_action_methods(case: dict[str, Any]) -> None:
         expected_call["request_options"] = None
         expected_call["extra_headers"] = None
         expected_call["credentials_set"] = case.get("credentials_set", "installation")
+        expected_call["timeout"] = None
     else:
         if "params" in case:
             expected_call["params"] = case["params"]
@@ -1321,6 +1324,7 @@ def test_get_pull_request_diff_uses_raw_request_and_extracts_meta() -> None:
             "request_options": None,
             "extra_headers": {"Accept": "application/vnd.github.v3.diff"},
             "credentials_set": "installation",
+            "timeout": None,
         }
     ]
 
@@ -1503,7 +1507,7 @@ def test_download_archive_returns_bytes_from_response() -> None:
     provider, client = make_provider()
     _queue_raw_bytes(client, b"tarball-bytes")
 
-    result = provider.download_archive("main")
+    result = provider.download_archive("main", request_options={"timeout": 10.5})
 
     assert result.content == b"tarball-bytes"
     assert client.calls == [
@@ -1512,9 +1516,10 @@ def test_download_archive_returns_bytes_from_response() -> None:
             "path": "/repos/test-org/test-repo/tarball/main",
             "params": None,
             "pagination": None,
-            "request_options": None,
+            "request_options": {"timeout": 10.5},
             "extra_headers": None,
             "credentials_set": "installation",
+            "timeout": 10.5,
         }
     ]
 
@@ -1523,10 +1528,11 @@ def test_download_archive_zip_uses_zipball_path() -> None:
     provider, client = make_provider()
     _queue_raw_bytes(client, b"zip-bytes")
 
-    result = provider.download_archive("main", archive_format="zip")
+    result = provider.download_archive("main", archive_format="zip", request_options={"timeout": (10, 300)})
 
     assert result.content == b"zip-bytes"
     assert client.calls[0]["path"] == "/repos/test-org/test-repo/zipball/main"
+    assert client.calls[0]["timeout"] == (10, 300)
 
 
 def test_get_file_url_builds_blob_url() -> None:
@@ -1630,6 +1636,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
             "request_options": None,
             "extra_headers": None,
             "credentials_set": "installation",
+            "timeout": None,
         },
         {
             "operation": "get",
@@ -1639,6 +1646,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
             "request_options": None,
             "extra_headers": None,
             "credentials_set": "installation",
+            "timeout": None,
         },
         {
             "operation": "get",
@@ -1648,6 +1656,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
             "request_options": None,
             "extra_headers": None,
             "credentials_set": "installation",
+            "timeout": None,
         },
         {
             "operation": "post",

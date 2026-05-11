@@ -753,10 +753,13 @@ def get_archive_link(
 
 
 def download_archive(
-    scm: DownloadArchiveProtocol, ref: str, archive_format: ArchiveFormat = "tarball"
+    scm: DownloadArchiveProtocol,
+    ref: str,
+    archive_format: ArchiveFormat = "tarball",
+    request_options: RequestOptions | None = None,
 ) -> requests.Response:
     """Download a repository archive."""
-    return scm.download_archive(ref, archive_format)
+    return scm.download_archive(ref, archive_format, request_options=request_options)
 
 
 __all__ = (
