@@ -47,9 +47,8 @@ def deserialize_repository(content: bytes) -> Repository:
             "name": repository.attributes.name,
             "organization_id": repository.attributes.organization_id,
             "provider_name": repository.attributes.provider_name,
+            "web_base_url": repository.attributes.web_base_url,
         }
-        if repository.attributes.web_base_url is not None:
-            result["web_base_url"] = repository.attributes.web_base_url
         return result
 
 
@@ -67,7 +66,7 @@ def serialize_repository(repository: Repository) -> bytes:
                     name=repository["name"],
                     organization_id=repository["organization_id"],
                     provider_name=repository["provider_name"],
-                    web_base_url=repository.get("web_base_url"),
+                    web_base_url=repository["web_base_url"],
                 ),
             )
         )

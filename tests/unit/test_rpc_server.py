@@ -21,6 +21,7 @@ def make_repository(**overrides) -> Repository:
         "name": "org/repo",
         "organization_id": 1,
         "provider_name": "github",
+        "web_base_url": None,
     }
     return {**defaults, **overrides}  # type: ignore[typeddict-item]
 
@@ -304,9 +305,9 @@ class TestSerializeRepository:
         decoded = deserialize_repository(serialize_repository(repo))
         assert decoded["web_base_url"] == "https://github.example.com"
 
-    def test_web_base_url_absent_when_not_set(self):
+    def test_web_base_url_none_when_not_set(self):
         decoded = deserialize_repository(serialize_repository(make_repository()))
-        assert "web_base_url" not in decoded
+        assert decoded["web_base_url"] is None
 
 
 class TestIterResponse:

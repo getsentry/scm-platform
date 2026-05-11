@@ -35,6 +35,7 @@ def provider(client: ApiClient) -> GitLabProvider:
             is_active=True,
             external_id="gitlab.com:79787061",
             provider_name="gitlab",
+            web_base_url=None,
         ),
     )
 

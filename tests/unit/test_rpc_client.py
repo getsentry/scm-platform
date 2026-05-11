@@ -26,6 +26,7 @@ def make_repository(**overrides):
         "name": "org/repo",
         "organization_id": 1,
         "provider_name": "github",
+        "web_base_url": None,
     }
     return {**defaults, **overrides}
 

@@ -316,7 +316,7 @@ class Repository(TypedDict):
     name: str
     organization_id: int
     provider_name: ProviderName
-    web_base_url: NotRequired[str]
+    web_base_url: str | None
 
 
 class GitRepository(TypedDict):
