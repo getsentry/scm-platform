@@ -19,6 +19,7 @@ from scm.providers.github.types import (
     GitHubCommitFileResponse,
     GitHubCommitResponse,
     GitHubFileContentResponse,
+    GitHubFileContentType,
     GitHubFileStatus,
     GitHubGitBlobResponse,
     GitHubGitCommitObjectResponse,
@@ -158,6 +159,23 @@ GITHUB_REVIEW_EVENT_MAP: dict[ReviewEvent, str] = {
 GITHUB_REVIEW_SIDE_MAP: dict[ReviewSide, str] = {
     "base": "LEFT",
     "head": "RIGHT",
+}
+
+GITHUB_FILE_CONTENT_TYPE_MAP: dict[GitHubFileContentType, FileContentType] = {
+    "file": "file",
+    "dir": "directory",
+    "symlink": "symlink",
+    "submodule": "submodule",
+}
+
+GITHUB_FILE_STATUS_MAP: dict[GitHubFileStatus, FileStatus] = {
+    "added": "added",
+    "removed": "removed",
+    "modified": "modified",
+    "renamed": "renamed",
+    "copied": "copied",
+    "changed": "changed",
+    "unchanged": "unchanged",
 }
 
 
@@ -1448,24 +1466,6 @@ def _map_user(user: GitHubUser | None) -> Author | None:
     return Author(id=str(user.id), username=user.login)
 
 
-_GITHUB_FILE_CONTENT_TYPES: dict[str, FileContentType] = {
-    "file": "file",
-    "dir": "directory",
-    "symlink": "symlink",
-    "submodule": "submodule",
-}
-
-GITHUB_FILE_STATUS_MAP: dict[GitHubFileStatus, FileStatus] = {
-    "added": "added",
-    "removed": "removed",
-    "modified": "modified",
-    "renamed": "renamed",
-    "copied": "copied",
-    "changed": "changed",
-    "unchanged": "unchanged",
-}
-
-
 def _map_commit_author(author: GitHubCommitAuthorDetail | None) -> CommitAuthor | None:
     if author is None:
         return None
@@ -1586,7 +1586,7 @@ def deserialize_file_content(content: bytes) -> FileContent:
         content=r.content,
         encoding=r.encoding,
         size=r.size,
-        type=_GITHUB_FILE_CONTENT_TYPES.get(r.type, "file"),
+        type=GITHUB_FILE_CONTENT_TYPE_MAP[r.type],
     )
 
 
@@ -1599,7 +1599,7 @@ def deserialize_file_contents(content: bytes) -> list[FileContent]:
             content=r.content,
             encoding=r.encoding,
             size=r.size,
-            type=_GITHUB_FILE_CONTENT_TYPES.get(r.type, "file"),
+            type=GITHUB_FILE_CONTENT_TYPE_MAP[r.type],
         )
         for r in items
     ]
@@ -1634,7 +1634,7 @@ def _map_commit(r: GitHubCommitResponse) -> Commit:
 def _map_commit_file(f: GitHubCommitFileResponse) -> CommitFile:
     return CommitFile(
         filename=f.filename,
-        status=GITHUB_FILE_STATUS_MAP.get(f.status, "unknown"),
+        status=GITHUB_FILE_STATUS_MAP[f.status],
         patch=f.patch,
         additions=f.additions,
         deletions=f.deletions,
@@ -1668,7 +1668,7 @@ def deserialize_check_run(content: bytes) -> CheckRun:
         name=r.name,
         status=GITHUB_STATUS_MAP.get(r.status, "pending"),
         conclusion=GITHUB_CONCLUSION_MAP.get(r.conclusion) if r.conclusion else None,
-        html_url=r.html_url,
+        html_url=r.html_url or "",
     )
 
 
@@ -1677,10 +1677,10 @@ def deserialize_pull_request_files(content: bytes) -> list[PullRequestFile]:
     return [
         PullRequestFile(
             filename=f.filename,
-            status=GITHUB_FILE_STATUS_MAP.get(f.status, "unknown"),
+            status=GITHUB_FILE_STATUS_MAP[f.status],
             patch=f.patch,
             changes=f.changes,
-            sha=f.sha,
+            sha=f.sha or "",
             previous_filename=f.previous_filename,
         )
         for f in files

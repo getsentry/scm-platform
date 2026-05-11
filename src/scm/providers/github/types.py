@@ -15,6 +15,7 @@ from scm.types import (
 )
 
 type GitHubFileStatus = Literal["added", "removed", "modified", "renamed", "copied", "changed", "unchanged"]
+type GitHubFileContentType = Literal["file", "dir", "symlink", "submodule"]
 
 
 class GitHubUser(msgspec.Struct):
@@ -159,7 +160,7 @@ class GitHubFileContentResponse(msgspec.Struct):
     size: int
     content: str = ""
     encoding: str = ""
-    type: str = "file"
+    type: GitHubFileContentType = "file"
 
 
 class GitHubCommitAuthorDetail(msgspec.Struct):
@@ -228,7 +229,7 @@ class GitHubCheckRunResponse(msgspec.Struct):
     name: str = ""
     status: str = ""
     conclusion: str | None = None
-    html_url: str = ""
+    html_url: str | None = None
 
 
 class GitHubPullRequestFileResponse(msgspec.Struct):
@@ -236,7 +237,7 @@ class GitHubPullRequestFileResponse(msgspec.Struct):
     status: GitHubFileStatus = "modified"
     patch: str | None = None
     changes: int = 0
-    sha: str = ""
+    sha: str | None = None
     previous_filename: str | None = None
 
 
