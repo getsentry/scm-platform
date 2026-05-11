@@ -265,6 +265,7 @@ class GitHubProvider:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -276,6 +277,7 @@ class GitHubProvider:
             allow_redirects=allow_redirects,
             stream=stream,
             credentials_set=credentials_set,
+            timeout=timeout,
         )
 
         if (
@@ -323,6 +325,7 @@ class GitHubProvider:
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         headers = {}
         if request_options:
@@ -349,6 +352,7 @@ class GitHubProvider:
             headers=headers,
             allow_redirects=allow_redirects,
             credentials_set=credentials_set,
+            timeout=timeout,
         )
 
     def post(
@@ -1367,6 +1371,7 @@ class GitHubProvider:
         return self.get(
             f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{ref}",
             request_options=request_options,
+            timeout=(10, 300),
         )
 
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:

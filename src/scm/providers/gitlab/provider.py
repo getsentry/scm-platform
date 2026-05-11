@@ -227,6 +227,7 @@ class GitLabProvider:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -238,6 +239,7 @@ class GitLabProvider:
             allow_redirects=allow_redirects,
             stream=stream,
             credentials_set=credentials_set,
+            timeout=timeout,
         )
         if response.status_code >= 400:
             if response.status_code == 403:
@@ -267,6 +269,7 @@ class GitLabProvider:
         request_options: RequestOptions | None = None,
         extra_headers: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         headers = {}
         headers.update(extra_headers or {})
@@ -282,6 +285,7 @@ class GitLabProvider:
             params=params,
             headers=headers,
             allow_redirects=allow_redirects,
+            timeout=timeout,
         )
 
     def post(
@@ -1275,6 +1279,7 @@ class GitLabProvider:
             GitLab.archive.format(project=self.project_id, format=GITLAB_ARCHIVE_FORMAT_MAP[archive_format]),
             params={"sha": ref},
             request_options=request_options,
+            timeout=(10, 300),
         )
 
     def create_check_run(

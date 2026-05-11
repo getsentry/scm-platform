@@ -1278,6 +1278,7 @@ class ApiClient(Protocol):
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response: ...
 
 

@@ -112,6 +112,7 @@ class RpcServer:
                 allow_redirects=action.allow_redirects,
                 raw_response=True,
                 credentials_set=headers.get("X-Credentials-Set", "installation"),
+                timeout=action.timeout,
             ),
             referrer=scm.referrer,
             record_count=scm.record_count,
