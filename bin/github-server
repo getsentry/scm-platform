@@ -75,7 +75,7 @@ def _derive_web_base_url(base_url: str) -> str:
 
 
 def _derive_provider_name(base_url: str) -> str:
-    if base_url == GITHUB_API_BASE:
+    if base_url.rstrip("/") == GITHUB_API_BASE:
         return "github"
     return "github_enterprise"
 
@@ -168,7 +168,6 @@ class GitHubApiClient:
         kwargs["stream"] = stream
 
         return requests.request(method, url, **kwargs)
-
 
 
 def make_fetch_repository(web_base_url: str, provider_name: str):
