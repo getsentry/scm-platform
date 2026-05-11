@@ -89,8 +89,13 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
         if web_base_url := repository.get("web_base_url"):
             kwargs["web_base_url"] = web_base_url
         elif repository["provider_name"] == "github_enterprise":
-            raise SCMCodedError(code="rpc_invalid_grant", detail="web_base_url is required for github_enterprise repositories")
-        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider(), **kwargs)
+            raise SCMCodedError(
+                code="rpc_invalid_grant",
+                detail="web_base_url is required for github_enterprise repositories",
+            )
+        return GitHubProvider(
+            client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider(), **kwargs
+        )
     elif repository["provider_name"] == "gitlab":
         return GitLabProvider(client, organization_id, repository)
     else:
