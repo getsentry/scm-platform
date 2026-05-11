@@ -1059,12 +1059,7 @@ class GetArchiveLinkProtocol(Protocol):
 
 @runtime_checkable
 class DownloadArchiveProtocol(Protocol):
-    def download_archive(
-        self,
-        ref: str,
-        archive_format: ArchiveFormat = "tarball",
-        timeout: float | tuple[float, float] | None = (10, 300),
-    ) -> requests.Response: ...
+    def download_archive(self, ref: str, archive_format: ArchiveFormat = "tarball") -> requests.Response: ...
 
 
 # Check Run Protocols
