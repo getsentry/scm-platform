@@ -1542,7 +1542,7 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
             email=raw["author_email"],
             date=datetime.datetime.fromisoformat(raw["created_at"]),
         ),
-        files=[],
+        files=None,
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )

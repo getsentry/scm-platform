@@ -380,7 +380,7 @@ class Commit(TypedDict):
 
 
 class CommitWithChanges(Commit):
-    files: list[CommitFile]
+    files: list[CommitFile] | None
 
 
 class CommitComparison(TypedDict):
