@@ -24,6 +24,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
@@ -818,12 +819,12 @@ class GitLabProvider:
         self,
         sha: SHA,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]:
+    ) -> ActionResult[CommitWithChanges]:
         response = self.get(
             GitLab.commit.format(project=self.project_id, sha=sha),
             request_options=request_options,
         )
-        return make_result(map_commit, response.json())
+        return make_result(map_commit_with_changes, response.json())
 
     def get_commits(
         self,
@@ -1526,7 +1527,22 @@ def map_commit(raw: dict[str, Any]) -> Commit:
             email=raw["author_email"],
             date=datetime.datetime.fromisoformat(raw["created_at"]),
         ),
-        files=None,
+        additions=stats.get("additions"),
+        deletions=stats.get("deletions"),
+    )
+
+
+def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
+    stats = raw.get("stats") or {}
+    return CommitWithChanges(
+        id=str(raw["id"]),
+        message=raw["message"],
+        author=CommitAuthor(
+            name=raw["author_name"],
+            email=raw["author_email"],
+            date=datetime.datetime.fromisoformat(raw["created_at"]),
+        ),
+        files=[],
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )

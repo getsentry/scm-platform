@@ -18,6 +18,7 @@ from scm.types import (
     ChmodCommitAction,
     Comment,
     Commit,
+    CommitWithChanges,
     CompareCommitsProtocol,
     CoPilotChatExtension,
     CreateBranchProtocol,
@@ -432,7 +433,7 @@ def get_commit(
     scm: GetCommitProtocol,
     sha: SHA,
     request_options: RequestOptions | None = None,
-) -> ActionResult[Commit]:
+) -> ActionResult[CommitWithChanges]:
     return scm.get_commit(sha, request_options)
 
 

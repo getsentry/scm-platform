@@ -304,6 +304,14 @@ def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
             "email": author["email"],
             "date": datetime.fromisoformat(author["date"]),
         },
+        "additions": stats.get("additions"),
+        "deletions": stats.get("deletions"),
+    }
+
+
+def expected_commit_with_changes(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **expected_commit(raw),
         "files": [
             {
                 "filename": entry["filename"],
@@ -315,8 +323,6 @@ def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
             }
             for entry in raw.get("files", [])
         ],
-        "additions": stats.get("additions"),
-        "deletions": stats.get("deletions"),
     }
 
 
@@ -715,7 +721,7 @@ ACTION_CASES: list[dict[str, Any]] = [
         "kwargs": {"sha": "abc123"},
         "path": "/repos/test-org/test-repo/commits/abc123",
         "raw": COMMIT_RAW,
-        "expected_data": expected_commit(COMMIT_RAW),
+        "expected_data": expected_commit_with_changes(COMMIT_RAW),
     },
     {
         "name": "get_tree",
@@ -1612,7 +1618,7 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     assert result["type"] == "github"
     assert result["data"]["id"] == "new_commit_sha"
     assert result["data"]["message"] == "Edits"
-    assert result["data"]["files"] is None
+    assert "files" not in result["data"]
 
     expected_tree_entries = [
         {"path": "new.md", "mode": "100644", "type": "blob", "content": "hello"},

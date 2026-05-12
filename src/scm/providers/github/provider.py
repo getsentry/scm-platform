@@ -32,6 +32,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
@@ -868,12 +869,12 @@ class GitHubProvider:
         self,
         sha: SHA,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]:
+    ) -> ActionResult[CommitWithChanges]:
         response = self.get(
             f"/repos/{self.repository['name']}/commits/{sha}",
             request_options=request_options,
         )
-        return map_action(response, map_commit)
+        return map_action(response, map_commit_with_changes)
 
     def get_commits(
         self,
@@ -1015,7 +1016,6 @@ class GitHubProvider:
                 id=raw["sha"],
                 message=raw.get("message", ""),
                 author=map_commit_author(raw.get("author")),
-                files=None,
                 additions=None,
                 deletions=None,
             ),
@@ -1661,7 +1661,19 @@ def map_commit(raw: dict[str, Any]) -> Commit:
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
-        files=[map_commit_file(f) for f in raw.get("files", [])],
+        additions=stats.get("additions"),
+        deletions=stats.get("deletions"),
+    )
+
+
+def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
+    commit = raw.get("commit", {})
+    stats = raw.get("stats") or {}
+    return CommitWithChanges(
+        id=raw["sha"],
+        message=commit.get("message", ""),
+        author=map_commit_author(commit.get("author")),
+        files=[map_commit_file(f) for f in raw["files"]],
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )

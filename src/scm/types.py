@@ -375,9 +375,12 @@ class Commit(TypedDict):
     id: SHA
     message: str
     author: CommitAuthor | None
-    files: list[CommitFile] | None
     additions: int | None
     deletions: int | None
+
+
+class CommitWithChanges(Commit):
+    files: list[CommitFile]
 
 
 class CommitComparison(TypedDict):
@@ -858,7 +861,7 @@ class GetCommitProtocol(Protocol):
         self,
         sha: SHA,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]: ...
+    ) -> ActionResult[CommitWithChanges]: ...
 
 
 @runtime_checkable

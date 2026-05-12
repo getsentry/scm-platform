@@ -1613,7 +1613,6 @@ def _make_mock_response(json_data):
                                 tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
                             ),
                         },
-                        "files": None,
                         "additions": 12,
                         "deletions": 3,
                     }
@@ -1702,7 +1701,6 @@ def _make_mock_response(json_data):
                                 tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
                             ),
                         },
-                        "files": None,
                         "additions": 7,
                         "deletions": 2,
                     }
@@ -10924,7 +10922,6 @@ def _make_mock_response(json_data):
                                 tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
                             ),
                         },
-                        "files": None,
                         "additions": 5,
                         "deletions": 1,
                     }
@@ -11078,7 +11075,6 @@ def _make_mock_response(json_data):
                             tzinfo=datetime.timezone(datetime.timedelta(seconds=3600)),
                         ),
                     },
-                    "files": None,
                     "additions": 4,
                     "deletions": 2,
                 },

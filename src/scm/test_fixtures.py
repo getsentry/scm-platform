@@ -17,6 +17,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     DeleteCommitAction,
     FileContent,
@@ -1065,9 +1066,9 @@ class BaseTestProvider(Provider):
         self,
         sha: str,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]:
+    ) -> ActionResult[CommitWithChanges]:
         return ActionResult(
-            data=Commit(
+            data=CommitWithChanges(
                 id=sha,
                 message="Fix bug",
                 author=CommitAuthor(
@@ -1158,7 +1159,6 @@ class BaseTestProvider(Provider):
                     email="test@example.com",
                     date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
                 ),
-                files=None,
                 additions=None,
                 deletions=None,
             ),
