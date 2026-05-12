@@ -8,8 +8,26 @@ def iter_all_pages[T](
     action_fn: Callable[[PaginationParams], PaginatedActionResult[T]],
     per_page: int = 50,
     cursor: str = "1",
+    max_pages: int = 10,
+    raise_if_max_pages_exceeded: bool = False,
 ) -> Iterator[PaginatedActionResult[T]]:
+    """
+    Iterate through all the pages until the iterator is exhausted.
+
+    The `max_pages` parameter defaults to 10. Fetching more than 10 pages serially is a code smell that should be
+    caught. You can not disable this feature. You can raise the max_pages limit to a very high number but you can not
+    disable it.
+
+    When `raise_if_max_pages_exceeded` is True, hitting the `max_pages` cap raises `SCMError` instead of stopping
+    iteration silently.
+    """
+    page = 0
     while True:
+        if max_pages and max_pages <= page:
+            if raise_if_max_pages_exceeded:
+                raise SCMError(f"iter_all_pages exceeded max_pages={max_pages}")
+            return None
+
         result = action_fn({"per_page": per_page, "cursor": cursor})
 
         # If page is empty exit the loop.
@@ -24,6 +42,7 @@ def iter_all_pages[T](
             return None
 
         cursor = next_cursor
+        page += 1
 
 
 def initialize_provider(
