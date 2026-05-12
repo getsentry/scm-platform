@@ -18,6 +18,7 @@ from scm.types import (
     ChmodCommitAction,
     Comment,
     Commit,
+    CommitFile,
     CommitWithChanges,
     CompareCommitsProtocol,
     CoPilotChatExtension,
@@ -55,6 +56,7 @@ from scm.types import (
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
+    GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
@@ -437,6 +439,14 @@ def get_commit(
     return scm.get_commit(sha, request_options)
 
 
+def get_commit_changes(
+    scm: GetCommitChangesProtocol,
+    sha: SHA,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[list[CommitFile]]:
+    return scm.get_commit_changes(sha, request_options)
+
+
 def get_commits(
     scm: GetCommitsProtocol,
     ref: str | None = None,
@@ -816,6 +826,7 @@ __all__ = (
     "get_check_run",
     "get_commit_url",
     "get_commit",
+    "get_commit_changes",
     "get_commits_by_path",
     "get_commits",
     "get_file_content",

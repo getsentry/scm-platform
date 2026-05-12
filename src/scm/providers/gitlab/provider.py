@@ -24,6 +24,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitFile,
     CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
@@ -31,6 +32,7 @@ from scm.types import (
     Encoding,
     FileContent,
     FileContentType,
+    FileStatus,
     GitCommitObject,
     GitCommitTree,
     GitRef,
@@ -825,6 +827,23 @@ class GitLabProvider:
             request_options=request_options,
         )
         return make_result(map_commit_with_changes, response.json())
+
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[CommitFile]]:
+        response = self.get(
+            GitLab.diff.format(project=self.project_id, sha=sha),
+            request_options=request_options,
+        )
+        raw = response.json()
+        return ActionResult(
+            data=[map_commit_diff(d) for d in raw],
+            type="gitlab",
+            raw={"data": raw, "headers": dict(response.headers)},
+            meta={},
+        )
 
     def get_commits(
         self,
@@ -1629,6 +1648,28 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
             email=raw["author_email"],
             date=datetime.datetime.fromisoformat(raw["authored_date"]),
         ),
+    )
+
+
+def map_commit_diff(raw: dict[str, Any]) -> CommitFile:
+    status: FileStatus
+    if raw.get("new_file"):
+        status = "added"
+    elif raw.get("deleted_file"):
+        status = "removed"
+    elif raw.get("renamed_file"):
+        status = "renamed"
+    else:
+        status = "modified"
+    old_path = raw.get("old_path")
+    new_path = raw.get("new_path") or old_path or ""
+    return CommitFile(
+        filename=new_path,
+        status=status,
+        patch=raw.get("diff"),
+        additions=None,
+        deletions=None,
+        previous_filename=old_path if raw.get("renamed_file") else None,
     )
 
 

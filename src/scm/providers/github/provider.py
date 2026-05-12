@@ -876,6 +876,19 @@ class GitHubProvider:
         )
         return map_action(response, map_commit_with_changes)
 
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[CommitFile]]:
+        result = self.get_commit(sha, request_options=request_options)
+        return ActionResult(
+            data=result["data"].get("files") or [],
+            type=result["type"],
+            raw=result["raw"],
+            meta=result["meta"],
+        )
+
     def get_commits(
         self,
         ref: str | None = None,

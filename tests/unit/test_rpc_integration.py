@@ -517,6 +517,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "get_commit_changes",
+        lambda scm: actions.get_commit_changes(scm, "abc123"),
+        make_github_commit(),
+        200,
+        None,
+    ),
+    (
         "get_commits",
         lambda scm: actions.get_commits(scm),
         [make_github_commit()],

@@ -724,6 +724,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_commit_with_changes(COMMIT_RAW),
     },
     {
+        "name": "get_commit_changes",
+        "operation": "get",
+        "kwargs": {"sha": "abc123"},
+        "path": "/repos/test-org/test-repo/commits/abc123",
+        "raw": COMMIT_RAW,
+        "expected_data": expected_commit_with_changes(COMMIT_RAW)["files"],
+    },
+    {
         "name": "get_tree",
         "operation": "get",
         "kwargs": {"tree_sha": "tree123", "recursive": False},

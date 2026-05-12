@@ -11184,6 +11184,62 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.get_commit_changes,
+            provider_args={
+                "sha": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                "request_options": None,
+            },
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/repository/commits/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c/diff",
+                    json_response=[
+                        {
+                            "diff": "@@ -0,0 +1 @@\n+hello\n",
+                            "new_path": "BLAH.md",
+                            "old_path": "BLAH.md",
+                            "a_mode": "0",
+                            "b_mode": "100644",
+                            "new_file": True,
+                            "renamed_file": False,
+                            "deleted_file": False,
+                            "generated_file": None,
+                        }
+                    ],
+                ),
+            ],
+            provider_return_value={
+                "data": [
+                    {
+                        "filename": "BLAH.md",
+                        "status": "added",
+                        "patch": "@@ -0,0 +1 @@\n+hello\n",
+                        "additions": None,
+                        "deletions": None,
+                        "previous_filename": None,
+                    }
+                ],
+                "type": "gitlab",
+                "raw": {
+                    "data": [
+                        {
+                            "diff": "@@ -0,0 +1 @@\n+hello\n",
+                            "new_path": "BLAH.md",
+                            "old_path": "BLAH.md",
+                            "a_mode": "0",
+                            "b_mode": "100644",
+                            "new_file": True,
+                            "renamed_file": False,
+                            "deleted_file": False,
+                            "generated_file": None,
+                        }
+                    ],
+                    "headers": {},
+                },
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_pull_request_files,
             provider_args={"pull_request_id": "1", "pagination": None, "request_options": None},
             client_calls=[

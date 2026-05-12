@@ -1062,6 +1062,19 @@ class BaseTestProvider(Provider):
 
     # Commit operations
 
+    def get_commit_changes(
+        self,
+        sha: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[CommitFile]]:
+        inner = self.get_commit(sha, request_options)
+        return ActionResult(
+            data=inner["data"].get("files") or [],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
     def get_commit(
         self,
         sha: str,

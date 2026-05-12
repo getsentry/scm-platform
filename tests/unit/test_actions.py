@@ -36,6 +36,7 @@ from scm.actions import (
     get_branch,
     get_check_run,
     get_commit,
+    get_commit_changes,
     get_commit_url,
     get_commits,
     get_commits_by_path,
@@ -157,6 +158,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_pull_request_template, {"ref": "main"}),
     # Commit operations
     (get_commit, {"sha": "abc123"}),
+    (get_commit_changes, {"sha": "abc123"}),
     (get_commits, {}),
     (get_commits_by_path, {"path": "src/main.py"}),
     (compare_commits, {"start_sha": "aaa", "end_sha": "bbb"}),
@@ -452,6 +454,14 @@ def _check_get_commit(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_get_commit_changes(result: Any) -> None:
+    files = result["data"]
+    assert isinstance(files, list)
+    assert len(files) == 1
+    assert files[0]["filename"] == "src/main.py"
+    assert result["type"] == "github"
+
+
 def _check_get_commits(result: Any) -> None:
     assert len(result["data"]) == 1
     assert result["data"][0]["id"] == "abc123"
@@ -707,6 +717,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_readme, {"ref": "main"}, _check_readme),
     (get_pull_request_template, {"ref": "main"}, _check_pull_request_template),
     (get_commit, {"sha": "abc123"}, _check_get_commit),
+    (get_commit_changes, {"sha": "abc123"}, _check_get_commit_changes),
     (get_commits, {}, _check_get_commits),
     (get_commits_by_path, {"path": "src/main.py"}, _check_get_commits),
     (

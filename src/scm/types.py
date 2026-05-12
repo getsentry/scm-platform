@@ -865,6 +865,15 @@ class GetCommitProtocol(Protocol):
 
 
 @runtime_checkable
+class GetCommitChangesProtocol(Protocol):
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[CommitFile]]: ...
+
+
+@runtime_checkable
 class GetCommitsProtocol(Protocol):
     def get_commits(
         self,
@@ -1276,6 +1285,7 @@ ALL_PROTOCOLS = (
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
+    GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
