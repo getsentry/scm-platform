@@ -1065,14 +1065,15 @@ class BaseTestProvider(Provider):
     def get_commit_changes(
         self,
         sha: str,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[CommitFile]]:
+    ) -> PaginatedActionResult[CommitFile]:
         inner = self.get_commit(sha, request_options)
-        return ActionResult(
+        return PaginatedActionResult(
             data=inner["data"].get("files") or [],
             type="github",
             raw={"headers": None, "data": None},
-            meta={},
+            meta=_DEFAULT_PAGINATED_META,
         )
 
     def get_commit(

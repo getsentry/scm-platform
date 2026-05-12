@@ -442,9 +442,10 @@ def get_commit(
 def get_commit_changes(
     scm: GetCommitChangesProtocol,
     sha: SHA,
+    pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> ActionResult[list[CommitFile]]:
-    return scm.get_commit_changes(sha, request_options)
+) -> PaginatedActionResult[CommitFile]:
+    return scm.get_commit_changes(sha, pagination, request_options)
 
 
 def get_commits(

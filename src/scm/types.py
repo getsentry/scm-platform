@@ -869,8 +869,9 @@ class GetCommitChangesProtocol(Protocol):
     def get_commit_changes(
         self,
         sha: SHA,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[CommitFile]]: ...
+    ) -> PaginatedActionResult[CommitFile]: ...
 
 
 @runtime_checkable

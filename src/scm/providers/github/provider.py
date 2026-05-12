@@ -879,14 +879,18 @@ class GitHubProvider:
     def get_commit_changes(
         self,
         sha: SHA,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[CommitFile]]:
-        result = self.get_commit(sha, request_options=request_options)
-        return ActionResult(
-            data=result["data"].get("files") or [],
-            type=result["type"],
-            raw=result["raw"],
-            meta=result["meta"],
+    ) -> PaginatedActionResult[CommitFile]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/commits/{sha}",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(
+            pagination,
+            response,
+            lambda r: [map_commit_file(f) for f in (r.get("files") or [])],
         )
 
     def get_commits(

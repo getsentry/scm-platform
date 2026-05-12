@@ -11187,6 +11187,7 @@ def _make_mock_response(json_data):
             provider_method=GitLabProvider.get_commit_changes,
             provider_args={
                 "sha": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
+                "pagination": None,
                 "request_options": None,
             },
             client_calls=[
@@ -11234,9 +11235,9 @@ def _make_mock_response(json_data):
                             "generated_file": None,
                         }
                     ],
-                    "headers": {},
+                    "headers": None,
                 },
-                "meta": {},
+                "meta": {"next_cursor": None},
             },
         ),
         ForwardToClientTest(

@@ -501,6 +501,16 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "next_cursor": "4",
     },
     {
+        "name": "get_commit_changes",
+        "kwargs": {"sha": "abc123"},
+        "path": "/repos/test-org/test-repo/commits/abc123",
+        "params": None,
+        "pagination": None,
+        "raw": COMMIT_RAW,
+        "expected_data": expected_commit_with_changes(COMMIT_RAW)["files"],
+        "next_cursor": "2",
+    },
+    {
         "name": "get_commits_by_path",
         "kwargs": {"path": "src/main.py", "ref": "main"},
         "path": "/repos/test-org/test-repo/commits",
@@ -722,14 +732,6 @@ ACTION_CASES: list[dict[str, Any]] = [
         "path": "/repos/test-org/test-repo/commits/abc123",
         "raw": COMMIT_RAW,
         "expected_data": expected_commit_with_changes(COMMIT_RAW),
-    },
-    {
-        "name": "get_commit_changes",
-        "operation": "get",
-        "kwargs": {"sha": "abc123"},
-        "path": "/repos/test-org/test-repo/commits/abc123",
-        "raw": COMMIT_RAW,
-        "expected_data": expected_commit_with_changes(COMMIT_RAW)["files"],
     },
     {
         "name": "get_tree",

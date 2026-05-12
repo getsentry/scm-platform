@@ -831,19 +831,15 @@ class GitLabProvider:
     def get_commit_changes(
         self,
         sha: SHA,
+        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[list[CommitFile]]:
+    ) -> PaginatedActionResult[CommitFile]:
         response = self.get(
             GitLab.diff.format(project=self.project_id, sha=sha),
+            pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
-        return ActionResult(
-            data=[map_commit_diff(d) for d in raw],
-            type="gitlab",
-            raw={"data": raw, "headers": dict(response.headers)},
-            meta={},
-        )
+        return make_paginated_result(map_commit_diff, response, response.json())
 
     def get_commits(
         self,
