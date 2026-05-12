@@ -1686,7 +1686,7 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
-        files=[map_commit_file(f) for f in raw["files"]],
+        files=[map_commit_file(f) for f in raw.get("files", [])],
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
