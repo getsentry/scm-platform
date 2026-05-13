@@ -147,6 +147,7 @@ class GitHubApiClient:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         url = f"{self.base_url}{path}"
         token = (
@@ -224,6 +225,7 @@ class RpcHandler(BaseHTTPRequestHandler):
         try:
             response = self.server.rpc.post(data, headers)
         except Exception as exc:
+            raise
             body = json.dumps({"errors": [{"detail": str(exc)}]}).encode()
             self.send_response(502)
             self.send_header("Content-Type", "application/json")
@@ -314,7 +316,7 @@ def main():
         fetch_repository=make_fetch_repository(web_base_url=web_base_url, provider_name=provider_name),
         fetch_provider=make_fetch_provider(token_manager),
         record_count=lambda name, value, tags: None,
-        emit_error=lambda e: None,
+        emit_error=lambda e: logger.error(e),
     )
 
     server = RpcHTTPServer((args.host, args.port), RpcHandler, rpc)

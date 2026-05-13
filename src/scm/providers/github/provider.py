@@ -59,6 +59,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
@@ -393,7 +394,9 @@ class GitHubProvider:
             )
 
         if response.status_code >= 400:
-            if response.status_code == 403:
+            if response.status_code == 401:
+                code: ErrorCode = "resource_unauthorized"  # type: ignore[no-redef]
+            elif response.status_code == 403:
                 code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
             elif response.status_code == 404:
                 code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
@@ -904,12 +907,25 @@ class GitHubProvider:
         self,
         sha: SHA,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]:
+    ) -> ActionResult[CommitWithChanges]:
         response = self.get(
             f"/repos/{self.repository['name']}/commits/{sha}",
             request_options=request_options,
         )
-        return deserialize_action(response, deserialize_commit)
+        return deserialize_action(response, deserialize_commit_with_changes)
+
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[CommitFile]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/commits/{sha}",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return deserialize_paginated_action(pagination, response, deserialize_commit_files)
 
     def get_commits(
         self,
@@ -1051,7 +1067,6 @@ class GitHubProvider:
                 id=commit_obj["sha"],
                 message=commit_obj["message"],
                 author=None,
-                files=None,
                 additions=None,
                 deletions=None,
             ),
@@ -1764,9 +1779,14 @@ def deserialize_file_contents(content: bytes) -> list[FileContent]:
     ]
 
 
-def deserialize_commit(content: bytes) -> Commit:
+def deserialize_commit_with_changes(content: bytes) -> CommitWithChanges:
     r = msgspec.json.decode(content, type=GitHubCommitResponse)
-    return _map_commit(r)
+    return _map_commit_with_changes(r)
+
+
+def deserialize_commit_files(content: bytes) -> list[CommitFile]:
+    r = msgspec.json.decode(content, type=GitHubCommitResponse)
+    return [_map_commit_file(f) for f in r.files]
 
 
 def deserialize_commits(content: bytes) -> list[Commit]:
@@ -1781,6 +1801,16 @@ def deserialize_commit_comparison(content: bytes) -> list[Commit]:
 
 def _map_commit(r: GitHubCommitResponse) -> Commit:
     return Commit(
+        id=r.sha,
+        message=r.commit.message,
+        author=_map_commit_author(r.commit.author),
+        additions=r.stats.additions if r.stats else None,
+        deletions=r.stats.deletions if r.stats else None,
+    )
+
+
+def _map_commit_with_changes(r: GitHubCommitResponse) -> CommitWithChanges:
+    return CommitWithChanges(
         id=r.sha,
         message=r.commit.message,
         author=_map_commit_author(r.commit.author),

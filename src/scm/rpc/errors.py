@@ -11,6 +11,7 @@ SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
     "repository_organization_mismatch": 404,
     "rpc_invalid_grant": 401,
     "rpc_request_too_large": 413,
+    "resource_unauthorized": 401,
     "resource_forbidden": 403,
     "resource_not_found": 404,
     "resource_conflict": 409,
