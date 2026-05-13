@@ -24,12 +24,15 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
     Encoding,
     FileContent,
     FileContentType,
+    FileStatus,
     GitCommitObject,
     GitCommitTree,
     GitRef,
@@ -824,12 +827,25 @@ class GitLabProvider:
         self,
         sha: SHA,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]:
+    ) -> ActionResult[CommitWithChanges]:
         response = self.get(
             GitLab.commit.format(project=self.project_id, sha=sha),
             request_options=request_options,
         )
-        return make_result(map_commit, response.json())
+        return make_result(map_commit_with_changes, response.json())
+
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[CommitFile]:
+        response = self.get(
+            GitLab.diff.format(project=self.project_id, sha=sha),
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_commit_diff, response, response.json())
 
     def get_commits(
         self,
@@ -1532,6 +1548,21 @@ def map_commit(raw: dict[str, Any]) -> Commit:
             email=raw["author_email"],
             date=datetime.datetime.fromisoformat(raw["created_at"]),
         ),
+        additions=stats.get("additions"),
+        deletions=stats.get("deletions"),
+    )
+
+
+def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
+    stats = raw.get("stats") or {}
+    return CommitWithChanges(
+        id=str(raw["id"]),
+        message=raw["message"],
+        author=CommitAuthor(
+            name=raw["author_name"],
+            email=raw["author_email"],
+            date=datetime.datetime.fromisoformat(raw["created_at"]),
+        ),
         files=None,
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
@@ -1619,6 +1650,28 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
             email=raw["author_email"],
             date=datetime.datetime.fromisoformat(raw["authored_date"]),
         ),
+    )
+
+
+def map_commit_diff(raw: dict[str, Any]) -> CommitFile:
+    status: FileStatus
+    if raw.get("new_file"):
+        status = "added"
+    elif raw.get("deleted_file"):
+        status = "removed"
+    elif raw.get("renamed_file"):
+        status = "renamed"
+    else:
+        status = "modified"
+    old_path = raw.get("old_path")
+    new_path = raw.get("new_path") or old_path or ""
+    return CommitFile(
+        filename=new_path,
+        status=status,
+        patch=raw.get("diff"),
+        additions=None,
+        deletions=None,
+        previous_filename=old_path if raw.get("renamed_file") else None,
     )
 
 

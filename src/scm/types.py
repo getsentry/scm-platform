@@ -375,9 +375,12 @@ class Commit(TypedDict):
     id: SHA
     message: str
     author: CommitAuthor | None
-    files: list[CommitFile] | None
     additions: int | None
     deletions: int | None
+
+
+class CommitWithChanges(Commit):
+    files: list[CommitFile] | None
 
 
 class CommitComparison(TypedDict):
@@ -858,7 +861,17 @@ class GetCommitProtocol(Protocol):
         self,
         sha: SHA,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]: ...
+    ) -> ActionResult[CommitWithChanges]: ...
+
+
+@runtime_checkable
+class GetCommitChangesProtocol(Protocol):
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[CommitFile]: ...
 
 
 @runtime_checkable
@@ -1273,6 +1286,7 @@ ALL_PROTOCOLS = (
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
+    GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,

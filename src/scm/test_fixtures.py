@@ -17,6 +17,7 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     DeleteCommitAction,
     FileContent,
@@ -1061,13 +1062,27 @@ class BaseTestProvider(Provider):
 
     # Commit operations
 
+    def get_commit_changes(
+        self,
+        sha: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[CommitFile]:
+        inner = self.get_commit(sha, request_options)
+        return PaginatedActionResult(
+            data=inner["data"].get("files") or [],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
     def get_commit(
         self,
         sha: str,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[Commit]:
+    ) -> ActionResult[CommitWithChanges]:
         return ActionResult(
-            data=Commit(
+            data=CommitWithChanges(
                 id=sha,
                 message="Fix bug",
                 author=CommitAuthor(
@@ -1158,7 +1173,6 @@ class BaseTestProvider(Provider):
                     email="test@example.com",
                     date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
                 ),
-                files=None,
                 additions=None,
                 deletions=None,
             ),
