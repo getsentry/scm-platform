@@ -47,7 +47,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "rpc_malformed_request_headers": "The request headers were invalid.",
     "rpc_request_too_large": "The request body exceeded the maximum allowed size.",
     "resource_bad_request": "An error response was received from the service-provider.",
-    "resource_unauthorized": "You are not authorized to access the requested service-provider resource.",
+    "resource_unauthorized": "Authentication required. Please provide a valid access token.",
     "resource_forbidden": "You are not authorized to access the requested service-provider resource.",
     "resource_not_found": "The requested resource could not be found on the service-provider.",
     "resource_conflict": "Request could not be processed because it conflicts with the target resource on the server.",
