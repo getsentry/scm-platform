@@ -59,6 +59,7 @@ class GitLabApiClient:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         url = f"{self.base_url}{API_VERSION}{path}"
         req_headers = {"Authorization": f"Bearer {self.access_token}"}
