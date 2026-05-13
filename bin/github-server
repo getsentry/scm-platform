@@ -147,6 +147,7 @@ class GitHubApiClient:
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
         url = f"{self.base_url}{path}"
         token = (
