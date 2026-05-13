@@ -71,8 +71,9 @@ class RpcServer:
         except SCMCodedError as e:
             self.record_count("sentry.scm.rpc.request.post.failed", 1, {"code": e.code})
 
-            if e.code == "unhandled_exception":
-                self.emit_error(e)
+            # This should almost always be a true defect and not an ACL or validation error because
+            # the validation steps have already run in the prior GET request.
+            self.emit_error(e)
 
             status, error_data = serialize_error(e)
             return StreamResponse(
