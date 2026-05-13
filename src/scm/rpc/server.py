@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Callable, Iterator, Mapping, MutableMapping
 from urllib.parse import urlparse
 
@@ -15,8 +14,6 @@ from scm.types import Provider, Repository, RepositoryId
 
 TEN_MEGABYTES = 10 * 1024 * 1024
 ALLOWED_HEADERS = frozenset({"accept", "content-type", "if-none-match"})
-
-logger = logging.getLogger(__name__)
 
 
 class RpcServer:
@@ -72,11 +69,11 @@ class RpcServer:
             self.record_count("sentry.scm.rpc.request.post.succeeded", 1, {})
             return result
         except SCMCodedError as e:
+            self.record_count("sentry.scm.rpc.request.post.failed", 1, {"code": e.code})
+
             # This should almost always be a true defect and not an ACL or validation error because
             # the validation steps have already run in the prior GET request.
-            logger.exception(e)
-
-            self.record_count("sentry.scm.rpc.request.post.failed", 1, {"code": e.code})
+            self.emit_error(e)
 
             status, error_data = serialize_error(e)
             return StreamResponse(
