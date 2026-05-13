@@ -349,7 +349,9 @@ class GitHubProvider:
             )
 
         if response.status_code >= 400:
-            if response.status_code == 403:
+            if response.status_code == 401:
+                code: ErrorCode = "resource_unauthorized"  # type: ignore[no-redef]
+            elif response.status_code == 403:
                 code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
             elif response.status_code == 404:
                 code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
