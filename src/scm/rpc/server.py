@@ -47,12 +47,16 @@ class RpcServer:
                 record_count=self.record_count,
             )
 
-            return Response(
+            response = Response(
                 status_code=200,
                 headers={"Content-Type": "application/json"},
                 content=serialize_repository(scm.provider.repository),
             )
+            self.record_count("sentry.scm.rpc.request.get.succeeded", 1, {})
+            return response
         except SCMCodedError as e:
+            self.record_count("sentry.scm.rpc.request.get.failed", 1, {"code": e.code})
+
             if e.code == "unhandled_exception":
                 self.emit_error(e)
 
@@ -61,8 +65,12 @@ class RpcServer:
 
     def post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         try:
-            return self._post(data, headers)
+            result = self._post(data, headers)
+            self.record_count("sentry.scm.rpc.request.post.succeeded", 1, {})
+            return result
         except SCMCodedError as e:
+            self.record_count("sentry.scm.rpc.request.post.failed", 1, {"code": e.code})
+
             if e.code == "unhandled_exception":
                 self.emit_error(e)
 
