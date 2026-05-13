@@ -1,5 +1,4 @@
 import datetime
-from typing import Literal
 
 import msgspec
 
@@ -13,9 +12,6 @@ from scm.types import (
     TreeEntryMode,
     TreeEntryType,
 )
-
-type GitHubFileStatus = Literal["added", "removed", "modified", "renamed", "copied", "changed", "unchanged"]
-type GitHubFileContentType = Literal["file", "dir", "symlink", "submodule"]
 
 
 class GitHubUser(msgspec.Struct):
@@ -160,7 +156,7 @@ class GitHubFileContentResponse(msgspec.Struct):
     size: int
     content: str = ""
     encoding: str = ""
-    type: GitHubFileContentType = "file"
+    type: str = "file"
 
 
 class GitHubCommitAuthorDetail(msgspec.Struct):
@@ -171,7 +167,7 @@ class GitHubCommitAuthorDetail(msgspec.Struct):
 
 class GitHubCommitFileResponse(msgspec.Struct):
     filename: str
-    status: GitHubFileStatus = "modified"
+    status: str = "modified"
     patch: str | None = None
     additions: int | None = None
     deletions: int | None = None
@@ -235,7 +231,7 @@ class GitHubCheckRunResponse(msgspec.Struct):
 
 class GitHubPullRequestFileResponse(msgspec.Struct):
     filename: str
-    status: GitHubFileStatus = "modified"
+    status: str = "modified"
     patch: str | None = None
     changes: int = 0
     sha: str | None = None

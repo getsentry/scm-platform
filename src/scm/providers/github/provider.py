@@ -19,8 +19,6 @@ from scm.providers.github.types import (
     GitHubCommitFileResponse,
     GitHubCommitResponse,
     GitHubFileContentResponse,
-    GitHubFileContentType,
-    GitHubFileStatus,
     GitHubGitBlobResponse,
     GitHubGitCommitObjectResponse,
     GitHubGitRefResponse,
@@ -164,14 +162,14 @@ GITHUB_REVIEW_SIDE_MAP: dict[ReviewSide, str] = {
     "head": "RIGHT",
 }
 
-GITHUB_FILE_CONTENT_TYPE_MAP: dict[GitHubFileContentType, FileContentType] = {
+GITHUB_FILE_CONTENT_TYPE_MAP: dict[str, FileContentType] = {
     "file": "file",
     "dir": "directory",
     "symlink": "symlink",
     "submodule": "submodule",
 }
 
-GITHUB_FILE_STATUS_MAP: dict[GitHubFileStatus, FileStatus] = {
+GITHUB_FILE_STATUS_MAP: dict[str, FileStatus] = {
     "added": "added",
     "removed": "removed",
     "modified": "modified",
@@ -1760,7 +1758,7 @@ def deserialize_file_content(content: bytes) -> FileContent:
         content=r.content,
         encoding=r.encoding,
         size=r.size,
-        type=GITHUB_FILE_CONTENT_TYPE_MAP[r.type],
+        type=GITHUB_FILE_CONTENT_TYPE_MAP.get(r.type, "file"),
     )
 
 
@@ -1773,7 +1771,7 @@ def deserialize_file_contents(content: bytes) -> list[FileContent]:
             content=r.content,
             encoding=r.encoding,
             size=r.size,
-            type=GITHUB_FILE_CONTENT_TYPE_MAP[r.type],
+            type=GITHUB_FILE_CONTENT_TYPE_MAP.get(r.type, "file"),
         )
         for r in items
     ]
@@ -1823,7 +1821,7 @@ def _map_commit_with_changes(r: GitHubCommitResponse) -> CommitWithChanges:
 def _map_commit_file(f: GitHubCommitFileResponse) -> CommitFile:
     return CommitFile(
         filename=f.filename,
-        status=GITHUB_FILE_STATUS_MAP[f.status],
+        status=GITHUB_FILE_STATUS_MAP.get(f.status, "unknown"),
         patch=f.patch,
         additions=f.additions,
         deletions=f.deletions,
@@ -1871,7 +1869,7 @@ def deserialize_pull_request_files(content: bytes) -> list[PullRequestFile]:
     return [
         PullRequestFile(
             filename=f.filename,
-            status=GITHUB_FILE_STATUS_MAP[f.status],
+            status=GITHUB_FILE_STATUS_MAP.get(f.status, "unknown"),
             patch=f.patch,
             changes=f.changes,
             sha=f.sha or "",

@@ -2237,6 +2237,41 @@ def test_get_pull_request_review_threads_handles_null_author() -> None:
     assert thread["comments"][0]["is_bot"] is False
 
 
+def test_get_commit_maps_unknown_file_status_to_unknown() -> None:
+    """GitHub may add new file statuses; deserialization must not crash."""
+    provider, client = make_provider()
+    raw = make_github_commit()
+    raw["files"][0]["status"] = "mystery_new_status"
+    client.queue("get", FakeResponse(raw))
+
+    result = provider.get_commit("abc123")
+
+    assert result["data"]["files"]
+    assert result["data"]["files"][0]["status"] == "unknown"
+
+
+def test_get_pull_request_files_maps_unknown_status_to_unknown() -> None:
+    provider, client = make_provider()
+    raw_file = make_github_pull_request_file()
+    raw_file["status"] = "mystery_new_status"
+    client.queue("get", FakeResponse([raw_file]))
+
+    result = provider.get_pull_request_files("42")
+
+    assert result["data"][0]["status"] == "unknown"
+
+
+def test_get_file_content_maps_unknown_type_to_file() -> None:
+    provider, client = make_provider()
+    raw = make_github_file_content()
+    raw["type"] = "mystery_new_type"
+    client.queue("get", FakeResponse(raw))
+
+    result = provider.get_file_content("src/main.py", ref="main")
+
+    assert result["data"]["type"] == "file"
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
