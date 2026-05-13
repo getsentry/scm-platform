@@ -217,6 +217,7 @@ class GitHubGitCommitObjectResponse(msgspec.Struct):
     sha: str
     tree: GitHubGitCommitTreeResponse
     message: str = ""
+    author: GitHubCommitAuthorDetail | None = None
 
 
 class GitHubReviewResponse(msgspec.Struct):

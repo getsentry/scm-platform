@@ -1740,6 +1740,11 @@ def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
         # commit SHA so callers can pass it to get_tree (which accepts any ref).
         tree=GitCommitTree(sha=raw["id"]),
         message=raw["message"],
+        author=CommitAuthor(
+            name=raw["author_name"],
+            email=raw["author_email"],
+            date=datetime.datetime.fromisoformat(raw["created_at"]),
+        ),
     )
 
 

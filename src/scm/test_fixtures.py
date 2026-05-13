@@ -324,12 +324,20 @@ def make_github_git_commit_object(
     sha: str = "abc123",
     tree_sha: str = "tree456",
     message: str = "Initial commit",
+    author_name: str = "Test User",
+    author_email: str = "test@example.com",
+    author_date: str = "2026-02-04T10:00:00Z",
 ) -> dict[str, Any]:
     """Factory for GitHub git commit object API responses."""
     return {
         "sha": sha,
         "tree": {"sha": tree_sha},
         "message": message,
+        "author": {
+            "name": author_name,
+            "email": author_email,
+            "date": author_date,
+        },
     }
 
 
@@ -1210,6 +1218,11 @@ class BaseTestProvider(Provider):
                 sha=sha,
                 tree=GitCommitTree(sha="tree456"),
                 message="Initial commit",
+                author=CommitAuthor(
+                    name="Test User",
+                    email="test@example.com",
+                    date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
+                ),
             ),
             type="github",
             raw={"headers": None, "data": None},
@@ -1243,6 +1256,11 @@ class BaseTestProvider(Provider):
                 sha="newcommit123",
                 tree=GitCommitTree(sha=tree_sha),
                 message=message,
+                author=CommitAuthor(
+                    name="Test User",
+                    email="test@example.com",
+                    date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
+                ),
             ),
             type="github",
             raw={"headers": None, "data": None},

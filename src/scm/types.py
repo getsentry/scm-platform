@@ -419,6 +419,7 @@ class GitCommitObject(TypedDict):
     sha: SHA
     tree: GitCommitTree
     message: str
+    author: CommitAuthor | None
 
 
 class PullRequestFile(TypedDict):

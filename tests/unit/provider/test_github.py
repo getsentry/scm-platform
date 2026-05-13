@@ -350,10 +350,20 @@ def expected_tree(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def expected_git_commit_object(raw: dict[str, Any]) -> dict[str, Any]:
+    author = raw.get("author")
     return {
         "sha": raw["sha"],
         "tree": {"sha": raw["tree"]["sha"]},
         "message": raw.get("message", ""),
+        "author": (
+            {
+                "name": author["name"],
+                "email": author["email"],
+                "date": datetime.fromisoformat(author["date"]),
+            }
+            if author is not None
+            else None
+        ),
     }
 
 
@@ -1615,7 +1625,16 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
     client.queue(
         "post",
-        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+        FakeResponse(
+            make_github_git_commit_object(
+                sha="new_commit_sha",
+                tree_sha="new_tree_sha",
+                message="Edits",
+                author_name="Ada Lovelace",
+                author_email="ada@example.com",
+                author_date="2026-04-10T12:00:00Z",
+            )
+        ),
     )
     client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
 
@@ -1635,6 +1654,11 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     assert result["type"] == "github"
     assert result["data"]["id"] == "new_commit_sha"
     assert result["data"]["message"] == "Edits"
+    assert result["data"]["author"] == {
+        "name": "Ada Lovelace",
+        "email": "ada@example.com",
+        "date": datetime.fromisoformat("2026-04-10T12:00:00Z"),
+    }
     assert "files" not in result["data"]
 
     expected_tree_entries = [

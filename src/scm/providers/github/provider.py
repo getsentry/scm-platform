@@ -1066,7 +1066,7 @@ class GitHubProvider:
             data=Commit(
                 id=commit_obj["sha"],
                 message=commit_obj["message"],
-                author=None,
+                author=commit_obj["author"],
                 additions=None,
                 deletions=None,
             ),
@@ -1842,7 +1842,12 @@ def deserialize_git_tree(content: bytes) -> GitTree:
 
 def deserialize_git_commit_object(content: bytes) -> GitCommitObject:
     r = msgspec.json.decode(content, type=GitHubGitCommitObjectResponse)
-    return GitCommitObject(sha=r.sha, tree=GitCommitTree(sha=r.tree.sha), message=r.message)
+    return GitCommitObject(
+        sha=r.sha,
+        tree=GitCommitTree(sha=r.tree.sha),
+        message=r.message,
+        author=_map_commit_author(r.author),
+    )
 
 
 def deserialize_review(content: bytes) -> Review:

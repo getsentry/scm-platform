@@ -12812,6 +12812,11 @@ def _make_mock_response(json_data):
                     "sha": "6104942438c14ec7bd21c6cd5bd995272b3faff6",
                     "tree": {"sha": "6104942438c14ec7bd21c6cd5bd995272b3faff6"},
                     "message": "Sanitize for network graph",
+                    "author": {
+                        "name": "randx",
+                        "email": "user@example.com",
+                        "date": datetime.datetime.fromisoformat("2021-09-20T09:06:12.300+03:00"),
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
