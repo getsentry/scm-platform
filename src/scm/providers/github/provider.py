@@ -518,6 +518,13 @@ class GitHubProvider:
         )
         return map_action(response, map_comment)
 
+    def update_issue_comment(self, issue_id: str, comment_id: str, body: str) -> ActionResult[Comment]:
+        response = self.patch(
+            f"/repos/{self.repository['name']}/issues/comments/{comment_id}",
+            data={"body": body},
+        )
+        return map_action(response, map_comment)
+
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/issues/comments/{comment_id}")
 
@@ -595,6 +602,13 @@ class GitHubProvider:
         response = self.post(
             f"/repos/{self.repository['name']}/issues/{pull_request_id}/comments",
             data=data,
+        )
+        return map_action(response, map_comment)
+
+    def update_pull_request_comment(self, pull_request_id: str, comment_id: str, body: str) -> ActionResult[Comment]:
+        response = self.patch(
+            f"/repos/{self.repository['name']}/issues/comments/{comment_id}",
+            data={"body": body},
         )
         return map_action(response, map_comment)
 

@@ -117,6 +117,8 @@ from scm.types import (
     ReviewThread,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
+    UpdateIssueCommentProtocol,
+    UpdatePullRequestCommentProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
     WriteCommitAction,
@@ -194,6 +196,13 @@ def create_issue_comment(scm: CreateIssueCommentProtocol, issue_id: str, body: s
     return scm.create_issue_comment(issue_id, body)
 
 
+def update_issue_comment(
+    scm: UpdateIssueCommentProtocol, issue_id: str, comment_id: str, body: str
+) -> ActionResult[Comment]:
+    """Update the body of an existing issue comment."""
+    return scm.update_issue_comment(issue_id, comment_id, body)
+
+
 def delete_issue_comment(scm: DeleteIssueCommentProtocol, issue_id: str, comment_id: str) -> None:
     """Delete a comment on an issue."""
     return scm.delete_issue_comment(issue_id, comment_id)
@@ -226,6 +235,13 @@ def create_pull_request_comment(
 ) -> ActionResult[Comment]:
     """Create a comment on a pull request."""
     return scm.create_pull_request_comment(pull_request_id, body, extensions)
+
+
+def update_pull_request_comment(
+    scm: UpdatePullRequestCommentProtocol, pull_request_id: str, comment_id: str, body: str
+) -> ActionResult[Comment]:
+    """Update the body of an existing pull request comment."""
+    return scm.update_pull_request_comment(pull_request_id, comment_id, body)
 
 
 def delete_pull_request_comment(scm: DeletePullRequestCommentProtocol, pull_request_id: str, comment_id: str) -> None:
@@ -816,9 +832,11 @@ __all__ = (
     "delete_branch",
     "delete_issue_comment_reaction",
     "delete_issue_comment",
+    "update_issue_comment",
     "delete_issue_reaction",
     "delete_pull_request_comment_reaction",
     "delete_pull_request_comment",
+    "update_pull_request_comment",
     "delete_pull_request_reaction",
     "download_archive",
     "get_archive_link",

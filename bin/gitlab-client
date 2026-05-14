@@ -28,7 +28,9 @@ Commands:
     get-issue-comments <issue_id>
     get-pull-request-comments <pr_id>
     create-issue-comment <issue_id> <body>
+    update-issue-comment <issue_id> <comment_id> <body>
     create-pull-request-comment <pr_id> <body>
+    update-pull-request-comment <pr_id> <comment_id> <body>
     get-branch <name>
     delete-branch <name>
     get-commit <sha>
@@ -119,6 +121,8 @@ from scm.types import (
     PaginationParams,
     ReviewCommentInput,
     UpdateCheckRunProtocol,
+    UpdateIssueCommentProtocol,
+    UpdatePullRequestCommentProtocol,
     UpdateReviewCommentProtocol,
     WriteCommitAction,
 )
@@ -233,8 +237,18 @@ def main():
     p.add_argument("issue_id")
     p.add_argument("body")
 
+    p = sub.add_parser("update-issue-comment")
+    p.add_argument("issue_id")
+    p.add_argument("comment_id")
+    p.add_argument("body")
+
     p = sub.add_parser("create-pull-request-comment")
     p.add_argument("pr_id")
+    p.add_argument("body")
+
+    p = sub.add_parser("update-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
     p.add_argument("body")
 
     p = sub.add_parser("get-branch")
@@ -410,9 +424,17 @@ def main():
         assert isinstance(scm, CreateIssueCommentProtocol)
         dump(scm.create_issue_comment(args.issue_id, args.body))
 
+    elif args.command == "update-issue-comment":
+        assert isinstance(scm, UpdateIssueCommentProtocol)
+        dump(scm.update_issue_comment(args.issue_id, args.comment_id, args.body))
+
     elif args.command == "create-pull-request-comment":
         assert isinstance(scm, CreatePullRequestCommentProtocol)
         dump(scm.create_pull_request_comment(args.pr_id, args.body))
+
+    elif args.command == "update-pull-request-comment":
+        assert isinstance(scm, UpdatePullRequestCommentProtocol)
+        dump(scm.update_pull_request_comment(args.pr_id, args.comment_id, args.body))
 
     elif args.command == "get-branch":
         assert isinstance(scm, GetBranchProtocol)

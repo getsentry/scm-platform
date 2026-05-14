@@ -387,6 +387,13 @@ class GitLabProvider:
         )
         return make_result(map_comment, response.json())
 
+    def update_issue_comment(self, issue_id: str, comment_id: str, body: str) -> ActionResult[Comment]:
+        response = self.put(
+            GitLab.issue_note.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
+            data={"body": body},
+        )
+        return make_result(map_comment, response.json())
+
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None:
         self.delete(
             GitLab.issue_note.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
@@ -477,6 +484,13 @@ class GitLabProvider:
     ) -> ActionResult[Comment]:
         response = self.post(
             GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
+            data={"body": body},
+        )
+        return make_result(map_comment, response.json())
+
+    def update_pull_request_comment(self, pull_request_id: str, comment_id: str, body: str) -> ActionResult[Comment]:
+        response = self.put(
+            GitLab.merge_request_note.format(project_id=self.project_id, pr_key=pull_request_id, note_id=comment_id),
             data={"body": body},
         )
         return make_result(map_comment, response.json())

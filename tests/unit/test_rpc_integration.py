@@ -326,6 +326,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "update_issue_comment",
+        lambda scm: actions.update_issue_comment(scm, issue_id="10", comment_id="1", body="Updated"),
+        make_github_comment(body="Updated"),
+        200,
+        None,
+    ),
+    (
         "delete_issue_comment",
         lambda scm: actions.delete_issue_comment(scm, "10", "1"),
         {},
@@ -345,6 +352,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         lambda scm: actions.create_pull_request_comment(scm, "1", "Nice work"),
         make_github_comment(body="Nice work"),
         201,
+        None,
+    ),
+    (
+        "update_pull_request_comment",
+        lambda scm: actions.update_pull_request_comment(scm, pull_request_id="1", comment_id="5", body="Updated"),
+        make_github_comment(body="Updated"),
+        200,
         None,
     ),
     (

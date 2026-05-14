@@ -657,6 +657,11 @@ class CreateIssueCommentProtocol(Protocol):
 
 
 @runtime_checkable
+class UpdateIssueCommentProtocol(Protocol):
+    def update_issue_comment(self, issue_id: str, comment_id: str, body: str) -> ActionResult[Comment]: ...
+
+
+@runtime_checkable
 class DeleteIssueCommentProtocol(Protocol):
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None: ...
 
@@ -681,6 +686,13 @@ class CreatePullRequestCommentProtocol(Protocol):
         pull_request_id: str,
         body: str,
         extensions: list["CoPilotChatExtension"] | None = None,
+    ) -> ActionResult[Comment]: ...
+
+
+@runtime_checkable
+class UpdatePullRequestCommentProtocol(Protocol):
+    def update_pull_request_comment(
+        self, pull_request_id: str, comment_id: str, body: str
     ) -> ActionResult[Comment]: ...
 
 
@@ -1280,6 +1292,7 @@ ALL_PROTOCOLS = (
     DeleteIssueReactionProtocol,
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
+    UpdatePullRequestCommentProtocol,
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
@@ -1322,6 +1335,7 @@ ALL_PROTOCOLS = (
     ResolveReviewThreadProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
+    UpdateIssueCommentProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
 )
