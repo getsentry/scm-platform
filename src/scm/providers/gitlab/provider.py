@@ -39,6 +39,7 @@ from scm.types import (
     GitRepository,
     GitTree,
     Issue,
+    IssueState,
     Label,
     MoveCommitAction,
     PaginatedActionResult,
@@ -163,6 +164,11 @@ PULL_REQUEST_STATE_RETRIEVE_MAP: dict[PullRequestState, list[str]] = {
 }
 
 PULL_REQUEST_STATE_UPDATE_MAP: dict[PullRequestState, str] = {
+    "open": "reopen",
+    "closed": "close",
+}
+
+ISSUE_STATE_UPDATE_MAP: dict[IssueState, str] = {
     "open": "reopen",
     "closed": "close",
 }
@@ -417,6 +423,26 @@ class GitLabProvider:
             data["labels"] = labels
         response = self.post(
             GitLab.issues.format(project=self.project_id),
+            data=data,
+        )
+        return make_result(map_issue, response.json())
+
+    def update_issue(
+        self,
+        issue_id: str,
+        state: IssueState | None = None,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]:
+        data: dict[str, Any] = {}
+        if state is not None:
+            data["state_event"] = ISSUE_STATE_UPDATE_MAP[state]
+        if assignees is not None:
+            data["assignee_ids"] = [int(a) for a in assignees]
+        if labels is not None:
+            data["labels"] = labels
+        response = self.put(
+            GitLab.issue.format(project=self.project_id, issue=issue_id),
             data=data,
         )
         return make_result(map_issue, response.json())
