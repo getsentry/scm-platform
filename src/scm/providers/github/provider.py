@@ -1711,23 +1711,21 @@ def deserialize_topics(content: bytes) -> list[str]:
 
 
 def deserialize_comment(content: bytes) -> Comment:
-    c = msgspec.json.decode(content, type=GitHubCommentResponse)
-    return Comment(id=str(c.id), body=c.body, author=_map_user(c.user))
+    return _map_comment(msgspec.json.decode(content, type=GitHubCommentResponse))
 
 
 def deserialize_comments(content: bytes) -> list[Comment]:
     comments = msgspec.json.decode(content, type=list[GitHubCommentResponse])
-    return [Comment(id=str(c.id), body=c.body, author=_map_user(c.user)) for c in comments]
+    return [_map_comment(c) for c in comments]
 
 
 def deserialize_reaction(content: bytes) -> ReactionResult:
-    r = msgspec.json.decode(content, type=GitHubReactionResponse)
-    return ReactionResult(id=str(r.id), content=r.content, author=_map_user(r.user))
+    return _map_reaction(msgspec.json.decode(content, type=GitHubReactionResponse))
 
 
 def deserialize_reactions(content: bytes) -> list[ReactionResult]:
     reactions = msgspec.json.decode(content, type=list[GitHubReactionResponse])
-    return [ReactionResult(id=str(r.id), content=r.content, author=_map_user(r.user)) for r in reactions]
+    return [_map_reaction(r) for r in reactions]
 
 
 def deserialize_branch(content: bytes) -> GitRef:
@@ -1751,30 +1749,12 @@ def deserialize_git_blob(content: bytes) -> GitBlob:
 
 
 def deserialize_file_content(content: bytes) -> FileContent:
-    r = msgspec.json.decode(content, type=GitHubFileContentResponse)
-    return FileContent(
-        path=r.path,
-        sha=r.sha,
-        content=r.content,
-        encoding=r.encoding,
-        size=r.size,
-        type=GITHUB_FILE_CONTENT_TYPE_MAP.get(r.type, "file"),
-    )
+    return _map_file_content(msgspec.json.decode(content, type=GitHubFileContentResponse))
 
 
 def deserialize_file_contents(content: bytes) -> list[FileContent]:
     items = msgspec.json.decode(content, type=list[GitHubFileContentResponse])
-    return [
-        FileContent(
-            path=r.path,
-            sha=r.sha,
-            content=r.content,
-            encoding=r.encoding,
-            size=r.size,
-            type=GITHUB_FILE_CONTENT_TYPE_MAP.get(r.type, "file"),
-        )
-        for r in items
-    ]
+    return [_map_file_content(r) for r in items]
 
 
 def deserialize_commit_with_changes(content: bytes) -> CommitWithChanges:
@@ -1795,6 +1775,25 @@ def deserialize_commits(content: bytes) -> list[Commit]:
 def deserialize_commit_comparison(content: bytes) -> list[Commit]:
     r = msgspec.json.decode(content, type=GitHubCommitComparisonResponse)
     return [_map_commit(c) for c in r.commits]
+
+
+def _map_comment(c: GitHubCommentResponse) -> Comment:
+    return Comment(id=str(c.id), body=c.body, author=_map_user(c.user))
+
+
+def _map_reaction(r: GitHubReactionResponse) -> ReactionResult:
+    return ReactionResult(id=str(r.id), content=r.content, author=_map_user(r.user))
+
+
+def _map_file_content(r: GitHubFileContentResponse) -> FileContent:
+    return FileContent(
+        path=r.path,
+        sha=r.sha,
+        content=r.content,
+        encoding=r.encoding,
+        size=r.size,
+        type=GITHUB_FILE_CONTENT_TYPE_MAP.get(r.type, "file"),
+    )
 
 
 def _map_commit(r: GitHubCommitResponse) -> Commit:
