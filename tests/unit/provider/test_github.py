@@ -220,12 +220,22 @@ def expected_comment(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
         "body": raw["body"],
-        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]},
+        "author": {
+            "id": str(raw["user"]["id"]),
+            "username": raw["user"]["login"],
+            "display_name": raw["user"].get("name"),
+            "avatar_url": raw["user"].get("avatar_url"),
+        },
     }
 
 
 def expected_assignee(raw: dict[str, Any]) -> dict[str, Any]:
-    return {"id": str(raw["id"]), "username": raw["login"]}
+    return {
+        "id": str(raw["id"]),
+        "username": raw["login"],
+        "display_name": raw.get("name"),
+        "avatar_url": raw.get("avatar_url"),
+    }
 
 
 def expected_label(raw: dict[str, Any]) -> dict[str, Any]:
@@ -241,12 +251,19 @@ def expected_reaction(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
         "content": raw["content"],
-        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]},
+        "author": {
+            "id": str(raw["user"]["id"]),
+            "username": raw["user"]["login"],
+            "display_name": raw["user"].get("name"),
+            "avatar_url": raw["user"].get("avatar_url"),
+        },
     }
 
 
 def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
-    return {
+    from datetime import datetime
+
+    result: dict[str, Any] = {
         "internal_id": str(raw["id"]),
         "id": str(raw["number"]),
         "title": raw["title"],
@@ -256,8 +273,30 @@ def expected_pull_request(raw: dict[str, Any]) -> dict[str, Any]:
         "html_url": raw.get("html_url", ""),
         "head": {"sha": raw["head"]["sha"], "ref": raw["head"]["ref"]},
         "base": {"sha": raw["base"]["sha"], "ref": raw["base"]["ref"]},
-        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]},
+        "author": {
+            "id": str(raw["user"]["id"]),
+            "username": raw["user"]["login"],
+            "display_name": raw["user"].get("name"),
+            "avatar_url": raw["user"].get("avatar_url"),
+        },
     }
+    if "created_at" in raw:
+        result["created_at"] = datetime.fromisoformat(raw["created_at"])
+    if "updated_at" in raw:
+        result["updated_at"] = datetime.fromisoformat(raw["updated_at"])
+    if raw.get("merged_at"):
+        result["merged_at"] = datetime.fromisoformat(raw["merged_at"])
+    if raw.get("closed_at"):
+        result["closed_at"] = datetime.fromisoformat(raw["closed_at"])
+    if "commits" in raw:
+        result["commits_count"] = raw["commits"]
+    if "additions" in raw:
+        result["additions"] = raw["additions"]
+    if "deletions" in raw:
+        result["deletions"] = raw["deletions"]
+    if "changed_files" in raw:
+        result["changed_files_count"] = raw["changed_files"]
+    return result
 
 
 def expected_issue(raw: dict[str, Any]) -> dict[str, Any]:

@@ -206,6 +206,8 @@ class Author(TypedDict):
 
     id: ResourceId
     username: str
+    display_name: NotRequired[str | None]
+    avatar_url: NotRequired[str | None]
 
 
 class Comment(TypedDict):
@@ -253,6 +255,14 @@ class PullRequest(TypedDict):
     head: PullRequestBranch
     base: PullRequestBranch
     author: Author
+    commits_count: NotRequired[int]
+    additions: NotRequired[int]
+    deletions: NotRequired[int]
+    changed_files_count: NotRequired[int]
+    created_at: NotRequired[datetime]
+    updated_at: NotRequired[datetime]
+    merged_at: NotRequired[datetime | None]
+    closed_at: NotRequired[datetime | None]
 
 
 class Issue(TypedDict):

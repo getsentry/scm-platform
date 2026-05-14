@@ -472,9 +472,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(
-            pagination, response, lambda r: [Author(id=str(u["id"]), username=u["login"]) for u in r]
-        )
+        return map_paginated_action(pagination, response, lambda r: [a for u in r if (a := map_author(u)) is not None])
 
     def get_repository_labels(
         self,
@@ -1581,10 +1579,21 @@ def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     )
 
 
+def _parse_datetime(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+    return datetime.fromisoformat(value)
+
+
 def map_author(raw_user: dict[str, Any] | None) -> Author | None:
     if raw_user is None:
         return None
-    return Author(id=str(raw_user["id"]), username=raw_user["login"])
+    return Author(
+        id=str(raw_user["id"]),
+        username=raw_user["login"],
+        display_name=raw_user.get("name"),
+        avatar_url=raw_user.get("avatar_url"),
+    )
 
 
 def map_comment(raw: dict[str, Any]) -> Comment:
@@ -1767,7 +1776,7 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
-    return PullRequest(
+    pr = PullRequest(
         internal_id=str(raw["id"]),
         id=str(raw["number"]),
         title=raw["title"],
@@ -1777,8 +1786,32 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         html_url=raw.get("html_url", ""),
         head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
         base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
-        author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
+        author=Author(
+            id=str(raw["user"]["id"]),
+            username=raw["user"]["login"],
+            display_name=raw["user"].get("name"),
+            avatar_url=raw["user"].get("avatar_url"),
+        ),
     )
+    if "created_at" in raw:
+        pr["created_at"] = datetime.fromisoformat(raw["created_at"])
+    if "updated_at" in raw:
+        pr["updated_at"] = datetime.fromisoformat(raw["updated_at"])
+    merged_at = _parse_datetime(raw.get("merged_at"))
+    if merged_at is not None:
+        pr["merged_at"] = merged_at
+    closed_at = _parse_datetime(raw.get("closed_at"))
+    if closed_at is not None:
+        pr["closed_at"] = closed_at
+    if "commits" in raw:
+        pr["commits_count"] = raw["commits"]
+    if "additions" in raw:
+        pr["additions"] = raw["additions"]
+    if "deletions" in raw:
+        pr["deletions"] = raw["deletions"]
+    if "changed_files" in raw:
+        pr["changed_files_count"] = raw["changed_files"]
+    return pr
 
 
 def map_issue(raw: dict[str, Any]) -> Issue:

@@ -113,6 +113,10 @@ def make_github_pull_request(
         "head": {"ref": head_ref, "sha": head_sha},
         "base": {"ref": base_ref, "sha": base_sha},
         "user": {"id": user_id, "login": username},
+        "created_at": "2026-02-04T10:00:00Z",
+        "updated_at": "2026-02-04T12:00:00Z",
+        "merged_at": None,
+        "closed_at": None,
     }
 
 

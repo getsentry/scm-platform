@@ -129,7 +129,14 @@ def _make_mock_response(json_data):
                 ),
             ],
             provider_return_value={
-                "data": [{"id": "150871", "username": "jacquev6"}],
+                "data": [
+                    {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/x?s=80&d=identicon",
+                    }
+                ],
                 "type": "gitlab",
                 "raw": {
                     "data": [
@@ -319,7 +326,14 @@ def _make_mock_response(json_data):
                             "ref": "topics/blah",
                         },
                         "base": {"sha": None, "ref": "main"},
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-02-26T08:48:23.151Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-11T10:54:27.749Z"),
                     }
                 ],
                 "type": "gitlab",
@@ -511,7 +525,15 @@ def _make_mock_response(json_data):
                         "ref": "topics/blah",
                     },
                     "base": {"sha": None, "ref": "main"},
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
+                    "created_at": datetime.datetime.fromisoformat("2026-02-26T08:48:23.151Z"),
+                    "updated_at": datetime.datetime.fromisoformat("2026-03-11T10:54:27.749Z"),
+                    "changed_files_count": 1,
                 },
                 "type": "gitlab",
                 "raw": {
@@ -721,7 +743,14 @@ def _make_mock_response(json_data):
                         "ref": "topics/blih",
                     },
                     "base": {"sha": None, "ref": "main"},
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
+                    "created_at": datetime.datetime.fromisoformat("2026-03-11T11:01:25.811Z"),
+                    "updated_at": datetime.datetime.fromisoformat("2026-03-11T11:01:25.811Z"),
                 },
                 "type": "gitlab",
                 "raw": {
@@ -985,7 +1014,14 @@ def _make_mock_response(json_data):
                             "ref": "topics/blih",
                         },
                         "base": {"sha": None, "ref": "main"},
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-03-11T11:01:25.811Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-11T11:01:27.021Z"),
                     },
                     {
                         "internal_id": "459277081",
@@ -1000,7 +1036,14 @@ def _make_mock_response(json_data):
                             "ref": "topics/blah",
                         },
                         "base": {"sha": None, "ref": "main"},
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-02-26T08:48:23.151Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-11T10:54:27.749Z"),
                     },
                 ],
                 "type": "gitlab",
@@ -1272,7 +1315,16 @@ def _make_mock_response(json_data):
                         "ref": "topics/blih",
                     },
                     "base": {"sha": None, "ref": "main"},
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
+                    "created_at": datetime.datetime.fromisoformat("2026-03-11T11:01:25.811Z"),
+                    "updated_at": datetime.datetime.fromisoformat("2026-03-11T11:01:36.336Z"),
+                    "closed_at": datetime.datetime.fromisoformat("2026-03-11T11:01:36.166Z"),
+                    "changed_files_count": 1,
                 },
                 "type": "gitlab",
                 "raw": {
@@ -1478,7 +1530,14 @@ def _make_mock_response(json_data):
                             "ref": "topics/blah",
                         },
                         "base": {"sha": None, "ref": "main"},
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-02-26T08:48:23.151Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-11T10:54:27.749Z"),
                     }
                 ],
                 "type": "gitlab",
@@ -1776,7 +1835,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "3123861269",
                         "body": "A comment!",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -1858,7 +1922,12 @@ def _make_mock_response(json_data):
                 "data": {
                     "id": "3149925511",
                     "body": "Another comment, made through the API.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
@@ -1967,12 +2036,22 @@ def _make_mock_response(json_data):
                     {
                         "id": "3149925511",
                         "body": "Another comment, made through the API.",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "3123861269",
                         "body": "A comment!",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -2096,7 +2175,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "3123861269",
                         "body": "A comment!",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -2309,37 +2393,72 @@ def _make_mock_response(json_data):
                     {
                         "id": "43909506",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43909515",
                         "content": "eyes",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911188",
                         "content": "-1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911265",
                         "content": "laugh",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911283",
                         "content": "hooray",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911304",
                         "content": "confused",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911321",
                         "content": "heart",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -2536,7 +2655,12 @@ def _make_mock_response(json_data):
                 "data": {
                     "id": "44362880",
                     "content": "rocket",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
@@ -2756,42 +2880,82 @@ def _make_mock_response(json_data):
                     {
                         "id": "43909506",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43909515",
                         "content": "eyes",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911188",
                         "content": "-1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911265",
                         "content": "laugh",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911283",
                         "content": "hooray",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911304",
                         "content": "confused",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911321",
                         "content": "heart",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "44362880",
                         "content": "rocket",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -3159,37 +3323,72 @@ def _make_mock_response(json_data):
                     {
                         "id": "43909506",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43909515",
                         "content": "eyes",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911188",
                         "content": "-1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911265",
                         "content": "laugh",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911283",
                         "content": "hooray",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911304",
                         "content": "confused",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43911321",
                         "content": "heart",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -4281,7 +4480,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "3149861666",
                         "body": "A great comment!",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -5250,7 +5454,12 @@ def _make_mock_response(json_data):
                 "data": {
                     "id": "3149931216",
                     "body": "Another comment, made through the API.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
@@ -6193,12 +6402,22 @@ def _make_mock_response(json_data):
                     {
                         "id": "3149931216",
                         "body": "Another comment, made through the API.",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "3149861666",
                         "body": "A great comment!",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -8040,7 +8259,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "3149861666",
                         "body": "A great comment!",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -9023,7 +9247,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "43921665",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -9110,7 +9339,12 @@ def _make_mock_response(json_data):
                 "data": {
                     "id": "44362951",
                     "content": "rocket",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
@@ -9216,12 +9450,22 @@ def _make_mock_response(json_data):
                     {
                         "id": "43921665",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "44362951",
                         "content": "rocket",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -9365,7 +9609,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "43921665",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -9488,12 +9737,22 @@ def _make_mock_response(json_data):
                     {
                         "id": "43923647",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43923674",
                         "content": "hooray",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -9595,7 +9854,12 @@ def _make_mock_response(json_data):
                 "data": {
                     "id": "44362995",
                     "content": "rocket",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
@@ -9715,17 +9979,32 @@ def _make_mock_response(json_data):
                     {
                         "id": "43923647",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43923674",
                         "content": "hooray",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "44362995",
                         "content": "rocket",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -9898,12 +10177,22 @@ def _make_mock_response(json_data):
                     {
                         "id": "43923647",
                         "content": "+1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "43923674",
                         "content": "hooray",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -10026,7 +10315,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "43924243",
                         "content": "-1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -10109,7 +10403,12 @@ def _make_mock_response(json_data):
                 "data": {
                     "id": "44363033",
                     "content": "rocket",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                 },
                 "type": "gitlab",
                 "raw": {
@@ -10210,12 +10509,22 @@ def _make_mock_response(json_data):
                     {
                         "id": "43924243",
                         "content": "-1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                     {
                         "id": "44363033",
                         "content": "rocket",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     },
                 ],
                 "type": "gitlab",
@@ -10350,7 +10659,12 @@ def _make_mock_response(json_data):
                     {
                         "id": "43924243",
                         "content": "-1",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
                     }
                 ],
                 "type": "gitlab",
@@ -11530,7 +11844,12 @@ def _make_mock_response(json_data):
                     "url": None,
                     "file_path": "BLAH.md",
                     "body": "A review comment, on a file, made by the API on 2026-03-11 11:06:19.945026.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
                     "review_id": None,
@@ -11693,7 +12012,12 @@ def _make_mock_response(json_data):
                     "url": None,
                     "file_path": "BLAH.md",
                     "body": "A review comment, on a line, made by the API on 2026-03-11 11:06:19.945026.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
                     "review_id": None,
@@ -11867,7 +12191,12 @@ def _make_mock_response(json_data):
                     "url": None,
                     "file_path": "BLAH.md",
                     "body": "A multiline review comment, made by the API on 2026-03-11 11:06:19.945026.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
                     "review_id": None,
@@ -11997,7 +12326,12 @@ def _make_mock_response(json_data):
                     "url": None,
                     "file_path": "BLAH.md",
                     "body": "A reply to the previous comment, made by the API on 2026-03-11 11:06:21.487947.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                     "created_at": "2026-03-11T11:06:31.033Z",
                     "diff_hunk": None,
                     "review_id": None,
@@ -12116,7 +12450,12 @@ def _make_mock_response(json_data):
                     "url": None,
                     "file_path": "BLAH.md",
                     "body": "An updated review comment body.",
-                    "author": {"id": "150871", "username": "jacquev6"},
+                    "author": {
+                        "id": "150871",
+                        "username": "jacquev6",
+                        "display_name": "Vincent Jacques",
+                        "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                    },
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
                     "review_id": None,
@@ -12489,7 +12828,15 @@ def _make_mock_response(json_data):
                         "id": "28",
                         "state": "closed",
                         "title": "Add content",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-03-16T10:53:49.098Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-16T10:53:59.913Z"),
+                        "closed_at": datetime.datetime.fromisoformat("2026-03-16T10:53:59.932Z"),
                     },
                     {
                         "internal_id": "464363971",
@@ -12504,7 +12851,15 @@ def _make_mock_response(json_data):
                         },
                         "merged": True,
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/27",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-03-16T10:51:17.718Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-16T10:52:00.413Z"),
+                        "merged_at": datetime.datetime.fromisoformat("2026-03-16T10:52:00.510Z"),
                     },
                     {
                         "internal_id": "464363971",
@@ -12519,7 +12874,15 @@ def _make_mock_response(json_data):
                         },
                         "merged": True,
                         "html_url": "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/27",
-                        "author": {"id": "150871", "username": "jacquev6"},
+                        "author": {
+                            "id": "150871",
+                            "username": "jacquev6",
+                            "display_name": "Vincent Jacques",
+                            "avatar_url": "https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80&d=identicon",
+                        },
+                        "created_at": datetime.datetime.fromisoformat("2026-03-16T10:51:17.718Z"),
+                        "updated_at": datetime.datetime.fromisoformat("2026-03-16T10:52:00.413Z"),
+                        "merged_at": datetime.datetime.fromisoformat("2026-03-16T10:52:00.510Z"),
                     },
                 ],
                 "type": "gitlab",
@@ -13497,7 +13860,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "id": "2",
                     "unique_id": "2",
                     "body": "fix me",
-                    "author": {"id": "2", "username": "sentry-bot"},
+                    "author": {"id": "2", "username": "sentry-bot", "display_name": None, "avatar_url": None},
                     "is_bot": True,
                     "created_at": "2026-03-11T11:01:00.000Z",
                     "updated_at": "2026-03-11T11:02:00.000Z",
@@ -13506,7 +13869,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "id": "3",
                     "unique_id": "3",
                     "body": "reply",
-                    "author": {"id": "1", "username": "alice"},
+                    "author": {"id": "1", "username": "alice", "display_name": None, "avatar_url": None},
                     "is_bot": False,
                     "created_at": "2026-03-11T11:03:00.000Z",
                     "updated_at": "2026-03-11T11:03:00.000Z",

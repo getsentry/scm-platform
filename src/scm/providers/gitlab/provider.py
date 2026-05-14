@@ -1495,10 +1495,18 @@ def make_result[T](
     )
 
 
+def _parse_datetime(value: str | None) -> datetime.datetime | None:
+    if value is None:
+        return None
+    return datetime.datetime.fromisoformat(value)
+
+
 def map_author(raw: dict[str, Any]) -> Author:
     return Author(
         id=str(raw["id"]),
         username=raw["username"],
+        display_name=raw.get("name"),
+        avatar_url=raw.get("avatar_url"),
     )
 
 
@@ -1614,7 +1622,7 @@ def _with_draft_prefix(title: str) -> str:
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
-    return PullRequest(
+    pr = PullRequest(
         internal_id=str(raw["id"]),
         id=str(raw["iid"]),
         title=raw["title"],
@@ -1629,6 +1637,20 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
         html_url=raw["web_url"],
         author=map_author(raw["author"]),
     )
+    if "created_at" in raw:
+        pr["created_at"] = datetime.datetime.fromisoformat(raw["created_at"])
+    if "updated_at" in raw:
+        pr["updated_at"] = datetime.datetime.fromisoformat(raw["updated_at"])
+    merged_at = _parse_datetime(raw.get("merged_at"))
+    if merged_at is not None:
+        pr["merged_at"] = merged_at
+    closed_at = _parse_datetime(raw.get("closed_at"))
+    if closed_at is not None:
+        pr["closed_at"] = closed_at
+    changes_count = raw.get("changes_count")
+    if changes_count is not None:
+        pr["changed_files_count"] = int(changes_count)
+    return pr
 
 
 def map_issue(raw: dict[str, Any]) -> Issue:
@@ -1828,7 +1850,7 @@ def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:
 def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
     author_raw = raw.get("author") or {}
     if author_raw:
-        author: Author | None = Author(id=str(author_raw["id"]), username=author_raw["username"])
+        author: Author | None = map_author(author_raw)
     else:
         author = None
     return ReviewThreadComment(
@@ -1880,7 +1902,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             url=None,
             file_path=raw.get("position", {}).get("new_path"),
             body=raw["body"],
-            author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
+            author=map_author(author_raw) if author_raw else None,
             created_at=raw.get("created_at"),
             diff_hunk=None,
             review_id=None,
