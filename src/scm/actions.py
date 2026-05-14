@@ -870,6 +870,7 @@ __all__ = (
     "minimize_comment",
     "resolve_review_thread",
     "request_review",
+    "search_issues",
     "update_branch",
     "update_check_run",
     "update_pull_request",
