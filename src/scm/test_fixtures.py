@@ -28,6 +28,7 @@ from scm.types import (
     GitTree,
     InputTreeEntry,
     Issue,
+    IssueState,
     Label,
     MoveCommitAction,
     PaginatedActionResult,
@@ -645,6 +646,27 @@ class BaseTestProvider(Provider):
         labels: list[str] | None = None,
     ) -> ActionResult[Issue]:
         raw = make_github_issue(title=title, body=body)
+        return ActionResult(
+            data=Issue(
+                id=str(raw["number"]),
+                title=raw["title"],
+                body=raw["body"],
+                state=raw["state"],
+                html_url=raw["html_url"],
+            ),
+            type="github",
+            raw={"headers": None, "data": raw},
+            meta={},
+        )
+
+    def update_issue(
+        self,
+        issue_id: str,
+        state: IssueState | None = None,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]:
+        raw = make_github_issue(state=state or "open")
         return ActionResult(
             data=Issue(
                 id=str(raw["number"]),
