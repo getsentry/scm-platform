@@ -169,6 +169,17 @@ GITHUB_FILE_CONTENT_TYPE_MAP: dict[str, FileContentType] = {
     "submodule": "submodule",
 }
 
+GITHUB_REACTION_MAP: dict[str, Reaction] = {
+    "+1": "+1",
+    "-1": "-1",
+    "laugh": "laugh",
+    "confused": "confused",
+    "heart": "heart",
+    "hooray": "hooray",
+    "rocket": "rocket",
+    "eyes": "eyes",
+}
+
 GITHUB_FILE_STATUS_MAP: dict[str, FileStatus] = {
     "added": "added",
     "removed": "removed",
@@ -1782,7 +1793,11 @@ def _map_comment(c: GitHubCommentResponse) -> Comment:
 
 
 def _map_reaction(r: GitHubReactionResponse) -> ReactionResult:
-    return ReactionResult(id=str(r.id), content=r.content, author=_map_user(r.user))
+    return ReactionResult(
+        id=str(r.id),
+        content=GITHUB_REACTION_MAP.get(r.content, "unknown"),
+        author=_map_user(r.user),
+    )
 
 
 def _map_file_content(r: GitHubFileContentResponse) -> FileContent:

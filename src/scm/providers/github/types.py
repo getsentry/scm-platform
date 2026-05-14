@@ -8,7 +8,6 @@ from scm.types import (
     IssueState,
     PullRequestAction,
     PullRequestState,
-    Reaction,
     TreeEntryMode,
     TreeEntryType,
 )
@@ -142,7 +141,7 @@ class GitHubLabelResponse(msgspec.Struct):
 
 class GitHubReactionResponse(msgspec.Struct):
     id: int
-    content: Reaction
+    content: str
     user: GitHubUser | None = None
 
 

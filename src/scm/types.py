@@ -29,7 +29,7 @@ integers but Bitbucket uses UUIDs). Callers should treat this as opaque and not 
 ordering or format.
 """
 
-type Reaction = Literal["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"]
+type Reaction = Literal["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "unknown"]
 """Normalized reaction identifiers shared across all SCM providers."""
 
 type Referrer = str
