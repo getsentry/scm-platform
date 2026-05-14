@@ -69,6 +69,7 @@ from scm.actions import (
     minimize_comment,
     request_review,
     resolve_review_thread,
+    search_repositories,
     update_branch,
     update_check_run,
     update_pull_request,
@@ -106,6 +107,8 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_issue_comments, {"issue_id": "1"}),
     (create_issue_comment, {"issue_id": "1", "body": "test"}),
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}),
+    # Repository search
+    (search_repositories, {"query": "test"}),
     # Repository metadata
     (get_repository_assignees, {}),
     (get_repository_labels, {}),

@@ -116,6 +116,7 @@ from scm.types import (
     ReviewEvent,
     ReviewSide,
     ReviewThread,
+    SearchRepositoriesProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,
@@ -123,6 +124,16 @@ from scm.types import (
     UpdateReviewCommentProtocol,
     WriteCommitAction,
 )
+
+
+def search_repositories(
+    scm: SearchRepositoriesProtocol,
+    query: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[GitRepository]:
+    """Search repositories accessible to the integration."""
+    return scm.search_repositories(query, pagination, request_options)
 
 
 def get_repository(scm: GetRepositoryProtocol) -> ActionResult[GitRepository]:
@@ -871,6 +882,7 @@ __all__ = (
     "minimize_comment",
     "resolve_review_thread",
     "request_review",
+    "search_repositories",
     "update_branch",
     "update_check_run",
     "update_issue",

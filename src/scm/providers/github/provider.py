@@ -459,6 +459,20 @@ class GitHubProvider:
         response = self.get(f"/repos/{self.repository['name']}/installation", credentials_set="application")
         return map_action(response, map_app_installation)
 
+    def search_repositories(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitRepository]:
+        response = self.get(
+            "/search/repositories",
+            params={"q": query},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_repository(item) for item in r["items"]])
+
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
         return map_action(response, map_repository)

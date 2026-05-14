@@ -25,6 +25,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRepository,
     GitTree,
     InputTreeEntry,
     Issue,
@@ -678,6 +679,32 @@ class BaseTestProvider(Provider):
             type="github",
             raw={"headers": None, "data": raw},
             meta={},
+        )
+
+    # Repository search
+
+    def search_repositories(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitRepository]:
+        raw = make_github_repository()
+        return PaginatedActionResult(
+            data=[
+                GitRepository(
+                    full_name=raw["full_name"],
+                    default_branch=raw["default_branch"],
+                    clone_url=raw["clone_url"],
+                    private=raw["private"],
+                    size=raw["size"],
+                    description=raw["description"],
+                    topics=raw["topics"],
+                ),
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
         )
 
     # Repository metadata

@@ -329,6 +329,20 @@ class GitLabProvider:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
         return make_result(map_app_installation, response.json())
 
+    def search_repositories(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitRepository]:
+        response = self.get(
+            GitLab.projects,
+            params={"search": query, "membership": "true", "statistics": "true"},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_repository, response, response.json())
+
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
         return make_result(map_repository, response.json())

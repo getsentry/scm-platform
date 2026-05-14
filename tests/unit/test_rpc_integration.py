@@ -166,6 +166,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "search_repositories",
+        lambda scm: actions.search_repositories(scm, "test"),
+        {"total_count": 1, "incomplete_results": False, "items": [make_github_repository()]},
+        200,
+        None,
+    ),
+    (
         "get_repository_assignees",
         lambda scm: actions.get_repository_assignees(scm),
         [make_github_assignee()],

@@ -585,6 +585,16 @@ class GetAppInstallationProtocol(Protocol):
 
 
 @runtime_checkable
+class SearchRepositoriesProtocol(Protocol):
+    def search_repositories(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitRepository]: ...
+
+
+@runtime_checkable
 class GetRepositoryProtocol(Protocol):
     def get_repository(self) -> ActionResult[GitRepository]: ...
 
@@ -1331,6 +1341,7 @@ ALL_PROTOCOLS = (
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,
+    SearchRepositoriesProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,

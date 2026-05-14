@@ -420,6 +420,7 @@ GIT_BLOB_RAW = make_github_git_blob()
 FILE_CONTENT_RAW = make_github_file_content()
 COMMIT_RAW = make_github_commit()
 COMPARISON_RAW = make_github_commit_comparison(commits=[COMMIT_RAW])
+SEARCH_REPOSITORIES_RAW = {"total_count": 1, "incomplete_results": False, "items": [REPOSITORY_RAW]}
 TREE_RAW = make_github_git_tree()
 GIT_COMMIT_OBJECT_RAW = make_github_git_commit_object()
 PULL_REQUEST_FILE_RAW = make_github_pull_request_file(previous_filename="src/old.py")
@@ -430,6 +431,16 @@ CHECK_RUN_RAW = make_github_check_run()
 
 
 PAGINATED_CASES: list[dict[str, Any]] = [
+    {
+        "name": "search_repositories",
+        "kwargs": {"query": "test-query"},
+        "path": "/search/repositories",
+        "params": {"q": "test-query"},
+        "pagination": None,
+        "raw": SEARCH_REPOSITORIES_RAW,
+        "expected_data": [expected_repository(REPOSITORY_RAW)],
+        "next_cursor": "2",
+    },
     {
         "name": "get_repository_assignees",
         "kwargs": {},

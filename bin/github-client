@@ -58,6 +58,7 @@ Commands:
         [--move <old_filename>:<new_filename> ...]
         [--chmod <filename>:<0|1> ...]
         [--force]
+    search-repositories <query> [--cursor <cursor>] [--per-page <n>]
     get-repository
     get-repository-assignees
     get-repository-labels
@@ -115,6 +116,7 @@ from scm.types import (
     GetRepositoryTopicsProtocol,
     MoveCommitAction,
     PaginationParams,
+    SearchRepositoriesProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,
     UpdateReviewCommentProtocol,
@@ -344,6 +346,11 @@ def main():
     p.add_argument("--chmod", action="append", dest="chmods", default=None, metavar="FILENAME:0|1")
     p.add_argument("--force", action="store_true")
 
+    p = sub.add_parser("search-repositories")
+    p.add_argument("query")
+    p.add_argument("--cursor", default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
     sub.add_parser("get-repository")
     sub.add_parser("get-repository-assignees")
     sub.add_parser("get-repository-labels")
@@ -554,6 +561,15 @@ def main():
     elif args.command == "get-archive-link":
         assert isinstance(scm, GetArchiveLinkProtocol)
         dump(scm.get_archive_link(args.ref))
+
+    elif args.command == "search-repositories":
+        assert isinstance(scm, SearchRepositoriesProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(scm.search_repositories(args.query, pagination=pagination or None))
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
