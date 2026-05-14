@@ -13,7 +13,7 @@ def iter_all_pages[T](
         result = action_fn({"per_page": per_page, "cursor": cursor})
 
         # If page is empty exit the loop.
-        if len(result["data"]) == 0:
+        if isinstance(result["data"], list) and len(result["data"]) == 0:
             return None
 
         yield result
