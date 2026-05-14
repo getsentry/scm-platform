@@ -180,6 +180,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "list_repositories",
+        lambda scm: actions.list_repositories(scm),
+        {"repositories": [make_github_repository()], "total_count": 1},
+        200,
+        None,
+    ),
+    (
         "get_repository_topics",
         lambda scm: actions.get_repository_topics(scm),
         {"names": ["python", "api"]},

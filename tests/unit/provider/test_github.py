@@ -431,6 +431,16 @@ CHECK_RUN_RAW = make_github_check_run()
 
 PAGINATED_CASES: list[dict[str, Any]] = [
     {
+        "name": "list_repositories",
+        "kwargs": {},
+        "path": "/installation/repositories",
+        "params": None,
+        "pagination": None,
+        "raw": {"repositories": [REPOSITORY_RAW], "total_count": 1},
+        "expected_data": [expected_repository(REPOSITORY_RAW)],
+        "next_cursor": "2",
+    },
+    {
         "name": "get_repository_assignees",
         "kwargs": {},
         "path": "/repos/test-org/test-repo/assignees",

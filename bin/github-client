@@ -59,6 +59,7 @@ Commands:
         [--chmod <filename>:<0|1> ...]
         [--force]
     get-repository
+    list-repositories
     get-repository-assignees
     get-repository-labels
     get-repository-topics
@@ -113,6 +114,7 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    ListRepositoriesProtocol,
     MoveCommitAction,
     PaginationParams,
     UpdateCheckRunProtocol,
@@ -345,6 +347,7 @@ def main():
     p.add_argument("--force", action="store_true")
 
     sub.add_parser("get-repository")
+    sub.add_parser("list-repositories")
     sub.add_parser("get-repository-assignees")
     sub.add_parser("get-repository-labels")
     sub.add_parser("get-repository-topics")
@@ -558,6 +561,10 @@ def main():
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
         dump(scm.get_repository())
+
+    elif args.command == "list-repositories":
+        assert isinstance(scm, ListRepositoriesProtocol)
+        dump(scm.list_repositories())
 
     elif args.command == "get-repository-assignees":
         assert isinstance(scm, GetRepositoryAssigneesProtocol)

@@ -615,6 +615,15 @@ class GetRepositoryTopicsProtocol(Protocol):
     ) -> ActionResult[list[str]]: ...
 
 
+@runtime_checkable
+class ListRepositoriesProtocol(Protocol):
+    def list_repositories(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitRepository]: ...
+
+
 # Issue Protocols
 
 
@@ -1328,6 +1337,7 @@ ALL_PROTOCOLS = (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetTreeProtocol,
+    ListRepositoriesProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,
