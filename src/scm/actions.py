@@ -94,6 +94,7 @@ from scm.types import (
     GitTree,
     InputTreeEntry,
     Issue,
+    IssueState,
     Label,
     MinimizeCommentProtocol,
     MoveCommitAction,
@@ -118,6 +119,7 @@ from scm.types import (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueCommentProtocol,
+    UpdateIssueProtocol,
     UpdatePullRequestCommentProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
@@ -179,6 +181,16 @@ def create_issue(
 ) -> ActionResult[Issue]:
     """Create an issue."""
     return scm.create_issue(title, body, assignees, labels)
+
+
+def update_issue(
+    scm: UpdateIssueProtocol,
+    issue_id: str,
+    state: IssueState | None = None,
+    assignees: list[str] | None = None,
+    labels: list[str] | None = None,
+) -> ActionResult[Issue]:
+    return scm.update_issue(issue_id, state=state, assignees=assignees, labels=labels)
 
 
 def get_issue_comments(
@@ -879,6 +891,7 @@ __all__ = (
     "request_review",
     "update_branch",
     "update_check_run",
+    "update_issue",
     "update_pull_request",
     "update_review_comment",
 )

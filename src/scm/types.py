@@ -638,6 +638,17 @@ class CreateIssueProtocol(Protocol):
     ) -> ActionResult[Issue]: ...
 
 
+@runtime_checkable
+class UpdateIssueProtocol(Protocol):
+    def update_issue(
+        self,
+        issue_id: str,
+        state: IssueState | None = None,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]: ...
+
+
 # Issue Comment Protocols
 
 
@@ -1336,6 +1347,7 @@ ALL_PROTOCOLS = (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueCommentProtocol,
+    UpdateIssueProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
 )

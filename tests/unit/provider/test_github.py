@@ -1231,6 +1231,58 @@ def test_create_issue_forwards_assignees_and_labels() -> None:
     ]
 
 
+def test_update_issue_forwards_all_fields() -> None:
+    provider, client = make_provider()
+    client.queue("patch", FakeResponse(ISSUE_RAW))
+
+    provider.update_issue(issue_id="42", state="closed", assignees=["alice"], labels=["bug"])
+
+    assert client.calls == [
+        {
+            "operation": "patch",
+            "path": "/repos/test-org/test-repo/issues/42",
+            "data": {
+                "state": "closed",
+                "assignees": ["alice"],
+                "labels": ["bug"],
+            },
+            "headers": None,
+        }
+    ]
+
+
+def test_update_issue_omits_none_fields() -> None:
+    provider, client = make_provider()
+    client.queue("patch", FakeResponse(ISSUE_RAW))
+
+    provider.update_issue(issue_id="42", state="open")
+
+    assert client.calls == [
+        {
+            "operation": "patch",
+            "path": "/repos/test-org/test-repo/issues/42",
+            "data": {"state": "open"},
+            "headers": None,
+        }
+    ]
+
+
+def test_update_issue_empty_lists_clear_fields() -> None:
+    provider, client = make_provider()
+    client.queue("patch", FakeResponse(ISSUE_RAW))
+
+    provider.update_issue(issue_id="42", assignees=[], labels=[])
+
+    assert client.calls == [
+        {
+            "operation": "patch",
+            "path": "/repos/test-org/test-repo/issues/42",
+            "data": {"assignees": [], "labels": []},
+            "headers": None,
+        }
+    ]
+
+
 def test_get_file_content_raises_when_path_is_directory() -> None:
     provider, client = make_provider()
     client.queue("get", FakeResponse([FILE_CONTENT_RAW, FILE_CONTENT_RAW]))
@@ -2236,6 +2288,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_commit_url",
         "get_pull_request_url",
         "create_commit",
+        "update_issue",
         "get_thread_id_from_review_comment_unique_id",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},

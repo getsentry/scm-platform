@@ -13342,6 +13342,66 @@ def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProv
     }
 
 
+def test_update_issue_forwards_all_fields(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": 1,
+            "iid": 1,
+            "title": "bug",
+            "description": "it broke",
+            "state": "closed",
+            "web_url": "https://gitlab.com/test-org/test-repo/-/issues/1",
+        }
+    )
+
+    provider.update_issue(issue_id="1", state="closed", assignees=["42", "99"], labels=["bug", "p1"])
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "PUT"
+    assert call.kwargs["path"] == "/projects/79787061/issues/1"
+    assert call.kwargs["data"] == {
+        "state_event": "close",
+        "assignee_ids": [42, 99],
+        "labels": ["bug", "p1"],
+    }
+
+
+def test_update_issue_omits_none_fields(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": 1,
+            "iid": 1,
+            "title": "bug",
+            "description": "it broke",
+            "state": "opened",
+            "web_url": "https://gitlab.com/test-org/test-repo/-/issues/1",
+        }
+    )
+
+    provider.update_issue(issue_id="1", state="open")
+
+    call = client.request.call_args
+    assert call.kwargs["data"] == {"state_event": "reopen"}
+
+
+def test_update_issue_empty_lists_clear_fields(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": 1,
+            "iid": 1,
+            "title": "bug",
+            "description": "it broke",
+            "state": "opened",
+            "web_url": "https://gitlab.com/test-org/test-repo/-/issues/1",
+        }
+    )
+
+    provider.update_issue(issue_id="1", assignees=[], labels=[])
+
+    call = client.request.call_args
+    assert call.kwargs["data"] == {"assignee_ids": [], "labels": []}
+
+
 def test_download_archive_returns_bytes_from_response(client, provider: GitLabProvider):
     response = unittest.mock.MagicMock()
     response.content = b"tarball-bytes"

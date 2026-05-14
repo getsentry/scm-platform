@@ -47,6 +47,7 @@ from scm.types import (
     GitTree,
     InputTreeEntry,
     Issue,
+    IssueState,
     Label,
     MoveCommitAction,
     PaginatedActionResult,
@@ -555,6 +556,23 @@ class GitHubProvider:
             f"/repos/{self.repository['name']}/issues",
             data=data,
         )
+        return map_action(response, map_issue)
+
+    def update_issue(
+        self,
+        issue_id: str,
+        state: IssueState | None = None,
+        assignees: list[str] | None = None,
+        labels: list[str] | None = None,
+    ) -> ActionResult[Issue]:
+        data: dict[str, Any] = {}
+        if state is not None:
+            data["state"] = state
+        if assignees is not None:
+            data["assignees"] = assignees
+        if labels is not None:
+            data["labels"] = labels
+        response = self.patch(f"/repos/{self.repository['name']}/issues/{issue_id}", data=data)
         return map_action(response, map_issue)
 
     def get_pull_request(
