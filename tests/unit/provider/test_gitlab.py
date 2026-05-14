@@ -13184,6 +13184,36 @@ def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProv
     }
 
 
+def test_search_issues(client, provider: GitLabProvider):
+    issue_data = [
+        {
+            "id": 1,
+            "iid": 1,
+            "title": "bug",
+            "description": "it broke",
+            "state": "opened",
+            "web_url": "https://gitlab.com/test-org/test-repo/-/issues/1",
+        }
+    ]
+    client.request.return_value = _make_mock_response(issue_data)
+
+    result = provider.search_issues(query="bug")
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "GET"
+    assert call.kwargs["path"] == "/projects/79787061/issues"
+    assert call.kwargs["params"]["search"] == "bug"
+    assert result["data"] == [
+        {
+            "id": "1",
+            "title": "bug",
+            "body": "it broke",
+            "state": "open",
+            "html_url": "https://gitlab.com/test-org/test-repo/-/issues/1",
+        }
+    ]
+
+
 def test_download_archive_returns_bytes_from_response(client, provider: GitLabProvider):
     response = unittest.mock.MagicMock()
     response.content = b"tarball-bytes"

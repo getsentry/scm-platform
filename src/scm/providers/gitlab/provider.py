@@ -421,6 +421,20 @@ class GitLabProvider:
         )
         return make_result(map_issue, response.json())
 
+    def search_issues(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Issue]:
+        response = self.get(
+            GitLab.project_issues.format(project=self.project_id),
+            params={"search": query},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_issue, response, response.json())
+
     def get_pull_request(
         self,
         pull_request_id: str,

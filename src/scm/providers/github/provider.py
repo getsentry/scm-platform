@@ -550,6 +550,21 @@ class GitHubProvider:
         )
         return map_action(response, map_issue)
 
+    def search_issues(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Issue]:
+        q = f"repo:{self.repository['name']} {query}"
+        response = self.get(
+            "/search/issues",
+            params={"q": q},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_issue(i) for i in r["items"]])
+
     def get_pull_request(
         self,
         pull_request_id: str,

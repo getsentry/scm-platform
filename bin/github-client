@@ -21,6 +21,7 @@ Commands:
     get-pull-request-url <id>
     get-issue <id>
     create-issue <title> <body> [--assignee <user> ...] [--label <name> ...]
+    search-issues <query>
     get-issue-comments <issue_id>
     get-pull-request-comments <pr_id>
     create-issue-comment <issue_id> <body>
@@ -114,6 +115,7 @@ from scm.types import (
     GetRepositoryTopicsProtocol,
     MoveCommitAction,
     PaginationParams,
+    SearchIssuesProtocol,
     UpdateCheckRunProtocol,
     UpdateReviewCommentProtocol,
     WriteCommitAction,
@@ -218,6 +220,9 @@ def main():
     p.add_argument("body")
     p.add_argument("--assignee", action="append", dest="assignees", default=None)
     p.add_argument("--label", action="append", dest="labels", default=None)
+
+    p = sub.add_parser("search-issues")
+    p.add_argument("query")
 
     p = sub.add_parser("get-issue-comments")
     p.add_argument("issue_id")
@@ -393,6 +398,10 @@ def main():
     elif args.command == "create-issue":
         assert isinstance(scm, CreateIssueProtocol)
         dump(scm.create_issue(args.title, args.body, assignees=args.assignees, labels=args.labels))
+
+    elif args.command == "search-issues":
+        assert isinstance(scm, SearchIssuesProtocol)
+        dump(scm.search_issues(args.query))
 
     elif args.command == "get-issue-comments":
         assert isinstance(scm, GetIssueCommentsProtocol)

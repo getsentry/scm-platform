@@ -628,6 +628,16 @@ class GetIssueProtocol(Protocol):
 
 
 @runtime_checkable
+class SearchIssuesProtocol(Protocol):
+    def search_issues(
+        self,
+        query: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[Issue]: ...
+
+
+@runtime_checkable
 class CreateIssueProtocol(Protocol):
     def create_issue(
         self,
@@ -1320,6 +1330,7 @@ ALL_PROTOCOLS = (
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,
+    SearchIssuesProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,

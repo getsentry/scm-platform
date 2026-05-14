@@ -1213,6 +1213,31 @@ def test_create_issue_forwards_assignees_and_labels() -> None:
     ]
 
 
+def test_search_issues() -> None:
+    provider, client = make_provider()
+    raw = {"items": [ISSUE_RAW], "total_count": 1}
+    client.queue("get", FakeResponse(raw))
+
+    result = provider.search_issues(query="bug")
+
+    assert result["type"] == "github"
+    assert result["data"] == [expected_issue(ISSUE_RAW)]
+    assert result["raw"] == {"data": raw, "headers": {}}
+    assert result["meta"] == {"next_cursor": "2"}
+    assert client.calls == [
+        {
+            "operation": "get",
+            "path": "/search/issues",
+            "params": {"q": "repo:test-org/test-repo bug"},
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+            "credentials_set": "installation",
+            "timeout": None,
+        }
+    ]
+
+
 def test_get_file_content_raises_when_path_is_directory() -> None:
     provider, client = make_provider()
     client.queue("get", FakeResponse([FILE_CONTENT_RAW, FILE_CONTENT_RAW]))
@@ -2210,6 +2235,7 @@ def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
         "is_rate_limited",
+        "search_issues",
         "get_pull_request_diff",
         "get_pull_request_template",
         "get_pull_request_review_threads",

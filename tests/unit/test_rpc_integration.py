@@ -310,6 +310,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         201,
         None,
     ),
+    (
+        "search_issues",
+        lambda scm: actions.search_issues(scm, "bug"),
+        {"items": [make_github_issue()], "total_count": 1},
+        200,
+        None,
+    ),
     # Issue comment operations
     (
         "get_issue_comments",

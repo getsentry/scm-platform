@@ -115,6 +115,7 @@ from scm.types import (
     ReviewEvent,
     ReviewSide,
     ReviewThread,
+    SearchIssuesProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
@@ -177,6 +178,16 @@ def create_issue(
 ) -> ActionResult[Issue]:
     """Create an issue."""
     return scm.create_issue(title, body, assignees, labels)
+
+
+def search_issues(
+    scm: SearchIssuesProtocol,
+    query: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[Issue]:
+    """Search issues by free-text query."""
+    return scm.search_issues(query, pagination, request_options)
 
 
 def get_issue_comments(
