@@ -96,6 +96,7 @@ from scm.types import (
     Issue,
     IssueState,
     Label,
+    ListRepositoriesProtocol,
     MinimizeCommentProtocol,
     MoveCommitAction,
     PaginatedActionResult,
@@ -159,6 +160,15 @@ def get_repository_topics(
 ) -> ActionResult[list[str]]:
     """Get topics associated with the repository."""
     return scm.get_repository_topics(request_options)
+
+
+def list_repositories(
+    scm: ListRepositoriesProtocol,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[GitRepository]:
+    """List all repositories accessible to the integration."""
+    return scm.list_repositories(pagination, request_options)
 
 
 def get_issue(
@@ -868,6 +878,7 @@ __all__ = (
     "get_repository_topics",
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
+    "list_repositories",
     "minimize_comment",
     "resolve_review_thread",
     "request_review",

@@ -489,6 +489,20 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_label(label) for label in r])
 
+    def list_repositories(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitRepository]:
+        response = self.get(
+            "/installation/repositories",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(
+            pagination, response, lambda r: [map_repository(repo) for repo in r["repositories"]]
+        )
+
     def get_repository_topics(
         self,
         request_options: RequestOptions | None = None,
