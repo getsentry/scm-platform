@@ -1582,7 +1582,6 @@ def map_commit_action(
 def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
     return CommitComparison(
         ahead_by=len(raw.get("commits", [])),
-        behind_by=0,
         commits=[map_commit(c) for c in raw.get("commits", [])],
         diff=[map_commit_diff(d) for d in raw.get("diffs", [])],
     )

@@ -384,8 +384,8 @@ class CommitWithChanges(Commit):
 
 
 class CommitComparison(TypedDict):
-    ahead_by: int
-    behind_by: int
+    ahead_by: NotRequired[int]
+    behind_by: NotRequired[int]
     commits: list[Commit]
     diff: list[CommitFile]
 

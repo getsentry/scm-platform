@@ -10907,7 +10907,6 @@ def _make_mock_response(json_data):
             provider_return_value={
                 "data": {
                     "ahead_by": 1,
-                    "behind_by": 0,
                     "commits": [
                         {
                             "id": "6d8ca33dae268d3c5835e721e5702ef9dcb43c8c",
