@@ -31,6 +31,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitComparison,
     CommitFile,
     CommitWithChanges,
     CoPilotChatExtension,
@@ -467,7 +468,7 @@ class GitHubProvider:
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Author]:
+    ) -> PaginatedActionResult[list[Author]]:
         response = self.get(
             f"/repos/{self.repository['name']}/assignees",
             pagination=pagination,
@@ -481,7 +482,7 @@ class GitHubProvider:
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Label]:
+    ) -> PaginatedActionResult[list[Label]]:
         response = self.get(
             f"/repos/{self.repository['name']}/labels",
             pagination=pagination,
@@ -518,7 +519,7 @@ class GitHubProvider:
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]:
+    ) -> PaginatedActionResult[list[Comment]]:
         response = self.get(
             f"/repos/{self.repository['name']}/issues/{issue_id}/comments",
             pagination=pagination,
@@ -598,7 +599,7 @@ class GitHubProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]:
+    ) -> PaginatedActionResult[list[Comment]]:
         response = self.get(
             f"/repos/{self.repository['name']}/issues/{pull_request_id}/comments",
             pagination=pagination,
@@ -639,7 +640,7 @@ class GitHubProvider:
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         response = self.get(
             f"/repos/{self.repository['name']}/issues/comments/{comment_id}/reactions",
             pagination=pagination,
@@ -665,7 +666,7 @@ class GitHubProvider:
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         return self.get_issue_comment_reactions(pull_request_id, comment_id, pagination, request_options)
 
     def create_pull_request_comment_reaction(
@@ -681,7 +682,7 @@ class GitHubProvider:
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         response = self.get(
             f"/repos/{self.repository['name']}/issues/{issue_id}/reactions",
             pagination=pagination,
@@ -704,7 +705,7 @@ class GitHubProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         return self.get_issue_reactions(pull_request_id, pagination, request_options)
 
     def create_pull_request_reaction(self, pull_request_id: str, reaction: Reaction) -> ActionResult[ReactionResult]:
@@ -879,7 +880,7 @@ class GitHubProvider:
         ref: str | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[FileContent]:
+    ) -> PaginatedActionResult[list[FileContent]]:
         params: dict[str, str] = {}
         if ref:
             params["ref"] = ref
@@ -915,7 +916,7 @@ class GitHubProvider:
         sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[CommitFile]:
+    ) -> PaginatedActionResult[list[CommitFile]]:
         response = self.get(
             f"/repos/{self.repository['name']}/commits/{sha}",
             pagination=pagination,
@@ -934,7 +935,7 @@ class GitHubProvider:
         since: datetime | None = None,
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[list[Commit]]:
         params: dict[str, str] = {}
         if ref:
             params["sha"] = ref
@@ -958,7 +959,7 @@ class GitHubProvider:
         since: datetime | None = None,
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[list[Commit]]:
         params: dict[str, str] = {"path": path}
         if ref:
             params["sha"] = ref
@@ -980,13 +981,13 @@ class GitHubProvider:
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[CommitComparison]:
         response = self.get(
             f"/repos/{self.repository['name']}/compare/{start_sha}...{end_sha}",
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_commit(c) for c in r["commits"]])
+        return map_paginated_action(pagination, response, map_commit_comparison)
 
     def create_commit(
         self,
@@ -1137,7 +1138,7 @@ class GitHubProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestFile]:
+    ) -> PaginatedActionResult[list[PullRequestFile]]:
         response = self.get(
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}/files",
             pagination=pagination,
@@ -1150,7 +1151,7 @@ class GitHubProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestCommit]:
+    ) -> PaginatedActionResult[list[PullRequestCommit]]:
         response = self.get(
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}/commits",
             pagination=pagination,
@@ -1181,7 +1182,7 @@ class GitHubProvider:
         head: BranchName | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequest]:
+    ) -> PaginatedActionResult[list[PullRequest]]:
         params: dict[str, Any] = {"state": state if state is not None else "all"}
         if head:
             params["head"] = head
@@ -1494,7 +1495,7 @@ class GitHubProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReviewThread]:
+    ) -> PaginatedActionResult[list[ReviewThread]]:
         owner, name = self.repository["name"].split("/", 1)
         cursor: str | None = (pagination or {}).get("cursor") or None
         per_page = (pagination or {}).get("per_page") or GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE
@@ -1705,6 +1706,15 @@ def map_commit_file(raw_file: dict[str, Any]) -> CommitFile:
     )
 
 
+def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
+    return CommitComparison(
+        ahead_by=raw.get("ahead_by", 0),
+        behind_by=raw.get("behind_by", 0),
+        commits=[map_commit(c) for c in raw.get("commits", [])],
+        diff=[map_commit_file(f) for f in raw.get("files", [])],
+    )
+
+
 def map_commit(raw: dict[str, Any]) -> Commit:
     commit = raw.get("commit", {})
     stats = raw.get("stats") or {}
@@ -1848,7 +1858,7 @@ def map_action[T](response: requests.Response, fn: Callable[[dict[str, Any]], T]
 def map_paginated_action[T](
     pagination: PaginationParams | None,
     response: requests.Response,
-    fn: Callable[[Any], list[T]],
+    fn: Callable[[Any], T],
 ) -> PaginatedActionResult[T]:
     raw = response.json()
     meta: PaginatedResponseMeta = {

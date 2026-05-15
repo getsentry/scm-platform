@@ -537,7 +537,21 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "params": None,
         "pagination": None,
         "raw": COMPARISON_RAW,
-        "expected_data": [expected_commit(COMMIT_RAW)],
+        "expected_data": {
+            "ahead_by": COMPARISON_RAW["ahead_by"],
+            "behind_by": COMPARISON_RAW["behind_by"],
+            "commits": [expected_commit(COMMIT_RAW)],
+            "diff": [
+                {
+                    "filename": "src/main.py",
+                    "status": "modified",
+                    "patch": "@@ -1,3 +1,4 @@\n+new line",
+                    "additions": 1,
+                    "deletions": 0,
+                    "previous_filename": None,
+                }
+            ],
+        },
         "next_cursor": "2",
     },
     {

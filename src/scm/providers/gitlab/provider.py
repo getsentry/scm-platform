@@ -24,6 +24,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitComparison,
     CommitFile,
     CommitWithChanges,
     CoPilotChatExtension,
@@ -337,7 +338,7 @@ class GitLabProvider:
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Author]:
+    ) -> PaginatedActionResult[list[Author]]:
         response = self.get(
             GitLab.project_users.format(project_id=self.project_id),
             pagination=pagination,
@@ -349,7 +350,7 @@ class GitLabProvider:
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Label]:
+    ) -> PaginatedActionResult[list[Label]]:
         response = self.get(
             GitLab.project_labels.format(project_id=self.project_id),
             pagination=pagination,
@@ -378,7 +379,7 @@ class GitLabProvider:
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]:
+    ) -> PaginatedActionResult[list[Comment]]:
         response = self.get(
             GitLab.issue_notes.format(project_id=self.project_id, issue_id=issue_id),
             pagination=pagination,
@@ -463,7 +464,7 @@ class GitLabProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]:
+    ) -> PaginatedActionResult[list[Comment]]:
         """
         To achieve a behavior consistent with GitHub, we filter out:
 
@@ -518,7 +519,7 @@ class GitLabProvider:
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         response = self.get(
             GitLab.issue_note_awards.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
             pagination=pagination,
@@ -562,7 +563,7 @@ class GitLabProvider:
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         response = self.get(
             GitLab.merge_request_note_awards.format(
                 project_id=self.project_id, pr_key=pull_request_id, note_id=comment_id
@@ -604,7 +605,7 @@ class GitLabProvider:
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         response = self.get(
             GitLab.issue_awards.format(project_id=self.project_id, issue_id=issue_id),
             pagination=pagination,
@@ -635,7 +636,7 @@ class GitLabProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         response = self.get(
             GitLab.merge_request_awards.format(project_id=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
@@ -831,7 +832,7 @@ class GitLabProvider:
         ref: str | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[FileContent]:
+    ) -> PaginatedActionResult[list[FileContent]]:
         params: dict[str, str] = {"path": path}
         if ref:
             params["ref"] = ref
@@ -865,7 +866,7 @@ class GitLabProvider:
         sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[CommitFile]:
+    ) -> PaginatedActionResult[list[CommitFile]]:
         response = self.get(
             GitLab.diff.format(project=self.project_id, sha=sha),
             pagination=pagination,
@@ -880,7 +881,7 @@ class GitLabProvider:
         since: datetime.datetime | None = None,
         until: datetime.datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[list[Commit]]:
         params: dict[str, str] = {"with_stats": "true"}
         if ref:
             params["ref_name"] = ref
@@ -904,7 +905,7 @@ class GitLabProvider:
         since: datetime.datetime | None = None,
         until: datetime.datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[list[Commit]]:
         params: dict[str, str] = {"path": path, "with_stats": "true"}
         if ref:
             params["ref_name"] = ref
@@ -926,7 +927,7 @@ class GitLabProvider:
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[CommitComparison]:
         response = self.get(
             GitLab.compare.format(project=self.project_id),
             params={"from": start_sha, "to": end_sha},
@@ -934,7 +935,7 @@ class GitLabProvider:
             request_options=request_options,
         )
         raw = response.json()
-        return make_paginated_result(map_commit, response, raw, raw_items=raw["commits"])
+        return make_paginated_result_single(map_commit_comparison, response, raw)
 
     def create_commit(
         self,
@@ -961,7 +962,7 @@ class GitLabProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestFile]:
+    ) -> PaginatedActionResult[list[PullRequestFile]]:
         response = self.get(
             GitLab.pr_diffs.format(project=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
@@ -974,7 +975,7 @@ class GitLabProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestCommit]:
+    ) -> PaginatedActionResult[list[PullRequestCommit]]:
         response = self.get(
             GitLab.merge_request_commits.format(project_id=self.project_id, pr_key=pull_request_id),
             pagination=pagination,
@@ -1006,7 +1007,7 @@ class GitLabProvider:
         head: BranchName | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequest]:
+    ) -> PaginatedActionResult[list[PullRequest]]:
         raw = []
         gitlab_states: list[str] | list[None]
         if state:
@@ -1455,7 +1456,7 @@ class GitLabProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReviewThread]:
+    ) -> PaginatedActionResult[list[ReviewThread]]:
         """List merge request review threads (GitLab discussions with a diff position).
 
         GitLab returns discussions inline — non-positioned discussions are ordinary
@@ -1489,7 +1490,7 @@ def make_paginated_result[T](
     raw: Any,
     *,
     raw_items: Iterable[dict[str, Any]] | None = None,
-) -> PaginatedActionResult[T]:
+) -> PaginatedActionResult[list[T]]:
     if raw_items is None:
         assert isinstance(raw, list)
         raw_items = raw
@@ -1498,6 +1499,20 @@ def make_paginated_result[T](
 
     return PaginatedActionResult(
         data=[map_item(item) for item in raw_items],
+        type="gitlab",
+        raw={"data": raw, "headers": None},
+        meta=PaginatedResponseMeta(next_cursor=next_cursor),
+    )
+
+
+def make_paginated_result_single[T](
+    map_item: Callable[[dict[str, Any]], T],
+    response: requests.Response,
+    raw: Any,
+) -> PaginatedActionResult[T]:
+    next_cursor = response.headers.get("X-Next-Page")
+    return PaginatedActionResult(
+        data=map_item(raw),
         type="gitlab",
         raw={"data": raw, "headers": None},
         meta=PaginatedResponseMeta(next_cursor=next_cursor),
@@ -1562,6 +1577,14 @@ def map_commit_action(
         "content": action.content,
         "encoding": GITLAB_ENCODING_MAP[action.encoding],
     }
+
+
+def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
+    return CommitComparison(
+        ahead_by=len(raw.get("commits", [])),
+        commits=[map_commit(c) for c in raw.get("commits", [])],
+        diff=[map_commit_diff(d) for d in raw.get("diffs", [])],
+    )
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:

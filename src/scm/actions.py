@@ -18,6 +18,7 @@ from scm.types import (
     ChmodCommitAction,
     Comment,
     Commit,
+    CommitComparison,
     CommitFile,
     CommitWithChanges,
     CompareCommitsProtocol,
@@ -140,7 +141,7 @@ def get_repository_assignees(
     scm: GetRepositoryAssigneesProtocol,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Author]:
+) -> PaginatedActionResult[list[Author]]:
     """Get users available as assignees for issues and pull requests in the repository."""
     return scm.get_repository_assignees(pagination, request_options)
 
@@ -149,7 +150,7 @@ def get_repository_labels(
     scm: GetRepositoryLabelsProtocol,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Label]:
+) -> PaginatedActionResult[list[Label]]:
     """Get labels defined in the repository."""
     return scm.get_repository_labels(pagination, request_options)
 
@@ -206,7 +207,7 @@ def get_issue_comments(
     issue_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Comment]:
+) -> PaginatedActionResult[list[Comment]]:
     """Get comments on an issue."""
     return scm.get_issue_comments(issue_id, pagination, request_options)
 
@@ -235,7 +236,7 @@ def get_pull_request_comments(
     pull_request_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Comment]:
+) -> PaginatedActionResult[list[Comment]]:
     """Get comments on a pull request."""
     return scm.get_pull_request_comments(pull_request_id, pagination, request_options)
 
@@ -261,7 +262,7 @@ def get_issue_comment_reactions(
     comment_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[ReactionResult]:
+) -> PaginatedActionResult[list[ReactionResult]]:
     """Get reactions on an issue comment."""
     return scm.get_issue_comment_reactions(issue_id, comment_id, pagination, request_options)
 
@@ -286,7 +287,7 @@ def get_pull_request_comment_reactions(
     comment_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[ReactionResult]:
+) -> PaginatedActionResult[list[ReactionResult]]:
     """Get reactions on a pull request comment."""
     return scm.get_pull_request_comment_reactions(pull_request_id, comment_id, pagination, request_options)
 
@@ -316,7 +317,7 @@ def get_issue_reactions(
     issue_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[ReactionResult]:
+) -> PaginatedActionResult[list[ReactionResult]]:
     """Get reactions on an issue."""
     return scm.get_issue_reactions(issue_id, pagination, request_options)
 
@@ -338,7 +339,7 @@ def get_pull_request_reactions(
     pull_request_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[ReactionResult]:
+) -> PaginatedActionResult[list[ReactionResult]]:
     """Get reactions on a pull request."""
     return scm.get_pull_request_reactions(pull_request_id, pagination, request_options)
 
@@ -431,7 +432,7 @@ def get_directory_contents(
     ref: str | None = None,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[FileContent]:
+) -> PaginatedActionResult[list[FileContent]]:
     return scm.get_directory_contents(path, ref, pagination, request_options)
 
 
@@ -466,7 +467,7 @@ def get_commit_changes(
     sha: SHA,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[CommitFile]:
+) -> PaginatedActionResult[list[CommitFile]]:
     return scm.get_commit_changes(sha, pagination, request_options)
 
 
@@ -477,7 +478,7 @@ def get_commits(
     since: datetime | None = None,
     until: datetime | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Commit]:
+) -> PaginatedActionResult[list[Commit]]:
     """
     Get a paginated list of commits.
 
@@ -506,7 +507,7 @@ def get_commits_by_path(
     since: datetime | None = None,
     until: datetime | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Commit]:
+) -> PaginatedActionResult[list[Commit]]:
     """
     Get a paginated list of commits for a given filepath.
 
@@ -534,7 +535,7 @@ def compare_commits(
     end_sha: SHA,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[Commit]:
+) -> PaginatedActionResult[CommitComparison]:
     return scm.compare_commits(start_sha, end_sha, pagination, request_options)
 
 
@@ -585,7 +586,7 @@ def get_pull_request_files(
     pull_request_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[PullRequestFile]:
+) -> PaginatedActionResult[list[PullRequestFile]]:
     return scm.get_pull_request_files(pull_request_id, pagination, request_options)
 
 
@@ -594,7 +595,7 @@ def get_pull_request_commits(
     pull_request_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[PullRequestCommit]:
+) -> PaginatedActionResult[list[PullRequestCommit]]:
     return scm.get_pull_request_commits(pull_request_id, pagination, request_options)
 
 
@@ -611,7 +612,7 @@ def get_pull_request_review_threads(
     pull_request_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[ReviewThread]:
+) -> PaginatedActionResult[list[ReviewThread]]:
     """Get review threads on a pull request, with their comments.
 
     A review thread is the unit of resolution for line-anchored reviews —
@@ -628,7 +629,7 @@ def get_pull_requests(
     head: BranchName | None = None,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[PullRequest]:
+) -> PaginatedActionResult[list[PullRequest]]:
     return scm.get_pull_requests(state, head, pagination, request_options)
 
 

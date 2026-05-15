@@ -16,6 +16,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitComparison,
     CommitFile,
     CommitWithChanges,
     CoPilotChatExtension,
@@ -280,12 +281,14 @@ def make_github_commit_comparison(
     ahead_by: int = 3,
     behind_by: int = 1,
     commits: list[dict[str, Any]] | None = None,
+    files: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub commit comparison API responses."""
     return {
         "ahead_by": ahead_by,
         "behind_by": behind_by,
         "commits": commits if commits is not None else [],
+        "files": files if files is not None else [make_github_commit_file()],
     }
 
 
@@ -686,7 +689,7 @@ class BaseTestProvider(Provider):
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Author]:
+    ) -> PaginatedActionResult[list[Author]]:
         return PaginatedActionResult(
             data=[Author(id="123", username="testuser")],
             type="github",
@@ -698,7 +701,7 @@ class BaseTestProvider(Provider):
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Label]:
+    ) -> PaginatedActionResult[list[Label]]:
         return PaginatedActionResult(
             data=[Label(id="1", name="bug", color="d73a4a", description="Something isn't working")],
             type="github",
@@ -724,7 +727,7 @@ class BaseTestProvider(Provider):
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]:
+    ) -> PaginatedActionResult[list[Comment]]:
         return PaginatedActionResult(
             data=[
                 Comment(
@@ -756,7 +759,7 @@ class BaseTestProvider(Provider):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]:
+    ) -> PaginatedActionResult[list[Comment]]:
         return PaginatedActionResult(
             data=[
                 Comment(
@@ -794,7 +797,7 @@ class BaseTestProvider(Provider):
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         return PaginatedActionResult(
             data=[
                 ReactionResult(id="1", content="+1", author={"id": "1", "username": "testuser"}),
@@ -826,7 +829,7 @@ class BaseTestProvider(Provider):
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         return PaginatedActionResult(
             data=[
                 ReactionResult(id="3", content="rocket", author={"id": "1", "username": "testuser"}),
@@ -857,7 +860,7 @@ class BaseTestProvider(Provider):
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         return PaginatedActionResult(
             data=[
                 ReactionResult(id="1", content="+1", author={"id": "1", "username": "testuser"}),
@@ -886,7 +889,7 @@ class BaseTestProvider(Provider):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]:
+    ) -> PaginatedActionResult[list[ReactionResult]]:
         return PaginatedActionResult(
             data=[
                 ReactionResult(id="5", content="laugh", author={"id": "1", "username": "testuser"}),
@@ -1057,7 +1060,7 @@ class BaseTestProvider(Provider):
         ref: str | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[FileContent]:
+    ) -> PaginatedActionResult[list[FileContent]]:
         return PaginatedActionResult(
             data=[
                 FileContent(
@@ -1089,7 +1092,7 @@ class BaseTestProvider(Provider):
         sha: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[CommitFile]:
+    ) -> PaginatedActionResult[list[CommitFile]]:
         inner = self.get_commit(sha, request_options)
         return PaginatedActionResult(
             data=inner["data"].get("files") or [],
@@ -1137,7 +1140,7 @@ class BaseTestProvider(Provider):
         since: datetime | None = None,
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[list[Commit]]:
         inner = self.get_commit("abc123")
         return PaginatedActionResult(
             data=[inner["data"]],
@@ -1154,7 +1157,7 @@ class BaseTestProvider(Provider):
         since: datetime | None = None,
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[list[Commit]]:
         inner = self.get_commit("abc123")
         return PaginatedActionResult(
             data=[inner["data"]],
@@ -1169,10 +1172,24 @@ class BaseTestProvider(Provider):
         end_sha: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]:
+    ) -> PaginatedActionResult[CommitComparison]:
         inner = self.get_commit("abc123")
         return PaginatedActionResult(
-            data=[inner["data"]],
+            data=CommitComparison(
+                ahead_by=1,
+                behind_by=0,
+                commits=[inner["data"]],
+                diff=[
+                    CommitFile(
+                        filename="test.py",
+                        status="modified",
+                        patch="@@ -1 +1 @@\n-old\n+new",
+                        additions=1,
+                        deletions=1,
+                        previous_filename=None,
+                    )
+                ],
+            ),
             type="github",
             raw={"headers": None, "data": None},
             meta=_DEFAULT_PAGINATED_META,
@@ -1278,7 +1295,7 @@ class BaseTestProvider(Provider):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestFile]:
+    ) -> PaginatedActionResult[list[PullRequestFile]]:
         return PaginatedActionResult(
             data=[
                 PullRequestFile(
@@ -1300,7 +1317,7 @@ class BaseTestProvider(Provider):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestCommit]:
+    ) -> PaginatedActionResult[list[PullRequestCommit]]:
         return PaginatedActionResult(
             data=[
                 PullRequestCommit(
@@ -1335,7 +1352,7 @@ class BaseTestProvider(Provider):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReviewThread]:
+    ) -> PaginatedActionResult[list[ReviewThread]]:
         return PaginatedActionResult(
             data=[
                 ReviewThread(
@@ -1369,7 +1386,7 @@ class BaseTestProvider(Provider):
         head: str | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequest]:
+    ) -> PaginatedActionResult[list[PullRequest]]:
         raw = make_github_pull_request()
         return PaginatedActionResult(
             data=[

@@ -302,7 +302,7 @@ class PaginatedActionResult[T](TypedDict):
     state.
     """
 
-    data: list[T]
+    data: T
     type: ProviderName
     raw: RawResult
     meta: PaginatedResponseMeta
@@ -384,9 +384,10 @@ class CommitWithChanges(Commit):
 
 
 class CommitComparison(TypedDict):
-    ahead_by: int
-    behind_by: int
+    ahead_by: NotRequired[int]
+    behind_by: NotRequired[int]
     commits: list[Commit]
+    diff: list[CommitFile]
 
 
 class TreeEntry(TypedDict):
@@ -595,7 +596,7 @@ class GetRepositoryAssigneesProtocol(Protocol):
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Author]: ...
+    ) -> PaginatedActionResult[list[Author]]: ...
 
 
 @runtime_checkable
@@ -604,7 +605,7 @@ class GetRepositoryLabelsProtocol(Protocol):
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Label]: ...
+    ) -> PaginatedActionResult[list[Label]]: ...
 
 
 @runtime_checkable
@@ -668,7 +669,7 @@ class GetIssueCommentsProtocol(Protocol):
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]: ...
+    ) -> PaginatedActionResult[list[Comment]]: ...
 
 
 @runtime_checkable
@@ -691,7 +692,7 @@ class GetPullRequestCommentsProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Comment]: ...
+    ) -> PaginatedActionResult[list[Comment]]: ...
 
 
 @runtime_checkable
@@ -720,7 +721,7 @@ class GetIssueCommentReactionsProtocol(Protocol):
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]: ...
+    ) -> PaginatedActionResult[list[ReactionResult]]: ...
 
 
 @runtime_checkable
@@ -746,7 +747,7 @@ class GetPullRequestCommentReactionsProtocol(Protocol):
         comment_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]: ...
+    ) -> PaginatedActionResult[list[ReactionResult]]: ...
 
 
 @runtime_checkable
@@ -771,7 +772,7 @@ class GetIssueReactionsProtocol(Protocol):
         issue_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]: ...
+    ) -> PaginatedActionResult[list[ReactionResult]]: ...
 
 
 @runtime_checkable
@@ -794,7 +795,7 @@ class GetPullRequestReactionsProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReactionResult]: ...
+    ) -> PaginatedActionResult[list[ReactionResult]]: ...
 
 
 @runtime_checkable
@@ -891,7 +892,7 @@ class GetCommitChangesProtocol(Protocol):
         sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[CommitFile]: ...
+    ) -> PaginatedActionResult[list[CommitFile]]: ...
 
 
 @runtime_checkable
@@ -903,7 +904,7 @@ class GetCommitsProtocol(Protocol):
         since: datetime | None = None,
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]: ...
+    ) -> PaginatedActionResult[list[Commit]]: ...
 
 
 @runtime_checkable
@@ -916,7 +917,7 @@ class GetCommitsByPathProtocol(Protocol):
         since: datetime | None = None,
         until: datetime | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]: ...
+    ) -> PaginatedActionResult[list[Commit]]: ...
 
 
 @runtime_checkable
@@ -927,7 +928,7 @@ class CompareCommitsProtocol(Protocol):
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[Commit]: ...
+    ) -> PaginatedActionResult[CommitComparison]: ...
 
 
 @runtime_checkable
@@ -962,7 +963,7 @@ class GetPullRequestsProtocol(Protocol):
         head: BranchName | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequest]: ...
+    ) -> PaginatedActionResult[list[PullRequest]]: ...
 
 
 @runtime_checkable
@@ -972,7 +973,7 @@ class GetPullRequestFilesProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestFile]: ...
+    ) -> PaginatedActionResult[list[PullRequestFile]]: ...
 
 
 @runtime_checkable
@@ -982,7 +983,7 @@ class GetPullRequestCommitsProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[PullRequestCommit]: ...
+    ) -> PaginatedActionResult[list[PullRequestCommit]]: ...
 
 
 @runtime_checkable
@@ -1092,7 +1093,7 @@ class GetDirectoryContentsProtocol(Protocol):
         ref: str | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[FileContent]: ...
+    ) -> PaginatedActionResult[list[FileContent]]: ...
 
 
 @runtime_checkable
@@ -1253,7 +1254,7 @@ class GetPullRequestReviewThreadsProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[ReviewThread]: ...
+    ) -> PaginatedActionResult[list[ReviewThread]]: ...
 
 
 # Moderation Protocols
