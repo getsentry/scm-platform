@@ -1299,7 +1299,6 @@ class UpdateAndCollapsePullRequestCommentProtocol(Protocol):
 
 ALL_PROTOCOLS = (
     CollapsePullRequestCommentProtocol,
-    UpdateAndCollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
@@ -1368,6 +1367,7 @@ ALL_PROTOCOLS = (
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,
+    UpdateAndCollapsePullRequestCommentProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,

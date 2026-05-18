@@ -1,3 +1,4 @@
+import functools
 import time
 from collections.abc import Callable, Iterator
 from datetime import datetime
@@ -1543,6 +1544,7 @@ class GitHubProvider:
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
+    @functools.cached_property
     def _has_contents_write_permission(self) -> bool:
         installation = self.get_app_installation()
         permissions = installation["raw"]["data"].get("permissions", {})
@@ -1555,7 +1557,10 @@ class GitHubProvider:
         comment_node_id: str,
         reason: str = "OUTDATED",
     ) -> None:
-        if self._has_contents_write_permission():
+        """
+        Hide a review comment with either "resolve" or "minimize" based on app permissions.
+        """
+        if self._has_contents_write_permission:
             self.resolve_review_thread(pull_request_id, thread_id)
         else:
             self.minimize_comment(comment_node_id, reason)
@@ -1569,7 +1574,10 @@ class GitHubProvider:
         body: str,
         reason: str = "OUTDATED",
     ) -> ActionResult[ReviewComment]:
-        if self._has_contents_write_permission():
+        """
+        Edit a review comment and collapse its thread in one GraphQL request.
+        """
+        if self._has_contents_write_permission:
             data = self.graphql(
                 UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
                 {"commentId": comment_node_id, "body": body, "threadId": thread_id},

@@ -911,10 +911,10 @@ __all__ = (
     "minimize_comment",
     "resolve_review_thread",
     "request_review",
+    "update_and_collapse_pull_request_comment",
     "update_branch",
     "update_check_run",
     "update_issue",
     "update_pull_request",
-    "update_and_collapse_pull_request_comment",
     "update_review_comment",
 )
