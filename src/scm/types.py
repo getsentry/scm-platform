@@ -1284,8 +1284,22 @@ class CollapsePullRequestCommentProtocol(Protocol):
     ) -> None: ...
 
 
+@runtime_checkable
+class UpdateAndCollapsePullRequestCommentProtocol(Protocol):
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]: ...
+
+
 ALL_PROTOCOLS = (
     CollapsePullRequestCommentProtocol,
+    UpdateAndCollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,

@@ -9,6 +9,8 @@ from scm.errors import SCMCodedError
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
+    UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
+    UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
     REVIEW_THREAD_FULL_COMMENTS_QUERY,
     REVIEW_THREADS_QUERY,
@@ -2254,6 +2256,80 @@ def test_collapse_pull_request_comment_resolves_when_contents_write() -> None:
     }
 
 
+def _graphql_updated_review_comment() -> dict[str, Any]:
+    return {
+        "updatePullRequestReviewComment": {
+            "pullRequestReviewComment": {
+                "id": "PRRC_123",
+                "fullDatabaseId": 99,
+                "body": "updated body",
+                "createdAt": "2026-02-04T10:00:00Z",
+                "updatedAt": "2026-02-04T10:05:00Z",
+                "author": {"__typename": "User", "databaseId": 1, "login": "octocat"},
+                "pullRequestReview": {"databaseId": 200},
+            }
+        }
+    }
+
+
+def test_update_and_collapse_pull_request_comment_resolves_when_contents_write() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"permissions": {"contents": "write", "pull_requests": "read"}}))
+    client.queue(
+        "graphql",
+        {
+            **_graphql_updated_review_comment(),
+            "resolveReviewThread": {"thread": {"isResolved": True}},
+        },
+    )
+
+    result = provider.update_and_collapse_pull_request_comment(
+        "42",
+        "PRRT_456",
+        "99",
+        "PRRC_123",
+        "updated body",
+        "OUTDATED",
+    )
+
+    assert client.calls[0]["operation"] == "get"
+    assert client.calls[1] == {
+        "operation": "graphql",
+        "query": UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
+        "variables": {"commentId": "PRRC_123", "body": "updated body", "threadId": "PRRT_456"},
+    }
+    assert result["data"]["body"] == "updated body"
+    assert result["data"]["id"] == "99"
+    assert result["data"]["unique_id"] == "PRRC_123"
+
+
+def test_update_and_collapse_pull_request_comment_minimizes_without_contents_write() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"permissions": {"contents": "read", "pull_requests": "write"}}))
+    client.queue(
+        "graphql",
+        {
+            **_graphql_updated_review_comment(),
+            "minimizeComment": {"minimizedComment": {"isMinimized": True}},
+        },
+    )
+
+    provider.update_and_collapse_pull_request_comment(
+        "42",
+        "PRRT_456",
+        "99",
+        "PRRC_123",
+        "updated body",
+        "OUTDATED",
+    )
+
+    assert client.calls[1] == {
+        "operation": "graphql",
+        "query": UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
+        "variables": {"commentId": "PRRC_123", "body": "updated body", "reason": "OUTDATED"},
+    }
+
+
 def test_collapse_pull_request_comment_minimizes_without_contents_write() -> None:
     provider, client = make_provider()
     client.queue("get", FakeResponse({"permissions": {"contents": "read", "pull_requests": "write"}}))
@@ -2328,6 +2404,7 @@ def test_public_methods_are_accounted_for() -> None:
         "update_issue",
         "get_thread_id_from_review_comment_unique_id",
         "collapse_pull_request_comment",
+        "update_and_collapse_pull_request_comment",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

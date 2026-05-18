@@ -1460,6 +1460,19 @@ class GitLabProvider:
     ) -> None:
         self.resolve_review_thread(pull_request_id, thread_id)
 
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]:
+        result = self.update_review_comment(pull_request_id, comment_id, body)
+        self.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
+        return result
+
     def get_pull_request_review_threads(
         self,
         pull_request_id: str,

@@ -119,6 +119,7 @@ from scm.types import (
     ReviewEvent,
     ReviewSide,
     ReviewThread,
+    UpdateAndCollapsePullRequestCommentProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,
@@ -799,6 +800,21 @@ def collapse_pull_request_comment(
     return scm.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
 
 
+def update_and_collapse_pull_request_comment(
+    scm: UpdateAndCollapsePullRequestCommentProtocol,
+    pull_request_id: str,
+    thread_id: str,
+    comment_id: str,
+    comment_node_id: str,
+    body: str,
+    reason: str = "OUTDATED",
+) -> ActionResult[ReviewComment]:
+    """Update a review comment and collapse its thread in one provider-specific operation."""
+    return scm.update_and_collapse_pull_request_comment(
+        pull_request_id, thread_id, comment_id, comment_node_id, body, reason
+    )
+
+
 def get_thread_id_from_review_comment_unique_id(
     scm: ResolveReviewThreadProtocol,
     pull_request_id: str,
@@ -899,5 +915,6 @@ __all__ = (
     "update_check_run",
     "update_issue",
     "update_pull_request",
+    "update_and_collapse_pull_request_comment",
     "update_review_comment",
 )
