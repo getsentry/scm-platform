@@ -245,10 +245,6 @@ GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
 # reserved quota is exhausted the referrer will fall back to the shared quota pool.
 #
 # WARN: "shared" is a reserved referrer name and may not be used.
-REFERRER_ALLOCATION: dict[Referrer, float] = {"emerge": 0.05}
-assert "shared" not in REFERRER_ALLOCATION
-
-GITHUB_RATE_LIMIT_WINDOW = 3600
 GITHUB_RATE_LIMIT_CAPACITY = "x-ratelimit-limit"
 GITHUB_RATE_LIMIT_USED = "x-ratelimit-used"
 GITHUB_RATE_LIMIT_RESET = "x-ratelimit-reset"

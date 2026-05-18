@@ -181,7 +181,7 @@ class NoOpRateLimiter:
     def is_rate_limited(self, referrer: str) -> bool:
         return False
 
-    def update_rate_limit_meta(self, capacity: int, consumed: int, next_window: int) -> None:
+    def update_rate_limit_meta(self, capacity: int, consumed: int, next_window_start: int) -> None:
         pass
 
 
