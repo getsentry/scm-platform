@@ -54,7 +54,7 @@ import jwt
 import requests
 
 from scm.providers.github.provider import GitHubProvider
-from scm.rpc.client import NoOpRateLimitProvider
+from scm.rpc.client import NoOpRateLimiter
 from scm.rpc.server import RpcServer
 from scm.types import CredentialsSet, Provider, Repository, RepositoryId
 
@@ -197,9 +197,8 @@ def make_fetch_provider(token_manager: InstallationTokenManager):
             client=client,
             organization_id=organization_id,
             repository=repository,
-            rate_limit_provider=NoOpRateLimitProvider(),
+            rate_limiter=NoOpRateLimiter(),
             web_base_url=repository.get("web_base_url", "https://github.com"),
-            provider_name=repository["provider_name"],
         )
 
     return fetch_provider
