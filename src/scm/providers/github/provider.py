@@ -1,4 +1,3 @@
-import time
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from email.utils import format_datetime, parsedate_to_datetime
@@ -11,8 +10,7 @@ from scm.errors import ErrorCode, SCMCodedError
 from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
-    DynamicRateLimiter,
-    RateLimitProvider,
+    RateLimiter,
 )
 from scm.types import (
     SHA,
@@ -54,7 +52,6 @@ from scm.types import (
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
-    ProviderName,
     PullRequest,
     PullRequestBranch,
     PullRequestCommit,
@@ -284,34 +281,18 @@ class GitHubProvider:
         client: ApiClient,
         organization_id: int,
         repository: Repository,
-        rate_limit_provider: RateLimitProvider,
-        get_time_in_seconds: Callable[[], int] = lambda: int(time.time()),
+        rate_limiter: RateLimiter,
         web_base_url: str = GITHUB_WEB_BASE_URL,
-        provider_name: ProviderName = "github",
-        referrer_allocation: dict[Referrer, float] | None = None,
     ) -> None:
         self.client = client
         self.organization_id = organization_id
         self.repository = repository
         self._web_base_url = web_base_url
-        self.rate_limiter = DynamicRateLimiter(
-            get_time_in_seconds=get_time_in_seconds,
-            organization_id=organization_id,
-            provider=provider_name,
-            rate_limit_provider=rate_limit_provider,
-            rate_limit_window_seconds=GITHUB_RATE_LIMIT_WINDOW,
-            referrer_allocation=referrer_allocation if referrer_allocation is not None else REFERRER_ALLOCATION,
-            recorded_capacity=None,
-        )
+        self.rate_limiter = rate_limiter
 
     def is_rate_limited(self, referrer: Referrer) -> bool:
         """Return true if access to the resource has been blocked."""
-        # If the referrer has allocated quota and that quota has not been exhausted we eagerly
-        # exit by returning false. Otherwise we consume from the shared quota pool.
-        if referrer in self.rate_limiter.referrer_allocation and not self.rate_limiter.is_rate_limited(referrer):
-            return False
-        else:
-            return self.rate_limiter.is_rate_limited("shared")
+        return self.rate_limiter.is_rate_limited(referrer)
 
     def request(
         self,

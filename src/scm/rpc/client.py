@@ -27,19 +27,16 @@ class RequestsSession:
         return requests.post(url, data=data, headers=headers, allow_redirects=False)
 
 
-class NoOpRateLimitProvider:
+class NoOpRateLimiter:
     """
     Provider instances will attempt to enforce rate-limits. We provide a no-op class which always succeeds. Rate-limits
     are managed server-side. Client's are not required, and are encouraged not to, enforce their own rate-limits.
     """
 
-    def get_and_set_rate_limit(self, total_key: str, usage_key: str, expiration: int) -> tuple[int | None, int]:
-        return None, 0
+    def is_rate_limited(self, referrer: str) -> bool:
+        return False
 
-    def get_accounted_usage(self, keys: list[str]) -> int:
-        return 0
-
-    def set_key_values(self, kvs: dict[str, tuple[int, int | None]]) -> None:
+    def update_rate_limit_meta(self, capacity: int, consumed: int, next_window: int) -> None:
         return None
 
 
@@ -85,7 +82,7 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     the request.
     """
     if repository["provider_name"] == "github":
-        return GitHubProvider(client, organization_id, repository, rate_limit_provider=NoOpRateLimitProvider())
+        return GitHubProvider(client, organization_id, repository, rate_limiter=NoOpRateLimiter())
     elif repository["provider_name"] == "github_enterprise":
         web_base_url = repository["web_base_url"]
         if not web_base_url:
@@ -98,8 +95,7 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
             client,
             organization_id,
             repository,
-            rate_limit_provider=NoOpRateLimitProvider(),
-            provider_name="github_enterprise",
+            rate_limiter=NoOpRateLimiter(),
             web_base_url=web_base_url,
         )
     elif repository["provider_name"] == "gitlab":
