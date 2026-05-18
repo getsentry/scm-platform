@@ -169,7 +169,7 @@ def list_repositories(
     scm: ListRepositoriesProtocol,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[GitRepository]:
+) -> PaginatedActionResult[list[GitRepository]]:
     """List all repositories accessible to the integration."""
     return scm.list_repositories(pagination, request_options)
 

@@ -622,7 +622,7 @@ class ListRepositoriesProtocol(Protocol):
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[GitRepository]: ...
+    ) -> PaginatedActionResult[list[GitRepository]]: ...
 
 
 # Issue Protocols

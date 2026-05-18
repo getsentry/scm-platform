@@ -179,14 +179,11 @@ class RecordingClient:
         return self._pop("graphql")
 
 
-class NoOpRateLimitProvider:
-    def get_and_set_rate_limit(self, total_key: str, usage_key: str, expiration: int) -> tuple[int | None, int]:
-        return (None, 0)
+class NoOpRateLimiter:
+    def is_rate_limited(self, referrer: str) -> bool:
+        return False
 
-    def get_accounted_usage(self, keys: list[str]) -> int:
-        return 0
-
-    def set_key_values(self, kvs: dict[str, tuple[int, int | None]]) -> None:
+    def update_rate_limit_meta(self, capacity: int, consumed: int, next_window_start: int) -> None:
         pass
 
 
@@ -196,7 +193,7 @@ def make_provider(client: RecordingClient | None = None) -> tuple[GitHubProvider
         MagicMock(spec=ApiClient),
         organization_id=1,
         repository=make_repository(),
-        rate_limit_provider=NoOpRateLimitProvider(),
+        rate_limiter=NoOpRateLimiter(),
     )
     provider.get = transport.get  # type: ignore[assignment]
     provider.post = transport.post  # type: ignore[assignment]
@@ -1475,7 +1472,7 @@ def test_provider_initialization_wraps_api_client() -> None:
         raw_client,
         organization_id=99,
         repository=repository,
-        rate_limit_provider=NoOpRateLimitProvider(),
+        rate_limiter=NoOpRateLimiter(),
     )
 
     assert provider.organization_id == 99
@@ -1493,8 +1490,7 @@ def _make_api_client() -> GitHubProvider:
         client=MagicMock(spec=ApiClient),
         organization_id=1,
         repository=make_repository(),
-        rate_limit_provider=NoOpRateLimitProvider(),
-        get_time_in_seconds=lambda: 0,
+        rate_limiter=NoOpRateLimiter(),
     )
 
 
@@ -1665,7 +1661,7 @@ def test_ghe_web_base_url_used_in_url_methods() -> None:
         MagicMock(spec=ApiClient),
         organization_id=1,
         repository=make_repository(),
-        rate_limit_provider=NoOpRateLimitProvider(),
+        rate_limiter=NoOpRateLimiter(),
         web_base_url="https://github.example.com",
     )
 
