@@ -7,7 +7,6 @@ from scm.errors import ErrorCode, SCMCodedError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
-    NoOpRateLimitProvider,
     RpcApiClient,
     deserialize_repository,
     fetch_provider,
@@ -139,20 +138,6 @@ class TestFetchProvider:
         repo = make_repository(provider_name="bitbucket")
         provider = fetch_provider(client, 1, repo)
         assert provider is None
-
-
-class TestNoOpRateLimitProvider:
-    def test_get_and_set_rate_limit(self):
-        provider = NoOpRateLimitProvider()
-        assert provider.get_and_set_rate_limit("total", "usage", 3600) == (None, 0)
-
-    def test_get_accounted_usage(self):
-        provider = NoOpRateLimitProvider()
-        assert provider.get_accounted_usage(["key1", "key2"]) == 0
-
-    def test_set_key_values(self):
-        provider = NoOpRateLimitProvider()
-        assert provider.set_key_values({"k": (1, None)}) is None
 
 
 class TestRpcApiClient:

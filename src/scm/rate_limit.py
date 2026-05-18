@@ -40,6 +40,16 @@ class RateLimitProvider(Protocol):
         ...
 
 
+class RateLimiter(Protocol):
+    def is_rate_limited(self, referrer: Referrer) -> bool:
+        """Returns true if the referrer has been rate-limited."""
+        ...
+
+    def update_rate_limit_meta(self, capacity: int, consumed: int, next_window_start: int) -> None:
+        """Update the store with select rate-limit metadata."""
+        ...
+
+
 class DynamicRateLimiter:
     """
     Quota management class for external rate-limits with dynamic, per-organization request limits.
