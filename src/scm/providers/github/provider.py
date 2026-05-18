@@ -475,7 +475,7 @@ class GitHubProvider:
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[GitRepository]:
+    ) -> PaginatedActionResult[list[GitRepository]]:
         response = self.get(
             "/installation/repositories",
             pagination=pagination,
