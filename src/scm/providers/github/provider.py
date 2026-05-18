@@ -1490,6 +1490,20 @@ class GitHubProvider:
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        installation = self.get_app_installation()
+        permissions = installation["raw"]["data"].get("permissions", {})
+        if permissions.get("contents") == "write":
+            self.resolve_review_thread(pull_request_id, thread_id)
+        else:
+            self.minimize_comment(comment_node_id, reason)
+
     def get_pull_request_review_threads(
         self,
         pull_request_id: str,

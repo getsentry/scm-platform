@@ -12203,6 +12203,24 @@ def _make_mock_response(json_data):
             provider_return_value=None,
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.collapse_pull_request_comment,
+            provider_args={
+                "pull_request_id": "1",
+                "thread_id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
+                "comment_node_id": "IC_123",
+                "reason": "OUTDATED",
+            },
+            client_calls=[
+                ClientForwardedCall(
+                    method="PUT",
+                    path="/projects/79787061/merge_requests/1/discussions/c4604a0d82de5427ec0cdc8780c8f810ea9bec86",
+                    json_response={"id": "c4604a0d82de5427ec0cdc8780c8f810ea9bec86", "resolved": True},
+                    data={"resolved": True},
+                ),
+            ],
+            provider_return_value=None,
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_pull_requests,
             provider_args={
                 "state": "closed",

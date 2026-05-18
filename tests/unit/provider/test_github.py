@@ -2238,6 +2238,37 @@ def test_get_pull_request_review_threads_raises_when_pull_request_missing() -> N
     assert exc_info.value.code == "resource_not_found"
 
 
+def test_collapse_pull_request_comment_resolves_when_contents_write() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"permissions": {"contents": "write", "pull_requests": "read"}}))
+    client.queue("graphql", {})
+
+    provider.collapse_pull_request_comment("42", "PRRT_456", "IC_123", "OUTDATED")
+
+    assert client.calls[0]["operation"] == "get"
+    assert client.calls[0]["path"] == "/repos/test-org/test-repo/installation"
+    assert client.calls[1] == {
+        "operation": "graphql",
+        "query": RESOLVE_REVIEW_THREAD_MUTATION,
+        "variables": {"threadId": "PRRT_456"},
+    }
+
+
+def test_collapse_pull_request_comment_minimizes_without_contents_write() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"permissions": {"contents": "read", "pull_requests": "write"}}))
+    client.queue("graphql", {})
+
+    provider.collapse_pull_request_comment("42", "PRRT_456", "IC_123", "OUTDATED")
+
+    assert client.calls[0]["operation"] == "get"
+    assert client.calls[1] == {
+        "operation": "graphql",
+        "query": MINIMIZE_COMMENT_MUTATION,
+        "variables": {"commentId": "IC_123", "reason": "OUTDATED"},
+    }
+
+
 def test_get_pull_request_review_threads_handles_null_author() -> None:
     provider, client = make_provider()
     client.queue(
@@ -2296,6 +2327,7 @@ def test_public_methods_are_accounted_for() -> None:
         "create_commit",
         "update_issue",
         "get_thread_id_from_review_comment_unique_id",
+        "collapse_pull_request_comment",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

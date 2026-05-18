@@ -16,6 +16,7 @@ from scm.types import (
     CheckRun,
     CheckRunOutput,
     ChmodCommitAction,
+    CollapsePullRequestCommentProtocol,
     Comment,
     Commit,
     CommitComparison,
@@ -788,6 +789,16 @@ def resolve_review_thread(scm: ResolveReviewThreadProtocol, pull_request_id: str
     return scm.resolve_review_thread(pull_request_id, thread_id)
 
 
+def collapse_pull_request_comment(
+    scm: CollapsePullRequestCommentProtocol,
+    pull_request_id: str,
+    thread_id: str,
+    comment_node_id: str,
+    reason: str = "OUTDATED",
+) -> None:
+    return scm.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
+
+
 def get_thread_id_from_review_comment_unique_id(
     scm: ResolveReviewThreadProtocol,
     pull_request_id: str,
@@ -816,6 +827,7 @@ def download_archive(
 
 
 __all__ = (
+    "collapse_pull_request_comment",
     "compare_commits",
     "create_branch",
     "create_check_run",

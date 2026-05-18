@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from scm.actions import (
+    collapse_pull_request_comment,
     compare_commits,
     create_branch,
     create_check_run,
@@ -232,6 +233,15 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # GraphQL mutation operations
     (minimize_comment, {"comment_node_id": "IC_abc", "reason": "OUTDATED"}),
     (resolve_review_thread, {"pull_request_id": "1", "thread_id": "PRRT_abc"}),
+    (
+        collapse_pull_request_comment,
+        {
+            "pull_request_id": "1",
+            "thread_id": "PRRT_abc",
+            "comment_node_id": "IC_abc",
+            "reason": "OUTDATED",
+        },
+    ),
     (
         get_thread_id_from_review_comment_unique_id,
         {"pull_request_id": "1", "review_comment_unique_id": "PRRC_abc"},
@@ -841,6 +851,16 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (
         resolve_review_thread,
         {"pull_request_id": "1", "thread_id": "PRRT_abc"},
+        _check_none,
+    ),
+    (
+        collapse_pull_request_comment,
+        {
+            "pull_request_id": "1",
+            "thread_id": "PRRT_abc",
+            "comment_node_id": "IC_abc",
+            "reason": "OUTDATED",
+        },
         _check_none,
     ),
     (

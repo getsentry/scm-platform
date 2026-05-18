@@ -1451,6 +1451,15 @@ class GitLabProvider:
             data={"resolved": True},
         )
 
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        self.resolve_review_thread(pull_request_id, thread_id)
+
     def get_pull_request_review_threads(
         self,
         pull_request_id: str,

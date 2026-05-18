@@ -1650,6 +1650,15 @@ class BaseTestProvider(Provider):
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:
         return None
 
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        return None
+
 
 class FakeGitHubApiClient:
     """
