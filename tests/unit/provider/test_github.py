@@ -290,6 +290,17 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_commit_scm_author(raw: dict[str, Any]) -> dict[str, str] | None:
+    github_user = raw.get("author")
+    if not isinstance(github_user, dict):
+        return None
+    user_id = github_user.get("id")
+    login = github_user.get("login")
+    if user_id is None or login is None:
+        return None
+    return {"id": str(user_id), "username": login}
+
+
 def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
     author = raw["commit"]["author"]
     stats = raw.get("stats") or {}
@@ -300,6 +311,7 @@ def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
             "name": author["name"],
             "email": author["email"],
             "date": datetime.fromisoformat(author["date"]),
+            "scm_author": expected_commit_scm_author(raw),
         },
         "additions": stats.get("additions"),
         "deletions": stats.get("deletions"),
@@ -368,6 +380,7 @@ def expected_pull_request_commit(raw: dict[str, Any]) -> dict[str, Any]:
             "name": author["name"],
             "email": author["email"],
             "date": datetime.fromisoformat(author["date"]),
+            "scm_author": expected_commit_scm_author(raw),
         },
     }
 

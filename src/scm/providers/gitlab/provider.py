@@ -1587,16 +1587,34 @@ def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
     )
 
 
+def _gitlab_commit_scm_author(raw: dict[str, Any]) -> Author | None:
+    # Most commit endpoints only populate author_name/author_email; nested
+    # author (id + username) appears on some responses (e.g. MR commits).
+    author = raw.get("author")
+    if not isinstance(author, dict):
+        return None
+    author_id = author.get("id")
+    username = author.get("username")
+    if author_id is None or username is None:
+        return None
+    return map_author(author)
+
+
+def map_gitlab_commit_author(raw: dict[str, Any], *, date_key: str) -> CommitAuthor:
+    return CommitAuthor(
+        name=raw["author_name"],
+        email=raw["author_email"],
+        date=datetime.datetime.fromisoformat(raw[date_key]),
+        scm_author=_gitlab_commit_scm_author(raw),
+    )
+
+
 def map_commit(raw: dict[str, Any]) -> Commit:
     stats = raw.get("stats") or {}
     return Commit(
         id=str(raw["id"]),
         message=raw["message"],
-        author=CommitAuthor(
-            name=raw["author_name"],
-            email=raw["author_email"],
-            date=datetime.datetime.fromisoformat(raw["created_at"]),
-        ),
+        author=map_gitlab_commit_author(raw, date_key="created_at"),
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
@@ -1607,11 +1625,7 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
     return CommitWithChanges(
         id=str(raw["id"]),
         message=raw["message"],
-        author=CommitAuthor(
-            name=raw["author_name"],
-            email=raw["author_email"],
-            date=datetime.datetime.fromisoformat(raw["created_at"]),
-        ),
+        author=map_gitlab_commit_author(raw, date_key="created_at"),
         files=None,
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
@@ -1694,11 +1708,7 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
     return PullRequestCommit(
         sha=raw["id"],
         message=raw["message"],
-        author=CommitAuthor(
-            name=raw["author_name"],
-            email=raw["author_email"],
-            date=datetime.datetime.fromisoformat(raw["authored_date"]),
-        ),
+        author=map_gitlab_commit_author(raw, date_key="authored_date"),
     )
 
 

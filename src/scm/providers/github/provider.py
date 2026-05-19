@@ -1645,17 +1645,29 @@ def map_file_content(raw: dict[str, Any]) -> FileContent:
     )
 
 
-def map_commit_author(raw_author: dict[str, Any] | None) -> CommitAuthor | None:
-    if raw_author is None:
+def _github_commit_scm_author(raw: dict[str, Any]) -> Author | None:
+    # Commit responses carry git metadata under commit.author and the linked
+    # GitHub user at the top level as author (id + login).
+    return map_author(raw.get("author"))
+
+
+def map_commit_author(
+    git_author: dict[str, Any] | None,
+    *,
+    scm_author: Author | None = None,
+) -> CommitAuthor | None:
+    """Map commit.author (git name/email/date) and optional linked SCM user."""
+    if git_author is None:
         return None
 
-    raw_date = raw_author.get("date")
+    raw_date = git_author.get("date")
     date = datetime.fromisoformat(raw_date) if raw_date else None
 
     return CommitAuthor(
-        name=raw_author.get("name", ""),
-        email=raw_author.get("email", ""),
+        name=git_author.get("name", ""),
+        email=git_author.get("email", ""),
         date=date,
+        scm_author=scm_author,
     )
 
 
@@ -1698,7 +1710,7 @@ def map_commit(raw: dict[str, Any]) -> Commit:
     return Commit(
         id=raw["sha"],
         message=commit.get("message", ""),
-        author=map_commit_author(commit.get("author")),
+        author=map_commit_author(commit.get("author"), scm_author=_github_commit_scm_author(raw)),
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
@@ -1710,7 +1722,7 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
     return CommitWithChanges(
         id=raw["sha"],
         message=commit.get("message", ""),
-        author=map_commit_author(commit.get("author")),
+        author=map_commit_author(commit.get("author"), scm_author=_github_commit_scm_author(raw)),
         files=[map_commit_file(f) for f in raw.get("files", [])],
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
@@ -1781,7 +1793,7 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
     return PullRequestCommit(
         sha=raw["sha"],
         message=raw.get("commit", {}).get("message", ""),
-        author=map_commit_author(raw_author),
+        author=map_commit_author(raw_author, scm_author=_github_commit_scm_author(raw)),
     )
 
 
