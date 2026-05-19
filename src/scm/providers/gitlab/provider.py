@@ -761,7 +761,7 @@ class GitLabProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[FileContent]:
         response = self.get(
-            GitLab.file.format(project=self.project_id, path=path),
+            GitLab.file.format(project=self.project_id, path=quote(path, safe="")),
             params={"ref": ref},
             request_options=request_options,
         )
