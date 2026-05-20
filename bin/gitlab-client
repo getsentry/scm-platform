@@ -54,6 +54,9 @@ Commands:
     create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
     create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
     update-review-comment <pr_id> <comment_id> <body>
+    collapse-pull-request-comment <pr_id> <thread_id> <comment_node_id> [--reason OUTDATED]
+    update-and-collapse-pull-request-comment <pr_id> <thread_id> <comment_id> <comment_node_id> <body>
+        [--reason OUTDATED]
     create-check-run <name> <head_sha>
         [--status pending|running|completed]
         [--conclusion success|failure|cancelled|skipped|timed_out|neutral|action_required|unknown]
@@ -80,6 +83,7 @@ from scm.manager import SourceCodeManager
 from scm.types import (
     CheckRunOutput,
     ChmodCommitAction,
+    CollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateCheckRunProtocol,
     CreateCommitProtocol,
@@ -119,6 +123,7 @@ from scm.types import (
     MoveCommitAction,
     PaginationParams,
     ReviewCommentInput,
+    UpdateAndCollapsePullRequestCommentProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,
     UpdateReviewCommentProtocol,
@@ -327,6 +332,20 @@ def main():
     p.add_argument("comment_id")
     p.add_argument("body")
 
+    p = sub.add_parser("collapse-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("thread_id", help="discussion id")
+    p.add_argument("comment_node_id", help="unused on GitLab; pass any placeholder")
+    p.add_argument("--reason", default="OUTDATED", help="unused on GitLab")
+
+    p = sub.add_parser("update-and-collapse-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("thread_id", help="discussion id")
+    p.add_argument("comment_id", help='note id as "{discussion_id}:{note_id}"')
+    p.add_argument("comment_node_id", help="unused on GitLab; pass any placeholder")
+    p.add_argument("body")
+    p.add_argument("--reason", default="OUTDATED", help="unused on GitLab")
+
     p = sub.add_parser("create-check-run")
     p.add_argument("name")
     p.add_argument("head_sha")
@@ -521,6 +540,25 @@ def main():
     elif args.command == "update-review-comment":
         assert isinstance(scm, UpdateReviewCommentProtocol)
         dump(scm.update_review_comment(args.pr_id, args.comment_id, args.body))
+
+    elif args.command == "collapse-pull-request-comment":
+        assert isinstance(scm, CollapsePullRequestCommentProtocol)
+        scm.collapse_pull_request_comment(
+            args.pr_id, args.thread_id, args.comment_node_id, args.reason
+        )
+
+    elif args.command == "update-and-collapse-pull-request-comment":
+        assert isinstance(scm, UpdateAndCollapsePullRequestCommentProtocol)
+        dump(
+            scm.update_and_collapse_pull_request_comment(
+                args.pr_id,
+                args.thread_id,
+                args.comment_id,
+                args.comment_node_id,
+                args.body,
+                args.reason,
+            )
+        )
 
     elif args.command == "create-check-run":
         assert isinstance(scm, CreateCheckRunProtocol)
