@@ -14,6 +14,7 @@ from scm.providers.github.provider import (
     REVIEW_THREADS_QUERY,
     THREAD_COMMENTS_QUERY,
     GitHubProvider,
+    map_app_installation,
 )
 from scm.test_fixtures import (
     make_github_assignee,
@@ -605,7 +606,11 @@ ACTION_CASES: list[dict[str, Any]] = [
         "kwargs": {},
         "path": "/repos/test-org/test-repo/installation",
         "raw": {"permissions": {"contents": "write", "pull_requests": "write"}, "bar": "baz"},
-        "expected_data": {"has_read_access": True, "has_write_access": True},
+        "expected_data": {
+            "has_read_access": True,
+            "has_write_access": True,
+            "has_check_run_write_access": False,
+        },
         "credentials_set": "application",
     },
     {
@@ -2276,6 +2281,27 @@ def test_get_pull_request_review_threads_handles_null_author() -> None:
 
     assert thread["comments"][0]["author"] is None
     assert thread["comments"][0]["is_bot"] is False
+
+
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        (
+            {"contents": "write", "pull_requests": "write"},
+            {"has_read_access": True, "has_write_access": True, "has_check_run_write_access": False},
+        ),
+        (
+            {"contents": "write", "pull_requests": "write", "checks": "write"},
+            {"has_read_access": True, "has_write_access": True, "has_check_run_write_access": True},
+        ),
+        (
+            {"checks": "write"},
+            {"has_read_access": True, "has_write_access": False, "has_check_run_write_access": True},
+        ),
+    ],
+)
+def test_map_app_installation_checks_permission(permissions: dict[str, str], expected: dict[str, bool]) -> None:
+    assert map_app_installation({"permissions": permissions}) == expected
 
 
 def test_public_methods_are_accounted_for() -> None:

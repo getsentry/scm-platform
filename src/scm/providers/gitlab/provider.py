@@ -1742,9 +1742,11 @@ def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     access_level = max(project_access_level, group_access_level)
     # Numerical levels are described e.g. in https://docs.gitlab.com/api/access_requests/#approve-an-access-request
     # Roles associated to levels are described in https://docs.gitlab.com/user/permissions/#default-roles
+    has_developer_access = access_level >= 30  # Developer
     return AppInstallation(
         has_read_access=access_level >= 15,  # Planner
-        has_write_access=access_level >= 30,  # Developer
+        has_write_access=has_developer_access,
+        has_check_run_write_access=has_developer_access,
     )
 
 
