@@ -68,6 +68,7 @@ Commands:
     get-repository
     get-repository-assignees
     get-repository-labels
+    get-app-installation
 """
 
 import argparse

@@ -270,6 +270,7 @@ class AppInstallation(TypedDict):
 
     has_read_access: bool
     has_write_access: bool
+    has_check_run_write_access: bool
 
 
 class RawResult(TypedDict):

@@ -1588,6 +1588,7 @@ def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     return AppInstallation(
         has_read_access=True,
         has_write_access=permissions.get("contents") == "write" and permissions.get("pull_requests") == "write",
+        has_check_run_write_access=permissions.get("checks") == "write",
     )
 
 

@@ -7,7 +7,7 @@ from typing import Any, NamedTuple
 import pytest
 
 from scm.errors import SCMCodedError
-from scm.providers.gitlab.provider import ApiClient, GitLabProvider
+from scm.providers.gitlab.provider import ApiClient, GitLabProvider, map_app_installation
 from scm.types import (
     ChmodCommitAction,
     DeleteCommitAction,
@@ -13892,3 +13892,15 @@ def test_check_run_state_read_mapping(
 
     assert result["data"]["status"] == expected_status
     assert result["data"]["conclusion"] == expected_conclusion
+
+
+@pytest.mark.parametrize(
+    ("access_level", "expected"),
+    [
+        (10, {"has_read_access": False, "has_write_access": False, "has_check_run_write_access": False}),
+        (15, {"has_read_access": True, "has_write_access": False, "has_check_run_write_access": False}),
+        (30, {"has_read_access": True, "has_write_access": True, "has_check_run_write_access": True}),
+    ],
+)
+def test_map_app_installation_checks_permission(access_level: int, expected: dict[str, bool]) -> None:
+    assert map_app_installation({"permissions": {"project_access": {"access_level": access_level}}}) == expected
