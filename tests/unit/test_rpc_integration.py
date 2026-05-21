@@ -746,6 +746,43 @@ MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list |
             (make_github_git_ref(ref="refs/heads/topic", sha="new_commit"), 200, None),
         ],
     ),
+    (
+        "collapse_pull_request_comment",
+        lambda scm: actions.collapse_pull_request_comment(scm, "1", "PRRT_abc123", "PRRC_abc123", "OUTDATED"),
+        [
+            ({"permissions": {"contents": "write", "pull_requests": "read"}}, 200, None),
+            ({"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}, 200, None),
+        ],
+    ),
+    (
+        "update_and_collapse_pull_request_comment",
+        lambda scm: actions.update_and_collapse_pull_request_comment(
+            scm, "1", "PRRT_abc123", "99", "PRRC_abc123", "updated body", "OUTDATED"
+        ),
+        [
+            ({"permissions": {"contents": "write", "pull_requests": "read"}}, 200, None),
+            (
+                {
+                    "data": {
+                        "updatePullRequestReviewComment": {
+                            "pullRequestReviewComment": {
+                                "id": "PRRC_abc123",
+                                "fullDatabaseId": 99,
+                                "body": "updated body",
+                                "createdAt": "2026-02-04T10:00:00Z",
+                                "updatedAt": "2026-02-04T10:05:00Z",
+                                "author": {"__typename": "User", "databaseId": 1, "login": "octocat"},
+                                "pullRequestReview": {"databaseId": 200},
+                            }
+                        },
+                        "resolveReviewThread": {"thread": {"isResolved": True}},
+                    }
+                },
+                200,
+                None,
+            ),
+        ],
+    ),
 ]
 
 

@@ -1274,7 +1274,32 @@ class ResolveReviewThreadProtocol(Protocol):
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None: ...
 
 
+@runtime_checkable
+class CollapsePullRequestCommentProtocol(Protocol):
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None: ...
+
+
+@runtime_checkable
+class UpdateAndCollapsePullRequestCommentProtocol(Protocol):
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]: ...
+
+
 ALL_PROTOCOLS = (
+    CollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
@@ -1343,6 +1368,7 @@ ALL_PROTOCOLS = (
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,
+    UpdateAndCollapsePullRequestCommentProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdateIssueProtocol,

@@ -1650,6 +1650,32 @@ class BaseTestProvider(Provider):
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:
         return None
 
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        return None
+
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]:
+        raw = make_github_review_comment(body=body)
+        return ActionResult(
+            data=_make_review_comment_data(raw),
+            type="github",
+            raw={"headers": None, "data": raw},
+            meta={},
+        )
+
 
 class FakeGitHubApiClient:
     """

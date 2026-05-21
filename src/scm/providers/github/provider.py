@@ -1,3 +1,4 @@
+import functools
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from email.utils import format_datetime, parsedate_to_datetime
@@ -151,6 +152,59 @@ mutation ResolveReviewThread($threadId: ID!) {
         thread { isResolved }
     }
 }
+"""
+
+_GRAPHQL_PULL_REQUEST_REVIEW_COMMENT_FIELDS = """
+        id
+        fullDatabaseId
+        body
+        createdAt
+        updatedAt
+        author {
+            __typename
+            ... on User { databaseId login }
+            ... on Bot { login }
+            ... on Mannequin { login }
+        }
+        pullRequestReview { databaseId }
+"""
+
+UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION = f"""
+mutation UpdateAndResolvePullRequestReviewComment(
+    $commentId: ID!,
+    $body: String!,
+    $threadId: ID!
+) {{
+    updatePullRequestReviewComment(
+        input: {{pullRequestReviewCommentId: $commentId, body: $body}}
+    ) {{
+        pullRequestReviewComment {{
+{_GRAPHQL_PULL_REQUEST_REVIEW_COMMENT_FIELDS}
+        }}
+    }}
+    resolveReviewThread(input: {{threadId: $threadId}}) {{
+        thread {{ isResolved }}
+    }}
+}}
+"""
+
+UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION = f"""
+mutation UpdateAndMinimizePullRequestReviewComment(
+    $commentId: ID!,
+    $body: String!,
+    $reason: ReportedContentClassifiers!
+) {{
+    updatePullRequestReviewComment(
+        input: {{pullRequestReviewCommentId: $commentId, body: $body}}
+    ) {{
+        pullRequestReviewComment {{
+{_GRAPHQL_PULL_REQUEST_REVIEW_COMMENT_FIELDS}
+        }}
+    }}
+    minimizeComment(input: {{subjectId: $commentId, classifier: $reason}}) {{
+        minimizedComment {{ isMinimized }}
+    }}
+}}
 """
 
 REVIEW_THREAD_BY_COMMENT_QUERY = """
@@ -1467,6 +1521,57 @@ class GitHubProvider:
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
+    @functools.cached_property
+    def _has_contents_write_permission(self) -> bool:
+        installation = self.get_app_installation()
+        permissions = installation["raw"]["data"].get("permissions", {})
+        return permissions.get("contents") == "write"
+
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        """
+        Hide a review comment with either "resolve" or "minimize" based on app permissions.
+        """
+        if self._has_contents_write_permission:
+            self.resolve_review_thread(pull_request_id, thread_id)
+        else:
+            self.minimize_comment(comment_node_id, reason)
+
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]:
+        """
+        Edit a review comment and collapse its thread in one GraphQL request.
+        """
+        if self._has_contents_write_permission:
+            data = self.graphql(
+                UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
+                {"commentId": comment_node_id, "body": body, "threadId": thread_id},
+            )
+        else:
+            data = self.graphql(
+                UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
+                {"commentId": comment_node_id, "body": body, "reason": reason},
+            )
+        updated = data["updatePullRequestReviewComment"]["pullRequestReviewComment"]
+        return ActionResult(
+            data=map_graphql_pull_request_review_comment(updated),
+            type="github",
+            raw={"data": data, "headers": None},
+            meta={},
+        )
+
     def get_pull_request_review_threads(
         self,
         pull_request_id: str,
@@ -1873,6 +1978,28 @@ def map_graphql_author(raw_author: dict[str, Any] | None) -> tuple[Author | None
     is_bot = typename == "Bot"
     raw_id = raw_author.get("databaseId")
     return Author(id=str(raw_id) if raw_id is not None else raw_author["login"], username=raw_author["login"]), is_bot
+
+
+def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewComment:
+    author, _ = map_graphql_author(raw.get("author"))
+    full_database_id = raw.get("fullDatabaseId")
+    review = raw.get("pullRequestReview") or {}
+    review_database_id = review.get("databaseId")
+    return ReviewComment(
+        author_association=None,
+        author=author,
+        body=raw.get("body", ""),
+        commit_sha=None,
+        created_at=raw.get("createdAt"),
+        diff_hunk=None,
+        file_path=None,
+        head=None,
+        id=str(full_database_id) if full_database_id is not None else raw["id"],
+        review_id=str(review_database_id) if review_database_id is not None else None,
+        unique_id=raw["id"],
+        url=None,
+        thread_id=None,
+    )
 
 
 def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
