@@ -1173,6 +1173,19 @@ class UpdateCheckRunProtocol(Protocol):
     ) -> ActionResult[CheckRun]: ...
 
 
+@runtime_checkable
+class ListCheckRunsInCheckSuiteProtocol(Protocol):
+    def list_check_runs_in_check_suite(
+        self,
+        check_suite_id: ResourceId,
+        check_name: str | None = None,
+        status: Literal["queued", "in_progress", "completed"] | None = None,
+        timestamp_filter: Literal["latest", "all"] = "latest",
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckRun]]: ...
+
+
 # Review Protocols
 
 
@@ -1365,6 +1378,7 @@ ALL_PROTOCOLS = (
     GetRepositoryTopicsProtocol,
     GetTreeProtocol,
     ListRepositoriesProtocol,
+    ListCheckRunsInCheckSuiteProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,

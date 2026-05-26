@@ -118,6 +118,7 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
     MoveCommitAction,
     PaginationParams,
@@ -304,6 +305,14 @@ def main():
     p.add_argument("--conclusion", choices=BUILD_CONCLUSION_CHOICES, default=None)
     add_check_run_output_args(p)
 
+    p = sub.add_parser("list-check-runs-in-check-suite")
+    p.add_argument("check_suite_id")
+    p.add_argument("--check-name", default=None)
+    p.add_argument("--status", choices=["queued", "in_progress", "completed"], default=None)
+    p.add_argument("--filter", choices=["latest", "all"], default=None)
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
     p = sub.add_parser("get-branch")
     p.add_argument("name")
 
@@ -469,9 +478,7 @@ def main():
 
     elif args.command == "collapse-pull-request-comment":
         assert isinstance(scm, CollapsePullRequestCommentProtocol)
-        scm.collapse_pull_request_comment(
-            args.pr_id, args.thread_id, args.comment_node_id, args.reason
-        )
+        scm.collapse_pull_request_comment(args.pr_id, args.thread_id, args.comment_node_id, args.reason)
 
     elif args.command == "update-and-collapse-pull-request-comment":
         assert isinstance(scm, UpdateAndCollapsePullRequestCommentProtocol)
@@ -513,6 +520,23 @@ def main():
                 status=args.status,
                 conclusion=args.conclusion,
                 output=build_check_run_output(args),
+            )
+        )
+
+    elif args.command == "list-check-runs-in-check-suite":
+        assert isinstance(scm, ListCheckRunsInCheckSuiteProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(
+            scm.list_check_runs_in_check_suite(
+                args.check_suite_id,
+                check_name=args.check_name,
+                status=args.status,
+                timestamp_filter=args.filter,
+                pagination=pagination or None,
             )
         )
 
