@@ -598,6 +598,32 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "expected_data": [expected_pull_request(PULL_REQUEST_RAW)],
         "next_cursor": "3",
     },
+    {
+        "name": "list_check_runs_in_check_suite",
+        "kwargs": {"check_suite_id": "500"},
+        "path": "/repos/test-org/test-repo/check-suites/500/check-runs",
+        "params": {"filter": "latest"},
+        "pagination": None,
+        "raw": {"total_count": 1, "check_runs": [CHECK_RUN_RAW]},
+        "expected_data": [expected_check_run(CHECK_RUN_RAW)],
+        "next_cursor": "2",
+    },
+    {
+        "name": "list_check_runs_in_check_suite",
+        "kwargs": {
+            "check_suite_id": "500",
+            "check_name": "Seer Review",
+            "status": "completed",
+            "timestamp_filter": "all",
+            "pagination": {"cursor": "3", "per_page": 10},
+        },
+        "path": "/repos/test-org/test-repo/check-suites/500/check-runs",
+        "params": {"check_name": "Seer Review", "status": "completed", "filter": "all"},
+        "pagination": {"cursor": "3", "per_page": 10},
+        "raw": {"total_count": 1, "check_runs": [CHECK_RUN_RAW]},
+        "expected_data": [expected_check_run(CHECK_RUN_RAW)],
+        "next_cursor": "4",
+    },
 ]
 
 

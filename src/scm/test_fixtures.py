@@ -1645,6 +1645,31 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def list_check_runs_in_check_suite(
+        self,
+        check_suite_id: str,
+        check_name: str | None = None,
+        status: str | None = None,
+        timestamp_filter: str = "latest",
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckRun]]:
+        raw = make_github_check_run(name="Seer Autofix")
+        return PaginatedActionResult(
+            data=[
+                CheckRun(
+                    id=str(raw["id"]),
+                    name=raw["name"],
+                    status=raw["status"],
+                    conclusion=raw["conclusion"],
+                    html_url=raw["html_url"],
+                )
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
     # GraphQL mutation operations
 
     def minimize_comment(self, comment_node_id: str, reason: str) -> None:
