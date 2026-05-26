@@ -654,6 +654,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    (
+        "list_check_runs_in_check_suite",
+        lambda scm: actions.list_check_runs_in_check_suite(scm, "500"),
+        {"total_count": 1, "check_runs": [make_github_check_run()]},
+        200,
+        None,
+    ),
     # Minimize comment (GraphQL)
     (
         "minimize_comment",
