@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from datetime import datetime
+from typing import Literal
 
 import requests
 
@@ -98,6 +99,7 @@ from scm.types import (
     Issue,
     IssueState,
     Label,
+    ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
     MinimizeCommentProtocol,
     MoveCommitAction,
@@ -780,6 +782,25 @@ def update_check_run(
     output: CheckRunOutput | None = None,
 ) -> ActionResult[CheckRun]:
     return scm.update_check_run(check_run_id, status=status, conclusion=conclusion, output=output)
+
+
+def list_check_runs_in_check_suite(
+    scm: ListCheckRunsInCheckSuiteProtocol,
+    check_suite_id: ResourceId,
+    check_name: str | None = None,
+    status: Literal["queued", "in_progress", "completed"] | None = None,
+    timestamp_filter: Literal["latest", "all"] = "latest",
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[CheckRun]]:
+    return scm.list_check_runs_in_check_suite(
+        check_suite_id,
+        check_name=check_name,
+        status=status,
+        timestamp_filter=timestamp_filter,
+        pagination=pagination,
+        request_options=request_options,
+    )
 
 
 def minimize_comment(scm: MinimizeCommentProtocol, comment_node_id: str, reason: str) -> None:

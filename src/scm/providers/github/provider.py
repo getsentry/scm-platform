@@ -2,7 +2,7 @@ import functools
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from email.utils import format_datetime, parsedate_to_datetime
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import msgspec
 import requests
@@ -1479,6 +1479,31 @@ class GitHubProvider:
             data=data,
         )
         return map_action(response, map_check_run)
+
+    def list_check_runs_in_check_suite(
+        self,
+        check_suite_id: ResourceId,
+        check_name: str | None = None,
+        status: Literal["queued", "in_progress", "completed"] | None = None,
+        timestamp_filter: Literal["latest", "all"] = "latest",
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckRun]]:
+        params: dict[str, Any] = {}
+        if check_name is not None:
+            params["check_name"] = check_name
+        if status is not None:
+            params["status"] = status
+        if timestamp_filter is not None:
+            params["filter"] = timestamp_filter
+
+        response = self.get(
+            f"/repos/{self.repository['name']}/check-suites/{check_suite_id}/check-runs",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_check_run(f) for f in r["check_runs"]])
 
     def get_archive_link(
         self,
