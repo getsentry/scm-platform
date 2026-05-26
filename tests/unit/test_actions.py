@@ -67,6 +67,7 @@ from scm.actions import (
     get_repository_topics,
     get_thread_id_from_review_comment_unique_id,
     get_tree,
+    list_check_runs_in_check_suite,
     minimize_comment,
     request_review,
     resolve_review_thread,
@@ -231,6 +232,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (create_check_run, {"name": "check", "head_sha": "abc"}),
     (get_check_run, {"check_run_id": "300"}),
     (update_check_run, {"check_run_id": "300"}),
+    (list_check_runs_in_check_suite, {"check_suite_id": "500"}),
     # GraphQL mutation operations
     (minimize_comment, {"comment_node_id": "IC_abc", "reason": "OUTDATED"}),
     (resolve_review_thread, {"pull_request_id": "1", "thread_id": "PRRT_abc"}),
@@ -647,6 +649,13 @@ def _check_update_check_run(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_list_check_runs_in_check_suite(result: Any) -> None:
+    assert result["type"] == "github"
+    assert len(result["data"]) == 1
+    assert result["data"][0]["id"] == "300"
+    assert result["data"][0]["name"] == "Seer Autofix"
+
+
 def _check_download_archive(result: Any) -> None:
     assert result == b"archive-bytes"
 
@@ -861,6 +870,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         update_check_run,
         {"check_run_id": "300"},
         _check_update_check_run,
+    ),
+    (
+        list_check_runs_in_check_suite,
+        {"check_suite_id": "500"},
+        _check_list_check_runs_in_check_suite,
     ),
     (
         minimize_comment,
