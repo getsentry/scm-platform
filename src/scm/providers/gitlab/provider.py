@@ -944,16 +944,19 @@ class GitLabProvider:
         message: str,
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
+        create_branch: bool = False,
     ) -> ActionResult[Commit]:
+        data: dict[str, Any] = {
+            "branch": branch,
+            "commit_message": message,
+            "force": force,
+            "actions": [map_commit_action(a) for a in actions],
+        }
+        if create_branch:
+            data["start_sha"] = parent_sha
         response = self.post(
             GitLab.commits.format(project=self.project_id),
-            data={
-                "branch": branch,
-                "commit_message": message,
-                "start_sha": parent_sha,
-                "force": force,
-                "actions": [map_commit_action(a) for a in actions],
-            },
+            data=data,
         )
         return make_result(map_commit, response.json())
 

@@ -963,6 +963,7 @@ class CreateCommitProtocol(Protocol):
         message: str,
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
+        create_branch: bool = False,
     ) -> ActionResult[Commit]: ...
 
 
