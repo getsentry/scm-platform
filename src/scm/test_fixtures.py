@@ -1560,6 +1560,21 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def get_review_comments(
+        self,
+        pull_request_id: str,
+        review_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReviewComment]]:
+        raw = make_github_review_comment()
+        return PaginatedActionResult(
+            data=[_make_review_comment_data(raw)],
+            type="github",
+            raw={"headers": None, "data": [raw]},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
     def create_review(
         self,
         pull_request_id: str,

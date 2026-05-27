@@ -89,6 +89,7 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    GetReviewCommentsProtocol,
     GetTreeProtocol,
     GitBlob,
     GitCommitObject,
@@ -628,6 +629,16 @@ def get_pull_request_review_threads(
     return scm.get_pull_request_review_threads(pull_request_id, pagination, request_options)
 
 
+def get_review_comments(
+    scm: GetReviewCommentsProtocol,
+    pull_request_id: str,
+    review_id: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[ReviewComment]]:
+    return scm.get_review_comments(pull_request_id, review_id, pagination, request_options)
+
+
 def get_pull_requests(
     scm: GetPullRequestsProtocol,
     state: PullRequestState | None = "open",
@@ -918,6 +929,7 @@ __all__ = (
     "get_pull_request_files",
     "get_pull_request_reactions",
     "get_pull_request_review_threads",
+    "get_review_comments",
     "get_pull_request_template",
     "get_pull_request_url",
     "get_pull_request",

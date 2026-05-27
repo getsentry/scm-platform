@@ -1211,6 +1211,24 @@ class GitHubProvider:
             "meta": _extract_response_meta(response),
         }
 
+    def get_review_comments(
+        self,
+        pull_request_id: str,
+        review_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReviewComment]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/reviews/{review_id}/comments",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(
+            pagination,
+            response,
+            lambda r: [deserialize_pull_request_review_comment(msgspec.json.encode(c)) for c in r],
+        )
+
     def get_pull_requests(
         self,
         state: PullRequestState | None = "open",

@@ -65,6 +65,7 @@ from scm.actions import (
     get_repository_assignees,
     get_repository_labels,
     get_repository_topics,
+    get_review_comments,
     get_thread_id_from_review_comment_unique_id,
     get_tree,
     list_check_runs_in_check_suite,
@@ -184,6 +185,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_pull_request_commits, {"pull_request_id": "1"}),
     (get_pull_request_diff, {"pull_request_id": "1"}),
     (get_pull_request_review_threads, {"pull_request_id": "1"}),
+    (get_review_comments, {"pull_request_id": "1", "review_id": "80"}),
     (get_pull_requests, {}),
     (create_pull_request, {"title": "T", "body": "B", "head": "h", "base": "b"}),
     (create_pull_request_draft, {"title": "T", "body": "B", "head": "h", "base": "b"}),
@@ -649,6 +651,13 @@ def _check_update_check_run(result: Any) -> None:
     assert result["type"] == "github"
 
 
+def _check_get_review_comments(result: Any) -> None:
+    assert result["type"] == "github"
+    assert len(result["data"]) == 1
+    assert result["data"][0]["id"] == "100"
+    assert result["data"][0]["body"] == "Looks good"
+
+
 def _check_list_check_runs_in_check_suite(result: Any) -> None:
     assert result["type"] == "github"
     assert len(result["data"]) == 1
@@ -796,6 +805,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         get_pull_request_review_threads,
         {"pull_request_id": "1"},
         _check_pr_review_threads,
+    ),
+    (
+        get_review_comments,
+        {"pull_request_id": "1", "review_id": "80"},
+        _check_get_review_comments,
     ),
     (get_pull_requests, {}, _check_list_pull_requests),
     (
