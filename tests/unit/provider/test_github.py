@@ -1802,6 +1802,33 @@ def test_create_commit_chains_low_level_git_calls() -> None:
     ]
 
 
+def test_create_commit_calls_create_branch_when_create_branch_true() -> None:
+    provider, client = make_provider()
+
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("post", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+    result = provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8")],
+        create_branch=True,
+    )
+
+    assert result["data"]["id"] == "new_commit_sha"
+
+    final_call = client.calls[-1]
+    assert final_call["operation"] == "post"
+    assert final_call["path"] == "/repos/test-org/test-repo/git/refs"
+    assert final_call["data"] == {"ref": "refs/heads/topic", "sha": "new_commit_sha"}
+
+
 def test_create_pull_request_draft_raises_coded_error_when_drafts_not_supported() -> None:
     provider, client = make_provider()
     provider.post = MagicMock(  # type: ignore[assignment]

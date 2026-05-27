@@ -550,8 +550,9 @@ def create_commit(
     message: str,
     actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
     force: bool = False,
+    create_branch: bool = False,
 ) -> ActionResult[Commit]:
-    return scm.create_commit(branch, parent_sha, message, actions, force)
+    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch)
 
 
 def get_tree(

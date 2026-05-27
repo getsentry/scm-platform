@@ -1027,6 +1027,7 @@ class GitHubProvider:
         message: str,
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
+        create_branch: bool = False,
     ) -> ActionResult[Commit]:
         tree_entries: list[InputTreeEntry] = []
         for action in actions:
@@ -1091,7 +1092,10 @@ class GitHubProvider:
         parent_commit = self.get_git_commit(parent_sha)["data"]
         new_tree = self.create_git_tree(tree_entries, base_tree=parent_commit["tree"]["sha"])["data"]
         new_commit = self.create_git_commit(message, new_tree["sha"], [parent_sha])
-        self.update_branch(branch, new_commit["data"]["sha"], force=force)
+        if create_branch:
+            self.create_branch(branch, new_commit["data"]["sha"])
+        else:
+            self.update_branch(branch, new_commit["data"]["sha"], force=force)
 
         raw = new_commit["raw"]["data"]
         return ActionResult(

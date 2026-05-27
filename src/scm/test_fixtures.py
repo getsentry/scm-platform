@@ -1202,6 +1202,7 @@ class BaseTestProvider(Provider):
         message: str,
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
+        create_branch: bool = False,
     ) -> ActionResult[Commit]:
         return ActionResult(
             data=Commit(

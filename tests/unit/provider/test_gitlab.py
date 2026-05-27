@@ -11025,7 +11025,6 @@ def _make_mock_response(json_data):
                     data={
                         "branch": "topics/blah",
                         "commit_message": "Various edits",
-                        "start_sha": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447",
                         "force": False,
                         "actions": [
                             {
@@ -13316,6 +13315,72 @@ def test_get_directory_contents_raises_when_path_is_not_directory(client, provid
 
     assert exc_info.value.code == "path_is_not_directory"
     assert exc_info.value.detail == "README.md"
+
+
+def test_create_commit_omits_start_sha_by_default(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": "newsha",
+            "short_id": "newsha",
+            "created_at": "2026-03-05T12:15:50.000+01:00",
+            "parent_ids": ["parent"],
+            "title": "msg",
+            "message": "msg",
+            "author_name": "u",
+            "author_email": "u@example.com",
+            "authored_date": "2026-03-05T12:15:50.000+01:00",
+            "committer_name": "u",
+            "committer_email": "u@example.com",
+            "committed_date": "2026-03-05T12:15:50.000+01:00",
+            "web_url": "https://gitlab.com/test/-/commit/newsha",
+            "stats": {"additions": 0, "deletions": 0, "total": 0},
+        }
+    )
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent",
+        message="msg",
+        actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "POST"
+    assert call.kwargs["path"] == "/projects/79787061/repository/commits"
+    assert "start_sha" not in call.kwargs["data"]
+    assert call.kwargs["data"]["branch"] == "topic"
+
+
+def test_create_commit_includes_start_sha_when_create_branch_true(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": "newsha",
+            "short_id": "newsha",
+            "created_at": "2026-03-05T12:15:50.000+01:00",
+            "parent_ids": ["parent"],
+            "title": "msg",
+            "message": "msg",
+            "author_name": "u",
+            "author_email": "u@example.com",
+            "authored_date": "2026-03-05T12:15:50.000+01:00",
+            "committer_name": "u",
+            "committer_email": "u@example.com",
+            "committed_date": "2026-03-05T12:15:50.000+01:00",
+            "web_url": "https://gitlab.com/test/-/commit/newsha",
+            "stats": {"additions": 0, "deletions": 0, "total": 0},
+        }
+    )
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent",
+        message="msg",
+        actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        create_branch=True,
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["data"]["start_sha"] == "parent"
 
 
 def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProvider):
