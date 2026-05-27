@@ -6,7 +6,7 @@ from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict, run
 import requests
 
 type Action = Literal["check_run", "comment", "pull_request"]
-type EventTypeHint = Literal["check_run", "comment", "pull_request"]
+type EventTypeHint = Literal["check_run", "check_suite", "comment", "pull_request", "pull_request_review"]
 type HybridCloudSilo = Literal["control", "region"]
 
 
@@ -529,6 +529,28 @@ type CheckRunAction = Literal["completed", "created", "requested_action", "rereq
 class CheckRunEventData(TypedDict):
     external_id: str
     html_url: str
+
+
+type CheckSuiteAction = Literal["completed", "requested", "rerequested"]
+
+
+class CheckSuiteEventData(TypedDict):
+    id: ResourceId
+    status: BuildStatus
+    conclusion: BuildConclusion | None
+    html_url: str
+    pull_request_ids: list[str]
+
+
+type PullRequestReviewAction = Literal["dismissed", "edited", "submitted"]
+
+type PullRequestReviewState = Literal["approved", "changes_requested", "commented", "dismissed", "pending"]
+
+
+class PullRequestReviewEventData(TypedDict):
+    id: ResourceId
+    state: PullRequestReviewState
+    pull_request_id: str
 
 
 type CommentAction = Literal["created", "deleted", "edited", "pinned", "unpinned"]
