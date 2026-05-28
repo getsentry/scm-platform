@@ -1313,6 +1313,24 @@ class BaseTestProvider(Provider):
         self,
         tree_sha: str,
         recursive: bool = True,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitTree]:
+        return PaginatedActionResult(
+            data=GitTree(
+                sha=tree_sha,
+                tree=[TreeEntry(path="src/main.py", mode="100644", type="blob", sha="abc123", size=1234)],
+                truncated=False,
+            ),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=PaginatedResponseMeta(next_cursor=None),
+        )
+
+    def get_full_tree(
+        self,
+        tree_sha: str,
+        recursive: bool = True,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitTree]:
         return ActionResult(

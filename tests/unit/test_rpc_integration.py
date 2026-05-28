@@ -595,6 +595,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "get_full_tree",
+        lambda scm: actions.get_full_tree(scm, "tree_sha"),
+        make_github_git_tree(),
+        200,
+        None,
+    ),
+    (
         "get_git_commit",
         lambda scm: actions.get_git_commit(scm, "abc123"),
         make_github_git_commit_object(),

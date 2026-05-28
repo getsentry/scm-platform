@@ -672,6 +672,18 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "next_cursor": None,
     },
     {
+        # GitHub returns the whole tree in one response, so get_tree is a
+        # single page with no next cursor.
+        "name": "get_tree",
+        "kwargs": {"tree_sha": "tree123", "recursive": False},
+        "path": "/repos/test-org/test-repo/git/trees/tree123",
+        "params": {},
+        "pagination": None,
+        "raw": TREE_RAW,
+        "expected_data": expected_tree(TREE_RAW),
+        "next_cursor": None,
+    },
+    {
         "name": "get_pull_request_files",
         "kwargs": {"pull_request_id": "42"},
         "path": "/repos/test-org/test-repo/pulls/42/files",
@@ -1013,7 +1025,7 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_commit_with_changes(COMMIT_RAW),
     },
     {
-        "name": "get_tree",
+        "name": "get_full_tree",
         "operation": "get",
         "kwargs": {"tree_sha": "tree123", "recursive": False},
         "path": "/repos/test-org/test-repo/git/trees/tree123",
