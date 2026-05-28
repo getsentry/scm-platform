@@ -1755,8 +1755,8 @@ def _count_unified_diff_changes(patch: str | None) -> int:
 
     changes = 0
     for line in patch.splitlines():
-        if line.startswith(("+++", "---")):
-            # skip file headers
+        if line.startswith(("+++ ", "--- ")):
+            # skip unified diff file headers
             continue
         if line.startswith(("+", "-")):
             changes += 1
