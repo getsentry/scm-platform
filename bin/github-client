@@ -65,6 +65,8 @@ Commands:
     get-repository
     list-repositories
     get-repository-assignees
+    list-repository-user-permissions
+    get-repository-user-permission <username>
     get-repository-labels
     get-repository-topics
     get-app-installation
@@ -119,6 +121,7 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    GetUserPermsProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
     MoveCommitAction,
@@ -379,6 +382,9 @@ def main():
     sub.add_parser("get-repository")
     sub.add_parser("list-repositories")
     sub.add_parser("get-repository-assignees")
+    sub.add_parser("list-repository-user-permissions")
+    p = sub.add_parser("get-repository-user-permission")
+    p.add_argument("username")
     sub.add_parser("get-repository-labels")
     sub.add_parser("get-repository-topics")
     sub.add_parser("get-app-installation")
@@ -642,6 +648,14 @@ def main():
     elif args.command == "get-repository-assignees":
         assert isinstance(scm, GetRepositoryAssigneesProtocol)
         dump(scm.get_repository_assignees())
+
+    elif args.command == "list-repository-user-permissions":
+        assert isinstance(scm, GetUserPermsProtocol)
+        dump(scm.list_repository_user_permissions())
+
+    elif args.command == "get-repository-user-permission":
+        assert isinstance(scm, GetUserPermsProtocol)
+        dump(scm.get_repository_user_permission(args.username))
 
     elif args.command == "get-repository-labels":
         assert isinstance(scm, GetRepositoryLabelsProtocol)

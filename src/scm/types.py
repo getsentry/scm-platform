@@ -126,6 +126,7 @@ type IssueState = Literal["open", "closed"]
 type PullRequestState = Literal["open", "closed"]
 type ReviewEvent = Literal["approve", "change_request", "comment"]
 type Encoding = Literal["utf-8", "base64"]
+type RepositoryPermission = Literal["admin", "read", "write"]
 
 
 @dataclasses.dataclass
@@ -271,6 +272,14 @@ class AppInstallation(TypedDict):
     has_read_access: bool
     has_write_access: bool
     has_check_run_write_access: bool
+
+
+class UserPerms(TypedDict):
+    """Normalized repository permissions for a user."""
+
+    login: str
+    id: str
+    perms: RepositoryPermission
 
 
 class RawResult(TypedDict):
@@ -620,6 +629,21 @@ class GetRepositoryAssigneesProtocol(Protocol):
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[Author]]: ...
+
+
+@runtime_checkable
+class GetUserPermsProtocol(Protocol):
+    def list_repository_user_permissions(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[UserPerms]]: ...
+
+    def get_repository_user_permission(
+        self,
+        username: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[UserPerms]: ...
 
 
 @runtime_checkable
@@ -1399,6 +1423,7 @@ ALL_PROTOCOLS = (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    GetUserPermsProtocol,
     GetTreeProtocol,
     ListRepositoriesProtocol,
     ListCheckRunsInCheckSuiteProtocol,

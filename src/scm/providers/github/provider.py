@@ -62,6 +62,7 @@ from scm.types import (
     ReactionResult,
     Referrer,
     Repository,
+    RepositoryPermission,
     RequestOptions,
     ResourceId,
     ResponseMeta,
@@ -73,6 +74,7 @@ from scm.types import (
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
+    UserPerms,
     WriteCommitAction,
 )
 
@@ -508,6 +510,29 @@ class GitHubProvider:
         return map_paginated_action(
             pagination, response, lambda r: [Author(id=str(u["id"]), username=u["login"]) for u in r]
         )
+
+    def list_repository_user_permissions(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[UserPerms]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/collaborators",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_collaborator_user_perms(user) for user in r])
+
+    def get_repository_user_permission(
+        self,
+        username: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[UserPerms]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/collaborators/{username}/permission",
+            request_options=request_options,
+        )
+        return map_action(response, map_collaborator_permission_user_perms)
 
     def get_repository_labels(
         self,
@@ -1723,6 +1748,34 @@ def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
         has_read_access=True,
         has_write_access=permissions.get("contents") == "write" and permissions.get("pull_requests") == "write",
         has_check_run_write_access=permissions.get("checks") == "write",
+    )
+
+
+def map_github_repository_permission(permissions: dict[str, bool]) -> RepositoryPermission:
+    if permissions.get("admin"):
+        return "admin"
+    if permissions.get("push") or permissions.get("maintain"):
+        return "write"
+    return "read"
+
+
+def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPerms:
+    return UserPerms(
+        login=raw["login"],
+        id=str(raw["id"]),
+        perms=map_github_repository_permission(raw.get("permissions", {})),
+    )
+
+
+def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPerms:
+    user = raw["user"]
+    permission = raw["permission"]
+    if permission not in ("admin", "read", "write"):
+        permission = map_github_repository_permission(user.get("permissions", {}))
+    return UserPerms(
+        login=user["login"],
+        id=str(user["id"]),
+        perms=cast(RepositoryPermission, permission),
     )
 
 

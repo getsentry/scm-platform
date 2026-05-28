@@ -90,6 +90,7 @@ from scm.types import (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetTreeProtocol,
+    GetUserPermsProtocol,
     GitBlob,
     GitCommitObject,
     GitRef,
@@ -127,6 +128,7 @@ from scm.types import (
     UpdateIssueProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
+    UserPerms,
     WriteCommitAction,
 )
 
@@ -148,6 +150,24 @@ def get_repository_assignees(
 ) -> PaginatedActionResult[list[Author]]:
     """Get users available as assignees for issues and pull requests in the repository."""
     return scm.get_repository_assignees(pagination, request_options)
+
+
+def list_repository_user_permissions(
+    scm: GetUserPermsProtocol,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[UserPerms]]:
+    """Get repository permissions for all collaborators."""
+    return scm.list_repository_user_permissions(pagination, request_options)
+
+
+def get_repository_user_permission(
+    scm: GetUserPermsProtocol,
+    username: str,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[UserPerms]:
+    """Get repository permissions for a single user."""
+    return scm.get_repository_user_permission(username, request_options)
 
 
 def get_repository_labels(
@@ -925,10 +945,12 @@ __all__ = (
     "get_readme",
     "get_repository",
     "get_repository_assignees",
+    "get_repository_user_permission",
     "get_repository_labels",
     "get_repository_topics",
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
+    "list_repository_user_permissions",
     "list_repositories",
     "minimize_comment",
     "resolve_review_thread",
