@@ -722,7 +722,6 @@ class GitLabProvider:
         self,
         tree_sha: SHA,
         recursive: bool = True,
-        pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitTree]:
         """List the repository tree at a given ref.
@@ -730,23 +729,40 @@ class GitLabProvider:
         GitLab's tree API takes a ref (commit SHA, branch, tag) rather than a
         tree-object SHA.  We treat ``tree_sha`` as a ref so callers can pass a
         commit SHA obtained from ``get_git_commit``.
+
+        GitLab paginates the tree endpoint (default 20 entries, max 100 per
+        page), so we walk every page via the ``X-Next-Page`` header to return
+        the complete tree.  This is unlike GitHub, which returns the whole
+        recursive tree in a single response (and reports truncation itself).
         """
         params: dict[str, str] = {"ref": tree_sha}
         if recursive:
             params["recursive"] = "true"
-        response = self.get(
-            GitLab.tree.format(project=self.project_id),
-            params=params,
-        )
-        raw = response.json()
+
+        raw_entries: list[dict[str, Any]] = []
+        cursor = "1"
+        while True:
+            response = self.get(
+                GitLab.tree.format(project=self.project_id),
+                params=params,
+                pagination={"per_page": 100, "cursor": cursor},
+                request_options=request_options,
+            )
+            raw_entries.extend(response.json())
+
+            next_cursor = response.headers.get("X-Next-Page")
+            if not next_cursor:
+                break
+            cursor = next_cursor
+
         return ActionResult(
             data=GitTree(
                 sha=tree_sha,
-                tree=[map_tree_entry(e) for e in raw],
+                tree=[map_tree_entry(e) for e in raw_entries],
                 truncated=False,
             ),
             type="gitlab",
-            raw={"data": raw, "headers": None},
+            raw={"data": raw_entries, "headers": None},
             meta={},
         )
 

@@ -13075,7 +13075,12 @@ def _make_mock_response(json_data):
                             "mode": "040000",
                         },
                     ],
-                    params={"ref": "6104942438c14ec7bd21c6cd5bd995272b3faff6", "recursive": "true"},
+                    params={
+                        "ref": "6104942438c14ec7bd21c6cd5bd995272b3faff6",
+                        "recursive": "true",
+                        "per_page": "100",
+                        "page": "1",
+                    },
                 ),
             ],
             provider_return_value={
@@ -13363,6 +13368,47 @@ def test_get_pull_request_template_returns_empty_when_dir_missing(client, provid
     results = list(provider.get_pull_request_template(ref="main"))
 
     assert results == []
+
+
+def test_get_tree_walks_all_pages(client, provider: GitLabProvider):
+    def _page(entry_id: str, path: str, next_page: str):
+        response = _make_mock_response(
+            [
+                {
+                    "id": entry_id,
+                    "name": path,
+                    "type": "blob",
+                    "path": path,
+                    "mode": "100644",
+                }
+            ]
+        )
+        response.headers = {"X-Next-Page": next_page}
+        return response
+
+    # Capture the page cursor sent on each request (the params dict is reused
+    # and mutated across iterations, so snapshot it at call time).
+    pages_requested: list[str] = []
+
+    def _record(**kwargs):
+        pages_requested.append(kwargs["params"]["page"])
+        return responses.pop(0)
+
+    # Three pages: the last reports an empty X-Next-Page header to stop.
+    responses = [
+        _page("a", "a.py", "2"),
+        _page("b", "b.py", "3"),
+        _page("c", "c.py", ""),
+    ]
+    client.request.side_effect = _record
+
+    result = provider.get_tree("deadbeef")
+
+    assert client.request.call_count == 3
+    # Subsequent pages advance the cursor from the X-Next-Page header.
+    assert pages_requested == ["1", "2", "3"]
+    assert [entry["path"] for entry in result["data"]["tree"]] == ["a.py", "b.py", "c.py"]
+    assert result["data"]["truncated"] is False
 
 
 def test_get_directory_contents_raises_when_path_is_not_directory(client, provider: GitLabProvider):
