@@ -1749,13 +1749,41 @@ def map_commit_diff(raw: dict[str, Any]) -> CommitFile:
     )
 
 
+def _count_unified_diff_changes(patch: str | None) -> int:
+    if not patch:
+        return 0
+
+    changes = 0
+    for line in patch.splitlines():
+        if line.startswith(("+++", "---")):
+            # skip file headers
+            continue
+        if line.startswith(("+", "-")):
+            changes += 1
+    return changes
+
+
 def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
+    old_path = raw.get("old_path")
+    new_path = raw.get("new_path") or old_path or ""
+    patch = raw.get("diff")
+    filename = (old_path or new_path) if raw.get("deleted_file") else new_path
+    previous_filename = old_path if old_path != new_path else None
+
+    status: FileStatus = "modified"
+    if raw.get("new_file"):
+        status = "added"
+    elif raw.get("deleted_file"):
+        status = "removed"
+    elif raw.get("renamed_file"):
+        status = "renamed"
+
     return PullRequestFile(
-        filename=raw["new_path"],
-        previous_filename=(raw["old_path"] if raw["old_path"] != raw["new_path"] else None),
-        status=("added" if raw["new_file"] else "removed" if raw["deleted_file"] else "modified"),
-        changes=0,
-        patch=raw.get("diff"),
+        filename=filename,
+        previous_filename=previous_filename,
+        status=status,
+        changes=_count_unified_diff_changes(patch),
+        patch=patch,
         sha="",
     )
 
