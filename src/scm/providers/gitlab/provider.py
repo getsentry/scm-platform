@@ -1754,9 +1754,13 @@ def _count_unified_diff_changes(patch: str | None) -> int:
         return 0
 
     changes = 0
+    in_hunk = False
     for line in patch.splitlines():
-        if line.startswith(("+++ ", "--- ")):
-            # skip unified diff file headers
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if not in_hunk and line.startswith(("+++ ", "--- ")):
+            # Skip file headers only before the first hunk
             continue
         if line.startswith(("+", "-")):
             changes += 1

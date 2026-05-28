@@ -14129,6 +14129,7 @@ def test_count_unified_diff_changes() -> None:
     assert _count_unified_diff_changes(None) == 0
     assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n-old\n+new\n") == 2
     assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n---content\n+++content\n") == 2
+    assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n--- comment\n+++ comment\n") == 2
     assert _count_unified_diff_changes("--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n-old\n+new\n") == 2
 
 
