@@ -330,6 +330,10 @@ class GitLabProvider:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
         return make_result(map_app_installation, response.json())
 
+    def get_authenticated_actor(self) -> ActionResult[Author]:
+        response = self.get(GitLab.user)
+        return make_result(map_author, response.json())
+
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
         return make_result(map_repository, response.json())

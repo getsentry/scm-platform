@@ -68,6 +68,7 @@ Commands:
     get-repository-labels
     get-repository-topics
     get-app-installation
+    get-authenticated-actor
 """
 
 import argparse
@@ -93,6 +94,7 @@ from scm.types import (
     DeleteCommitAction,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
+    GetAuthenticatedActorProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
@@ -382,6 +384,7 @@ def main():
     sub.add_parser("get-repository-labels")
     sub.add_parser("get-repository-topics")
     sub.add_parser("get-app-installation")
+    sub.add_parser("get-authenticated-actor")
 
     args = parser.parse_args()
     if not args.command:
@@ -654,6 +657,10 @@ def main():
     elif args.command == "get-app-installation":
         assert isinstance(scm, GetAppInstallationProtocol)
         dump(scm.get_app_installation())
+
+    elif args.command == "get-authenticated-actor":
+        assert isinstance(scm, GetAuthenticatedActorProtocol)
+        dump(scm.get_authenticated_actor())
 
 
 if __name__ == "__main__":

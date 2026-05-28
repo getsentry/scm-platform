@@ -34,6 +34,7 @@ from scm.actions import (
     delete_pull_request_comment_reaction,
     delete_pull_request_reaction,
     download_archive,
+    get_authenticated_actor,
     get_branch,
     get_check_run,
     get_commit,
@@ -110,6 +111,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (create_issue_comment, {"issue_id": "1", "body": "test"}),
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}),
     # Repository metadata
+    (get_authenticated_actor, {}),
     (get_repository_assignees, {}),
     (get_repository_labels, {}),
     (get_repository_topics, {}),
@@ -303,6 +305,12 @@ def _check_repository_assignees(result: Any) -> None:
     assignee = result["data"][0]
     assert assignee["id"] == "123"
     assert assignee["username"] == "testuser"
+    assert result["type"] == "github"
+
+
+def _check_authenticated_actor(result: Any) -> None:
+    assert result["data"]["id"] == "1"
+    assert result["data"]["username"] == "testuser"
     assert result["type"] == "github"
 
 
@@ -670,6 +678,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         _check_created_comment,
     ),
     (delete_issue_comment, {"issue_id": "1", "comment_id": "1"}, _check_none),
+    (get_authenticated_actor, {}, _check_authenticated_actor),
     (get_repository_assignees, {}, _check_repository_assignees),
     (get_repository_labels, {}, _check_repository_labels),
     (get_repository_topics, {}, _check_repository_topics),

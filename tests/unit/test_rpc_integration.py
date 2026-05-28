@@ -159,6 +159,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "get_authenticated_actor",
+        lambda scm: actions.get_authenticated_actor(scm),
+        {"id": 3028048, "slug": "sentry"},
+        200,
+        None,
+    ),
+    (
         "get_repository",
         lambda scm: actions.get_repository(scm),
         make_github_repository(),

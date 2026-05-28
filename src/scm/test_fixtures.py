@@ -720,6 +720,14 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def get_authenticated_actor(self) -> ActionResult[Author]:
+        return ActionResult(
+            data=Author(id="1", username="testuser"),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
     # Issue comments
 
     def get_issue_comments(
