@@ -1688,13 +1688,15 @@ def _with_draft_prefix(title: str) -> str:
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
+    diff_refs = raw.get("diff_refs") or {}
+    base_sha = diff_refs.get("start_sha") or diff_refs.get("base_sha")
     return PullRequest(
         internal_id=str(raw["id"]),
         id=str(raw["iid"]),
         title=raw["title"],
         body=raw["description"] or None,
         state="open" if raw["state"] == "opened" else "closed",
-        base=PullRequestBranch(ref=raw["target_branch"], sha=None),
+        base=PullRequestBranch(ref=raw["target_branch"], sha=base_sha),
         head=PullRequestBranch(
             ref=raw["source_branch"],
             sha=raw["sha"],
