@@ -1767,15 +1767,22 @@ def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPerms:
     )
 
 
+def map_collaborator_permission_level(permission: str) -> RepositoryPermission:
+    # The /collaborators/{username}/permission endpoint returns an authoritative
+    # top-level permission of "admin", "write", "read", or "none". The first three
+    # match our normalized values directly; "none" (and anything unexpected) has no
+    # representation in RepositoryPermission and must not be silently treated as "read".
+    if permission in ("admin", "write", "read"):
+        return cast(RepositoryPermission, permission)
+    raise ValueError(f"unmappable repository permission: {permission!r}")
+
+
 def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPerms:
     user = raw["user"]
-    permission = raw["permission"]
-    if permission not in ("admin", "read", "write"):
-        permission = map_github_repository_permission(user.get("permissions", {}))
     return UserPerms(
         login=user["login"],
         id=str(user["id"]),
-        perms=cast(RepositoryPermission, permission),
+        perms=map_collaborator_permission_level(raw["permission"]),
     )
 
 
