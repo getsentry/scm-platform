@@ -7,7 +7,13 @@ from typing import Any, NamedTuple
 import pytest
 
 from scm.errors import SCMCodedError
-from scm.providers.gitlab.provider import ApiClient, GitLabProvider, map_app_installation
+from scm.providers.gitlab.provider import (
+    ApiClient,
+    GitLabProvider,
+    _count_unified_diff_changes,
+    map_app_installation,
+    map_pull_request_file,
+)
 from scm.types import (
     ChmodCommitAction,
     DeleteCommitAction,
@@ -11282,7 +11288,7 @@ def _make_mock_response(json_data):
                         "filename": "BLAH.md",
                         "status": "added",
                         "patch": "@@ -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5\n+6\n+7\n+8\n+9\n",
-                        "changes": 0,
+                        "changes": 9,
                         "sha": "",
                         "previous_filename": None,
                     }
@@ -14115,3 +14121,25 @@ def test_check_run_state_read_mapping(
 )
 def test_map_app_installation_checks_permission(access_level: int, expected: dict[str, bool]) -> None:
     assert map_app_installation({"permissions": {"project_access": {"access_level": access_level}}}) == expected
+
+
+def test_count_unified_diff_changes() -> None:
+    patch = "@@ -0,0 +1,2 @@\n+line one\n+line two\n"
+    assert _count_unified_diff_changes(patch) == 2
+    assert _count_unified_diff_changes(None) == 0
+    assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n-old\n+new\n") == 2
+    assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n---content\n+++content\n") == 2
+    assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n--- comment\n+++ comment\n") == 2
+    assert _count_unified_diff_changes("--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n-old\n+new\n") == 2
+
+
+def test_map_pull_request_file_counts_diff_lines() -> None:
+    raw = {
+        "diff": "@@ -0,0 +1,2 @@\n+a\n+b\n",
+        "new_path": "src/foo.py",
+        "old_path": "src/foo.py",
+        "new_file": True,
+        "renamed_file": False,
+        "deleted_file": False,
+    }
+    assert map_pull_request_file(raw)["changes"] == 2
