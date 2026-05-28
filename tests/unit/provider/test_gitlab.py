@@ -11,6 +11,7 @@ from scm.providers.gitlab.provider import (
     ApiClient,
     GitLabProvider,
     _count_unified_diff_changes,
+    _head_to_source_branch,
     map_app_installation,
     map_pull_request_file,
 )
@@ -13387,6 +13388,30 @@ def test_create_commit_includes_start_sha_when_create_branch_true(client, provid
 
     call = client.request.call_args
     assert call.kwargs["data"]["start_sha"] == "parent"
+
+
+@pytest.mark.parametrize(
+    "head, expected",
+    [
+        ("feature/x", "feature/x"),
+        ("acme:feature/x", "feature/x"),
+        ("refs/heads/feature/x", "feature/x"),
+        ("acme:refs/heads/feature/x", "feature/x"),
+    ],
+)
+def test_head_to_source_branch(head: str, expected: str):
+    assert _head_to_source_branch(head) == expected
+
+
+def test_get_pull_requests_forwards_source_branch(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response([])
+
+    provider.get_pull_requests(state="open", head="acme:refs/heads/feature/x")
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "GET"
+    assert call.kwargs["path"] == "/projects/79787061/merge_requests"
+    assert call.kwargs["params"] == {"state": "opened", "source_branch": "feature/x"}
 
 
 def test_create_issue_forwards_assignees_and_labels(client, provider: GitLabProvider):

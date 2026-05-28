@@ -1006,7 +1006,10 @@ class GitLabProvider:
     def get_pull_requests(
         self,
         state: PullRequestState | None = "open",
-        # @todo The 'head' parameter has very ad-hoc behavior on GitHub; we should consider removing it entirely.
+        # 'head' is GitHub-shaped (optional ``owner:`` prefix, optional
+        # ``refs/heads/`` ref prefix). We map it to GitLab's ``source_branch``
+        # filter so a single open-MR-for-this-branch lookup stays a server-side,
+        # single-result query rather than a fetch-all-and-filter.
         head: BranchName | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
@@ -1021,6 +1024,8 @@ class GitLabProvider:
             params: dict[str, str] = {}
             if gitlab_state:
                 params["state"] = gitlab_state
+            if head:
+                params["source_branch"] = _head_to_source_branch(head)
             response = self.get(
                 GitLab.merge_requests.format(project_id=self.project_id),
                 params=params,
@@ -1679,6 +1684,17 @@ def map_git_ref(raw: dict[str, Any]) -> GitRef:
 # Prefixes GitLab recognizes as marking a merge request as draft.
 # Reference: https://docs.gitlab.com/user/project/merge_requests/drafts/
 _DRAFT_TITLE_PREFIXES = ("draft:", "[draft]", "(draft)")
+
+
+def _head_to_source_branch(head: str) -> str:
+    """Normalize a GitHub-style ``head`` filter to a GitLab ``source_branch``.
+
+    Callers pass ``head`` in GitHub's shape — an optional ``owner:`` prefix and
+    sometimes a ``refs/heads/`` ref prefix (e.g. ``"acme:refs/heads/feature"``).
+    GitLab's ``source_branch`` query filter wants the bare branch name.
+    """
+    branch = head.split(":", 1)[-1]
+    return branch.removeprefix("refs/heads/")
 
 
 def _with_draft_prefix(title: str) -> str:
