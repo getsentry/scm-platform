@@ -491,9 +491,13 @@ class GitHubProvider:
         return map_action(response, map_app_installation)
 
     def get_authenticated_actor(self) -> ActionResult[Author]:
-        # GitHub App installation auth does not expose /user; use app identity.
-        response = self.get("/app", credentials_set="application")
-        return map_action(response, map_authenticated_actor)
+        # Get the app's bot user
+        app_response = self.get("/app", credentials_set="application")
+        app_slug = app_response.json().get("slug")
+        if not app_slug:
+            raise UnexpectedResponseFormat(detail="GitHub /app response missing slug")
+        bot_response = self.get(f"/users/{app_slug}[bot]")
+        return map_action(bot_response, map_authenticated_actor)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
@@ -1800,10 +1804,8 @@ def map_author(raw_user: dict[str, Any] | None) -> Author | None:
     return Author(id=str(raw_user["id"]), username=raw_user["login"])
 
 
-def map_authenticated_actor(raw: dict[str, Any]) -> Author:
-    slug = raw.get("slug", "")
-    username = f"{slug}[bot]" if slug else str(raw["id"])
-    return Author(id=str(raw["id"]), username=username)
+def map_authenticated_actor(raw_user: dict[str, Any]) -> Author:
+    return Author(id=str(raw_user["id"]), username=raw_user["login"])
 
 
 def map_comment(raw: dict[str, Any]) -> Comment:

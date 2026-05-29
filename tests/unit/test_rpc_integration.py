@@ -159,13 +159,6 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
-        "get_authenticated_actor",
-        lambda scm: actions.get_authenticated_actor(scm),
-        {"id": 3028048, "slug": "sentry"},
-        200,
-        None,
-    ),
-    (
         "get_repository",
         lambda scm: actions.get_repository(scm),
         make_github_repository(),
@@ -755,6 +748,14 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
 
 # Multi-call actions issue several provider HTTP requests per invocation.
 MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list | str, int, dict[str, str] | None]]]] = [
+    (
+        "get_authenticated_actor",
+        lambda scm: actions.get_authenticated_actor(scm),
+        [
+            ({"id": 3028048, "slug": "sentry"}, 200, None),
+            ({"id": 177979347, "login": "sentry[bot]"}, 200, None),
+        ],
+    ),
     (
         "get_pull_request_template",
         lambda scm: list(actions.get_pull_request_template(scm, "main")),
