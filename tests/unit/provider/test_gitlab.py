@@ -166,6 +166,40 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
+            provider_method=GitLabProvider.get_authenticated_actor,
+            provider_args={},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/user",
+                    json_response={
+                        "id": 150871,
+                        "username": "jacquev6",
+                        "name": "Vincent Jacques",
+                        "state": "active",
+                        "avatar_url": "https://secure.gravatar.com/avatar/x?s=80&d=identicon",
+                        "web_url": "https://gitlab.com/jacquev6",
+                    },
+                ),
+            ],
+            provider_return_value={
+                "data": {"id": "150871", "username": "jacquev6"},
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "id": 150871,
+                        "username": "jacquev6",
+                        "name": "Vincent Jacques",
+                        "state": "active",
+                        "avatar_url": "https://secure.gravatar.com/avatar/x?s=80&d=identicon",
+                        "web_url": "https://gitlab.com/jacquev6",
+                    },
+                    "headers": None,
+                },
+                "meta": {},
+            },
+        ),
+        ForwardToClientTest(
             provider_method=GitLabProvider.get_repository_topics,
             provider_args={"request_options": None},
             client_calls=[

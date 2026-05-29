@@ -618,6 +618,11 @@ class GetAppInstallationProtocol(Protocol):
 
 
 @runtime_checkable
+class GetAuthenticatedActorProtocol(Protocol):
+    def get_authenticated_actor(self) -> ActionResult[Author]: ...
+
+
+@runtime_checkable
 class GetRepositoryProtocol(Protocol):
     def get_repository(self) -> ActionResult[GitRepository]: ...
 
@@ -1393,6 +1398,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
+    GetAuthenticatedActorProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,

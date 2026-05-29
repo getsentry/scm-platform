@@ -57,6 +57,7 @@ from scm.types import (
     FileContent,
     GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
+    GetAuthenticatedActorProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
     GetCommitChangesProtocol,
@@ -142,6 +143,11 @@ def get_repository(scm: GetRepositoryProtocol) -> ActionResult[GitRepository]:
 def get_app_installation(scm: GetAppInstallationProtocol) -> ActionResult[AppInstallation]:
     """Get the SCM app installation associated with this SourceCodeManager."""
     return scm.get_app_installation()
+
+
+def get_authenticated_actor(scm: GetAuthenticatedActorProtocol) -> ActionResult[Author]:
+    """Get the actor associated with the credentials used for requests."""
+    return scm.get_authenticated_actor()
 
 
 def get_repository_assignees(
@@ -917,6 +923,7 @@ __all__ = (
     "download_archive",
     "get_archive_link",
     "get_app_installation",
+    "get_authenticated_actor",
     "get_branch",
     "get_check_run",
     "get_commit_url",

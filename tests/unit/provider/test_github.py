@@ -712,6 +712,15 @@ ACTION_CASES: list[dict[str, Any]] = [
         "credentials_set": "application",
     },
     {
+        "name": "get_authenticated_actor",
+        "operation": "get",
+        "kwargs": {},
+        "path": "/app",
+        "raw": {"id": 3028048, "slug": "sentry"},
+        "expected_data": {"id": "3028048", "username": "sentry[bot]"},
+        "credentials_set": "application",
+    },
+    {
         "name": "get_repository",
         "operation": "get",
         "kwargs": {},
