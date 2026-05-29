@@ -161,7 +161,7 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
     (
         "get_authenticated_actor",
         lambda scm: actions.get_authenticated_actor(scm),
-        {"id": 3028048, "slug": "sentry"},
+        {"id": 177979347, "login": "sentry[bot]"},
         200,
         None,
     ),

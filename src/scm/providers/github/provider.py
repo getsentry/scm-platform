@@ -491,9 +491,9 @@ class GitHubProvider:
         return map_action(response, map_app_installation)
 
     def get_authenticated_actor(self) -> ActionResult[Author]:
-        # GitHub App installation auth does not expose /user; use app identity.
-        response = self.get("/app", credentials_set="application")
-        return map_action(response, map_authenticated_actor)
+        # Installation tokens authenticate as the app's bot user (GET /user).
+        response = self.get("/user")
+        return map_action(response, map_author)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
@@ -1798,12 +1798,6 @@ def map_author(raw_user: dict[str, Any] | None) -> Author | None:
     if raw_user is None:
         return None
     return Author(id=str(raw_user["id"]), username=raw_user["login"])
-
-
-def map_authenticated_actor(raw: dict[str, Any]) -> Author:
-    slug = raw.get("slug", "")
-    username = f"{slug}[bot]" if slug else str(raw["id"])
-    return Author(id=str(raw["id"]), username=username)
 
 
 def map_comment(raw: dict[str, Any]) -> Comment:
