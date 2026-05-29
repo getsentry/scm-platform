@@ -1756,21 +1756,29 @@ def map_commit_diff(raw: dict[str, Any]) -> CommitFile:
         status = "modified"
     old_path = raw.get("old_path")
     new_path = raw.get("new_path") or old_path or ""
+    additions, deletions = _count_unified_diff_lines(raw.get("diff"))
     return CommitFile(
         filename=new_path,
         status=status,
         patch=raw.get("diff"),
-        additions=None,
-        deletions=None,
+        additions=additions,
+        deletions=deletions,
         previous_filename=old_path if raw.get("renamed_file") else None,
     )
 
 
-def _count_unified_diff_changes(patch: str | None) -> int:
-    if not patch:
-        return 0
+def _count_unified_diff_lines(patch: str | None) -> tuple[int, int]:
+    """Count added/removed lines in a unified diff patch.
 
-    changes = 0
+    GitLab's diff API does not provide per-file additions/deletions counts, so we
+    derive them from the patch the same way we derive the total ``changes`` count.
+    Returns ``(additions, deletions)``.
+    """
+    if not patch:
+        return (0, 0)
+
+    additions = 0
+    deletions = 0
     in_hunk = False
     for line in patch.splitlines():
         if line.startswith("@@"):
@@ -1779,9 +1787,16 @@ def _count_unified_diff_changes(patch: str | None) -> int:
         if not in_hunk and line.startswith(("+++ ", "--- ")):
             # Skip file headers only before the first hunk
             continue
-        if line.startswith(("+", "-")):
-            changes += 1
-    return changes
+        if line.startswith("+"):
+            additions += 1
+        elif line.startswith("-"):
+            deletions += 1
+    return (additions, deletions)
+
+
+def _count_unified_diff_changes(patch: str | None) -> int:
+    additions, deletions = _count_unified_diff_lines(patch)
+    return additions + deletions
 
 
 def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
