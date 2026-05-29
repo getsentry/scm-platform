@@ -7,7 +7,17 @@ from typing import Any, Literal, cast
 import msgspec
 import requests
 
-from scm.errors import ErrorCode, SCMCodedError
+from scm.errors import (
+    DraftPullRequestNotSupported,
+    PathIsDirectory,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceNotFound,
+    SCMCodedError,
+    UnexpectedResponseFormat,
+    error_class_for_status,
+)
 from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
@@ -385,21 +395,8 @@ class GitHubProvider:
             )
 
         if response.status_code >= 400:
-            if response.status_code == 401:
-                code: ErrorCode = "resource_unauthorized"  # type: ignore[no-redef]
-            elif response.status_code == 403:
-                code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
-            elif response.status_code == 404:
-                code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
-            elif response.status_code == 409:
-                code: ErrorCode = "resource_conflict"  # type: ignore[no-redef]
-            elif response.status_code == 422:
-                code: ErrorCode = "resource_unprocessable_content"  # type: ignore[no-redef]
-            else:
-                code: ErrorCode = "unhandled_exception"  # type: ignore[no-redef]
-
-            raise SCMCodedError(
-                code=code,
+            error_cls = error_class_for_status(response.status_code)
+            raise error_cls(
                 detail=response.content.decode("utf-8"),
                 response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
@@ -481,11 +478,11 @@ class GitHubProvider:
         response_data = response.json()
 
         if not isinstance(response_data, dict) or ("data" not in response_data and "errors" not in response_data):
-            raise SCMCodedError(code="unexpected_response_format", detail="GraphQL response is not in expected format")
+            raise UnexpectedResponseFormat(detail="GraphQL response is not in expected format")
 
         errors = response_data.get("errors", [])
         if errors and not response_data.get("data"):
-            raise SCMCodedError(code="resource_bad_request", detail="\n".join(e.get("message", "") for e in errors))
+            raise ResourceBadRequest(detail="\n".join(e.get("message", "") for e in errors))
 
         return response_data.get("data", {})
 
@@ -857,7 +854,7 @@ class GitHubProvider:
             request_options=request_options,
         )
         if isinstance(response.json(), list):
-            raise SCMCodedError(code="path_is_directory", detail=path)
+            raise PathIsDirectory(detail=path)
         return map_action(response, map_file_content)
 
     def get_readme(
@@ -874,7 +871,7 @@ class GitHubProvider:
             )
         except SCMCodedError as e:
             if e.code == "resource_not_found":
-                raise SCMCodedError(code="readme_not_found") from e
+                raise ReadmeNotFound() from e
             raise
         return map_action(response, map_file_content)
 
@@ -948,7 +945,7 @@ class GitHubProvider:
         )
         raw = response.json()
         if not isinstance(raw, list):
-            raise SCMCodedError(code="path_is_not_directory", detail=path)
+            raise PathIsNotDirectory(detail=path)
         return {
             "data": [map_file_content(item) for item in raw],
             "type": "github",
@@ -1289,7 +1286,7 @@ class GitHubProvider:
                 and e.detail
                 and "Draft pull requests are not supported for this repository" in e.detail
             ):
-                raise SCMCodedError(code="draft_pull_request_not_supported") from e
+                raise DraftPullRequestNotSupported() from e
             else:
                 raise
 
@@ -1546,7 +1543,7 @@ class GitHubProvider:
             allow_redirects=False,
         )
         if response.status_code != 302 or "Location" not in response.headers:
-            raise SCMCodedError(code="unexpected_response_format", detail="Could not extract 'Location' header.")
+            raise UnexpectedResponseFormat(detail="Could not extract 'Location' header.")
 
         return {
             "data": ArchiveLink(url=response.headers["Location"], headers={}),
@@ -1649,8 +1646,7 @@ class GitHubProvider:
         repository = data.get("repository") or {}
         pull_request = repository.get("pullRequest")
         if pull_request is None:
-            raise SCMCodedError(
-                code="resource_not_found",
+            raise ResourceNotFound(
                 detail=f"pull request {self.repository['name']}#{pull_request_id}",
             )
 
@@ -1709,8 +1705,7 @@ class GitHubProvider:
             repository = data.get("repository") or {}
             pull_request = repository.get("pullRequest")
             if pull_request is None:
-                raise SCMCodedError(
-                    code="resource_not_found",
+                raise ResourceNotFound(
                     detail=f"pull request {self.repository['name']}#{pull_request_id}",
                 )
             review_threads = pull_request["reviewThreads"]

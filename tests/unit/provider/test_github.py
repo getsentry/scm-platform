@@ -5,7 +5,18 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from scm.errors import SCMCodedError
+from scm.errors import (
+    ResourceBadGateway,
+    ResourceBadRequest,
+    ResourceConflict,
+    ResourceForbidden,
+    ResourceNotFound,
+    ResourceServerError,
+    ResourceUnauthorized,
+    ResourceUnprocessableContent,
+    SCMCodedError,
+    UnhandledException,
+)
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
@@ -2567,6 +2578,49 @@ def test_map_collaborator_permission_level(permission: str, expected: str) -> No
 def test_map_collaborator_permission_level_rejects_unknown() -> None:
     with pytest.raises(ValueError, match="unmappable repository permission"):
         map_collaborator_permission_level("bogus")
+
+
+def _error_response(status_code: int, body: bytes = b'{"message":"boom"}') -> Any:
+    response = MagicMock()
+    response.status_code = status_code
+    response.content = body
+    response.headers = {}
+    response.request = MagicMock(headers={}, body=None, url="https://api.github.com/x", method="GET")
+    return response
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected_code", "expected_type"),
+    [
+        (400, "resource_bad_request", ResourceBadRequest),
+        (401, "resource_unauthorized", ResourceUnauthorized),
+        (403, "resource_forbidden", ResourceForbidden),
+        (404, "resource_not_found", ResourceNotFound),
+        (409, "resource_conflict", ResourceConflict),
+        (422, "resource_unprocessable_content", ResourceUnprocessableContent),
+        (500, "resource_server_error", ResourceServerError),
+        (502, "resource_bad_gateway", ResourceBadGateway),
+        (418, "unhandled_exception", UnhandledException),
+        (503, "unhandled_exception", UnhandledException),
+    ],
+)
+def test_request_maps_status_code_to_error(
+    status_code: int, expected_code: str, expected_type: type[SCMCodedError]
+) -> None:
+    client = MagicMock(spec=ApiClient)
+    client.request.return_value = _error_response(status_code, body=b'{"message":"upstream said no"}')
+    provider = GitHubProvider(
+        client,
+        organization_id=1,
+        repository=make_repository(),
+        rate_limiter=NoOpRateLimiter(),
+    )
+
+    with pytest.raises(expected_type) as exc_info:
+        provider.request("GET", "/repos/test-org/test-repo")
+
+    assert exc_info.value.code == expected_code
+    assert exc_info.value.detail == '{"message":"upstream said no"}'
 
 
 def test_public_methods_are_accounted_for() -> None:

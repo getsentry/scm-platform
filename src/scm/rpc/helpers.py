@@ -4,7 +4,7 @@ from typing import Literal
 
 import msgspec
 
-from scm.errors import SCMCodedError
+from scm.errors import RepositoryCouldNotBeDeserialized
 from scm.rpc.types import JsonApiData, JsonApiPayload, RepositoryAttributes
 from scm.types import Repository, RepositoryId
 
@@ -37,7 +37,7 @@ def deserialize_repository(content: bytes) -> Repository:
     try:
         repository = msgspec.json.decode(content, type=JsonApiPayload[Literal["repository"], RepositoryAttributes]).data
     except msgspec.DecodeError as e:
-        raise SCMCodedError(code="repository_could_not_be_deserialized") from e
+        raise RepositoryCouldNotBeDeserialized() from e
     else:
         result: Repository = {
             "id": int(repository.id),

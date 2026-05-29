@@ -4,7 +4,7 @@ from typing import Any, Protocol
 import msgspec
 import requests
 
-from scm.errors import SCMCodedError
+from scm.errors import RpcErrorsCouldNotBeDeserialized, RpcInvalidGrant, SCMCodedError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
@@ -63,9 +63,9 @@ def fetch_repository(
     try:
         resp = msgspec.json.decode(response.content, type=ErrorResponse)
     except msgspec.DecodeError as e:
-        raise SCMCodedError(code="rpc_errors_could_not_be_deserialized") from e
+        raise RpcErrorsCouldNotBeDeserialized() from e
 
-    exceptions = [SCMCodedError(code=error.code) for error in resp.errors]
+    exceptions = [SCMCodedError.from_code(error.code, detail=error.detail) for error in resp.errors]
 
     if len(exceptions) == 1:
         raise exceptions[0]
@@ -86,8 +86,7 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     elif repository["provider_name"] == "github_enterprise":
         web_base_url = repository["web_base_url"]
         if not web_base_url:
-            raise SCMCodedError(
-                code="rpc_invalid_grant",
+            raise RpcInvalidGrant(
                 detail="web_base_url is required for github_enterprise repositories",
             )
 

@@ -6,7 +6,16 @@ from urllib.parse import quote
 
 import requests
 
-from scm.errors import ErrorCode, SCMCodedError
+from scm.errors import (
+    InvalidCheckRunStateTransition,
+    MalformedExternalId,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceNotFound,
+    SCMCodedError,
+    error_class_for_status,
+)
 from scm.helpers import iter_all_pages
 from scm.types import (
     SHA,
@@ -220,7 +229,7 @@ class GitLabProvider:
 
         # External ID format is "{netloc}:{repo_id}", where netloc might contain a colon before a port number
         if repository["external_id"] is None or ":" not in repository["external_id"]:
-            raise SCMCodedError(code="malformed_external_id")
+            raise MalformedExternalId()
 
         netloc, self.project_id = repository["external_id"].rsplit(":", maxsplit=1)
         self.web_base_url = f"https://{netloc}"
@@ -254,21 +263,8 @@ class GitLabProvider:
             timeout=timeout,
         )
         if response.status_code >= 400:
-            if response.status_code == 401:
-                code: ErrorCode = "resource_unauthorized"  # type: ignore[no-redef]
-            elif response.status_code == 403:
-                code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
-            elif response.status_code == 404:
-                code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
-            elif response.status_code == 409:
-                code: ErrorCode = "resource_conflict"  # type: ignore[no-redef]
-            elif response.status_code == 422:
-                code: ErrorCode = "resource_unprocessable_content"  # type: ignore[no-redef]
-            else:
-                code: ErrorCode = "unhandled_exception"  # type: ignore[no-redef]
-
-            raise SCMCodedError(
-                code=code,
+            error_cls = error_class_for_status(response.status_code)
+            raise error_cls(
                 detail=response.content.decode("utf-8"),
                 response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
@@ -787,7 +783,7 @@ class GitLabProvider:
             for entry in page["data"]:
                 if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
                     return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
-        raise SCMCodedError(code="readme_not_found")
+        raise ReadmeNotFound()
 
     def get_pull_request_template(
         self,
@@ -846,7 +842,7 @@ class GitLabProvider:
         except SCMCodedError as e:
             # GitLab returns 404 "not treeish" when the path resolves to a file.
             if e.code == "resource_not_found" and e.detail and "not treeish" in e.detail:
-                raise SCMCodedError(code="path_is_not_directory", detail=path) from e
+                raise PathIsNotDirectory(detail=path) from e
             raise
         return make_paginated_result(map_tree_entry_to_file_content, response, response.json())
 
@@ -1006,7 +1002,10 @@ class GitLabProvider:
     def get_pull_requests(
         self,
         state: PullRequestState | None = "open",
-        # @todo The 'head' parameter has very ad-hoc behavior on GitHub; we should consider removing it entirely.
+        # 'head' is GitHub-shaped (optional ``owner:`` prefix, optional
+        # ``refs/heads/`` ref prefix). We map it to GitLab's ``source_branch``
+        # filter so a single open-MR-for-this-branch lookup stays a server-side,
+        # single-result query rather than a fetch-all-and-filter.
         head: BranchName | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
@@ -1021,6 +1020,8 @@ class GitLabProvider:
             params: dict[str, str] = {}
             if gitlab_state:
                 params["state"] = gitlab_state
+            if head:
+                params["source_branch"] = _head_to_source_branch(head)
             response = self.get(
                 GitLab.merge_requests.format(project_id=self.project_id),
                 params=params,
@@ -1391,7 +1392,7 @@ class GitLabProvider:
         raw = response.json()
         latest = _latest_status(raw, name)
         if latest is None:
-            raise SCMCodedError(code="resource_not_found", detail=f"No commit status named {name!r} on {sha}.")
+            raise ResourceNotFound(detail=f"No commit status named {name!r} on {sha}.")
         return make_result(_make_map_check_run(self, sha, name), raw, raw_item=latest)
 
     def update_check_run(
@@ -1419,8 +1420,7 @@ class GitLabProvider:
         """
         sha, name = _split_check_run_id(check_run_id)
         if status is None and conclusion is None:
-            raise SCMCodedError(
-                code="resource_bad_request",
+            raise ResourceBadRequest(
                 detail="GitLab does not support output-only updates; pass 'status' or 'conclusion'.",
             )
         data: dict[str, Any] = {"name": name, "state": _gitlab_state_for(status, conclusion)}
@@ -1443,7 +1443,7 @@ class GitLabProvider:
             return self.post(GitLab.statuses.format(project=self.project_id, sha=sha), data=data)
         except SCMCodedError as e:
             if e.detail and "Cannot transition status" in e.detail:
-                raise SCMCodedError(code="invalid_check_run_state_transition", detail=e.detail) from e
+                raise InvalidCheckRunStateTransition(detail=e.detail) from e
             raise
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
@@ -1681,6 +1681,17 @@ def map_git_ref(raw: dict[str, Any]) -> GitRef:
 _DRAFT_TITLE_PREFIXES = ("draft:", "[draft]", "(draft)")
 
 
+def _head_to_source_branch(head: str) -> str:
+    """Normalize a GitHub-style ``head`` filter to a GitLab ``source_branch``.
+
+    Callers pass ``head`` in GitHub's shape — an optional ``owner:`` prefix and
+    sometimes a ``refs/heads/`` ref prefix (e.g. ``"acme:refs/heads/feature"``).
+    GitLab's ``source_branch`` query filter wants the bare branch name.
+    """
+    branch = head.split(":", 1)[-1]
+    return branch.removeprefix("refs/heads/")
+
+
 def _with_draft_prefix(title: str) -> str:
     if title.lstrip().lower().startswith(_DRAFT_TITLE_PREFIXES):
         return title
@@ -1688,13 +1699,15 @@ def _with_draft_prefix(title: str) -> str:
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
+    diff_refs = raw.get("diff_refs") or {}
+    base_sha = diff_refs.get("start_sha") or diff_refs.get("base_sha")
     return PullRequest(
         internal_id=str(raw["id"]),
         id=str(raw["iid"]),
         title=raw["title"],
         body=raw["description"] or None,
         state="open" if raw["state"] == "opened" else "closed",
-        base=PullRequestBranch(ref=raw["target_branch"], sha=None),
+        base=PullRequestBranch(ref=raw["target_branch"], sha=base_sha),
         head=PullRequestBranch(
             ref=raw["source_branch"],
             sha=raw["sha"],
@@ -1749,13 +1762,45 @@ def map_commit_diff(raw: dict[str, Any]) -> CommitFile:
     )
 
 
+def _count_unified_diff_changes(patch: str | None) -> int:
+    if not patch:
+        return 0
+
+    changes = 0
+    in_hunk = False
+    for line in patch.splitlines():
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if not in_hunk and line.startswith(("+++ ", "--- ")):
+            # Skip file headers only before the first hunk
+            continue
+        if line.startswith(("+", "-")):
+            changes += 1
+    return changes
+
+
 def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
+    old_path = raw.get("old_path")
+    new_path = raw.get("new_path") or old_path or ""
+    patch = raw.get("diff")
+    filename = (old_path or new_path) if raw.get("deleted_file") else new_path
+    previous_filename = old_path if old_path != new_path else None
+
+    status: FileStatus = "modified"
+    if raw.get("new_file"):
+        status = "added"
+    elif raw.get("deleted_file"):
+        status = "removed"
+    elif raw.get("renamed_file"):
+        status = "renamed"
+
     return PullRequestFile(
-        filename=raw["new_path"],
-        previous_filename=(raw["old_path"] if raw["old_path"] != raw["new_path"] else None),
-        status=("added" if raw["new_file"] else "removed" if raw["deleted_file"] else "modified"),
-        changes=0,
-        patch=raw.get("diff"),
+        filename=filename,
+        previous_filename=previous_filename,
+        status=status,
+        changes=_count_unified_diff_changes(patch),
+        patch=patch,
         sha="",
     )
 
@@ -1833,7 +1878,7 @@ def _split_check_run_id(check_run_id: ResourceId) -> tuple[str, str]:
     """Parse a ``"{sha}:{name}"`` check run id. ``name`` may contain colons."""
     sha, sep, name = check_run_id.partition(":")
     if not sep or not sha or not name:
-        raise SCMCodedError(code="resource_bad_request", detail=f"Expected '<sha>:<name>', got {check_run_id!r}.")
+        raise ResourceBadRequest(detail=f"Expected '<sha>:<name>', got {check_run_id!r}.")
     return sha, name
 
 
@@ -1841,8 +1886,7 @@ def _gitlab_state_for(status: BuildStatus | None, conclusion: BuildConclusion | 
     if conclusion is not None:
         return GITLAB_BUILD_CONCLUSION_WRITE_MAP[conclusion]
     if status == "completed":
-        raise SCMCodedError(
-            code="resource_bad_request",
+        raise ResourceBadRequest(
             detail="A 'conclusion' is required when 'status' is 'completed'.",
         )
     if status == "running":
