@@ -491,9 +491,8 @@ class GitHubProvider:
         return map_action(response, map_app_installation)
 
     def get_authenticated_actor(self) -> ActionResult[Author]:
-        # Installation tokens authenticate as the app's bot user (GET /user).
         response = self.get("/user")
-        return map_action(response, map_author)
+        return map_action(response, map_authenticated_actor)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
@@ -1797,6 +1796,10 @@ def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPermissio
 def map_author(raw_user: dict[str, Any] | None) -> Author | None:
     if raw_user is None:
         return None
+    return Author(id=str(raw_user["id"]), username=raw_user["login"])
+
+
+def map_authenticated_actor(raw_user: dict[str, Any]) -> Author:
     return Author(id=str(raw_user["id"]), username=raw_user["login"])
 
 
