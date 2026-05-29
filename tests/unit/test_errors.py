@@ -7,11 +7,21 @@ from scm.errors import (
     ERROR_CODES,
     ErrorCode,
     RepositoryNotFound,
+    ResourceBadGateway,
+    ResourceBadRequest,
+    ResourceConflict,
+    ResourceForbidden,
     ResourceNotFound,
+    ResourceServerError,
+    ResourceUnauthorized,
+    ResourceUnprocessableContent,
     RpcInvalidGrant,
     SCMCodedError,
     SCMError,
+    UnhandledException,
+    error_class_for_status,
 )
+from scm.helpers import exec_provider_fn
 from scm.rpc.errors import deserialize_error, serialize_error
 from scm.rpc.types import Error, ErrorResponse
 
@@ -62,6 +72,28 @@ class TestConcreteErrors:
             raise RpcInvalidGrant()
 
 
+class TestErrorClassForStatus:
+    @pytest.mark.parametrize(
+        ("status_code", "expected_type"),
+        [
+            (400, ResourceBadRequest),
+            (401, ResourceUnauthorized),
+            (403, ResourceForbidden),
+            (404, ResourceNotFound),
+            (409, ResourceConflict),
+            (422, ResourceUnprocessableContent),
+            (500, ResourceServerError),
+            (502, ResourceBadGateway),
+        ],
+    )
+    def test_maps_known_status_to_concrete_class(self, status_code, expected_type):
+        assert error_class_for_status(status_code) is expected_type
+
+    @pytest.mark.parametrize("status_code", [418, 451, 503, 504, 599])
+    def test_unmapped_status_falls_back_to_unhandled_exception(self, status_code):
+        assert error_class_for_status(status_code) is UnhandledException
+
+
 class TestFromCode:
     def test_returns_concrete_subclass_for_every_code(self):
         for code in ALL_CODES:
@@ -107,6 +139,27 @@ class TestRpcRoundTrip:
             assert type(exc_info.value) is SCMCodedError._registry[code]
             assert exc_info.value.code == code
             assert exc_info.value.detail == "d"
+
+    def test_unexpected_exception_detail_survives_the_boundary(self):
+        # An unexpected (non-SCM) exception raised while processing is wrapped by exec_provider_fn.
+        # The cause chain is local-only, so the type+message must reach the client via `detail`.
+        class FakeProvider:
+            def is_rate_limited(self, referrer):
+                return False
+
+        def boom():
+            raise ValueError("connection reset by peer")
+
+        try:
+            exec_provider_fn(FakeProvider(), provider_fn=boom, record_count=lambda *a, **k: None)
+        except UnhandledException as wrapped:
+            _, payload = serialize_error(wrapped)
+
+        with pytest.raises(UnhandledException) as exc_info:
+            deserialize_error(payload)
+
+        assert exc_info.value.code == "unhandled_exception"
+        assert exc_info.value.detail == "ValueError: connection reset by peer"
 
     def test_multiple_errors_raise_exception_group_of_concrete_classes(self):
         payload = msgspec.json.encode(
