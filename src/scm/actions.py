@@ -89,6 +89,7 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    GetRepositoryUserPermissionProtocol,
     GetTreeProtocol,
     GitBlob,
     GitCommitObject,
@@ -101,6 +102,7 @@ from scm.types import (
     Label,
     ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
+    ListRepositoryUserPermissionsProtocol,
     MinimizeCommentProtocol,
     MoveCommitAction,
     PaginatedActionResult,
@@ -127,6 +129,7 @@ from scm.types import (
     UpdateIssueProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -148,6 +151,24 @@ def get_repository_assignees(
 ) -> PaginatedActionResult[list[Author]]:
     """Get users available as assignees for issues and pull requests in the repository."""
     return scm.get_repository_assignees(pagination, request_options)
+
+
+def list_repository_user_permissions(
+    scm: ListRepositoryUserPermissionsProtocol,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[UserPermissions]]:
+    """Get repository permissions for all collaborators."""
+    return scm.list_repository_user_permissions(pagination, request_options)
+
+
+def get_repository_user_permission(
+    scm: GetRepositoryUserPermissionProtocol,
+    username: str,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[UserPermissions]:
+    """Get repository permissions for a single user."""
+    return scm.get_repository_user_permission(username, request_options)
 
 
 def get_repository_labels(
@@ -925,10 +946,12 @@ __all__ = (
     "get_readme",
     "get_repository",
     "get_repository_assignees",
+    "get_repository_user_permission",
     "get_repository_labels",
     "get_repository_topics",
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
+    "list_repository_user_permissions",
     "list_repositories",
     "minimize_comment",
     "resolve_review_thread",

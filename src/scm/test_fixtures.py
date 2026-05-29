@@ -53,6 +53,7 @@ from scm.types import (
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -695,6 +696,30 @@ class BaseTestProvider(Provider):
             type="github",
             raw={"headers": None, "data": None},
             meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def list_repository_user_permissions(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[UserPermissions]]:
+        return PaginatedActionResult(
+            data=[UserPermissions(login="testuser", id="123", perms="write")],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def get_repository_user_permission(
+        self,
+        username: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[UserPermissions]:
+        return ActionResult(
+            data=UserPermissions(login=username, id="123", perms="write"),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
         )
 
     def get_repository_labels(
