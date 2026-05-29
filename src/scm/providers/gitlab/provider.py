@@ -6,7 +6,16 @@ from urllib.parse import quote
 
 import requests
 
-from scm.errors import ErrorCode, SCMCodedError
+from scm.errors import (
+    ErrorCode,
+    InvalidCheckRunStateTransition,
+    MalformedExternalId,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceNotFound,
+    SCMCodedError,
+)
 from scm.helpers import iter_all_pages
 from scm.types import (
     SHA,
@@ -220,7 +229,7 @@ class GitLabProvider:
 
         # External ID format is "{netloc}:{repo_id}", where netloc might contain a colon before a port number
         if repository["external_id"] is None or ":" not in repository["external_id"]:
-            raise SCMCodedError(code="malformed_external_id")
+            raise MalformedExternalId()
 
         netloc, self.project_id = repository["external_id"].rsplit(":", maxsplit=1)
         self.web_base_url = f"https://{netloc}"
@@ -787,7 +796,7 @@ class GitLabProvider:
             for entry in page["data"]:
                 if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
                     return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
-        raise SCMCodedError(code="readme_not_found")
+        raise ReadmeNotFound()
 
     def get_pull_request_template(
         self,
@@ -846,7 +855,7 @@ class GitLabProvider:
         except SCMCodedError as e:
             # GitLab returns 404 "not treeish" when the path resolves to a file.
             if e.code == "resource_not_found" and e.detail and "not treeish" in e.detail:
-                raise SCMCodedError(code="path_is_not_directory", detail=path) from e
+                raise PathIsNotDirectory(detail=path) from e
             raise
         return make_paginated_result(map_tree_entry_to_file_content, response, response.json())
 
@@ -1396,7 +1405,7 @@ class GitLabProvider:
         raw = response.json()
         latest = _latest_status(raw, name)
         if latest is None:
-            raise SCMCodedError(code="resource_not_found", detail=f"No commit status named {name!r} on {sha}.")
+            raise ResourceNotFound(detail=f"No commit status named {name!r} on {sha}.")
         return make_result(_make_map_check_run(self, sha, name), raw, raw_item=latest)
 
     def update_check_run(
@@ -1424,8 +1433,7 @@ class GitLabProvider:
         """
         sha, name = _split_check_run_id(check_run_id)
         if status is None and conclusion is None:
-            raise SCMCodedError(
-                code="resource_bad_request",
+            raise ResourceBadRequest(
                 detail="GitLab does not support output-only updates; pass 'status' or 'conclusion'.",
             )
         data: dict[str, Any] = {"name": name, "state": _gitlab_state_for(status, conclusion)}
@@ -1448,7 +1456,7 @@ class GitLabProvider:
             return self.post(GitLab.statuses.format(project=self.project_id, sha=sha), data=data)
         except SCMCodedError as e:
             if e.detail and "Cannot transition status" in e.detail:
-                raise SCMCodedError(code="invalid_check_run_state_transition", detail=e.detail) from e
+                raise InvalidCheckRunStateTransition(detail=e.detail) from e
             raise
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
@@ -1883,7 +1891,7 @@ def _split_check_run_id(check_run_id: ResourceId) -> tuple[str, str]:
     """Parse a ``"{sha}:{name}"`` check run id. ``name`` may contain colons."""
     sha, sep, name = check_run_id.partition(":")
     if not sep or not sha or not name:
-        raise SCMCodedError(code="resource_bad_request", detail=f"Expected '<sha>:<name>', got {check_run_id!r}.")
+        raise ResourceBadRequest(detail=f"Expected '<sha>:<name>', got {check_run_id!r}.")
     return sha, name
 
 
@@ -1891,8 +1899,7 @@ def _gitlab_state_for(status: BuildStatus | None, conclusion: BuildConclusion | 
     if conclusion is not None:
         return GITLAB_BUILD_CONCLUSION_WRITE_MAP[conclusion]
     if status == "completed":
-        raise SCMCodedError(
-            code="resource_bad_request",
+        raise ResourceBadRequest(
             detail="A 'conclusion' is required when 'status' is 'completed'.",
         )
     if status == "running":

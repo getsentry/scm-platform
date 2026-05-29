@@ -4,7 +4,14 @@ from urllib.parse import urlparse
 import msgspec
 import requests
 
-from scm.errors import ErrorCode, SCMCodedError
+from scm.errors import (
+    RpcInvalidGrant,
+    RpcInvalidPath,
+    RpcMalformedRequestBody,
+    RpcMalformedRequestHeaders,
+    RpcRequestTooLarge,
+    SCMCodedError,
+)
 from scm.helpers import exec_provider_fn
 from scm.manager import SourceCodeManager
 from scm.rpc.errors import serialize_error
@@ -36,7 +43,7 @@ class RpcServer:
             authorization, organization_id, repository_id = self._extract_headers(headers)
 
             if not verify_get(self.secrets, organization_id, repository_id, authorization):
-                raise SCMCodedError(code="rpc_invalid_grant")
+                raise RpcInvalidGrant()
 
             scm = SourceCodeManager.make_client(
                 organization_id,
@@ -86,17 +93,17 @@ class RpcServer:
         authorization, organization_id, repository_id = self._extract_headers(headers)
 
         if not verify_post(self.secrets, data, authorization):
-            raise SCMCodedError(code="rpc_invalid_grant")
+            raise RpcInvalidGrant()
         if len(data) >= TEN_MEGABYTES:
-            raise SCMCodedError(code="rpc_request_too_large")
+            raise RpcRequestTooLarge()
 
         try:
             action_request = msgspec.json.decode(data, type=ActionRequest)
         except msgspec.DecodeError as e:
-            raise SCMCodedError(code="rpc_malformed_request_body") from e
+            raise RpcMalformedRequestBody() from e
 
         if not is_safe_path(action_request.data.path):
-            raise SCMCodedError(code="rpc_invalid_path")
+            raise RpcInvalidPath()
 
         scm = SourceCodeManager.make_client(
             organization_id,
@@ -133,27 +140,25 @@ class RpcServer:
         )
 
     def _extract_headers(self, headers: Mapping[str, str]) -> tuple[str, int, RepositoryId]:
-        code: ErrorCode = "rpc_malformed_request_headers"
-
         try:
             authorization = headers["Authorization"].removeprefix("rpcsignature ")
         except KeyError as e:
-            raise SCMCodedError(code=code, detail="Could not find Authorization header") from e
+            raise RpcMalformedRequestHeaders(detail="Could not find Authorization header") from e
 
         try:
             raw = headers["X-Organization-Id"]
             organization_id = int(raw)
         except KeyError as e:
-            raise SCMCodedError(code=code, detail="Could not find X-Organization-Id header") from e
+            raise RpcMalformedRequestHeaders(detail="Could not find X-Organization-Id header") from e
         except ValueError as e:
-            raise SCMCodedError(code=code, detail="Could not parse X-Organization-Id header") from e
+            raise RpcMalformedRequestHeaders(detail="Could not parse X-Organization-Id header") from e
 
         try:
             repository_id = msgspec.json.decode(headers["X-Repository-Id"], type=RepositoryId)
         except KeyError as e:
-            raise SCMCodedError(code=code, detail="Could not find X-Repository-Id header") from e
+            raise RpcMalformedRequestHeaders(detail="Could not find X-Repository-Id header") from e
         except msgspec.DecodeError as e:
-            raise SCMCodedError(code=code, detail="Could not parse X-Repository-Id header") from e
+            raise RpcMalformedRequestHeaders(detail="Could not parse X-Repository-Id header") from e
 
         return authorization, organization_id, repository_id
 

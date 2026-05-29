@@ -22,15 +22,15 @@ SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
 
 
 def deserialize_error(error: bytes) -> None:
-    """Deserialize an RPC error to an exception type and raise."""
+    """Deserialize an RPC error to its concrete exception type and raise."""
     response = msgspec.json.decode(error, type=ErrorResponse)
 
     if len(response.errors) == 1:
-        raise SCMCodedError(code=response.errors[0].code, detail=response.errors[0].detail)
+        raise SCMCodedError.from_code(response.errors[0].code, detail=response.errors[0].detail)
     else:
         raise ExceptionGroup(
             "Several exceptions were raise while processing your request.",
-            [SCMCodedError(code=e.code, detail=e.detail) for e in response.errors],
+            [SCMCodedError.from_code(e.code, detail=e.detail) for e in response.errors],
         )
 
 
