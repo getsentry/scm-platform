@@ -22,8 +22,10 @@ from scm.providers.gitlab.provider import (
     ApiClient,
     GitLabProvider,
     _count_unified_diff_changes,
+    _count_unified_diff_lines,
     _head_to_source_branch,
     map_app_installation,
+    map_commit_diff,
     map_pull_request_file,
 )
 from scm.types import (
@@ -10985,8 +10987,8 @@ def _make_mock_response(json_data):
                             "filename": "BLAH.md",
                             "status": "added",
                             "patch": "",
-                            "additions": None,
-                            "deletions": None,
+                            "additions": 0,
+                            "deletions": 0,
                             "previous_filename": None,
                         }
                     ],
@@ -11279,8 +11281,8 @@ def _make_mock_response(json_data):
                         "filename": "BLAH.md",
                         "status": "added",
                         "patch": "@@ -0,0 +1 @@\n+hello\n",
-                        "additions": None,
-                        "deletions": None,
+                        "additions": 1,
+                        "deletions": 0,
                         "previous_filename": None,
                     }
                 ],
@@ -14201,6 +14203,31 @@ def test_count_unified_diff_changes() -> None:
     assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n---content\n+++content\n") == 2
     assert _count_unified_diff_changes("@@ -1,2 +1,2 @@\n--- comment\n+++ comment\n") == 2
     assert _count_unified_diff_changes("--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n-old\n+new\n") == 2
+
+
+def test_count_unified_diff_lines() -> None:
+    # Splits the total change count into (additions, deletions).
+    assert _count_unified_diff_lines(None) == (0, 0)
+    assert _count_unified_diff_lines("") == (0, 0)
+    assert _count_unified_diff_lines("@@ -0,0 +1,2 @@\n+line one\n+line two\n") == (2, 0)
+    assert _count_unified_diff_lines("@@ -1,2 +0,0 @@\n-old one\n-old two\n") == (0, 2)
+    assert _count_unified_diff_lines("@@ -1,2 +1,2 @@\n-old\n+new\n") == (1, 1)
+    # In-hunk body lines that look like file headers are still counted.
+    assert _count_unified_diff_lines("@@ -1,2 +1,2 @@\n---content\n+++content\n") == (1, 1)
+    assert _count_unified_diff_lines("@@ -1,2 +1,2 @@\n--- comment\n+++ comment\n") == (1, 1)
+    # Pre-hunk file headers are skipped.
+    assert _count_unified_diff_lines("--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n-old\n+new\n") == (1, 1)
+
+
+def test_map_commit_diff_counts_additions_deletions() -> None:
+    raw = {
+        "diff": "@@ -1,2 +1,3 @@\n context\n-removed\n+added one\n+added two\n",
+        "new_path": "file.py",
+        "old_path": "file.py",
+    }
+    result = map_commit_diff(raw)
+    assert result["additions"] == 2
+    assert result["deletions"] == 1
 
 
 def test_map_pull_request_file_counts_diff_lines() -> None:
