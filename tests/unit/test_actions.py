@@ -1037,6 +1037,9 @@ def test_exec_wraps_unhandled_exception() -> None:
         assert isinstance(scm, GetBranchProtocol)
         scm.get_branch(branch="main")
     assert e.value.code == "unhandled_exception"
+    # The underlying exception type and message are surfaced as detail so the failure is not opaque.
+    assert e.value.detail == "RuntimeError: unexpected failure"
+    assert isinstance(e.value.__cause__, RuntimeError)
 
 
 def test_exec_records_failure_metric_on_unhandled_exception() -> None:
