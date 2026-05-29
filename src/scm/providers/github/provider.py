@@ -491,8 +491,13 @@ class GitHubProvider:
         return map_action(response, map_app_installation)
 
     def get_authenticated_actor(self) -> ActionResult[Author]:
-        response = self.get("/user")
-        return map_action(response, map_authenticated_actor)
+        # Get the app's bot user
+        app_response = self.get("/app", credentials_set="application")
+        app_slug = app_response.json().get("slug")
+        if not app_slug:
+            raise UnexpectedResponseFormat(detail="GitHub /app response missing slug")
+        bot_response = self.get(f"/users/{app_slug}[bot]")
+        return map_action(bot_response, map_authenticated_actor)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")

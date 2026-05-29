@@ -712,14 +712,6 @@ ACTION_CASES: list[dict[str, Any]] = [
         "credentials_set": "application",
     },
     {
-        "name": "get_authenticated_actor",
-        "operation": "get",
-        "kwargs": {},
-        "path": "/user",
-        "raw": {"id": 177979347, "login": "sentry[bot]"},
-        "expected_data": {"id": "177979347", "username": "sentry[bot]"},
-    },
-    {
         "name": "get_repository",
         "operation": "get",
         "kwargs": {},
@@ -1283,6 +1275,40 @@ def test_action_methods(case: dict[str, Any]) -> None:
             expected_call["params"] = case["params"]
         expected_call["headers"] = case.get("headers")
     assert client.calls == [expected_call]
+
+
+def test_get_authenticated_actor_uses_app_slug_for_bot_user() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 3028048, "slug": "sentry"}))
+    client.queue("get", FakeResponse({"id": 177979347, "login": "sentry[bot]"}))
+
+    result = provider.get_authenticated_actor()
+
+    assert result["type"] == "github"
+    assert result["data"] == {"id": "177979347", "username": "sentry[bot]"}
+    assert result["raw"] == {"data": {"id": 177979347, "login": "sentry[bot]"}, "headers": {}}
+    assert client.calls == [
+        {
+            "operation": "get",
+            "path": "/app",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+            "credentials_set": "application",
+            "timeout": None,
+        },
+        {
+            "operation": "get",
+            "path": "/users/sentry[bot]",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+            "credentials_set": "installation",
+            "timeout": None,
+        },
+    ]
 
 
 def test_create_pull_request_comment_forwards_copilot_chat_extensions() -> None:
@@ -2647,6 +2673,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_thread_id_from_review_comment_unique_id",
         "collapse_pull_request_comment",
         "update_and_collapse_pull_request_comment",
+        "get_authenticated_actor",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},
