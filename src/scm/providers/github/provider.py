@@ -9,7 +9,6 @@ import requests
 
 from scm.errors import (
     DraftPullRequestNotSupported,
-    ErrorCode,
     PathIsDirectory,
     PathIsNotDirectory,
     ReadmeNotFound,
@@ -17,6 +16,7 @@ from scm.errors import (
     ResourceNotFound,
     SCMCodedError,
     UnexpectedResponseFormat,
+    error_class_for_status,
 )
 from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
@@ -393,21 +393,8 @@ class GitHubProvider:
             )
 
         if response.status_code >= 400:
-            if response.status_code == 401:
-                code: ErrorCode = "resource_unauthorized"  # type: ignore[no-redef]
-            elif response.status_code == 403:
-                code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
-            elif response.status_code == 404:
-                code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
-            elif response.status_code == 409:
-                code: ErrorCode = "resource_conflict"  # type: ignore[no-redef]
-            elif response.status_code == 422:
-                code: ErrorCode = "resource_unprocessable_content"  # type: ignore[no-redef]
-            else:
-                code: ErrorCode = "unhandled_exception"  # type: ignore[no-redef]
-
-            raise SCMCodedError(
-                code=code,
+            error_cls = error_class_for_status(response.status_code)
+            raise error_cls(
                 detail=response.content.decode("utf-8"),
                 response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,

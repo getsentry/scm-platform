@@ -23,6 +23,8 @@ type ErrorCode = Literal[
     "resource_not_found",
     "resource_conflict",
     "resource_unprocessable_content",
+    "resource_server_error",
+    "resource_bad_gateway",
     "unexpected_response_format",
     "unhandled_exception",
     "draft_pull_request_not_supported",
@@ -52,6 +54,8 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_not_found": "The requested resource could not be found on the service-provider.",
     "resource_conflict": "Request could not be processed because it conflicts with the target resource on the server.",
     "resource_unprocessable_content": "Request could not be processed.",
+    "resource_server_error": "The service-provider encountered an internal error.",
+    "resource_bad_gateway": "The service-provider returned an invalid response from an upstream gateway.",
     "unexpected_response_format": "The response format was in an unexpected format.",
     "unhandled_exception": "An unhandled exception occurred.",
     "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
@@ -196,6 +200,14 @@ class ResourceUnprocessableContent(SCMCodedError):
     code = "resource_unprocessable_content"
 
 
+class ResourceServerError(SCMCodedError):
+    code = "resource_server_error"
+
+
+class ResourceBadGateway(SCMCodedError):
+    code = "resource_bad_gateway"
+
+
 class UnexpectedResponseFormat(SCMCodedError):
     code = "unexpected_response_format"
 
@@ -210,3 +222,25 @@ class DraftPullRequestNotSupported(SCMCodedError):
 
 class InvalidCheckRunStateTransition(SCMCodedError):
     code = "invalid_check_run_state_transition"
+
+
+# Maps a service-provider HTTP error status onto a concrete error class.
+_STATUS_TO_ERROR: dict[int, type[SCMCodedError]] = {
+    400: ResourceBadRequest,
+    401: ResourceUnauthorized,
+    403: ResourceForbidden,
+    404: ResourceNotFound,
+    409: ResourceConflict,
+    422: ResourceUnprocessableContent,
+    500: ResourceServerError,
+    502: ResourceBadGateway,
+}
+
+
+def error_class_for_status(status_code: int) -> type[SCMCodedError]:
+    """Return the concrete error class modeling a service-provider HTTP error status.
+
+    Unmapped statuses fall back to ``UnhandledException`` so callers can distinguish "the provider
+    returned an error we model" from an unexpected response we treat as a defect.
+    """
+    return _STATUS_TO_ERROR.get(status_code, UnhandledException)

@@ -80,4 +80,7 @@ def exec_provider_fn[T](
     except Exception as e:
         record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})
         record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
-        raise UnhandledException() from e
+        # The cause is chained for server-side Sentry, but exception chains do not survive the RPC
+        # boundary. Surface the type and message as `detail` so a client sees what actually failed
+        # instead of an opaque "unhandled_exception".
+        raise UnhandledException(detail=f"{type(e).__name__}: {e}") from e
