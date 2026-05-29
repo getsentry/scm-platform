@@ -64,6 +64,7 @@ from scm.types import (
     ReactionResult,
     Referrer,
     Repository,
+    RepositoryPermission,
     RequestOptions,
     ResourceId,
     Review,
@@ -74,6 +75,7 @@ from scm.types import (
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -100,6 +102,8 @@ class GitLab:
     issue = "/projects/{project}/issues/{issue}"
     issues = "/projects/{project}/issues"
     project_users = "/projects/{project_id}/users"
+    project_members = "/projects/{project_id}/members/all"
+    project_member = "/projects/{project_id}/members/all/{user_id}"
     project_labels = "/projects/{project_id}/labels"
     issue_awards = "/projects/{project_id}/issues/{issue_id}/award_emoji"
     issue_award = "/projects/{project_id}/issues/{issue_id}/award_emoji/{award_id}"
@@ -341,6 +345,29 @@ class GitLabProvider:
             request_options=request_options,
         )
         return make_paginated_result(map_author, response, response.json())
+
+    def list_repository_user_permissions(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[UserPermissions]]:
+        response = self.get(
+            GitLab.project_members.format(project_id=self.project_id),
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_member_permissions, response, response.json())
+
+    def get_repository_user_permission(
+        self,
+        author: Author,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[UserPermissions]:
+        response = self.get(
+            GitLab.project_member.format(project_id=self.project_id, user_id=author["id"]),
+            request_options=request_options,
+        )
+        return make_result(map_member_permissions, response.json())
 
     def get_repository_labels(
         self,
@@ -1817,6 +1844,29 @@ def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
         has_read_access=access_level >= 15,  # Planner
         has_write_access=has_developer_access,
         has_check_run_write_access=has_developer_access,
+    )
+
+
+def map_access_level(access_level: int) -> RepositoryPermission:
+    # GitLab default roles, keyed by numerical access level:
+    # https://docs.gitlab.com/user/permissions/#default-roles
+    # Maintainer (40) and Owner (50) can administer the project; Developer (30)
+    # can push; Reporter (20) and Guest (10) are read-only; anything lower has
+    # no access.
+    if access_level >= 40:  # Maintainer, Owner
+        return "admin"
+    if access_level >= 30:  # Developer
+        return "write"
+    if access_level >= 10:  # Guest, Planner, Reporter
+        return "read"
+    return "none"
+
+
+def map_member_permissions(raw: dict[str, Any]) -> UserPermissions:
+    return UserPermissions(
+        login=raw["username"],
+        id=str(raw["id"]),
+        perms=map_access_level(raw["access_level"]),
     )
 
 

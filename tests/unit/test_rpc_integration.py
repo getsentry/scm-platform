@@ -187,7 +187,7 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
     ),
     (
         "get_repository_user_permission",
-        lambda scm: actions.get_repository_user_permission(scm, "reader"),
+        lambda scm: actions.get_repository_user_permission(scm, {"id": "1", "username": "reader"}),
         {"permission": "read", "role_name": "read", "user": {"login": "reader", "id": 1}},
         200,
         None,

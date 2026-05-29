@@ -66,7 +66,7 @@ Commands:
     list-repositories
     get-repository-assignees
     list-repository-user-permissions
-    get-repository-user-permission <username>
+    get-repository-user-permission <id> <username>
     get-repository-labels
     get-repository-topics
     get-app-installation
@@ -80,6 +80,7 @@ import sys
 
 from scm.manager import SourceCodeManager
 from scm.types import (
+    Author,
     CheckRunOutput,
     ChmodCommitAction,
     CollapsePullRequestCommentProtocol,
@@ -385,6 +386,7 @@ def main():
     sub.add_parser("get-repository-assignees")
     sub.add_parser("list-repository-user-permissions")
     p = sub.add_parser("get-repository-user-permission")
+    p.add_argument("id")
     p.add_argument("username")
     sub.add_parser("get-repository-labels")
     sub.add_parser("get-repository-topics")
@@ -656,7 +658,7 @@ def main():
 
     elif args.command == "get-repository-user-permission":
         assert isinstance(scm, GetRepositoryUserPermissionProtocol)
-        dump(scm.get_repository_user_permission(args.username))
+        dump(scm.get_repository_user_permission(Author(id=args.id, username=args.username)))
 
     elif args.command == "get-repository-labels":
         assert isinstance(scm, GetRepositoryLabelsProtocol)

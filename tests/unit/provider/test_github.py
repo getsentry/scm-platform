@@ -722,7 +722,7 @@ ACTION_CASES: list[dict[str, Any]] = [
     {
         "name": "get_repository_user_permission",
         "operation": "get",
-        "kwargs": {"username": "testuser"},
+        "kwargs": {"author": {"id": "123", "username": "testuser"}},
         "path": "/repos/test-org/test-repo/collaborators/testuser/permission",
         "raw": make_collaborator_permission(permission="write"),
         "expected_data": {"login": "testuser", "id": "123", "perms": "write"},

@@ -23,6 +23,7 @@ from scm.providers.gitlab.provider import (
     GitLabProvider,
     _count_unified_diff_changes,
     _head_to_source_branch,
+    map_access_level,
     map_app_installation,
     map_pull_request_file,
 )
@@ -163,6 +164,68 @@ def _make_mock_response(json_data):
                     "headers": None,
                 },
                 "meta": {"next_cursor": None},
+            },
+        ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.list_repository_user_permissions,
+            provider_args={"pagination": None, "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/members/all",
+                    json_response=[
+                        {"id": 1, "username": "dev", "name": "Dev", "state": "active", "access_level": 30},
+                        {"id": 2, "username": "owner", "name": "Owner", "state": "active", "access_level": 50},
+                    ],
+                ),
+            ],
+            provider_return_value={
+                "data": [
+                    {"login": "dev", "id": "1", "perms": "write"},
+                    {"login": "owner", "id": "2", "perms": "admin"},
+                ],
+                "type": "gitlab",
+                "raw": {
+                    "data": [
+                        {"id": 1, "username": "dev", "name": "Dev", "state": "active", "access_level": 30},
+                        {"id": 2, "username": "owner", "name": "Owner", "state": "active", "access_level": 50},
+                    ],
+                    "headers": None,
+                },
+                "meta": {"next_cursor": None},
+            },
+        ),
+        ForwardToClientTest(
+            provider_method=GitLabProvider.get_repository_user_permission,
+            # GitLab resolves the member by Author.id, not username.
+            provider_args={"author": {"id": "42", "username": "maintainer"}, "request_options": None},
+            client_calls=[
+                ClientForwardedCall(
+                    method="GET",
+                    path="/projects/79787061/members/all/42",
+                    json_response={
+                        "id": 42,
+                        "username": "maintainer",
+                        "name": "Maintainer",
+                        "state": "active",
+                        "access_level": 40,
+                    },
+                ),
+            ],
+            provider_return_value={
+                "data": {"login": "maintainer", "id": "42", "perms": "admin"},
+                "type": "gitlab",
+                "raw": {
+                    "data": {
+                        "id": 42,
+                        "username": "maintainer",
+                        "name": "Maintainer",
+                        "state": "active",
+                        "access_level": 40,
+                    },
+                    "headers": None,
+                },
+                "meta": {},
             },
         ),
         ForwardToClientTest(
@@ -14219,3 +14282,19 @@ def test_request_maps_status_code_to_error(
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.detail == '{"message":"upstream said no"}'
+
+
+@pytest.mark.parametrize(
+    ("access_level", "expected"),
+    [
+        (0, "none"),  # No access
+        (5, "none"),  # Minimal access
+        (10, "read"),  # Guest
+        (20, "read"),  # Reporter
+        (30, "write"),  # Developer
+        (40, "admin"),  # Maintainer
+        (50, "admin"),  # Owner
+    ],
+)
+def test_map_access_level(access_level: int, expected: str) -> None:
+    assert map_access_level(access_level) == expected

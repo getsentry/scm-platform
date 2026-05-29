@@ -518,18 +518,20 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(pagination, response, lambda r: [map_collaborator_user_perms(user) for user in r])
+        return map_paginated_action(
+            pagination, response, lambda r: [map_collaborator_permissions_dict(user) for user in r]
+        )
 
     def get_repository_user_permission(
         self,
-        username: str,
+        author: Author,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[UserPermissions]:
         response = self.get(
-            f"/repos/{self.repository['name']}/collaborators/{username}/permission",
+            f"/repos/{self.repository['name']}/collaborators/{author['username']}/permission",
             request_options=request_options,
         )
-        return map_action(response, map_collaborator_permission_user_perms)
+        return map_action(response, map_collaborator_permission)
 
     def get_repository_labels(
         self,
@@ -1760,7 +1762,7 @@ def map_github_repository_permission(permissions: dict[str, bool]) -> Repository
     return "none"
 
 
-def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPermissions:
+def map_collaborator_permissions_dict(raw: dict[str, Any]) -> UserPermissions:
     return UserPermissions(
         login=raw["login"],
         id=str(raw["id"]),
@@ -1780,7 +1782,7 @@ def map_collaborator_permission_level(permission: str) -> RepositoryPermission:
     raise ValueError(f"unmappable repository permission: {permission!r}")
 
 
-def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPermissions:
+def map_collaborator_permission(raw: dict[str, Any]) -> UserPermissions:
     user = raw["user"]
     return UserPermissions(
         login=user["login"],

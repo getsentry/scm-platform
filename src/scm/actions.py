@@ -164,11 +164,11 @@ def list_repository_user_permissions(
 
 def get_repository_user_permission(
     scm: GetRepositoryUserPermissionProtocol,
-    username: str,
+    author: Author,
     request_options: RequestOptions | None = None,
 ) -> ActionResult[UserPermissions]:
     """Get repository permissions for a single user."""
-    return scm.get_repository_user_permission(username, request_options)
+    return scm.get_repository_user_permission(author, request_options)
 
 
 def get_repository_labels(

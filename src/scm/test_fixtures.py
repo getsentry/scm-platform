@@ -712,11 +712,11 @@ class BaseTestProvider(Provider):
 
     def get_repository_user_permission(
         self,
-        username: str,
+        author: Author,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[UserPermissions]:
         return ActionResult(
-            data=UserPermissions(login=username, id="123", perms="write"),
+            data=UserPermissions(login=author["username"], id=author["id"], perms="write"),
             type="github",
             raw={"headers": None, "data": None},
             meta={},

@@ -644,7 +644,7 @@ class ListRepositoryUserPermissionsProtocol(Protocol):
 class GetRepositoryUserPermissionProtocol(Protocol):
     def get_repository_user_permission(
         self,
-        username: str,
+        author: Author,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[UserPermissions]: ...
 
