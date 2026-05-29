@@ -121,9 +121,10 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
-    GetUserPermsProtocol,
+    GetRepositoryUserPermissionProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
+    ListRepositoryUserPermissionsProtocol,
     MoveCommitAction,
     PaginationParams,
     UpdateAndCollapsePullRequestCommentProtocol,
@@ -650,11 +651,11 @@ def main():
         dump(scm.get_repository_assignees())
 
     elif args.command == "list-repository-user-permissions":
-        assert isinstance(scm, GetUserPermsProtocol)
+        assert isinstance(scm, ListRepositoryUserPermissionsProtocol)
         dump(scm.list_repository_user_permissions())
 
     elif args.command == "get-repository-user-permission":
-        assert isinstance(scm, GetUserPermsProtocol)
+        assert isinstance(scm, GetRepositoryUserPermissionProtocol)
         dump(scm.get_repository_user_permission(args.username))
 
     elif args.command == "get-repository-labels":

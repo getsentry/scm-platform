@@ -89,8 +89,8 @@ from scm.types import (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    GetRepositoryUserPermissionProtocol,
     GetTreeProtocol,
-    GetUserPermsProtocol,
     GitBlob,
     GitCommitObject,
     GitRef,
@@ -102,6 +102,7 @@ from scm.types import (
     Label,
     ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
+    ListRepositoryUserPermissionsProtocol,
     MinimizeCommentProtocol,
     MoveCommitAction,
     PaginatedActionResult,
@@ -128,7 +129,7 @@ from scm.types import (
     UpdateIssueProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
-    UserPerms,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -153,19 +154,19 @@ def get_repository_assignees(
 
 
 def list_repository_user_permissions(
-    scm: GetUserPermsProtocol,
+    scm: ListRepositoryUserPermissionsProtocol,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
-) -> PaginatedActionResult[list[UserPerms]]:
+) -> PaginatedActionResult[list[UserPermissions]]:
     """Get repository permissions for all collaborators."""
     return scm.list_repository_user_permissions(pagination, request_options)
 
 
 def get_repository_user_permission(
-    scm: GetUserPermsProtocol,
+    scm: GetRepositoryUserPermissionProtocol,
     username: str,
     request_options: RequestOptions | None = None,
-) -> ActionResult[UserPerms]:
+) -> ActionResult[UserPermissions]:
     """Get repository permissions for a single user."""
     return scm.get_repository_user_permission(username, request_options)
 

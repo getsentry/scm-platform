@@ -74,7 +74,7 @@ from scm.types import (
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
-    UserPerms,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -515,7 +515,7 @@ class GitHubProvider:
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[list[UserPerms]]:
+    ) -> PaginatedActionResult[list[UserPermissions]]:
         response = self.get(
             f"/repos/{self.repository['name']}/collaborators",
             pagination=pagination,
@@ -527,7 +527,7 @@ class GitHubProvider:
         self,
         username: str,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[UserPerms]:
+    ) -> ActionResult[UserPermissions]:
         response = self.get(
             f"/repos/{self.repository['name']}/collaborators/{username}/permission",
             request_options=request_options,
@@ -1756,11 +1756,17 @@ def map_github_repository_permission(permissions: dict[str, bool]) -> Repository
         return "admin"
     if permissions.get("push") or permissions.get("maintain"):
         return "write"
-    return "read"
+    if permissions.get("pull") or permissions.get("triage"):
+        return "read"
+    # No access at all. This is only consumed by the list-collaborators endpoint, where a
+    # user without read access presumably wouldn't be returned in the first place, so this
+    # branch is likely unreachable in practice -- we map it to "none" just in case rather
+    # than silently reporting "read" for someone with no permissions.
+    return "none"
 
 
-def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPerms:
-    return UserPerms(
+def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPermissions:
+    return UserPermissions(
         login=raw["login"],
         id=str(raw["id"]),
         perms=map_github_repository_permission(raw.get("permissions", {})),
@@ -1768,18 +1774,20 @@ def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPerms:
 
 
 def map_collaborator_permission_level(permission: str) -> RepositoryPermission:
-    # The /collaborators/{username}/permission endpoint returns an authoritative
-    # top-level permission of "admin", "write", "read", or "none". The first three
-    # match our normalized values directly; "none" (and anything unexpected) has no
-    # representation in RepositoryPermission and must not be silently treated as "read".
-    if permission in ("admin", "write", "read"):
+    # The /collaborators/{username}/permission endpoint reports a top-level "permission"
+    # holding GitHub's legacy base role: one of "admin", "write", "read", or "none".
+    # The granular roles are collapsed here ("maintain" -> "write", "triage" -> "read";
+    # the granular name lives in "role_name"), so these four values map directly onto
+    # RepositoryPermission. "none" is returned for non-collaborators and must not be
+    # silently treated as "read".
+    if permission in ("admin", "write", "read", "none"):
         return cast(RepositoryPermission, permission)
     raise ValueError(f"unmappable repository permission: {permission!r}")
 
 
-def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPerms:
+def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPermissions:
     user = raw["user"]
-    return UserPerms(
+    return UserPermissions(
         login=user["login"],
         id=str(user["id"]),
         perms=map_collaborator_permission_level(raw["permission"]),

@@ -17,6 +17,7 @@ from scm.providers.github.provider import (
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     GitHubProvider,
     map_app_installation,
+    map_collaborator_permission_level,
     map_github_repository_permission,
 )
 from scm.test_fixtures import (
@@ -2534,13 +2535,38 @@ def test_map_app_installation_checks_permission(permissions: dict[str, str], exp
     ("permissions", "expected"),
     [
         ({"pull": True, "triage": True}, "read"),
+        ({"pull": False, "triage": True}, "read"),
         ({"pull": True, "triage": True, "push": True, "maintain": False, "admin": False}, "write"),
         ({"pull": True, "triage": True, "push": False, "maintain": True, "admin": False}, "write"),
         ({"pull": True, "triage": True, "push": True, "maintain": True, "admin": True}, "admin"),
+        ({"pull": False, "triage": False, "push": False, "maintain": False, "admin": False}, "none"),
+        ({}, "none"),
     ],
 )
 def test_map_github_repository_permission(permissions: dict[str, bool], expected: str) -> None:
     assert map_github_repository_permission(permissions) == expected
+
+
+# The /collaborators/{username}/permission endpoint only returns GitHub's legacy base
+# roles in the top-level "permission" field; "maintain" and "triage" are already
+# collapsed to "write"/"read" by GitHub (those granular flags are exercised against the
+# list endpoint in test_map_github_repository_permission above).
+@pytest.mark.parametrize(
+    ("permission", "expected"),
+    [
+        ("admin", "admin"),
+        ("write", "write"),
+        ("read", "read"),
+        ("none", "none"),
+    ],
+)
+def test_map_collaborator_permission_level(permission: str, expected: str) -> None:
+    assert map_collaborator_permission_level(permission) == expected
+
+
+def test_map_collaborator_permission_level_rejects_unknown() -> None:
+    with pytest.raises(ValueError, match="unmappable repository permission"):
+        map_collaborator_permission_level("bogus")
 
 
 def test_public_methods_are_accounted_for() -> None:

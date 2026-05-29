@@ -53,7 +53,7 @@ from scm.types import (
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
-    UserPerms,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -702,9 +702,9 @@ class BaseTestProvider(Provider):
         self,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> PaginatedActionResult[list[UserPerms]]:
+    ) -> PaginatedActionResult[list[UserPermissions]]:
         return PaginatedActionResult(
-            data=[UserPerms(login="testuser", id="123", perms="write")],
+            data=[UserPermissions(login="testuser", id="123", perms="write")],
             type="github",
             raw={"headers": None, "data": None},
             meta=_DEFAULT_PAGINATED_META,
@@ -714,9 +714,9 @@ class BaseTestProvider(Provider):
         self,
         username: str,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[UserPerms]:
+    ) -> ActionResult[UserPermissions]:
         return ActionResult(
-            data=UserPerms(login=username, id="123", perms="write"),
+            data=UserPermissions(login=username, id="123", perms="write"),
             type="github",
             raw={"headers": None, "data": None},
             meta={},
