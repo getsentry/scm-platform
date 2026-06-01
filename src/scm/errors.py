@@ -99,8 +99,8 @@ class SCMCodedError(SCMError):
         if not hasattr(self, "code"):
             raise TypeError(f"{type(self).__name__} requires an error 'code'.")
 
-        self.message = ERROR_CODES[self.code]
-        self.detail = detail
+        self.message = detail or ERROR_CODES[self.code]
+        self.detail = detail or ERROR_CODES[self.code]
         super().__init__(self.code, self.message, *args, *((k, v) for k, v in kwargs.items()))
 
     @classmethod
