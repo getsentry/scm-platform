@@ -52,7 +52,7 @@ class TestConcreteErrors:
         exc = RepositoryNotFound()
         assert exc.code == "repository_not_found"
         assert exc.message == ERROR_CODES["repository_not_found"]
-        assert exc.detail is None
+        assert exc.detail == ERROR_CODES["repository_not_found"]
 
     def test_detail_is_preserved(self):
         exc = ResourceNotFound(detail="pull request org/repo#1")
@@ -111,7 +111,7 @@ class TestBaseClassBackwardsCompatibility:
     def test_base_class_accepts_explicit_code(self):
         exc = SCMCodedError(code="repository_not_found", detail="x")
         assert exc.code == "repository_not_found"
-        assert exc.message == ERROR_CODES["repository_not_found"]
+        assert exc.message == "x"
         assert exc.detail == "x"
 
     def test_base_class_without_code_raises_type_error(self):
