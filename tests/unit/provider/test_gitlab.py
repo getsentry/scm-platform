@@ -13775,6 +13775,23 @@ def test_get_thread_id_from_review_comment_unique_id_returns_none_for_malformed(
     client.request.assert_not_called()
 
 
+def test_map_review_thread_comment_uses_discussion_note_composite_id():
+    from scm.providers.gitlab.provider import map_review_thread_comment
+
+    result = map_review_thread_comment(
+        {
+            "id": 42,
+            "body": "fix me",
+            "author": {"id": 2, "username": "sentry-bot", "bot": True},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "updated_at": "2026-03-11T11:02:00.000Z",
+        },
+        "diff_discussion_id",
+    )
+    assert result["id"] == "diff_discussion_id:42"
+    assert result["unique_id"] == "diff_discussion_id:42"
+
+
 def test_get_pull_request_review_threads_filters_non_positioned_discussions(client, provider: GitLabProvider):
     response = unittest.mock.MagicMock()
     response.json.return_value = [
@@ -13856,8 +13873,8 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
             "start_line": 3,
             "comments": [
                 {
-                    "id": "2",
-                    "unique_id": "2",
+                    "id": "diff_discussion_id:2",
+                    "unique_id": "diff_discussion_id:2",
                     "body": "fix me",
                     "author": {"id": "2", "username": "sentry-bot"},
                     "is_bot": True,
@@ -13865,8 +13882,8 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "updated_at": "2026-03-11T11:02:00.000Z",
                 },
                 {
-                    "id": "3",
-                    "unique_id": "3",
+                    "id": "diff_discussion_id:3",
+                    "unique_id": "diff_discussion_id:3",
                     "body": "reply",
                     "author": {"id": "1", "username": "alice"},
                     "is_bot": False,
