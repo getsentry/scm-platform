@@ -16,21 +16,23 @@ SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
     "resource_not_found": 404,
     "resource_conflict": 409,
     "resource_unprocessable_content": 422,
+    "resource_server_error": 500,
+    "resource_bad_gateway": 502,
     "unexpected_response_format": 500,
     "unhandled_exception": 500,
 }
 
 
 def deserialize_error(error: bytes) -> None:
-    """Deserialize an RPC error to an exception type and raise."""
+    """Deserialize an RPC error to its concrete exception type and raise."""
     response = msgspec.json.decode(error, type=ErrorResponse)
 
     if len(response.errors) == 1:
-        raise SCMCodedError(code=response.errors[0].code, detail=response.errors[0].detail)
+        raise SCMCodedError.from_code(response.errors[0].code, detail=response.errors[0].detail)
     else:
         raise ExceptionGroup(
             "Several exceptions were raise while processing your request.",
-            [SCMCodedError(code=e.code, detail=e.detail) for e in response.errors],
+            [SCMCodedError.from_code(e.code, detail=e.detail) for e in response.errors],
         )
 
 

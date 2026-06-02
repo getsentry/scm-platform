@@ -5,7 +5,18 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from scm.errors import SCMCodedError
+from scm.errors import (
+    ResourceBadGateway,
+    ResourceBadRequest,
+    ResourceConflict,
+    ResourceForbidden,
+    ResourceNotFound,
+    ResourceServerError,
+    ResourceUnauthorized,
+    ResourceUnprocessableContent,
+    SCMCodedError,
+    UnhandledException,
+)
 from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
@@ -17,6 +28,8 @@ from scm.providers.github.provider import (
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     GitHubProvider,
     map_app_installation,
+    map_collaborator_permission_level,
+    map_github_repository_permission,
 )
 from scm.test_fixtures import (
     make_github_assignee,
@@ -226,6 +239,33 @@ def expected_comment(raw: dict[str, Any]) -> dict[str, Any]:
 
 def expected_assignee(raw: dict[str, Any]) -> dict[str, Any]:
     return {"id": str(raw["id"]), "username": raw["login"]}
+
+
+def make_collaborator(
+    login: str = "testuser",
+    user_id: int = 123,
+    permissions: dict[str, bool] | None = None,
+) -> dict[str, Any]:
+    return {
+        "login": login,
+        "id": user_id,
+        "permissions": permissions or {"pull": True, "triage": True, "push": False, "maintain": False, "admin": False},
+    }
+
+
+def make_collaborator_permission(
+    login: str = "testuser",
+    user_id: int = 123,
+    permission: str = "read",
+) -> dict[str, Any]:
+    return {
+        "permission": permission,
+        "role_name": permission,
+        "user": {
+            "login": login,
+            "id": user_id,
+        },
+    }
 
 
 def expected_label(raw: dict[str, Any]) -> dict[str, Any]:
@@ -451,6 +491,36 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "next_cursor": "2",
     },
     {
+        "name": "list_repository_user_permissions",
+        "kwargs": {},
+        "path": "/repos/test-org/test-repo/collaborators",
+        "params": None,
+        "pagination": None,
+        "raw": [
+            make_collaborator(
+                login="reader",
+                user_id=1,
+                permissions={"pull": True, "triage": True, "push": False, "maintain": False, "admin": False},
+            ),
+            make_collaborator(
+                login="writer",
+                user_id=2,
+                permissions={"pull": True, "triage": True, "push": True, "maintain": True, "admin": False},
+            ),
+            make_collaborator(
+                login="admin",
+                user_id=3,
+                permissions={"pull": True, "triage": True, "push": True, "maintain": True, "admin": True},
+            ),
+        ],
+        "expected_data": [
+            {"login": "reader", "id": "1", "perms": "read"},
+            {"login": "writer", "id": "2", "perms": "write"},
+            {"login": "admin", "id": "3", "perms": "admin"},
+        ],
+        "next_cursor": "2",
+    },
+    {
         "name": "get_repository_labels",
         "kwargs": {},
         "path": "/repos/test-org/test-repo/labels",
@@ -672,6 +742,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "path": "/repos/test-org/test-repo",
         "raw": REPOSITORY_RAW,
         "expected_data": expected_repository(REPOSITORY_RAW),
+    },
+    {
+        "name": "get_repository_user_permission",
+        "operation": "get",
+        "kwargs": {"username": "testuser"},
+        "path": "/repos/test-org/test-repo/collaborators/testuser/permission",
+        "raw": make_collaborator_permission(permission="write"),
+        "expected_data": {"login": "testuser", "id": "123", "perms": "write"},
     },
     {
         "name": "get_repository_topics",
@@ -1221,6 +1299,40 @@ def test_action_methods(case: dict[str, Any]) -> None:
             expected_call["params"] = case["params"]
         expected_call["headers"] = case.get("headers")
     assert client.calls == [expected_call]
+
+
+def test_get_authenticated_actor_uses_app_slug_for_bot_user() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 3028048, "slug": "sentry"}))
+    client.queue("get", FakeResponse({"id": 177979347, "login": "sentry[bot]"}))
+
+    result = provider.get_authenticated_actor()
+
+    assert result["type"] == "github"
+    assert result["data"] == {"id": "177979347", "username": "sentry[bot]"}
+    assert result["raw"] == {"data": {"id": 177979347, "login": "sentry[bot]"}, "headers": {}}
+    assert client.calls == [
+        {
+            "operation": "get",
+            "path": "/app",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+            "credentials_set": "application",
+            "timeout": None,
+        },
+        {
+            "operation": "get",
+            "path": "/users/sentry[bot]",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+            "credentials_set": "installation",
+            "timeout": None,
+        },
+    ]
 
 
 def test_create_pull_request_comment_forwards_copilot_chat_extensions() -> None:
@@ -2488,6 +2600,87 @@ def test_map_app_installation_checks_permission(permissions: dict[str, str], exp
     assert map_app_installation({"permissions": permissions}) == expected
 
 
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        ({"pull": True, "triage": True}, "read"),
+        ({"pull": False, "triage": True}, "read"),
+        ({"pull": True, "triage": True, "push": True, "maintain": False, "admin": False}, "write"),
+        ({"pull": True, "triage": True, "push": False, "maintain": True, "admin": False}, "write"),
+        ({"pull": True, "triage": True, "push": True, "maintain": True, "admin": True}, "admin"),
+        ({"pull": False, "triage": False, "push": False, "maintain": False, "admin": False}, "none"),
+        ({}, "none"),
+    ],
+)
+def test_map_github_repository_permission(permissions: dict[str, bool], expected: str) -> None:
+    assert map_github_repository_permission(permissions) == expected
+
+
+# The /collaborators/{username}/permission endpoint only returns GitHub's legacy base
+# roles in the top-level "permission" field; "maintain" and "triage" are already
+# collapsed to "write"/"read" by GitHub (those granular flags are exercised against the
+# list endpoint in test_map_github_repository_permission above).
+@pytest.mark.parametrize(
+    ("permission", "expected"),
+    [
+        ("admin", "admin"),
+        ("write", "write"),
+        ("read", "read"),
+        ("none", "none"),
+    ],
+)
+def test_map_collaborator_permission_level(permission: str, expected: str) -> None:
+    assert map_collaborator_permission_level(permission) == expected
+
+
+def test_map_collaborator_permission_level_rejects_unknown() -> None:
+    with pytest.raises(ValueError, match="unmappable repository permission"):
+        map_collaborator_permission_level("bogus")
+
+
+def _error_response(status_code: int, body: bytes = b'{"message":"boom"}') -> Any:
+    response = MagicMock()
+    response.status_code = status_code
+    response.content = body
+    response.headers = {}
+    response.request = MagicMock(headers={}, body=None, url="https://api.github.com/x", method="GET")
+    return response
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected_code", "expected_type"),
+    [
+        (400, "resource_bad_request", ResourceBadRequest),
+        (401, "resource_unauthorized", ResourceUnauthorized),
+        (403, "resource_forbidden", ResourceForbidden),
+        (404, "resource_not_found", ResourceNotFound),
+        (409, "resource_conflict", ResourceConflict),
+        (422, "resource_unprocessable_content", ResourceUnprocessableContent),
+        (500, "resource_server_error", ResourceServerError),
+        (502, "resource_bad_gateway", ResourceBadGateway),
+        (418, "unhandled_exception", UnhandledException),
+        (503, "unhandled_exception", UnhandledException),
+    ],
+)
+def test_request_maps_status_code_to_error(
+    status_code: int, expected_code: str, expected_type: type[SCMCodedError]
+) -> None:
+    client = MagicMock(spec=ApiClient)
+    client.request.return_value = _error_response(status_code, body=b'{"message":"upstream said no"}')
+    provider = GitHubProvider(
+        client,
+        organization_id=1,
+        repository=make_repository(),
+        rate_limiter=NoOpRateLimiter(),
+    )
+
+    with pytest.raises(expected_type) as exc_info:
+        provider.request("GET", "/repos/test-org/test-repo")
+
+    assert exc_info.value.code == expected_code
+    assert exc_info.value.detail == '{"message":"upstream said no"}'
+
+
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
@@ -2504,6 +2697,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_thread_id_from_review_comment_unique_id",
         "collapse_pull_request_comment",
         "update_and_collapse_pull_request_comment",
+        "get_authenticated_actor",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

@@ -126,6 +126,7 @@ type IssueState = Literal["open", "closed"]
 type PullRequestState = Literal["open", "closed"]
 type ReviewEvent = Literal["approve", "change_request", "comment"]
 type Encoding = Literal["utf-8", "base64"]
+type RepositoryPermission = Literal["admin", "read", "write", "none"]
 
 
 @dataclasses.dataclass
@@ -271,6 +272,14 @@ class AppInstallation(TypedDict):
     has_read_access: bool
     has_write_access: bool
     has_check_run_write_access: bool
+
+
+class UserPermissions(TypedDict):
+    """Normalized repository permissions for a user."""
+
+    login: str
+    id: str
+    perms: RepositoryPermission
 
 
 class RawResult(TypedDict):
@@ -609,6 +618,11 @@ class GetAppInstallationProtocol(Protocol):
 
 
 @runtime_checkable
+class GetAuthenticatedActorProtocol(Protocol):
+    def get_authenticated_actor(self) -> ActionResult[Author]: ...
+
+
+@runtime_checkable
 class GetRepositoryProtocol(Protocol):
     def get_repository(self) -> ActionResult[GitRepository]: ...
 
@@ -620,6 +634,24 @@ class GetRepositoryAssigneesProtocol(Protocol):
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[Author]]: ...
+
+
+@runtime_checkable
+class ListRepositoryUserPermissionsProtocol(Protocol):
+    def list_repository_user_permissions(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[UserPermissions]]: ...
+
+
+@runtime_checkable
+class GetRepositoryUserPermissionProtocol(Protocol):
+    def get_repository_user_permission(
+        self,
+        username: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[UserPermissions]: ...
 
 
 @runtime_checkable
@@ -1377,6 +1409,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
+    GetAuthenticatedActorProtocol,
     GetArchiveLinkProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
@@ -1411,6 +1444,8 @@ ALL_PROTOCOLS = (
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
+    GetRepositoryUserPermissionProtocol,
+    ListRepositoryUserPermissionsProtocol,
     GetTreeProtocol,
     ListRepositoriesProtocol,
     ListCheckRunsInCheckSuiteProtocol,

@@ -1,6 +1,14 @@
 from collections.abc import Callable, Iterator
 
-from scm.errors import SCMCodedError, SCMError
+from scm.errors import (
+    ProviderNotFound,
+    RateLimitExceeded,
+    RepositoryInactive,
+    RepositoryNotFound,
+    RepositoryOrganizationMismatch,
+    SCMError,
+    UnhandledException,
+)
 from scm.types import PaginatedActionResult, PaginationParams, Provider, Referrer, Repository, RepositoryId
 
 
@@ -35,15 +43,15 @@ def initialize_provider(
 ) -> Provider:
     repository = fetch_repository(organization_id, repository_id)
     if not repository:
-        raise SCMCodedError(organization_id, repository_id, code="repository_not_found")
+        raise RepositoryNotFound(organization_id, repository_id)
     if not repository["is_active"]:
-        raise SCMCodedError(repository, code="repository_inactive")
+        raise RepositoryInactive(repository)
     if repository["organization_id"] != organization_id:
-        raise SCMCodedError(repository, code="repository_organization_mismatch")
+        raise RepositoryOrganizationMismatch(repository)
 
     provider = fetch_provider(organization_id, repository)
     if provider is None:
-        raise SCMCodedError(code="provider_not_found")
+        raise ProviderNotFound()
 
     return provider
 
@@ -56,7 +64,7 @@ def exec_provider_fn[T](
     record_count: Callable[[str, int, dict[str, str]], None],
 ) -> T:
     if provider.is_rate_limited(referrer):
-        raise SCMCodedError(code="rate_limit_exceeded")
+        raise RateLimitExceeded()
 
     provider_name = provider.__class__.__name__
 
@@ -72,4 +80,7 @@ def exec_provider_fn[T](
     except Exception as e:
         record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})
         record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
-        raise SCMCodedError(code="unhandled_exception") from e
+        # The cause is chained for server-side Sentry, but exception chains do not survive the RPC
+        # boundary. Surface the type and message as `detail` so a client sees what actually failed
+        # instead of an opaque "unhandled_exception".
+        raise UnhandledException(detail=f"{type(e).__name__}: {e}") from e

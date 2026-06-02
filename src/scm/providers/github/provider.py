@@ -7,7 +7,17 @@ from typing import Any, Literal, cast
 import msgspec
 import requests
 
-from scm.errors import ErrorCode, SCMCodedError
+from scm.errors import (
+    DraftPullRequestNotSupported,
+    PathIsDirectory,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceNotFound,
+    SCMCodedError,
+    UnexpectedResponseFormat,
+    error_class_for_status,
+)
 from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
@@ -62,6 +72,7 @@ from scm.types import (
     ReactionResult,
     Referrer,
     Repository,
+    RepositoryPermission,
     RequestOptions,
     ResourceId,
     ResponseMeta,
@@ -73,6 +84,7 @@ from scm.types import (
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
+    UserPermissions,
     WriteCommitAction,
 )
 
@@ -383,21 +395,8 @@ class GitHubProvider:
             )
 
         if response.status_code >= 400:
-            if response.status_code == 401:
-                code: ErrorCode = "resource_unauthorized"  # type: ignore[no-redef]
-            elif response.status_code == 403:
-                code: ErrorCode = "resource_forbidden"  # type: ignore[no-redef]
-            elif response.status_code == 404:
-                code: ErrorCode = "resource_not_found"  # type: ignore[no-redef]
-            elif response.status_code == 409:
-                code: ErrorCode = "resource_conflict"  # type: ignore[no-redef]
-            elif response.status_code == 422:
-                code: ErrorCode = "resource_unprocessable_content"  # type: ignore[no-redef]
-            else:
-                code: ErrorCode = "unhandled_exception"  # type: ignore[no-redef]
-
-            raise SCMCodedError(
-                code=code,
+            error_cls = error_class_for_status(response.status_code)
+            raise error_cls(
                 detail=response.content.decode("utf-8"),
                 response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
@@ -479,17 +478,26 @@ class GitHubProvider:
         response_data = response.json()
 
         if not isinstance(response_data, dict) or ("data" not in response_data and "errors" not in response_data):
-            raise SCMCodedError(code="unexpected_response_format", detail="GraphQL response is not in expected format")
+            raise UnexpectedResponseFormat(detail="GraphQL response is not in expected format")
 
         errors = response_data.get("errors", [])
         if errors and not response_data.get("data"):
-            raise SCMCodedError(code="resource_bad_request", detail="\n".join(e.get("message", "") for e in errors))
+            raise ResourceBadRequest(detail="\n".join(e.get("message", "") for e in errors))
 
         return response_data.get("data", {})
 
     def get_app_installation(self) -> ActionResult[AppInstallation]:
         response = self.get(f"/repos/{self.repository['name']}/installation", credentials_set="application")
         return map_action(response, map_app_installation)
+
+    def get_authenticated_actor(self) -> ActionResult[Author]:
+        # Get the app's bot user
+        app_response = self.get("/app", credentials_set="application")
+        app_slug = app_response.json().get("slug")
+        if not app_slug:
+            raise UnexpectedResponseFormat(detail="GitHub /app response missing slug")
+        bot_response = self.get(f"/users/{app_slug}[bot]")
+        return map_action(bot_response, map_authenticated_actor)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository['name']}")
@@ -508,6 +516,29 @@ class GitHubProvider:
         return map_paginated_action(
             pagination, response, lambda r: [Author(id=str(u["id"]), username=u["login"]) for u in r]
         )
+
+    def list_repository_user_permissions(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[UserPermissions]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/collaborators",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_collaborator_user_perms(user) for user in r])
+
+    def get_repository_user_permission(
+        self,
+        username: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[UserPermissions]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/collaborators/{username}/permission",
+            request_options=request_options,
+        )
+        return map_action(response, map_collaborator_permission_user_perms)
 
     def get_repository_labels(
         self,
@@ -832,7 +863,7 @@ class GitHubProvider:
             request_options=request_options,
         )
         if isinstance(response.json(), list):
-            raise SCMCodedError(code="path_is_directory", detail=path)
+            raise PathIsDirectory(detail=path)
         return map_action(response, map_file_content)
 
     def get_readme(
@@ -849,7 +880,7 @@ class GitHubProvider:
             )
         except SCMCodedError as e:
             if e.code == "resource_not_found":
-                raise SCMCodedError(code="readme_not_found") from e
+                raise ReadmeNotFound() from e
             raise
         return map_action(response, map_file_content)
 
@@ -923,7 +954,7 @@ class GitHubProvider:
         )
         raw = response.json()
         if not isinstance(raw, list):
-            raise SCMCodedError(code="path_is_not_directory", detail=path)
+            raise PathIsNotDirectory(detail=path)
         return {
             "data": [map_file_content(item) for item in raw],
             "type": "github",
@@ -1282,7 +1313,7 @@ class GitHubProvider:
                 and e.detail
                 and "Draft pull requests are not supported for this repository" in e.detail
             ):
-                raise SCMCodedError(code="draft_pull_request_not_supported") from e
+                raise DraftPullRequestNotSupported() from e
             else:
                 raise
 
@@ -1539,7 +1570,7 @@ class GitHubProvider:
             allow_redirects=False,
         )
         if response.status_code != 302 or "Location" not in response.headers:
-            raise SCMCodedError(code="unexpected_response_format", detail="Could not extract 'Location' header.")
+            raise UnexpectedResponseFormat(detail="Could not extract 'Location' header.")
 
         return {
             "data": ArchiveLink(url=response.headers["Location"], headers={}),
@@ -1642,8 +1673,7 @@ class GitHubProvider:
         repository = data.get("repository") or {}
         pull_request = repository.get("pullRequest")
         if pull_request is None:
-            raise SCMCodedError(
-                code="resource_not_found",
+            raise ResourceNotFound(
                 detail=f"pull request {self.repository['name']}#{pull_request_id}",
             )
 
@@ -1702,8 +1732,7 @@ class GitHubProvider:
             repository = data.get("repository") or {}
             pull_request = repository.get("pullRequest")
             if pull_request is None:
-                raise SCMCodedError(
-                    code="resource_not_found",
+                raise ResourceNotFound(
                     detail=f"pull request {self.repository['name']}#{pull_request_id}",
                 )
             review_threads = pull_request["reviewThreads"]
@@ -1744,9 +1773,56 @@ def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     )
 
 
+def map_github_repository_permission(permissions: dict[str, bool]) -> RepositoryPermission:
+    if permissions.get("admin"):
+        return "admin"
+    if permissions.get("push") or permissions.get("maintain"):
+        return "write"
+    if permissions.get("pull") or permissions.get("triage"):
+        return "read"
+    # No access at all. This is only consumed by the list-collaborators endpoint, where a
+    # user without read access presumably wouldn't be returned in the first place, so this
+    # branch is likely unreachable in practice -- we map it to "none" just in case rather
+    # than silently reporting "read" for someone with no permissions.
+    return "none"
+
+
+def map_collaborator_user_perms(raw: dict[str, Any]) -> UserPermissions:
+    return UserPermissions(
+        login=raw["login"],
+        id=str(raw["id"]),
+        perms=map_github_repository_permission(raw.get("permissions", {})),
+    )
+
+
+def map_collaborator_permission_level(permission: str) -> RepositoryPermission:
+    # The /collaborators/{username}/permission endpoint reports a top-level "permission"
+    # holding GitHub's legacy base role: one of "admin", "write", "read", or "none".
+    # The granular roles are collapsed here ("maintain" -> "write", "triage" -> "read";
+    # the granular name lives in "role_name"), so these four values map directly onto
+    # RepositoryPermission. "none" is returned for non-collaborators and must not be
+    # silently treated as "read".
+    if permission in ("admin", "write", "read", "none"):
+        return cast(RepositoryPermission, permission)
+    raise ValueError(f"unmappable repository permission: {permission!r}")
+
+
+def map_collaborator_permission_user_perms(raw: dict[str, Any]) -> UserPermissions:
+    user = raw["user"]
+    return UserPermissions(
+        login=user["login"],
+        id=str(user["id"]),
+        perms=map_collaborator_permission_level(raw["permission"]),
+    )
+
+
 def map_author(raw_user: dict[str, Any] | None) -> Author | None:
     if raw_user is None:
         return None
+    return Author(id=str(raw_user["id"]), username=raw_user["login"])
+
+
+def map_authenticated_actor(raw_user: dict[str, Any]) -> Author:
     return Author(id=str(raw_user["id"]), username=raw_user["login"])
 
 
