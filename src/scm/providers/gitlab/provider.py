@@ -184,8 +184,6 @@ ISSUE_STATE_UPDATE_MAP: dict[IssueState, str] = {
     "closed": "close",
 }
 
-# GitLab has no review object, so create_review synthesizes one whose state
-# reflects the requested event.
 REVIEW_EVENT_STATE_MAP: dict[ReviewEvent, PullRequestReviewState] = {
     "approve": "approved",
     "change_request": "changes_requested",
