@@ -67,6 +67,7 @@ from scm.types import (
     PullRequestBranch,
     PullRequestCommit,
     PullRequestFile,
+    PullRequestReviewState,
     PullRequestState,
     Reaction,
     ReactionResult,
@@ -147,6 +148,15 @@ GITHUB_REVIEW_EVENT_MAP: dict[ReviewEvent, str] = {
 GITHUB_REVIEW_SIDE_MAP: dict[ReviewSide, str] = {
     "base": "LEFT",
     "head": "RIGHT",
+}
+
+# GitHub returns review states in upper-case; normalize to our literals.
+GITHUB_REVIEW_STATE_MAP: dict[str, PullRequestReviewState] = {
+    "APPROVED": "approved",
+    "CHANGES_REQUESTED": "changes_requested",
+    "COMMENTED": "commented",
+    "DISMISSED": "dismissed",
+    "PENDING": "pending",
 }
 
 
@@ -1500,6 +1510,19 @@ class GitHubProvider:
         )
         return map_action(response, map_review)
 
+    def list_pull_request_reviews(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Review]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/reviews",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_review(f) for f in r])
+
     def create_check_run(
         self,
         name: str,
@@ -2042,6 +2065,11 @@ def map_review(raw: dict[str, Any]) -> Review:
     return Review(
         id=str(raw["id"]),
         html_url=raw["html_url"],
+        state=GITHUB_REVIEW_STATE_MAP[raw["state"]],
+        author=map_author(raw.get("user")),
+        body=raw.get("body") or None,
+        submitted_at=raw.get("submitted_at"),
+        commit_id=raw.get("commit_id"),
     )
 
 
