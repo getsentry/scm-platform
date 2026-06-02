@@ -59,7 +59,6 @@ from scm.types import (
     PullRequestBranch,
     PullRequestCommit,
     PullRequestFile,
-    PullRequestReviewState,
     PullRequestState,
     Reaction,
     ReactionResult,
@@ -182,15 +181,6 @@ PULL_REQUEST_STATE_UPDATE_MAP: dict[PullRequestState, str] = {
 ISSUE_STATE_UPDATE_MAP: dict[IssueState, str] = {
     "open": "reopen",
     "closed": "close",
-}
-
-# GitLab has no review object; create_review only performs an action for
-# "approve". "change_request" has no GitLab equivalent and just posts comments,
-# so it maps to "commented" rather than implying the MR is blocked.
-REVIEW_EVENT_STATE_MAP: dict[ReviewEvent, PullRequestReviewState] = {
-    "approve": "approved",
-    "change_request": "commented",
-    "comment": "commented",
 }
 
 # GitLab description field length limit on the commit status API.
@@ -1337,11 +1327,6 @@ class GitLabProvider:
             data=Review(
                 id="unset",
                 html_url=f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}",
-                state=REVIEW_EVENT_STATE_MAP[event],
-                author=None,
-                body=body,
-                submitted_at=None,
-                commit_id=commit_sha,
             ),
             type="gitlab",
             raw={"data": {}, "headers": None},
