@@ -143,6 +143,7 @@ class RpcApiClient(ApiClient):
         repository_id: RepositoryId,
         session: Callable[[], Session] = lambda: RequestsSession(),
         max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES,
+        record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
     ) -> None:
         self.full_url = full_url
         self.signing_secret = signing_secret
@@ -151,6 +152,7 @@ class RpcApiClient(ApiClient):
         self.repository_id = repository_id
         self.session = session()
         self.max_transport_retries = max_transport_retries
+        self.record_count = record_count
 
     def request(
         self,
@@ -193,14 +195,25 @@ class RpcApiClient(ApiClient):
         # The non-streaming session reads the body during ``post``, so a body that is cut off
         # mid-stream raises here. Retry idempotent reads with backoff; surface a typed, retriable
         # ``TruncatedResponse`` once the budget is exhausted (or immediately for unsafe methods)
-        # so callers see what happened instead of an opaque ``UnhandledException``.
+        # so callers see what happened instead of an opaque ``UnhandledException``. Metrics make the
+        # retries visible: counters fire per retry, on recovery, and on final failure.
         attempt = 0
         while True:
             try:
-                return self.session.post(url=self.full_url, data=body, headers=request_headers)
+                response = self.session.post(url=self.full_url, data=body, headers=request_headers)
             except _RETRIABLE_TRANSPORT_ERRORS as exc:
                 if method.upper() in _IDEMPOTENT_METHODS and attempt < self.max_transport_retries:
+                    self.record_count("sentry.scm.rpc.client.transport_retry", 1, {"method": method})
                     time.sleep(_TRANSPORT_RETRY_BACKOFF_SECONDS * (2**attempt))
                     attempt += 1
                     continue
+                self.record_count(
+                    "sentry.scm.rpc.client.truncated_response",
+                    1,
+                    {"method": method, "retried": "true" if attempt else "false"},
+                )
                 raise TruncatedResponse(detail=f"{type(exc).__name__}: {exc}") from exc
+
+            if attempt:
+                self.record_count("sentry.scm.rpc.client.transport_retry_recovered", 1, {"method": method})
+            return response

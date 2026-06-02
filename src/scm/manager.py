@@ -53,6 +53,7 @@ class SourceCodeManager(Facade):
             referrer=referrer,
             repository_id=repository_id,
             session=RequestsSession,
+            record_count=record_count,
         )
 
         return cls.make_client(

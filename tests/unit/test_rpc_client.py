@@ -213,9 +213,14 @@ class TestRpcApiClientTransportRetry:
             referrer="shared",
             repository_id=1,
             max_transport_retries=max_transport_retries,
+            record_count=MagicMock(),
         )
         client.session = MagicMock()
         return client
+
+    @staticmethod
+    def _metric_names(client: RpcApiClient) -> list[str]:
+        return [call.args[0] for call in client.record_count.call_args_list]  # type: ignore[attr-defined]
 
     @patch("scm.rpc.client.time.sleep")
     def test_retries_idempotent_get_then_succeeds(self, mock_sleep):
@@ -228,6 +233,10 @@ class TestRpcApiClientTransportRetry:
         assert result is ok
         assert client.session.post.call_count == 2
         mock_sleep.assert_called_once()
+        assert self._metric_names(client) == [
+            "sentry.scm.rpc.client.transport_retry",
+            "sentry.scm.rpc.client.transport_retry_recovered",
+        ]
 
     @patch("scm.rpc.client.time.sleep")
     def test_raises_truncated_response_after_exhausting_retries(self, mock_sleep):
@@ -240,6 +249,13 @@ class TestRpcApiClientTransportRetry:
         assert exc_info.value.retriable is True
         # initial attempt + 2 retries
         assert client.session.post.call_count == 3
+        assert self._metric_names(client) == [
+            "sentry.scm.rpc.client.transport_retry",
+            "sentry.scm.rpc.client.transport_retry",
+            "sentry.scm.rpc.client.truncated_response",
+        ]
+        truncated_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
+        assert truncated_tags == {"method": "GET", "retried": "true"}
 
     @patch("scm.rpc.client.time.sleep")
     def test_does_not_retry_non_idempotent_method(self, mock_sleep):
@@ -251,3 +267,6 @@ class TestRpcApiClientTransportRetry:
 
         assert client.session.post.call_count == 1
         mock_sleep.assert_not_called()
+        assert self._metric_names(client) == ["sentry.scm.rpc.client.truncated_response"]
+        truncated_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
+        assert truncated_tags == {"method": "POST", "retried": "false"}
