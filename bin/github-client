@@ -96,8 +96,8 @@ from scm.types import (
     DeleteCommitAction,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
-    GetAuthenticatedActorProtocol,
     GetArchiveLinkProtocol,
+    GetAuthenticatedActorProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
     GetCommitChangesProtocol,
@@ -124,6 +124,7 @@ from scm.types import (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetRepositoryUserPermissionProtocol,
+    ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
@@ -314,6 +315,14 @@ def main():
 
     p = sub.add_parser("list-check-runs-in-check-suite")
     p.add_argument("check_suite_id")
+    p.add_argument("--check-name", default=None)
+    p.add_argument("--status", choices=["queued", "in_progress", "completed"], default=None)
+    p.add_argument("--filter", choices=["latest", "all"], default=None)
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("list-check-runs-for-ref")
+    p.add_argument("ref")
     p.add_argument("--check-name", default=None)
     p.add_argument("--status", choices=["queued", "in_progress", "completed"], default=None)
     p.add_argument("--filter", choices=["latest", "all"], default=None)
@@ -545,6 +554,23 @@ def main():
         dump(
             scm.list_check_runs_in_check_suite(
                 args.check_suite_id,
+                check_name=args.check_name,
+                status=args.status,
+                timestamp_filter=args.filter,
+                pagination=pagination or None,
+            )
+        )
+
+    elif args.command == "list-check-runs-for-ref":
+        assert isinstance(scm, ListCheckRunsForRefProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(
+            scm.list_check_runs_for_ref(
+                args.ref,
                 check_name=args.check_name,
                 status=args.status,
                 timestamp_filter=args.filter,

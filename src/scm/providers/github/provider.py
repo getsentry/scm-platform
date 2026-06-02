@@ -1540,6 +1540,31 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_check_run(f) for f in r["check_runs"]])
 
+    def list_check_runs_for_ref(
+        self,
+        ref: str,
+        check_name: str | None = None,
+        status: Literal["queued", "in_progress", "completed"] | None = None,
+        timestamp_filter: Literal["latest", "all"] = "latest",
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckRun]]:
+        params: dict[str, Any] = {}
+        if check_name is not None:
+            params["check_name"] = check_name
+        if status is not None:
+            params["status"] = status
+        if timestamp_filter is not None:
+            params["filter"] = timestamp_filter
+
+        response = self.get(
+            f"/repos/{self.repository['name']}/commits/{ref}/check-runs",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_check_run(f) for f in r["check_runs"]])
+
     def get_archive_link(
         self,
         ref: str,

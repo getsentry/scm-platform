@@ -101,6 +101,7 @@ from scm.types import (
     Issue,
     IssueState,
     Label,
+    ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
@@ -831,6 +832,25 @@ def list_check_runs_in_check_suite(
     )
 
 
+def list_check_runs_for_ref(
+    scm: ListCheckRunsForRefProtocol,
+    ref: str,
+    check_name: str | None = None,
+    status: Literal["queued", "in_progress", "completed"] | None = None,
+    timestamp_filter: Literal["latest", "all"] = "latest",
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[CheckRun]]:
+    return scm.list_check_runs_for_ref(
+        ref,
+        check_name=check_name,
+        status=status,
+        timestamp_filter=timestamp_filter,
+        pagination=pagination,
+        request_options=request_options,
+    )
+
+
 def minimize_comment(scm: MinimizeCommentProtocol, comment_node_id: str, reason: str) -> None:
     return scm.minimize_comment(comment_node_id, reason)
 
@@ -958,6 +978,7 @@ __all__ = (
     "get_repository_topics",
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
+    "list_check_runs_for_ref",
     "list_repository_user_permissions",
     "list_repositories",
     "minimize_comment",
