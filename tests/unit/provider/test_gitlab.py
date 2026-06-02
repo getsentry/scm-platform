@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any, NamedTuple
 
 import pytest
+import requests
 
 from scm.errors import (
     RateLimitExceeded,
@@ -19,6 +20,7 @@ from scm.errors import (
     ResourceUnauthorized,
     ResourceUnprocessableContent,
     SCMCodedError,
+    TruncatedResponse,
     UnhandledException,
 )
 from scm.providers.gitlab.provider import (
@@ -14285,3 +14287,17 @@ def test_request_maps_status_code_to_error(
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.detail == '{"message":"upstream said no"}'
+
+
+def test_truncated_json_body_surfaces_as_truncated_response(client, provider: GitLabProvider) -> None:
+    # Parity with GitHub: a 200 whose body was cut off mid-stream must surface as a retriable
+    # TruncatedResponse rather than an opaque JSON decode error.
+    response = unittest.mock.MagicMock(status_code=200, headers={})
+    response.json.side_effect = requests.exceptions.JSONDecodeError("Unterminated string", '{"id', 76924)
+    client.request.return_value = response
+
+    with pytest.raises(TruncatedResponse) as exc_info:
+        provider.get_app_installation()
+
+    assert exc_info.value.code == "truncated_response"
+    assert exc_info.value.retriable is True

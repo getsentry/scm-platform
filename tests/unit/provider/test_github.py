@@ -32,7 +32,6 @@ from scm.providers.github.provider import (
     UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     GitHubProvider,
-    _decode_json,
     map_app_installation,
     map_collaborator_permission_level,
     map_github_repository_permission,
@@ -2665,14 +2664,23 @@ def test_request_maps_status_code_to_error(
     assert exc_info.value.detail == '{"message":"upstream said no"}'
 
 
-def test_decode_json_converts_truncated_body_to_truncated_response() -> None:
+def test_truncated_json_body_surfaces_as_truncated_response() -> None:
     # A 200 whose body was cut off mid-stream parses as an invalid JSON document partway through.
-    # ``requests`` raises its own JSONDecodeError from ``.json()``, so model that exact type.
-    response = MagicMock()
+    # ``requests`` raises its own JSONDecodeError from ``.json()``, so model that exact type and
+    # confirm the provider's parse path turns it into a retriable TruncatedResponse.
+    response = MagicMock(status_code=200, headers={})
     response.json.side_effect = requests.exceptions.JSONDecodeError("Unterminated string", '{"sha":"a', 81905)
+    client = MagicMock(spec=ApiClient)
+    client.request.return_value = response
+    provider = GitHubProvider(
+        client,
+        organization_id=1,
+        repository=make_repository(),
+        rate_limiter=NoOpRateLimiter(),
+    )
 
     with pytest.raises(TruncatedResponse) as exc_info:
-        _decode_json(response)
+        provider.get_app_installation()
 
     assert exc_info.value.code == "truncated_response"
     assert exc_info.value.retriable is True

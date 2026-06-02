@@ -16,7 +16,7 @@ from scm.errors import (
     SCMCodedError,
     error_class_for_status,
 )
-from scm.helpers import iter_all_pages
+from scm.helpers import decode_json, iter_all_pages
 from scm.types import (
     SHA,
     ActionResult,
@@ -324,15 +324,15 @@ class GitLabProvider:
 
     def get_app_installation(self) -> ActionResult[AppInstallation]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
-        return make_result(map_app_installation, response.json())
+        return make_result(map_app_installation, decode_json(response))
 
     def get_authenticated_actor(self) -> ActionResult[Author]:
         response = self.get(GitLab.user)
-        return make_result(map_author, response.json())
+        return make_result(map_author, decode_json(response))
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(GitLab.project.format(project=self.project_id), params={"statistics": "true"})
-        return make_result(map_repository, response.json())
+        return make_result(map_repository, decode_json(response))
 
     def get_repository_assignees(
         self,
@@ -344,7 +344,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_author, response, response.json())
+        return make_paginated_result(map_author, response, decode_json(response))
 
     def get_repository_labels(
         self,
@@ -356,7 +356,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_label, response, response.json())
+        return make_paginated_result(map_label, response, decode_json(response))
 
     def get_repository_topics(
         self,
@@ -366,7 +366,7 @@ class GitLabProvider:
             GitLab.project.format(project=self.project_id),
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return ActionResult(
             data=list(raw.get("topics", [])),
             type="gitlab",
@@ -385,14 +385,14 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_comment, response, response.json())
+        return make_paginated_result(map_comment, response, decode_json(response))
 
     def create_issue_comment(self, issue_id: str, body: str) -> ActionResult[Comment]:
         response = self.post(
             GitLab.issue_notes.format(project_id=self.project_id, issue_id=issue_id),
             data={"body": body},
         )
-        return make_result(map_comment, response.json())
+        return make_result(map_comment, decode_json(response))
 
     def delete_issue_comment(self, issue_id: str, comment_id: str) -> None:
         self.delete(
@@ -408,7 +408,7 @@ class GitLabProvider:
             GitLab.issue.format(project=self.project_id, issue=issue_id),
             request_options=request_options,
         )
-        return make_result(map_issue, response.json())
+        return make_result(map_issue, decode_json(response))
 
     def create_issue(
         self,
@@ -426,7 +426,7 @@ class GitLabProvider:
             GitLab.issues.format(project=self.project_id),
             data=data,
         )
-        return make_result(map_issue, response.json())
+        return make_result(map_issue, decode_json(response))
 
     def update_issue(
         self,
@@ -446,7 +446,7 @@ class GitLabProvider:
             GitLab.issue.format(project=self.project_id, issue=issue_id),
             data=data,
         )
-        return make_result(map_issue, response.json())
+        return make_result(map_issue, decode_json(response))
 
     def get_pull_request(
         self,
@@ -457,7 +457,7 @@ class GitLabProvider:
             GitLab.merge_request.format(project_id=self.project_id, pr_key=pull_request_id),
             request_options=request_options,
         )
-        return make_result(map_pull_request, response.json())
+        return make_result(map_pull_request, decode_json(response))
 
     def get_pull_request_comments(
         self,
@@ -481,7 +481,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(
             map_comment,
             response,
@@ -506,7 +506,7 @@ class GitLabProvider:
             GitLab.merge_request_notes.format(project_id=self.project_id, pr_key=pull_request_id),
             data={"body": body},
         )
-        return make_result(map_comment, response.json())
+        return make_result(map_comment, decode_json(response))
 
     def delete_pull_request_comment(self, pull_request_id: str, comment_id: str) -> None:
         self.delete(
@@ -525,7 +525,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(
             map_reaction_result,
             response,
@@ -543,7 +543,7 @@ class GitLabProvider:
             GitLab.issue_note_awards.format(project_id=self.project_id, issue_id=issue_id, note_id=comment_id),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
-        return make_result(map_reaction_result, response.json())
+        return make_result(map_reaction_result, decode_json(response))
 
     def delete_issue_comment_reaction(
         self,
@@ -571,7 +571,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(
             map_reaction_result,
             response,
@@ -591,7 +591,7 @@ class GitLabProvider:
             ),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
-        return make_result(map_reaction_result, response.json())
+        return make_result(map_reaction_result, decode_json(response))
 
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         self.delete(
@@ -611,7 +611,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(
             map_reaction_result,
             response,
@@ -624,7 +624,7 @@ class GitLabProvider:
             GitLab.issue_awards.format(project_id=self.project_id, issue_id=issue_id),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
-        return make_result(map_reaction_result, response.json())
+        return make_result(map_reaction_result, decode_json(response))
 
     def delete_issue_reaction(self, issue_id: str, reaction_id: str) -> None:
         self.delete(
@@ -642,7 +642,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(
             map_reaction_result,
             response,
@@ -655,7 +655,7 @@ class GitLabProvider:
             GitLab.merge_request_awards.format(project_id=self.project_id, pr_key=pull_request_id),
             data={"name": AWARD_NAME_BY_REACTION[reaction]},
         )
-        return make_result(map_reaction_result, response.json())
+        return make_result(map_reaction_result, decode_json(response))
 
     def delete_pull_request_reaction(self, pull_request_id: str, reaction_id: str) -> None:
         self.delete(
@@ -671,14 +671,14 @@ class GitLabProvider:
             GitLab.branch.format(project_id=self.project_id, branch=quote(branch, safe="")),
             request_options=request_options,
         )
-        return make_result(map_git_ref, response.json())
+        return make_result(map_git_ref, decode_json(response))
 
     def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
         response = self.post(
             GitLab.branches.format(project_id=self.project_id),
             data={"branch": branch, "ref": sha},
         )
-        return make_result(map_git_ref, response.json())
+        return make_result(map_git_ref, decode_json(response))
 
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(GitLab.branch.format(project_id=self.project_id, branch=quote(branch, safe="")))
@@ -725,7 +725,7 @@ class GitLabProvider:
             GitLab.tree.format(project=self.project_id),
             params=params,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return ActionResult(
             data=GitTree(
                 sha=tree_sha,
@@ -752,7 +752,7 @@ class GitLabProvider:
             GitLab.commit.format(project=self.project_id, sha=sha),
             request_options=request_options,
         )
-        return make_result(map_git_commit_object, response.json())
+        return make_result(map_git_commit_object, decode_json(response))
 
     def get_file_content(
         self,
@@ -765,7 +765,7 @@ class GitLabProvider:
             params={"ref": ref},
             request_options=request_options,
         )
-        return make_result(map_file_content, response.json())
+        return make_result(map_file_content, decode_json(response))
 
     def get_readme(
         self,
@@ -848,7 +848,7 @@ class GitLabProvider:
             if e.code == "resource_not_found" and e.detail and "not treeish" in e.detail:
                 raise PathIsNotDirectory(detail=path) from e
             raise
-        return make_paginated_result(map_tree_entry_to_file_content, response, response.json())
+        return make_paginated_result(map_tree_entry_to_file_content, response, decode_json(response))
 
     def get_commit(
         self,
@@ -859,7 +859,7 @@ class GitLabProvider:
             GitLab.commit.format(project=self.project_id, sha=sha),
             request_options=request_options,
         )
-        return make_result(map_commit_with_changes, response.json())
+        return make_result(map_commit_with_changes, decode_json(response))
 
     def get_commit_changes(
         self,
@@ -872,7 +872,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_commit_diff, response, response.json())
+        return make_paginated_result(map_commit_diff, response, decode_json(response))
 
     def get_commits(
         self,
@@ -895,7 +895,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_commit, response, response.json())
+        return make_paginated_result(map_commit, response, decode_json(response))
 
     def get_commits_by_path(
         self,
@@ -919,7 +919,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_commit, response, response.json())
+        return make_paginated_result(map_commit, response, decode_json(response))
 
     def compare_commits(
         self,
@@ -934,7 +934,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result_single(map_commit_comparison, response, raw)
 
     def create_commit(
@@ -958,7 +958,7 @@ class GitLabProvider:
             GitLab.commits.format(project=self.project_id),
             data=data,
         )
-        return make_result(map_commit, response.json())
+        return make_result(map_commit, decode_json(response))
 
     def get_pull_request_files(
         self,
@@ -971,7 +971,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return make_paginated_result(map_pull_request_file, response, response.json())
+        return make_paginated_result(map_pull_request_file, response, decode_json(response))
 
     def get_pull_request_commits(
         self,
@@ -984,7 +984,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(map_pull_request_commit, response, raw, raw_items=reversed(raw))
 
     def get_pull_request_diff(
@@ -1032,7 +1032,7 @@ class GitLabProvider:
                 pagination=pagination,
                 request_options=request_options,
             )
-            raw.extend(response.json())
+            raw.extend(decode_json(response))
         return make_paginated_result(map_pull_request, response, raw)
 
     def create_pull_request(
@@ -1052,7 +1052,7 @@ class GitLabProvider:
             GitLab.merge_requests.format(project_id=self.project_id),
             data=data,
         )
-        return make_result(map_pull_request, response.json())
+        return make_result(map_pull_request, decode_json(response))
 
     def create_pull_request_draft(
         self,
@@ -1089,7 +1089,7 @@ class GitLabProvider:
             GitLab.merge_request.format(project_id=self.project_id, pr_key=pull_request_id),
             data=data,
         )
-        return make_result(map_pull_request, response.json())
+        return make_result(map_pull_request, decode_json(response))
 
     def _fetch_mr_versions(self, pull_request_id: str) -> list[dict[str, Any]]:
         return self.get(
@@ -1231,7 +1231,7 @@ class GitLabProvider:
             ),
             data={"body": body},
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_result(
             map_review_comment(discussion_id),
             raw,
@@ -1253,7 +1253,7 @@ class GitLabProvider:
             ),
             data={"body": body},
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_result(
             map_review_comment(discussion_id),
             raw,
@@ -1373,7 +1373,7 @@ class GitLabProvider:
         if description is not None:
             data["description"] = description
         response = self._post_check_run(head_sha, data)
-        return make_result(_make_map_check_run(self, head_sha, name), response.json())
+        return make_result(_make_map_check_run(self, head_sha, name), decode_json(response))
 
     def get_check_run(
         self,
@@ -1393,7 +1393,7 @@ class GitLabProvider:
             params={"name": name},
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         latest = _latest_status(raw, name)
         if latest is None:
             raise ResourceNotFound(detail=f"No commit status named {name!r} on {sha}.")
@@ -1432,7 +1432,7 @@ class GitLabProvider:
         if description is not None:
             data["description"] = description
         response = self._post_check_run(sha, data)
-        return make_result(_make_map_check_run(self, sha, name), response.json())
+        return make_result(_make_map_check_run(self, sha, name), decode_json(response))
 
     def _post_check_run(self, sha: SHA, data: dict[str, Any]) -> requests.Response:
         """POST a commit status, translating GitLab state-machine errors.
@@ -1498,7 +1498,7 @@ class GitLabProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = response.json()
+        raw = decode_json(response)
         return make_paginated_result(
             map_review_thread,
             response,

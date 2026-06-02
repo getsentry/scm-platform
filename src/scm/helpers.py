@@ -1,4 +1,7 @@
 from collections.abc import Callable, Iterator
+from typing import Any
+
+import requests
 
 from scm.errors import (
     ProviderNotFound,
@@ -7,9 +10,25 @@ from scm.errors import (
     RepositoryNotFound,
     RepositoryOrganizationMismatch,
     SCMError,
+    TruncatedResponse,
     UnhandledException,
 )
 from scm.types import PaginatedActionResult, PaginationParams, Provider, Referrer, Repository, RepositoryId
+
+
+def decode_json(response: requests.Response) -> Any:
+    """Parse a JSON response body, treating a truncated body as a retriable error.
+
+    The scm-rpc proxy can deliver a cleanly-framed but incomplete body when the upstream
+    stream is cut after the status line is already on the wire. That surfaces as a JSON
+    decode error partway through an otherwise valid document. Raise a typed, retriable
+    ``TruncatedResponse`` instead of letting an opaque parse error escape. Shared by every
+    provider so GitHub and GitLab classify truncated bodies identically.
+    """
+    try:
+        return response.json()
+    except requests.exceptions.JSONDecodeError as exc:
+        raise TruncatedResponse(detail=f"{type(exc).__name__}: {exc}") from exc
 
 
 def iter_all_pages[T](
