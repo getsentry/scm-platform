@@ -8,6 +8,7 @@ from scm.errors import ErrorCode, SCMCodedError, TruncatedResponse
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
+    _DEFAULT_MAX_TRANSPORT_RETRIES,
     RpcApiClient,
     deserialize_repository,
     fetch_provider,
@@ -204,16 +205,15 @@ class TestRpcApiClientTransportRetry:
     surfaces here as a transport abort. Idempotent reads retry; everything else fails fast as a
     typed, retriable ``TruncatedResponse``."""
 
-    def _make_client(self, **overrides) -> RpcApiClient:
-        kwargs = {
-            "full_url": "http://base/api/0/internal/scm-rpc",
-            "signing_secret": "secret",
-            "organization_id": 1,
-            "referrer": "shared",
-            "repository_id": 1,
-        }
-        kwargs.update(overrides)
-        client = RpcApiClient(**kwargs)
+    def _make_client(self, max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES) -> RpcApiClient:
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret="secret",
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+            max_transport_retries=max_transport_retries,
+        )
         client.session = MagicMock()
         return client
 
