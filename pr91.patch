@@ -1,0 +1,150 @@
+From eefb55695236cb145c6c20197fc47a9193f9de47 Mon Sep 17 00:00:00 2001
+From: Billy Vong <billy@sentry.io>
+Date: Fri, 29 May 2026 14:41:46 -0400
+Subject: [PATCH] feat(gitlab): Derive per-file additions/deletions from diff
+
+GitLab's diff API does not provide per-file additions/deletions counts,
+so `map_commit_diff` hardcoded them to `None`. Consumers that display
+per-file stats (e.g. Seer's git_search) rendered `(+0/-0)` for every
+file on GitLab repos.
+
+Derive the counts from the unified diff patch, the same way we already
+derive the total `changes` count. Generalize the parser into
+`_count_unified_diff_lines` returning `(additions, deletions)`, and have
+`_count_unified_diff_changes` delegate to it so `changes` stays
+`additions + deletions` (matching GitHub semantics).
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+---
+ src/scm/providers/gitlab/provider.py | 31 +++++++++++++++++-------
+ tests/unit/provider/test_gitlab.py   | 35 ++++++++++++++++++++++++----
+ 2 files changed, 54 insertions(+), 12 deletions(-)
+
+diff --git a/src/scm/providers/gitlab/provider.py b/src/scm/providers/gitlab/provider.py
+index f9459f4..5104bbd 100644
+--- a/src/scm/providers/gitlab/provider.py
++++ b/src/scm/providers/gitlab/provider.py
+@@ -1756,21 +1756,29 @@ def map_commit_diff(raw: dict[str, Any]) -> CommitFile:
+         status = "modified"
+     old_path = raw.get("old_path")
+     new_path = raw.get("new_path") or old_path or ""
++    additions, deletions = _count_unified_diff_lines(raw.get("diff"))
+     return CommitFile(
+         filename=new_path,
+         status=status,
+         patch=raw.get("diff"),
+-        additions=None,
+-        deletions=None,
++        additions=additions,
++        deletions=deletions,
+         previous_filename=old_path if raw.get("renamed_file") else None,
+     )
+ 
+ 
+-def _count_unified_diff_changes(patch: str | None) -> int:
++def _count_unified_diff_lines(patch: str | None) -> tuple[int, int]:
++    """Count added/removed lines in a unified diff patch.
++
++    GitLab's diff API does not provide per-file additions/deletions counts, so we
++    derive them from the patch the same way we derive the total ``changes`` count.
++    Returns ``(additions, deletions)``.
++    """
+     if not patch:
+-        return 0
++        return (0, 0)
+ 
+-    changes = 0
++    additions = 0
++    deletions = 0
+     in_hunk = False
+     for line in patch.splitlines():
+         if line.startswith("@@"):
+@@ -1779,9 +1787,16 @@ def _count_unified_diff_changes(patch: str | None) -> int:
+         if not in_hunk and line.startswith(("+++ ", "--- ")):
+             # Skip file headers only before the first hunk
+             continue
+-        if line.startswith(("+", "-")):
+-            changes += 1
+-    return changes
++        if line.startswith("+"):
++            additions += 1
++        elif line.startswith("-"):
++            deletions += 1
++    return (additions, deletions)
++
++
++def _count_unified_diff_changes(patch: str | None) -> int:
++    additions, deletions = _count_unified_diff_lines(patch)
++    return additions + deletions
+ 
+ 
+ def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
+diff --git a/tests/unit/provider/test_gitlab.py b/tests/unit/provider/test_gitlab.py
+index ddbca24..60af8e4 100644
+--- a/tests/unit/provider/test_gitlab.py
++++ b/tests/unit/provider/test_gitlab.py
+@@ -22,8 +22,10 @@
+     ApiClient,
+     GitLabProvider,
+     _count_unified_diff_changes,
++    _count_unified_diff_lines,
+     _head_to_source_branch,
+     map_app_installation,
++    map_commit_diff,
+     map_pull_request_file,
+ )
+ from scm.types import (
+@@ -10985,8 +10987,8 @@ def _make_mock_response(json_data):
+                             "filename": "BLAH.md",
+                             "status": "added",
+                             "patch": "",
+-                            "additions": None,
+-                            "deletions": None,
++                            "additions": 0,
++                            "deletions": 0,
+                             "previous_filename": None,
+                         }
+                     ],
+@@ -11279,8 +11281,8 @@ def _make_mock_response(json_data):
+                         "filename": "BLAH.md",
+                         "status": "added",
+                         "patch": "@@ -0,0 +1 @@\n+hello\n",
+-                        "additions": None,
+-                        "deletions": None,
++                        "additions": 1,
++                        "deletions": 0,
+                         "previous_filename": None,
+                     }
+                 ],
+@@ -14203,6 +14205,31 @@ def test_count_unified_diff_changes() -> None:
+     assert _count_unified_diff_changes("--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n-old\n+new\n") == 2
+ 
+ 
++def test_count_unified_diff_lines() -> None:
++    # Splits the total change count into (additions, deletions).
++    assert _count_unified_diff_lines(None) == (0, 0)
++    assert _count_unified_diff_lines("") == (0, 0)
++    assert _count_unified_diff_lines("@@ -0,0 +1,2 @@\n+line one\n+line two\n") == (2, 0)
++    assert _count_unified_diff_lines("@@ -1,2 +0,0 @@\n-old one\n-old two\n") == (0, 2)
++    assert _count_unified_diff_lines("@@ -1,2 +1,2 @@\n-old\n+new\n") == (1, 1)
++    # In-hunk body lines that look like file headers are still counted.
++    assert _count_unified_diff_lines("@@ -1,2 +1,2 @@\n---content\n+++content\n") == (1, 1)
++    assert _count_unified_diff_lines("@@ -1,2 +1,2 @@\n--- comment\n+++ comment\n") == (1, 1)
++    # Pre-hunk file headers are skipped.
++    assert _count_unified_diff_lines("--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n-old\n+new\n") == (1, 1)
++
++
++def test_map_commit_diff_counts_additions_deletions() -> None:
++    raw = {
++        "diff": "@@ -1,2 +1,3 @@\n context\n-removed\n+added one\n+added two\n",
++        "new_path": "file.py",
++        "old_path": "file.py",
++    }
++    result = map_commit_diff(raw)
++    assert result["additions"] == 2
++    assert result["deletions"] == 1
++
++
+ def test_map_pull_request_file_counts_diff_lines() -> None:
+     raw = {
+         "diff": "@@ -0,0 +1,2 @@\n+a\n+b\n",

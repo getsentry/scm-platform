@@ -291,8 +291,10 @@ class GitLabProvider:
 
         params = params or {}
         if pagination:
-            params["per_page"] = str(pagination["per_page"])
-            params["page"] = str(pagination["cursor"])
+            if "per_page" in pagination:
+                params["per_page"] = str(pagination["per_page"])
+            if "cursor" in pagination:
+                params["page"] = str(pagination["cursor"])
 
         return self.request(
             "GET",

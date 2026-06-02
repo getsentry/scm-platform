@@ -433,8 +433,10 @@ class GitHubProvider:
 
         params = params or {}
         if pagination:
-            params["per_page"] = str(pagination["per_page"])
-            params["page"] = str(pagination["cursor"])
+            if "per_page" in pagination:
+                params["per_page"] = str(pagination["per_page"])
+            if "cursor" in pagination:
+                params["page"] = str(pagination["cursor"])
 
         return self.request(
             "GET",
@@ -2069,7 +2071,7 @@ def map_paginated_action[T](
     raw = response.json()
     meta: PaginatedResponseMeta = {
         **_extract_response_meta(response),
-        "next_cursor": str(int(pagination["cursor"]) + 1 if pagination else 2),
+        "next_cursor": str(int(pagination["cursor"]) + 1 if pagination and "cursor" in pagination else 2),
     }
     return {
         "data": fn(raw),
