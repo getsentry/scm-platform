@@ -1964,15 +1964,22 @@ def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:
     return bool(notes) and notes[0].get("position") is not None
 
 
-def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> ReviewThreadComment:
+    """Map a GitLab discussion note to an scm ReviewThreadComment.
+
+    ``id`` and ``unique_id`` use ``{discussion_id}:{note_id}`` so they match
+    ``map_review_comment`` and work with ``update_review_comment`` /
+    ``get_thread_id_from_review_comment_unique_id``.
+    """
+    composite_id = f"{discussion_id}:{raw['id']}"
     author_raw = raw.get("author") or {}
     if author_raw:
         author: Author | None = Author(id=str(author_raw["id"]), username=author_raw["username"])
     else:
         author = None
     return ReviewThreadComment(
-        id=str(raw["id"]),
-        unique_id=str(raw["id"]),
+        id=composite_id,
+        unique_id=composite_id,
         body=raw.get("body", ""),
         author=author,
         # GitLab marks system actors via ``bot`` on the user object.
@@ -1996,8 +2003,9 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
     line = _line(end_pos) if end_pos else (position.get("new_line") or position.get("old_line"))
     start_line = _line(start_pos) if start_pos else None
 
+    discussion_id = str(raw["id"])
     return ReviewThread(
-        id=str(raw["id"]),
+        id=discussion_id,
         is_resolved=bool(head_note.get("resolved", False)),
         # GitLab does not expose an "outdated" flag on discussions; an outdated
         # discussion can be inferred from position.line_range vs the latest diff
@@ -2006,7 +2014,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
         file_path=position.get("new_path") or position.get("old_path"),
         line=line,
         start_line=start_line,
-        comments=[map_review_thread_comment(n) for n in notes],
+        comments=[map_review_thread_comment(n, discussion_id) for n in notes],
     )
 
 
