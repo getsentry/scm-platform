@@ -1317,6 +1317,17 @@ class UpdateReviewCommentProtocol(Protocol):
 
 
 @runtime_checkable
+class GetReviewCommentsProtocol(Protocol):
+    def get_review_comments(
+        self,
+        pull_request_id: str,
+        review_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReviewComment]]: ...
+
+
+@runtime_checkable
 class GetPullRequestReviewThreadsProtocol(Protocol):
     def get_pull_request_review_threads(
         self,
@@ -1424,6 +1435,7 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestReviewThreadsProtocol,
+    GetReviewCommentsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
