@@ -184,9 +184,12 @@ ISSUE_STATE_UPDATE_MAP: dict[IssueState, str] = {
     "closed": "close",
 }
 
+# GitLab has no review object; create_review only performs an action for
+# "approve". "change_request" has no GitLab equivalent and just posts comments,
+# so it maps to "commented" rather than implying the MR is blocked.
 REVIEW_EVENT_STATE_MAP: dict[ReviewEvent, PullRequestReviewState] = {
     "approve": "approved",
-    "change_request": "changes_requested",
+    "change_request": "commented",
     "comment": "commented",
 }
 
