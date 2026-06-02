@@ -1613,15 +1613,7 @@ class BaseTestProvider(Provider):
     ) -> ActionResult[Review]:
         raw = make_github_review()
         return ActionResult(
-            data=Review(
-                id=str(raw["id"]),
-                html_url=raw["html_url"],
-                state=raw["state"].lower(),
-                author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]) if raw.get("user") else None,
-                body=raw["body"] or None,
-                submitted_at=raw["submitted_at"],
-                commit_id=raw["commit_id"],
-            ),
+            data=Review(id=str(raw["id"]), html_url=raw["html_url"]),
             type="github",
             raw={"headers": None, "data": raw},
             meta={},

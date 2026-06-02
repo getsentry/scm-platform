@@ -482,11 +482,11 @@ class Review(TypedDict):
 
     id: ResourceId
     html_url: str
-    state: PullRequestReviewState
-    author: Author | None
-    body: str | None
-    submitted_at: str | None
-    commit_id: SHA | None
+    state: NotRequired[PullRequestReviewState]
+    author: NotRequired[Author | None]
+    body: NotRequired[str | None]
+    submitted_at: NotRequired[str | None]
+    commit_id: NotRequired[SHA | None]
 
 
 class ReviewThreadComment(TypedDict):
