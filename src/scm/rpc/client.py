@@ -1,10 +1,14 @@
+import time
 from collections.abc import Callable
 from typing import Any, Protocol
 
 import msgspec
 import requests
+from requests.exceptions import ChunkedEncodingError
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from urllib3.exceptions import ProtocolError
 
-from scm.errors import RpcErrorsCouldNotBeDeserialized, RpcInvalidGrant, SCMCodedError
+from scm.errors import RpcErrorsCouldNotBeDeserialized, RpcInvalidGrant, SCMCodedError, TruncatedResponse
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
@@ -12,6 +16,18 @@ from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse
 from scm.types import ApiClient, CredentialsSet, Provider, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
+
+# The proxy streams the upstream body after the status line is already on the wire, so a
+# mid-stream disconnect arrives as a transport-level abort rather than an HTTP error status.
+_RETRIABLE_TRANSPORT_ERRORS: tuple[type[Exception], ...] = (
+    ChunkedEncodingError,
+    RequestsConnectionError,
+    ProtocolError,
+)
+# Only methods without side effects can be safely re-sent after a partial response.
+_IDEMPOTENT_METHODS = frozenset({"GET", "HEAD"})
+_DEFAULT_MAX_TRANSPORT_RETRIES = 2
+_TRANSPORT_RETRY_BACKOFF_SECONDS = 0.25
 
 
 class Session(Protocol):
@@ -126,6 +142,7 @@ class RpcApiClient(ApiClient):
         referrer: str,
         repository_id: RepositoryId,
         session: Callable[[], Session] = lambda: RequestsSession(),
+        max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES,
     ) -> None:
         self.full_url = full_url
         self.signing_secret = signing_secret
@@ -133,6 +150,7 @@ class RpcApiClient(ApiClient):
         self.referrer = referrer
         self.repository_id = repository_id
         self.session = session()
+        self.max_transport_retries = max_transport_retries
 
     def request(
         self,
@@ -163,16 +181,26 @@ class RpcApiClient(ApiClient):
             )
         )
 
-        response = self.session.post(
-            url=self.full_url,
-            data=body,
-            headers={
-                "Authorization": f"rpcsignature {sign_post(self.signing_secret, body)}",
-                "Content-Type": "application/json",
-                "X-Organization-Id": str(self.organization_id),
-                "X-Referrer": self.referrer,
-                "X-Repository-Id": msgspec.json.encode(self.repository_id).decode("utf-8"),
-                "X-Credentials-Set": credentials_set,
-            },
-        )
-        return response
+        request_headers = {
+            "Authorization": f"rpcsignature {sign_post(self.signing_secret, body)}",
+            "Content-Type": "application/json",
+            "X-Organization-Id": str(self.organization_id),
+            "X-Referrer": self.referrer,
+            "X-Repository-Id": msgspec.json.encode(self.repository_id).decode("utf-8"),
+            "X-Credentials-Set": credentials_set,
+        }
+
+        # The non-streaming session reads the body during ``post``, so a body that is cut off
+        # mid-stream raises here. Retry idempotent reads with backoff; surface a typed, retriable
+        # ``TruncatedResponse`` once the budget is exhausted (or immediately for unsafe methods)
+        # so callers see what happened instead of an opaque ``UnhandledException``.
+        attempt = 0
+        while True:
+            try:
+                return self.session.post(url=self.full_url, data=body, headers=request_headers)
+            except _RETRIABLE_TRANSPORT_ERRORS as exc:
+                if method.upper() in _IDEMPOTENT_METHODS and attempt < self.max_transport_retries:
+                    time.sleep(_TRANSPORT_RETRY_BACKOFF_SECONDS * (2**attempt))
+                    attempt += 1
+                    continue
+                raise TruncatedResponse(detail=f"{type(exc).__name__}: {exc}") from exc

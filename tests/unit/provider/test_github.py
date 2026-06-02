@@ -4,17 +4,22 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 
 from scm.errors import (
+    RateLimitExceeded,
     ResourceBadGateway,
     ResourceBadRequest,
     ResourceConflict,
     ResourceForbidden,
+    ResourceGatewayTimeout,
     ResourceNotFound,
     ResourceServerError,
+    ResourceServiceUnavailable,
     ResourceUnauthorized,
     ResourceUnprocessableContent,
     SCMCodedError,
+    TruncatedResponse,
     UnhandledException,
 )
 from scm.providers.github.provider import (
@@ -27,6 +32,7 @@ from scm.providers.github.provider import (
     UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     GitHubProvider,
+    _decode_json,
     map_app_installation,
     map_collaborator_permission_level,
     map_github_repository_permission,
@@ -2632,10 +2638,12 @@ def _error_response(status_code: int, body: bytes = b'{"message":"boom"}') -> An
         (404, "resource_not_found", ResourceNotFound),
         (409, "resource_conflict", ResourceConflict),
         (422, "resource_unprocessable_content", ResourceUnprocessableContent),
+        (429, "rate_limit_exceeded", RateLimitExceeded),
         (500, "resource_server_error", ResourceServerError),
         (502, "resource_bad_gateway", ResourceBadGateway),
+        (503, "resource_service_unavailable", ResourceServiceUnavailable),
+        (504, "resource_gateway_timeout", ResourceGatewayTimeout),
         (418, "unhandled_exception", UnhandledException),
-        (503, "unhandled_exception", UnhandledException),
     ],
 )
 def test_request_maps_status_code_to_error(
@@ -2655,6 +2663,19 @@ def test_request_maps_status_code_to_error(
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.detail == '{"message":"upstream said no"}'
+
+
+def test_decode_json_converts_truncated_body_to_truncated_response() -> None:
+    # A 200 whose body was cut off mid-stream parses as an invalid JSON document partway through.
+    # ``requests`` raises its own JSONDecodeError from ``.json()``, so model that exact type.
+    response = MagicMock()
+    response.json.side_effect = requests.exceptions.JSONDecodeError("Unterminated string", '{"sha":"a', 81905)
+
+    with pytest.raises(TruncatedResponse) as exc_info:
+        _decode_json(response)
+
+    assert exc_info.value.code == "truncated_response"
+    assert exc_info.value.retriable is True
 
 
 def test_public_methods_are_accounted_for() -> None:

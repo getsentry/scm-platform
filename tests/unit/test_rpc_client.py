@@ -2,8 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import msgspec
 import pytest
+from requests.exceptions import ChunkedEncodingError
 
-from scm.errors import ErrorCode, SCMCodedError
+from scm.errors import ErrorCode, SCMCodedError, TruncatedResponse
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
@@ -196,3 +197,57 @@ class TestRpcApiClient:
 
         headers = client.session.post.call_args.kwargs["headers"]
         assert headers["X-Repository-Id"] == '["github","ext-123"]'
+
+
+class TestRpcApiClientTransportRetry:
+    """The proxy commits a 200 before streaming the upstream body, so a mid-stream disconnect
+    surfaces here as a transport abort. Idempotent reads retry; everything else fails fast as a
+    typed, retriable ``TruncatedResponse``."""
+
+    def _make_client(self, **overrides) -> RpcApiClient:
+        kwargs = {
+            "full_url": "http://base/api/0/internal/scm-rpc",
+            "signing_secret": "secret",
+            "organization_id": 1,
+            "referrer": "shared",
+            "repository_id": 1,
+        }
+        kwargs.update(overrides)
+        client = RpcApiClient(**kwargs)
+        client.session = MagicMock()
+        return client
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_retries_idempotent_get_then_succeeds(self, mock_sleep):
+        client = self._make_client()
+        ok = MagicMock()
+        client.session.post.side_effect = [ChunkedEncodingError("Response ended prematurely"), ok]
+
+        result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert result is ok
+        assert client.session.post.call_count == 2
+        mock_sleep.assert_called_once()
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_raises_truncated_response_after_exhausting_retries(self, mock_sleep):
+        client = self._make_client(max_transport_retries=2)
+        client.session.post.side_effect = ChunkedEncodingError("Response ended prematurely")
+
+        with pytest.raises(TruncatedResponse) as exc_info:
+            client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert exc_info.value.retriable is True
+        # initial attempt + 2 retries
+        assert client.session.post.call_count == 3
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_does_not_retry_non_idempotent_method(self, mock_sleep):
+        client = self._make_client()
+        client.session.post.side_effect = ChunkedEncodingError("Response ended prematurely")
+
+        with pytest.raises(TruncatedResponse):
+            client.request(method="POST", path="/repos/org/repo/pulls/1/reviews", data={"body": "x"})
+
+        assert client.session.post.call_count == 1
+        mock_sleep.assert_not_called()
