@@ -13692,6 +13692,11 @@ def test_create_review_with_comments_body_and_approve(client, provider: GitLabPr
         "data": {
             "id": "unset",
             "html_url": "https://gitlab.com/test-repo/-/merge_requests/1",
+            "state": "approved",
+            "author": None,
+            "body": "Looks good overall.",
+            "submitted_at": None,
+            "commit_id": "7497e018d01503b6abc3053b7896266115e631f6",
         },
         "type": "gitlab",
         "raw": {"data": {}, "headers": None},

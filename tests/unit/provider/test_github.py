@@ -434,7 +434,15 @@ def expected_review_comment(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def expected_review(raw: dict[str, Any]) -> dict[str, Any]:
-    return {"id": str(raw["id"]), "html_url": raw["html_url"]}
+    return {
+        "id": str(raw["id"]),
+        "html_url": raw["html_url"],
+        "state": raw["state"].lower(),
+        "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]} if raw.get("user") else None,
+        "body": raw["body"] or None,
+        "submitted_at": raw["submitted_at"],
+        "commit_id": raw["commit_id"],
+    }
 
 
 def expected_check_run(raw: dict[str, Any]) -> dict[str, Any]:
@@ -718,6 +726,26 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "pagination": {"cursor": "3", "per_page": 10},
         "raw": {"total_count": 1, "check_runs": [CHECK_RUN_RAW]},
         "expected_data": [expected_check_run(CHECK_RUN_RAW)],
+        "next_cursor": "4",
+    },
+    {
+        "name": "list_pull_request_reviews",
+        "kwargs": {"pull_request_id": "1"},
+        "path": "/repos/test-org/test-repo/pulls/1/reviews",
+        "params": None,
+        "pagination": None,
+        "raw": [REVIEW_RAW],
+        "expected_data": [expected_review(REVIEW_RAW)],
+        "next_cursor": "2",
+    },
+    {
+        "name": "list_pull_request_reviews",
+        "kwargs": {"pull_request_id": "1", "pagination": {"cursor": "3", "per_page": 10}},
+        "path": "/repos/test-org/test-repo/pulls/1/reviews",
+        "params": None,
+        "pagination": {"cursor": "3", "per_page": 10},
+        "raw": [REVIEW_RAW],
+        "expected_data": [expected_review(REVIEW_RAW)],
         "next_cursor": "4",
     },
 ]

@@ -59,6 +59,7 @@ from scm.types import (
     PullRequestBranch,
     PullRequestCommit,
     PullRequestFile,
+    PullRequestReviewState,
     PullRequestState,
     Reaction,
     ReactionResult,
@@ -181,6 +182,14 @@ PULL_REQUEST_STATE_UPDATE_MAP: dict[PullRequestState, str] = {
 ISSUE_STATE_UPDATE_MAP: dict[IssueState, str] = {
     "open": "reopen",
     "closed": "close",
+}
+
+# GitLab has no review object, so create_review synthesizes one whose state
+# reflects the requested event.
+REVIEW_EVENT_STATE_MAP: dict[ReviewEvent, PullRequestReviewState] = {
+    "approve": "approved",
+    "change_request": "changes_requested",
+    "comment": "commented",
 }
 
 # GitLab description field length limit on the commit status API.
@@ -1319,10 +1328,15 @@ class GitLabProvider:
             for action_future in action_futures:
                 action_future.result()
 
-        return ActionResult(
+        return ActionResult[Review](
             data=Review(
                 id="unset",
                 html_url=f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}",
+                state=REVIEW_EVENT_STATE_MAP[event],
+                author=None,
+                body=body,
+                submitted_at=None,
+                commit_id=commit_sha,
             ),
             type="gitlab",
             raw={"data": {}, "headers": None},
