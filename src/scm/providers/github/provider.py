@@ -429,6 +429,7 @@ class GitHubProvider:
             error_cls = error_class_for_status(response.status_code)
             raise error_cls(
                 detail=response.content.decode("utf-8"),
+                status_code=response.status_code,
                 response_content=response.content.decode("utf-8"),
                 request_headers=response.request.headers,
                 request_body=response.request.body,
