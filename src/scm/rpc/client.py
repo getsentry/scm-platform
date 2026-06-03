@@ -21,8 +21,7 @@ from scm.types import ApiClient, CredentialsSet, Provider, Repository, Repositor
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
 
 # A transient blip between us and the proxy surfaces one of two ways: the connection drops before
-# a response is framed (a transport-level ``ConnectionError``), or the proxy's gateway returns an
-# Envoy local reply ("upstream connect error ... reset reason: connection termination") as a 503/504.
+# a response is framed (a transport-level ``ConnectionError``), or the gateway returns a 503/504.
 # Both are safe to re-send for reads that have no side effects.
 _RETRIABLE_TRANSPORT_ERRORS: tuple[type[Exception], ...] = (RequestsConnectionError,)
 _RETRIABLE_STATUS_CODES = frozenset({503, 504})
@@ -196,7 +195,7 @@ class RpcApiClient(ApiClient):
         }
 
         # Retry transient proxy failures for idempotent reads with exponential backoff. Two flavors:
-        # a transport-level ``ConnectionError`` (no response framed) and an Envoy 503/504 local reply.
+        # a transport-level ``ConnectionError`` (no response framed) and a 503/504 from the gateway.
         # Metrics make the retries visible: a counter per retry, one on recovery, one on exhaustion.
         idempotent = method.upper() in _IDEMPOTENT_METHODS
         attempt = 0
@@ -218,7 +217,7 @@ class RpcApiClient(ApiClient):
                     {"method": method, "reason": "connection_error"},
                 )
                 # Classify the exhausted read as a typed, retriable error instead of an opaque
-                # ConnectionError so callers can branch on ``exc.retriable``.
+                # ConnectionError so callers can branch on ``exc.allow_retry``.
                 raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from exc
 
             if idempotent and response.status_code in _RETRIABLE_STATUS_CODES:

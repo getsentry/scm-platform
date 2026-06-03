@@ -202,7 +202,7 @@ class TestRpcApiClient:
 
 class TestRpcApiClientTransportRetry:
     """A transient blip between us and the proxy surfaces either as a transport ``ConnectionError``
-    or as an Envoy 503/504 local reply. Idempotent reads retry with backoff; writes never do."""
+    or as a 503/504 from the gateway. Idempotent reads retry with backoff; writes never do."""
 
     def _make_client(self, max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES) -> RpcApiClient:
         client = RpcApiClient(
@@ -281,7 +281,7 @@ class TestRpcApiClientTransportRetry:
         with pytest.raises(ResourceServiceUnavailable) as exc_info:
             client.request(method="GET", path="/repos/org/repo/git/trees/abc")
 
-        assert exc_info.value.retriable is True
+        assert exc_info.value.allow_retry is True
         assert client.session.post.call_count == 3
         assert self._metric_names(client) == [
             "sentry.scm.rpc.client.transport_retry",

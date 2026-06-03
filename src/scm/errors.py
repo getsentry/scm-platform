@@ -89,8 +89,8 @@ class SCMCodedError(SCMError):
     code: ErrorCode
 
     #: Whether the failure is transient and the request may be safely retried with backoff.
-    #: Consumers (e.g. Seer) can branch on ``exc.retriable`` instead of enumerating error types.
-    retriable: ClassVar[bool] = False
+    #: Consumers (e.g. Seer) can branch on ``exc.allow_retry`` instead of enumerating error types.
+    allow_retry: ClassVar[bool] = False
 
     #: Maps every known error code to its concrete exception subclass.
     _registry: ClassVar[dict[ErrorCode, type["SCMCodedError"]]] = {}
@@ -138,7 +138,7 @@ class ProviderNotFound(SCMCodedError):
 
 class RateLimitExceeded(SCMCodedError):
     code = "rate_limit_exceeded"
-    retriable = True
+    allow_retry = True
 
 
 class ReadmeNotFound(SCMCodedError):
@@ -219,12 +219,12 @@ class ResourceBadGateway(SCMCodedError):
 
 class ResourceServiceUnavailable(SCMCodedError):
     code = "resource_service_unavailable"
-    retriable = True
+    allow_retry = True
 
 
 class ResourceGatewayTimeout(SCMCodedError):
     code = "resource_gateway_timeout"
-    retriable = True
+    allow_retry = True
 
 
 class UnexpectedResponseFormat(SCMCodedError):
