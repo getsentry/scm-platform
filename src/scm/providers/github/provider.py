@@ -268,7 +268,11 @@ _REVIEW_THREAD_COMMENT_FIELDS = """
 
 _REVIEW_THREAD_REACTIONS_FIELDS = """
                             reactions(first: 100) {
-                                nodes { content }
+                                nodes {
+                                    databaseId
+                                    content
+                                    user { login __typename ... on User { databaseId } }
+                                }
                             }"""
 
 
@@ -328,14 +332,6 @@ query {query_name}($threadId: ID!, $cursor: String) {{
     }}
 }}
 """
-
-
-REVIEW_THREADS_QUERY = _graphql_review_threads_query(include_reactions=False)
-REVIEW_THREADS_WITH_REACTIONS_QUERY = _graphql_review_threads_query(include_reactions=True)
-REVIEW_THREAD_FULL_COMMENTS_QUERY = _graphql_review_thread_full_comments_query(include_reactions=False)
-REVIEW_THREAD_FULL_COMMENTS_WITH_REACTIONS_QUERY = _graphql_review_thread_full_comments_query(
-    include_reactions=True
-)
 
 # Default page size for the reviewThreads connection. GitHub caps `first` at 100.
 GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
@@ -1723,7 +1719,7 @@ class GitHubProvider:
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
-                    is_collapsed=bool(raw_thread.get("isResolved")),
+                    is_resolved=bool(raw_thread.get("isResolved")),
                     is_outdated=raw_thread["isOutdated"],
                     file_path=raw_thread.get("path"),
                     line=raw_thread.get("line"),
@@ -2147,26 +2143,44 @@ def map_graphql_author(raw_author: dict[str, Any] | None) -> tuple[Author | None
     return Author(id=str(raw_id) if raw_id is not None else raw_author["login"], username=raw_author["login"]), is_bot
 
 
-def _graphql_review_comment_ids(raw: dict[str, Any]) -> tuple[str, str, str | None]:
-    full_database_id = raw.get("fullDatabaseId")
-    review_database_id = (raw.get("pullRequestReview") or {}).get("databaseId")
-    comment_id = str(full_database_id) if full_database_id is not None else raw["id"]
-    review_id = str(review_database_id) if review_database_id is not None else None
-    return comment_id, raw["id"], review_id
+# GraphQL ``ReactionContent`` enum -> provider-agnostic ``Reaction`` literal.
+# https://docs.github.com/en/graphql/reference/enums#reactioncontent
+_GRAPHQL_REACTION_CONTENT_TO_REACTION: dict[str, Reaction] = {
+    "THUMBS_UP": "+1",
+    "THUMBS_DOWN": "-1",
+    "LAUGH": "laugh",
+    "HOORAY": "hooray",
+    "CONFUSED": "confused",
+    "HEART": "heart",
+    "ROCKET": "rocket",
+    "EYES": "eyes",
+}
 
 
-def _graphql_review_comment_commit_sha(raw: dict[str, Any]) -> str | None:
-    return (raw.get("originalCommit") or {}).get("oid") or (raw.get("commit") or {}).get("oid")
-
-
-def _graphql_review_comment_reactions(raw: dict[str, Any]) -> list[str]:
+def _map_graphql_review_comment_reactions(raw: dict[str, Any]) -> list[ReactionResult]:
     reaction_nodes = (raw.get("reactions") or {}).get("nodes") or []
-    return [node["content"] for node in reaction_nodes if node.get("content")]
+    results: list[ReactionResult] = []
+    for node in reaction_nodes:
+        content = _GRAPHQL_REACTION_CONTENT_TO_REACTION.get(node.get("content"))
+        if content is None:
+            continue
+        author, _ = map_graphql_author(node.get("user"))
+        raw_id = node.get("databaseId")
+        results.append(
+            ReactionResult(
+                id=str(raw_id) if raw_id is not None else "",
+                content=content,
+                author=author,
+            )
+        )
+    return results
 
 
 def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewComment:
     author, _ = map_graphql_author(raw.get("author"))
-    comment_id, unique_id, review_id = _graphql_review_comment_ids(raw)
+    full_database_id = raw.get("fullDatabaseId")
+    review = raw.get("pullRequestReview") or {}
+    review_database_id = review.get("databaseId")
     return ReviewComment(
         author_association=None,
         author=author,
@@ -2176,9 +2190,9 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
         diff_hunk=None,
         file_path=None,
         head=None,
-        id=comment_id,
-        review_id=review_id,
-        unique_id=unique_id,
+        id=str(full_database_id) if full_database_id is not None else raw["id"],
+        review_id=str(review_database_id) if review_database_id is not None else None,
+        unique_id=raw["id"],
         url=None,
         thread_id=None,
     )
@@ -2186,27 +2200,23 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
 
 def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
-    comment_id, unique_id, review_id = _graphql_review_comment_ids(raw)
-    mapped: ReviewThreadComment = {
-        "id": comment_id,
-        "unique_id": unique_id,
-        "body": raw.get("body", ""),
-        "author": author,
-        "is_bot": is_bot,
-        "created_at": raw.get("createdAt"),
-        "updated_at": raw.get("updatedAt"),
-        "url": raw.get("url"),
-        "diff_hunk": raw.get("diffHunk"),
-        "author_association": raw.get("authorAssociation"),
-        "review_id": review_id,
-        "commit_sha": _graphql_review_comment_commit_sha(raw),
-    }
-    if bool(raw.get("isMinimized")):
-        mapped["is_collapsed"] = True
-    reactions = _graphql_review_comment_reactions(raw)
-    if reactions:
-        mapped["reactions"] = reactions
-    return mapped
+    full_database_id = raw.get("fullDatabaseId")
+    return ReviewThreadComment(
+        id=str(full_database_id) if full_database_id is not None else raw["id"],
+        unique_id=raw["id"],
+        body=raw.get("body", ""),
+        author=author,
+        is_bot=is_bot,
+        created_at=raw.get("createdAt"),
+        updated_at=raw.get("updatedAt"),
+        is_minimized=raw.get("isMinimized"),
+        reactions=_map_graphql_review_comment_reactions(raw),
+        commit_sha=(raw.get("originalCommit") or {}).get("oid") or (raw.get("commit") or {}).get("oid"),
+        url=raw.get("url"),
+        diff_hunk=raw.get("diffHunk"),
+        author_association=raw.get("authorAssociation"),
+        review_id=full_database_id,
+    )
 
 
 def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:

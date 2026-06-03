@@ -486,17 +486,6 @@ class Review(TypedDict):
 class ReviewThreadComment(TypedDict):
     """A comment in a pull-request review thread, with the extra fields needed
     to render or moderate the thread (bot indicator, timestamps).
-
-    When ``get_pull_request_review_threads(..., include_reactions=True)``,
-    ``reactions`` lists provider reaction content strings (GitHub GraphQL
-    ``ReactionContent`` values; GitLab ``Reaction`` literals such as ``+1``).
-
-    The diff-anchoring fields (``diff_hunk``, ``commit_sha``, ``head``,
-    ``review_id``, ``author_association``, ``url``) mirror the same fields on
-    ``ReviewComment``. They are populated by providers that expose them
-    (GitHub) and omitted otherwise (e.g. GitLab). ``commit_sha`` is the
-    immutable original commit the comment was anchored to; ``head`` is the
-    commit at the time of the comment (tracks the PR HEAD on GitHub).
     """
 
     id: ResourceId
@@ -506,40 +495,30 @@ class ReviewThreadComment(TypedDict):
     is_bot: bool
     created_at: str | None
     updated_at: str | None
-    # GitHub only: set when GraphQL ``isMinimized`` is true.
-    is_collapsed: NotRequired[bool]
-    reactions: NotRequired[list[str]]
-    # Web permalink to the individual comment. GitHub only; omitted when the
-    # provider has no per-comment URL (e.g. GitLab notes).
-    url: NotRequired[str | None]
-    # The unified-diff snippet the comment is anchored to (the surrounding code
-    # as it looked when the comment was made). GitHub only; GitLab's notes API
-    # does not return the diff text.
-    diff_hunk: NotRequired[str | None]
-    # The author's relationship to the repository, e.g. "OWNER", "MEMBER",
-    # "CONTRIBUTOR", "NONE". GitHub only; GitLab has no equivalent on notes.
-    author_association: NotRequired[str | None]
-    # ID of the parent review that groups this comment. GitHub only; on GitLab
-    # the discussion/thread is the grouping unit, so there is no separate id.
+    is_minimized: bool
+    # Reactions are populated when include_reactions=True
+    reactions: NotRequired[list[ReactionResult]]
+    # The commit the comment is anchored to
+    commit_sha: str
+    # ID of the parent review that groups this comment. Implemented by GitHub, not GitLab.
     review_id: NotRequired[ResourceId | None]
-    # The commit the comment is anchored to, used to compute diffs since the
-    # comment was posted. Providers resolve this to the most stable available
-    # commit: on GitHub the immutable ``originalCommit`` (falling back to the
-    # mutable ``commit`` HEAD only when absent); on GitLab the diff position's
-    # ``head_sha`` (fixed when the note was created).
-    commit_sha: NotRequired[str | None]
+    # The unified-diff snippet the comment is anchored to (the surrounding code
+    # as it looked when the comment was made). Implemented by GitHub, not GitLab.
+    diff_hunk: NotRequired[str | None]
+    # Web permalink to the individual comment. Implemented by GitHub, not GitLab.
+    url: NotRequired[str | None]
+    # The author's relationship to the repository, e.g. "OWNER", "MEMBER",
+    # "CONTRIBUTOR", "NONE". Implemented by GitHub, not GitLab.
+    author_association: NotRequired[str | None]
 
 
 class ReviewThread(TypedDict):
     """A pull-request review thread, anchored at a file/line range, containing
     one or more comments. ``id`` is the provider-assigned thread/discussion id
-    accepted by ``ResolveReviewThreadProtocol.resolve_review_thread``.
-
-    On GitHub, ``is_collapsed`` mirrors GraphQL ``isResolved``. On GitLab,
-    it mirrors the discussion note ``resolved`` flag."""
+    accepted by ``ResolveReviewThreadProtocol.resolve_review_thread``."""
 
     id: ResourceId
-    is_collapsed: bool
+    is_resolved: bool
     is_outdated: bool
     file_path: str | None
     line: int | None

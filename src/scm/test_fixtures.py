@@ -1393,7 +1393,7 @@ class BaseTestProvider(Provider):
             data=[
                 ReviewThread(
                     id="PRRT_1",
-                    is_collapsed=False,
+                    is_resolved=False,
                     is_outdated=False,
                     file_path="src/main.py",
                     line=5,

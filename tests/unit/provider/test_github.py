@@ -2256,8 +2256,8 @@ def _make_thread_comment_node(
     author_typename: str = "User",
     created_at: str = "2026-02-04T10:00:00Z",
     updated_at: str = "2026-02-04T10:00:00Z",
-    is_collapsed: bool = False,
-    reactions: list[dict[str, str]] | None = None,
+    is_minimized: bool = False,
+    reactions: list[dict[str, Any]] | None = None,
     url: str | None = "https://github.com/test-org/test-repo/pull/42#r1001",
     diff_hunk: str | None = "@@ -1 +1 @@",
     author_association: str | None = "MEMBER",
@@ -2270,7 +2270,7 @@ def _make_thread_comment_node(
         "fullDatabaseId": full_database_id,
         "url": url,
         "body": body,
-        "isMinimized": is_collapsed,
+        "isMinimized": is_minimized,
         "diffHunk": diff_hunk,
         "createdAt": created_at,
         "updatedAt": updated_at,
@@ -2306,7 +2306,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                             author_login="sentry-bot",
                             author_typename="Bot",
                             author_database_id=None,
-                            is_collapsed=True,
+                            is_minimized=True,
                         ),
                     ],
                     is_outdated=True,
@@ -2342,7 +2342,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "author_association": "MEMBER",
                     "review_id": "555",
                     "commit_sha": "origsha",
-                    "is_collapsed": True,
+                    "is_minimized": True,
                 },
             ],
         },
@@ -2387,8 +2387,24 @@ def test_get_pull_request_review_threads_include_reactions() -> None:
                     [
                         _make_thread_comment_node(
                             reactions=[
-                                {"content": "THUMBS_UP"},
-                                {"content": "HEART"},
+                                {
+                                    "databaseId": 10,
+                                    "content": "THUMBS_UP",
+                                    "user": {
+                                        "login": "alice",
+                                        "__typename": "User",
+                                        "databaseId": 100,
+                                    },
+                                },
+                                {
+                                    "databaseId": 11,
+                                    "content": "HEART",
+                                    "user": {
+                                        "login": "bob",
+                                        "__typename": "User",
+                                        "databaseId": 101,
+                                    },
+                                },
                             ],
                         ),
                     ],
@@ -2399,7 +2415,10 @@ def test_get_pull_request_review_threads_include_reactions() -> None:
 
     result = provider.get_pull_request_review_threads("42", include_reactions=True)
 
-    assert result["data"][0]["comments"][0]["reactions"] == ["THUMBS_UP", "HEART"]
+    assert result["data"][0]["comments"][0]["reactions"] == [
+        {"id": "10", "content": "+1", "author": {"id": "100", "username": "alice"}},
+        {"id": "11", "content": "heart", "author": {"id": "101", "username": "bob"}},
+    ]
     assert client.calls[0]["query"] == REVIEW_THREADS_WITH_REACTIONS_QUERY
 
 

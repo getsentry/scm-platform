@@ -653,8 +653,9 @@ def get_pull_request_review_threads(
     A review thread is the unit of resolution for line-anchored reviews —
     each thread has an id accepted by ``resolve_review_thread``. Returned
     comments include author identity (with a ``is_bot`` flag) and timestamps
-    so callers can filter threads by app/bot author. When
-    ``include_reactions`` is True, comment ``reactions`` are populated
+    so callers can filter threads by app/bot author.
+
+    When ``include_reactions`` is True, comment ``reactions`` are populated
     (GitHub via GraphQL; GitLab via per-note award-emoji, capped per call).
     """
     return scm.get_pull_request_review_threads(

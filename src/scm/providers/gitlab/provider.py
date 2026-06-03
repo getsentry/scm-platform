@@ -158,10 +158,7 @@ AWARD_NAME_BY_REACTION: dict[Reaction, str] = {
 
 REACTION_BY_AWARD_NAME: dict[str, Reaction] = {award: reaction for reaction, award in AWARD_NAME_BY_REACTION.items()}
 
-# Cap per ``get_pull_request_review_threads(..., include_reactions=True)`` call.
-# Note that GitLab has 7,200 req/h, 3,600 req/s limit per "user"
-# https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
-GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES = 15
+
 
 GITLAB_ARCHIVE_FORMAT_MAP: dict[ArchiveFormat, str] = {
     "tarball": ".tar.gz",
@@ -225,6 +222,10 @@ GITLAB_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
     "unknown": "failed",
 }
 
+# Max number of note fetches by `get_pull_request_review_threads`.
+# Note that GitLab has 7,200 req/h, 3,600 req/s limit per user
+# https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
+GITLAB_MAX_INCLUDE_REACTIONS_FETCHES = 15
 
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
@@ -1498,7 +1499,7 @@ class GitLabProvider:
         GitLab returns discussions inline — non-positioned discussions are ordinary
         MR comments and are filtered out here. When ``include_reactions`` is True,
         reactions are fetched per note via award-emoji (up to
-        ``GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES`` notes per call).
+        ``GITLAB_MAX_INCLUDE_REACTIONS_FETCHES`` reactions per call).
         """
         response = self.get(
             GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
@@ -1513,8 +1514,27 @@ class GitLabProvider:
             raw_items=(d for d in raw if _is_review_thread_discussion(d)),
         )
         if include_reactions:
-            _attach_reactions_to_review_threads(self, pull_request_id, result["data"])
+            self._attach_reactions_to_review_threads(pull_request_id, result["data"])
         return result
+
+    def _attach_reactions_to_review_threads(
+        self,
+        pull_request_id: str,
+        threads: list[ReviewThread],
+        *,
+        max_fetches: int = GITLAB_MAX_INCLUDE_REACTIONS_FETCHES,
+    ) -> None:
+        remaining = max_fetches
+        for thread in threads:
+            for comment in thread["comments"]:
+                if remaining <= 0:
+                    return
+
+                discussion_id, note_id = comment["id"].split(":")
+                page = self.get_pull_request_comment_reactions(pull_request_id, note_id)
+                if page["data"]:
+                    comment["reactions"] = list(page["data"])
+                remaining -= len(page["data"])
 
     def get_thread_id_from_review_comment_unique_id(
         self, pull_request_id: str, review_comment_unique_id: str
@@ -1967,45 +1987,6 @@ def _make_map_check_run(provider: "GitLabProvider", sha: SHA, name: str) -> Call
     return _map
 
 
-def _gitlab_discussion_comment_id(discussion_id: str, note_id: int | str) -> str:
-    return f"{discussion_id}:{note_id}"
-
-
-def _gitlab_note_author(raw: dict[str, Any]) -> tuple[Author | None, bool]:
-    author_raw = raw.get("author") or {}
-    if not author_raw:
-        return None, False
-    return (
-        Author(id=str(author_raw["id"]), username=author_raw["username"]),
-        bool(author_raw.get("bot")),
-    )
-
-
-def _gitlab_note_id_for_reactions(comment_id: str) -> str | None:
-    note_id = comment_id.rpartition(":")[2] if ":" in comment_id else comment_id
-    return note_id if note_id.isdigit() else None
-
-
-def _attach_reactions_to_review_threads(
-    provider: "GitLabProvider",
-    pull_request_id: str,
-    threads: list[ReviewThread],
-    *,
-    max_note_fetches: int = GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES,
-) -> None:
-    remaining = max_note_fetches
-    for thread in threads:
-        for comment in thread["comments"]:
-            if remaining <= 0:
-                return
-            note_id = _gitlab_note_id_for_reactions(str(comment["id"]))
-            if note_id is None:
-                continue
-            page = provider.get_pull_request_comment_reactions(pull_request_id, note_id)
-            contents = [str(row["content"]) for row in page["data"]]
-            if contents:
-                comment["reactions"] = contents
-            remaining -= 1
 
 
 def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:
@@ -2021,28 +2002,30 @@ def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> Review
     ``id`` and ``unique_id`` use ``{discussion_id}:{note_id}`` so they match
     ``map_review_comment`` and work with ``update_review_comment`` /
     ``get_thread_id_from_review_comment_unique_id``.
-
-    GitLab has no equivalent for ``url``, ``diff_hunk``, ``author_association``,
-    or ``review_id`` on notes, so those are left unset. ``commit_sha`` is
-    populated from the diff position's ``head_sha`` — the head commit of the
-    diff version, fixed when the note was created — which is the immutable
-    anchor callers use to compute diffs since the comment was posted.
     """
-    composite_id = _gitlab_discussion_comment_id(discussion_id, raw["id"])
-    author, is_bot = _gitlab_note_author(raw)
-    comment = ReviewThreadComment(
+    composite_id = f"{discussion_id}:{raw['id']}"
+    author_raw = raw.get("author") or {}
+    if author_raw:
+        author: Author | None = Author(id=str(author_raw["id"]), username=author_raw["username"])
+    else:
+        author = None
+    return ReviewThreadComment(
         id=composite_id,
         unique_id=composite_id,
         body=raw.get("body", ""),
         author=author,
-        is_bot=is_bot,
+        # GitLab marks system actors via ``bot`` on the user object.
+        is_bot=bool(author_raw.get("bot")),
         created_at=raw.get("created_at"),
         updated_at=raw.get("updated_at"),
+        # GitLab does not have a concept of minimized ReviewThreadComment (you can only resolve the parent ReviewThread)
+        is_minimized=False,
+        commit_sha=(raw.get("position") or {}).get("head_sha"),
+        url=None,
+        diff_hunk=None,
+        author_association=None,
+        review_id=None,
     )
-    head_sha = (raw.get("position") or {}).get("head_sha")
-    if head_sha:
-        comment["commit_sha"] = head_sha
-    return comment
 
 
 def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
@@ -2062,7 +2045,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
     discussion_id = str(raw["id"])
     return ReviewThread(
         id=discussion_id,
-        is_collapsed=bool(head_note.get("resolved", False)),
+        is_resolved=bool(head_note.get("resolved", False)),
         # GitLab does not expose an "outdated" flag on discussions; an outdated
         # discussion can be inferred from position.line_range vs the latest diff
         # but the API surfaces no boolean. Report False conservatively.

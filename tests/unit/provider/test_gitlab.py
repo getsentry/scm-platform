@@ -19,7 +19,7 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.gitlab.provider import (
-    GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES,
+    GITLAB_MAX_INCLUDE_REACTIONS_FETCHES,
     ApiClient,
     GitLabProvider,
     _count_unified_diff_changes,
@@ -13970,9 +13970,11 @@ def test_get_pull_request_review_threads_include_reactions_caps_note_fetches(
 
     result = provider.get_pull_request_review_threads("1", include_reactions=True)
 
-    assert len(award_paths) == GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES
-    assert result["data"][0]["comments"][0]["reactions"] == ["+1"]
-    assert "reactions" not in result["data"][GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES]["comments"][0]
+    assert len(award_paths) == GITLAB_MAX_INCLUDE_REACTIONS_FETCHES
+    assert result["data"][0]["comments"][0]["reactions"] == [
+        {"id": "1", "content": "+1", "author": {"id": "1", "username": "alice"}}
+    ]
+    assert "reactions" not in result["data"][GITLAB_MAX_INCLUDE_REACTIONS_FETCHES]["comments"][0]
 
 
 def _gitlab_status_response(
