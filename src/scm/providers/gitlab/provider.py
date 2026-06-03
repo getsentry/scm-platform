@@ -1528,11 +1528,11 @@ class GitLabProvider:
                 if remaining <= 0:
                     return
 
-                discussion_id, note_id = comment["id"].split(":")
+                _, _, note_id = comment["id"].partition(":")
                 page = self.get_pull_request_comment_reactions(pull_request_id, note_id)
                 if page["data"]:
                     comment["reactions"] = list(page["data"])
-                remaining -= len(page["data"])
+                remaining -= 1
 
     def get_thread_id_from_review_comment_unique_id(
         self, pull_request_id: str, review_comment_unique_id: str

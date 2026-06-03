@@ -2342,7 +2342,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "url": "https://github.com/test-org/test-repo/pull/42#r1001",
                     "diff_hunk": "@@ -1 +1 @@",
                     "author_association": "MEMBER",
-                    "review_id": 1001,
+                    "review_id": "555",
                     "commit_sha": "origsha",
                     "is_minimized": True,
                     "reactions": [],

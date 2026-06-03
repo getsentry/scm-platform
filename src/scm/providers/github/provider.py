@@ -2201,6 +2201,8 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
 def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
+    review = raw.get("pullRequestReview") or {}
+    review_database_id = review.get("databaseId")
     return ReviewThreadComment(
         id=str(full_database_id) if full_database_id is not None else raw["id"],
         unique_id=raw["id"],
@@ -2219,7 +2221,7 @@ def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadCommen
         url=raw.get("url"),
         diff_hunk=raw.get("diffHunk"),
         author_association=raw.get("authorAssociation"),
-        review_id=full_database_id,
+        review_id=str(review_database_id) if review_database_id is not None else None,
     )
 
 
