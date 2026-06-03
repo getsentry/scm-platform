@@ -223,7 +223,7 @@ GITLAB_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
 # Max number of note fetches by `get_pull_request_review_threads`.
 # Note that GitLab has 7,200 req/h, 3,600 req/s limit per user
 # https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
-GITLAB_MAX_INCLUDE_REACTIONS_FETCHES = 15
+GITLAB_MAX_INCLUDE_REACTIONS_FETCHES = 10
 
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
