@@ -645,15 +645,21 @@ def get_pull_request_review_threads(
     pull_request_id: str,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
+    *,
+    include_reactions: bool = False,
 ) -> PaginatedActionResult[list[ReviewThread]]:
     """Get review threads on a pull request, with their comments.
 
     A review thread is the unit of resolution for line-anchored reviews —
     each thread has an id accepted by ``resolve_review_thread``. Returned
-    comments include author identity (with a ``is_bot`` flag), reactions,
-    and timestamps so callers can filter threads by app/bot author.
+    comments include author identity (with a ``is_bot`` flag) and timestamps
+    so callers can filter threads by app/bot author. When
+    ``include_reactions`` is True, comment ``reactions`` are populated
+    (GitHub via GraphQL; GitLab via per-note award-emoji, capped per call).
     """
-    return scm.get_pull_request_review_threads(pull_request_id, pagination, request_options)
+    return scm.get_pull_request_review_threads(
+        pull_request_id, pagination, request_options, include_reactions=include_reactions
+    )
 
 
 def get_review_comments(

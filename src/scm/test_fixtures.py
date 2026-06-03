@@ -1386,6 +1386,8 @@ class BaseTestProvider(Provider):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
     ) -> PaginatedActionResult[list[ReviewThread]]:
         return PaginatedActionResult(
             data=[

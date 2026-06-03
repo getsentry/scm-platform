@@ -19,6 +19,7 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.gitlab.provider import (
+    GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES,
     ApiClient,
     GitLabProvider,
     _count_unified_diff_changes,
@@ -13893,6 +13894,59 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
             ],
         }
     ]
+
+
+def test_get_pull_request_review_threads_include_reactions_caps_note_fetches(
+    client, provider: GitLabProvider
+) -> None:
+    position = {
+        "base_sha": "base",
+        "head_sha": "head",
+        "start_sha": "start",
+        "old_path": "a.md",
+        "new_path": "a.md",
+        "position_type": "text",
+        "new_line": 1,
+    }
+    discussions = [
+        {
+            "id": f"disc_{i}",
+            "notes": [
+                {
+                    "id": i + 1,
+                    "body": "note",
+                    "author": {"id": 1, "username": "user"},
+                    "created_at": "2026-03-11T11:00:00.000Z",
+                    "updated_at": "2026-03-11T11:00:00.000Z",
+                    "system": False,
+                    "position": position,
+                    "resolvable": True,
+                    "resolved": False,
+                }
+            ],
+        }
+        for i in range(30)
+    ]
+    award_paths: list[str] = []
+
+    def side_effect(**kwargs: Any) -> unittest.mock.MagicMock:
+        path = kwargs["path"]
+        if path.endswith("/discussions"):
+            return _make_mock_response(discussions)
+        if "/award_emoji" in path:
+            award_paths.append(path)
+            return _make_mock_response(
+                [{"id": 1, "name": "thumbsup", "user": {"id": 1, "username": "alice"}}]
+            )
+        raise AssertionError(f"unexpected path: {path}")
+
+    client.request.side_effect = side_effect
+
+    result = provider.get_pull_request_review_threads("1", include_reactions=True)
+
+    assert len(award_paths) == GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES
+    assert result["data"][0]["comments"][0]["reactions"] == ["+1"]
+    assert "reactions" not in result["data"][GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES]["comments"][0]
 
 
 def _gitlab_status_response(

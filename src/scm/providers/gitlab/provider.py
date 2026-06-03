@@ -158,6 +158,9 @@ AWARD_NAME_BY_REACTION: dict[Reaction, str] = {
 
 REACTION_BY_AWARD_NAME: dict[str, Reaction] = {award: reaction for reaction, award in AWARD_NAME_BY_REACTION.items()}
 
+# Cap per ``get_pull_request_review_threads(..., include_reactions=True)`` call.
+GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES = 25
+
 GITLAB_ARCHIVE_FORMAT_MAP: dict[ArchiveFormat, str] = {
     "tarball": ".tar.gz",
     "zip": ".zip",
@@ -1485,13 +1488,15 @@ class GitLabProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
     ) -> PaginatedActionResult[list[ReviewThread]]:
         """List merge request review threads (GitLab discussions with a diff position).
 
         GitLab returns discussions inline — non-positioned discussions are ordinary
-        MR comments and are filtered out here. Reactions are not included on this
-        response; use ``get_pull_request_comment_reactions`` with the note id (the
-        segment after ``:`` in composite comment ids from ``map_review_thread_comment``).
+        MR comments and are filtered out here. When ``include_reactions`` is True,
+        reactions are fetched per note via award-emoji (up to
+        ``GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES`` notes per call).
         """
         response = self.get(
             GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
@@ -1499,12 +1504,15 @@ class GitLabProvider:
             request_options=request_options,
         )
         raw = response.json()
-        return make_paginated_result(
+        result = make_paginated_result(
             map_review_thread,
             response,
             raw,
             raw_items=(d for d in raw if _is_review_thread_discussion(d)),
         )
+        if include_reactions:
+            _attach_reactions_to_review_threads(self, pull_request_id, result["data"])
+        return result
 
     def get_thread_id_from_review_comment_unique_id(
         self, pull_request_id: str, review_comment_unique_id: str
@@ -1955,6 +1963,36 @@ def _make_map_check_run(provider: "GitLabProvider", sha: SHA, name: str) -> Call
         )
 
     return _map
+
+
+def _gitlab_note_id_for_reactions(comment_id: str) -> str | None:
+    if ":" in comment_id:
+        note_id = comment_id.rpartition(":")[2]
+    else:
+        note_id = comment_id
+    return note_id if note_id.isdigit() else None
+
+
+def _attach_reactions_to_review_threads(
+    provider: "GitLabProvider",
+    pull_request_id: str,
+    threads: list[ReviewThread],
+    *,
+    max_note_fetches: int = GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES,
+) -> None:
+    remaining = max_note_fetches
+    for thread in threads:
+        for comment in thread["comments"]:
+            if remaining <= 0:
+                return
+            note_id = _gitlab_note_id_for_reactions(str(comment["id"]))
+            if note_id is None:
+                continue
+            page = provider.get_pull_request_comment_reactions(pull_request_id, note_id)
+            contents = [row["content"] for row in page["data"]]
+            if contents:
+                comment["reactions"] = contents
+            remaining -= 1
 
 
 def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:

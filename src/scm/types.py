@@ -487,10 +487,10 @@ class ReviewThreadComment(TypedDict):
     """A comment in a pull-request review thread, with the extra fields needed
     to render or moderate the thread (bot indicator, timestamps).
 
-    ``reactions`` is populated on GitHub via GraphQL when listing review threads.
-    GitLab does not include reactions on the discussions endpoint; callers should
-    use ``get_pull_request_comment_reactions`` with the note id (the segment after
-    ``:`` in composite comment ids)."""
+    When ``get_pull_request_review_threads(..., include_reactions=True)``,
+    ``reactions`` lists provider reaction content strings (GitHub GraphQL
+    ``ReactionContent`` values; GitLab ``Reaction`` literals such as ``+1``).
+    """
 
     id: ResourceId
     unique_id: str | None
@@ -499,8 +499,8 @@ class ReviewThreadComment(TypedDict):
     is_bot: bool
     created_at: str | None
     updated_at: str | None
-    reactions: NotRequired[list[str]]
     is_collapsed: NotRequired[bool]
+    reactions: NotRequired[list[str]]
 
 
 class ReviewThread(TypedDict):
@@ -1340,6 +1340,8 @@ class GetPullRequestReviewThreadsProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
     ) -> PaginatedActionResult[list[ReviewThread]]: ...
 
 

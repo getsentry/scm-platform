@@ -23,6 +23,7 @@ from scm.providers.github.provider import (
     REVIEW_THREAD_BY_COMMENT_QUERY,
     REVIEW_THREAD_FULL_COMMENTS_QUERY,
     REVIEW_THREADS_QUERY,
+    REVIEW_THREADS_WITH_REACTIONS_QUERY,
     THREAD_COMMENTS_QUERY,
     UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
@@ -2211,25 +2212,25 @@ def _make_thread_comment_node(
     author_typename: str = "User",
     created_at: str = "2026-02-04T10:00:00Z",
     updated_at: str = "2026-02-04T10:00:00Z",
-    reaction_contents: list[str] | None = None,
     is_collapsed: bool = False,
+    reactions: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    return {
+    node: dict[str, Any] = {
         "id": node_id,
         "fullDatabaseId": full_database_id,
         "body": body,
         "isMinimized": is_collapsed,
         "createdAt": created_at,
         "updatedAt": updated_at,
-        "reactions": {
-            "nodes": [{"content": content} for content in (reaction_contents or [])],
-        },
         "author": {
             "login": author_login,
             "__typename": author_typename,
             "databaseId": author_database_id,
         },
     }
+    if reactions is not None:
+        node["reactions"] = {"nodes": reactions}
+    return node
 
 
 def test_get_pull_request_review_threads_returns_threads_with_comments() -> None:
@@ -2259,7 +2260,6 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                                             author_login="sentry-bot",
                                             author_typename="Bot",
                                             author_database_id=None,
-                                            reaction_contents=["THUMBS_UP", "HEART"],
                                             is_collapsed=True,
                                         ),
                                     ],
@@ -2293,7 +2293,6 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "is_bot": True,
                     "created_at": "2026-02-04T10:00:00Z",
                     "updated_at": "2026-02-04T10:00:00Z",
-                    "reactions": ["THUMBS_UP", "HEART"],
                     "is_collapsed": True,
                 },
             ],
@@ -2312,6 +2311,49 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
             },
         }
     ]
+
+
+def test_get_pull_request_review_threads_include_reactions() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "PRRT_1",
+                                "isResolved": False,
+                                "isOutdated": False,
+                                "isCollapsed": False,
+                                "path": "src/main.py",
+                                "line": 10,
+                                "startLine": None,
+                                "comments": {
+                                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                    "nodes": [
+                                        _make_thread_comment_node(
+                                            reactions=[
+                                                {"content": "THUMBS_UP"},
+                                                {"content": "HEART"},
+                                            ],
+                                        ),
+                                    ],
+                                },
+                            },
+                        ],
+                    }
+                }
+            }
+        },
+    )
+
+    result = provider.get_pull_request_review_threads("42", include_reactions=True)
+
+    assert result["data"][0]["comments"][0]["reactions"] == ["THUMBS_UP", "HEART"]
+    assert client.calls[0]["query"] == REVIEW_THREADS_WITH_REACTIONS_QUERY
 
 
 def test_get_pull_request_review_threads_forwards_pagination_cursor_and_returns_next() -> None:
