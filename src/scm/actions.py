@@ -656,7 +656,8 @@ def get_pull_request_review_threads(
     so callers can filter threads by app/bot author.
 
     When ``include_reactions`` is True, comment ``reactions`` are populated
-    (GitHub via GraphQL; GitLab via per-note award-emoji, capped per call).
+    (GitHub via GraphQL, up to 10 reactions per comment; GitLab via per-note
+    award-emoji, capped per call).
     """
     return scm.get_pull_request_review_threads(
         pull_request_id, pagination, request_options, include_reactions=include_reactions

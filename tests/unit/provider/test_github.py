@@ -31,10 +31,6 @@ from scm.providers.github.provider import (
     map_collaborator_permission_level,
     map_github_repository_permission,
 )
-
-REVIEW_THREADS_QUERY = _graphql_review_threads_query(include_reactions=False)
-REVIEW_THREADS_WITH_REACTIONS_QUERY = _graphql_review_threads_query(include_reactions=True)
-REVIEW_THREAD_FULL_COMMENTS_QUERY = _graphql_review_thread_full_comments_query(include_reactions=False)
 from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
@@ -68,6 +64,9 @@ from scm.types import (
     WriteCommitAction,
 )
 
+REVIEW_THREADS_QUERY = _graphql_review_threads_query(include_reactions=False)
+REVIEW_THREADS_WITH_REACTIONS_QUERY = _graphql_review_threads_query(include_reactions=True)
+REVIEW_THREAD_FULL_COMMENTS_QUERY = _graphql_review_thread_full_comments_query(include_reactions=False)
 
 def make_repository() -> Repository:
     return {
@@ -2424,6 +2423,7 @@ def test_get_pull_request_review_threads_include_reactions() -> None:
         {"id": "11", "content": "heart", "author": {"id": "101", "username": "bob"}},
     ]
     assert client.calls[0]["query"] == REVIEW_THREADS_WITH_REACTIONS_QUERY
+    assert "reactions(first: 10)" in client.calls[0]["query"]
 
 
 def test_get_pull_request_review_threads_commit_sha_falls_back_to_commit() -> None:

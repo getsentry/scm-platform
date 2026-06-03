@@ -267,7 +267,7 @@ _REVIEW_THREAD_COMMENT_FIELDS = """
                             author { login __typename ... on User { databaseId } }"""
 
 _REVIEW_THREAD_REACTIONS_FIELDS = """
-                            reactions(first: 100) {
+                            reactions(first: 10) {
                                 nodes {
                                     databaseId
                                     content
