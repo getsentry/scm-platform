@@ -13791,8 +13791,7 @@ def test_map_review_thread_comment_uses_discussion_note_composite_id():
     )
     assert result["id"] == "diff_discussion_id:42"
     assert result["unique_id"] == "diff_discussion_id:42"
-    # No diff position -> no commit anchor.
-    assert "commit_sha" not in result
+    assert result["commit_sha"] is None
 
 
 def test_map_review_thread_comment_populates_commit_sha_from_position_head_sha():
@@ -13892,7 +13891,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
     assert result["data"] == [
         {
             "id": "diff_discussion_id",
-            "is_collapsed": True,
+            "is_resolved": True,
             "is_outdated": False,
             "file_path": "BLAH.md",
             "line": 7,
@@ -13906,7 +13905,12 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "is_bot": True,
                     "created_at": "2026-03-11T11:01:00.000Z",
                     "updated_at": "2026-03-11T11:02:00.000Z",
+                    "is_minimized": False,
                     "commit_sha": "head",
+                    "url": None,
+                    "diff_hunk": None,
+                    "author_association": None,
+                    "review_id": None,
                 },
                 {
                     "id": "diff_discussion_id:3",
@@ -13916,6 +13920,12 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "is_bot": False,
                     "created_at": "2026-03-11T11:03:00.000Z",
                     "updated_at": "2026-03-11T11:03:00.000Z",
+                    "is_minimized": False,
+                    "commit_sha": None,
+                    "url": None,
+                    "diff_hunk": None,
+                    "author_association": None,
+                    "review_id": None,
                 },
             ],
         }

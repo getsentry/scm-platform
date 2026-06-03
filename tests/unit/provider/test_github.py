@@ -21,17 +21,20 @@ from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
-    REVIEW_THREAD_FULL_COMMENTS_QUERY,
-    REVIEW_THREADS_QUERY,
-    REVIEW_THREADS_WITH_REACTIONS_QUERY,
     THREAD_COMMENTS_QUERY,
     UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     GitHubProvider,
+    _graphql_review_thread_full_comments_query,
+    _graphql_review_threads_query,
     map_app_installation,
     map_collaborator_permission_level,
     map_github_repository_permission,
 )
+
+REVIEW_THREADS_QUERY = _graphql_review_threads_query(include_reactions=False)
+REVIEW_THREADS_WITH_REACTIONS_QUERY = _graphql_review_threads_query(include_reactions=True)
+REVIEW_THREAD_FULL_COMMENTS_QUERY = _graphql_review_thread_full_comments_query(include_reactions=False)
 from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
@@ -2323,7 +2326,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
     assert result["data"] == [
         {
             "id": "PRRT_1",
-            "is_collapsed": False,
+            "is_resolved": False,
             "is_outdated": True,
             "file_path": "src/main.py",
             "line": 10,
@@ -2340,9 +2343,10 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "url": "https://github.com/test-org/test-repo/pull/42#r1001",
                     "diff_hunk": "@@ -1 +1 @@",
                     "author_association": "MEMBER",
-                    "review_id": "555",
+                    "review_id": 1001,
                     "commit_sha": "origsha",
                     "is_minimized": True,
+                    "reactions": [],
                 },
             ],
         },
@@ -2362,7 +2366,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
     ]
 
 
-def test_get_pull_request_review_threads_is_collapsed_from_is_resolved() -> None:
+def test_get_pull_request_review_threads_is_resolved_from_graphql() -> None:
     provider, client = make_provider()
     client.queue(
         "graphql",
@@ -2373,7 +2377,7 @@ def test_get_pull_request_review_threads_is_collapsed_from_is_resolved() -> None
 
     result = provider.get_pull_request_review_threads("42")
 
-    assert result["data"][0]["is_collapsed"] is True
+    assert result["data"][0]["is_resolved"] is True
 
 
 def test_get_pull_request_review_threads_include_reactions() -> None:

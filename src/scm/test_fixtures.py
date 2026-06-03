@@ -475,12 +475,13 @@ def make_github_graphql_review_thread_comment(
     url: str = "https://github.com/test-org/test-repo/pull/1#discussion_r100",
     body: str = "Review thread comment",
     is_minimized: bool = False,
-    path: str | None = "src/main.py",
-    start_line: int | None = 1,
-    line: int | None = 5,
     diff_hunk: str | None = "@@ -1,3 +1,4 @@",
     created_at: str | None = "2026-02-04T10:00:00Z",
     updated_at: str | None = "2026-02-04T10:00:00Z",
+    author_association: str = "MEMBER",
+    commit_oid: str | None = "deadbeef",
+    original_commit_oid: str | None = "deadbeef",
+    review_database_id: int | None = 1001,
     reactions: list[dict[str, Any]] | None = None,
     reactions_total_count: int = 0,
     author_login: str = "reviewer",
@@ -488,44 +489,52 @@ def make_github_graphql_review_thread_comment(
     author_typename: str = "User",
 ) -> dict[str, Any]:
     """Factory for GraphQL review thread comment nodes."""
-    return {
+    node: dict[str, Any] = {
         "id": node_id,
         "fullDatabaseId": full_database_id,
         "url": url,
         "body": body,
         "isMinimized": is_minimized,
-        "path": path,
-        "startLine": start_line,
-        "line": line,
         "diffHunk": diff_hunk,
         "createdAt": created_at,
         "updatedAt": updated_at,
-        "reactions": {
-            "nodes": reactions if reactions is not None else [],
-            "totalCount": reactions_total_count,
-        },
+        "authorAssociation": author_association,
+        "commit": {"oid": commit_oid} if commit_oid is not None else None,
+        "originalCommit": {"oid": original_commit_oid} if original_commit_oid is not None else None,
+        "pullRequestReview": {"databaseId": review_database_id},
         "author": {
             "login": author_login,
             "databaseId": author_database_id,
             "__typename": author_typename,
         },
     }
+    if reactions is not None:
+        node["reactions"] = {
+            "nodes": reactions,
+            "totalCount": reactions_total_count,
+        }
+    return node
 
 
 def make_github_graphql_review_thread(
     node_id: str = "PRT_abc123",
-    is_collapsed: bool = False,
     is_outdated: bool = False,
     is_resolved: bool = False,
+    path: str | None = "src/main.py",
+    line: int | None = 5,
+    start_line: int | None = None,
     comments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Factory for GraphQL review thread nodes."""
     return {
         "id": node_id,
-        "isCollapsed": is_collapsed,
         "isOutdated": is_outdated,
         "isResolved": is_resolved,
+        "path": path,
+        "line": line,
+        "startLine": start_line,
         "comments": {
+            "pageInfo": {"hasNextPage": False, "endCursor": None},
             "nodes": (comments if comments is not None else [make_github_graphql_review_thread_comment()]),
         },
     }
@@ -1407,6 +1416,8 @@ class BaseTestProvider(Provider):
                             is_bot=False,
                             created_at="2026-02-04T10:00:00Z",
                             updated_at="2026-02-04T10:00:00Z",
+                            is_minimized=False,
+                            commit_sha="",
                         ),
                     ],
                 ),

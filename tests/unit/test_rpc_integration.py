@@ -293,15 +293,21 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
                                             {
                                                 "id": "PRRC_1",
                                                 "fullDatabaseId": 1,
+                                                "url": "https://github.com/org/repo/pull/1#discussion_r1",
                                                 "body": "hi",
+                                                "isMinimized": False,
+                                                "diffHunk": "@@ -1 +1 @@",
                                                 "createdAt": "2026-02-04T10:00:00Z",
                                                 "updatedAt": "2026-02-04T10:00:00Z",
+                                                "authorAssociation": "MEMBER",
+                                                "commit": {"oid": "abc123"},
+                                                "originalCommit": {"oid": "abc123"},
+                                                "pullRequestReview": {"databaseId": 80},
                                                 "author": {
                                                     "login": "alice",
                                                     "__typename": "User",
                                                     "databaseId": 7,
                                                 },
-                                                "reactions": {"nodes": []},
                                             }
                                         ],
                                     },

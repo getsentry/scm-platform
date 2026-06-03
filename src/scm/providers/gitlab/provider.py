@@ -158,8 +158,6 @@ AWARD_NAME_BY_REACTION: dict[Reaction, str] = {
 
 REACTION_BY_AWARD_NAME: dict[str, Reaction] = {award: reaction for reaction, award in AWARD_NAME_BY_REACTION.items()}
 
-
-
 GITLAB_ARCHIVE_FORMAT_MAP: dict[ArchiveFormat, str] = {
     "tarball": ".tar.gz",
     "zip": ".zip",
@@ -1987,8 +1985,6 @@ def _make_map_check_run(provider: "GitLabProvider", sha: SHA, name: str) -> Call
     return _map
 
 
-
-
 def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:
     """A GitLab discussion is a review thread iff its first note has a ``position`` —
     those are inline diff notes. Plain MR comments come back with ``position`` unset."""
@@ -2059,15 +2055,14 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
 
 def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewComment]:
     def _map_review_comment(raw: dict[str, Any]) -> ReviewComment:
-        composite_id = _gitlab_discussion_comment_id(discussion_id, raw["id"])
-        author, _ = _gitlab_note_author(raw)
+        author_raw = raw.get("author")
         return ReviewComment(
-            id=composite_id,
-            unique_id=composite_id,
+            id=f"{discussion_id}:{raw['id']}",
+            unique_id=f"{discussion_id}:{raw['id']}",
             url=None,
             file_path=raw.get("position", {}).get("new_path"),
             body=raw["body"],
-            author=author,
+            author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
             created_at=raw.get("created_at"),
             diff_hunk=None,
             review_id=None,

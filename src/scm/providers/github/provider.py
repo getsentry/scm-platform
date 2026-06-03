@@ -1719,7 +1719,7 @@ class GitHubProvider:
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
-                    is_resolved=bool(raw_thread.get("isResolved")),
+                    is_resolved=raw_thread["isResolved"],
                     is_outdated=raw_thread["isOutdated"],
                     file_path=raw_thread.get("path"),
                     line=raw_thread.get("line"),
