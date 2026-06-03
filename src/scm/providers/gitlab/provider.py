@@ -1489,9 +1489,9 @@ class GitLabProvider:
         """List merge request review threads (GitLab discussions with a diff position).
 
         GitLab returns discussions inline — non-positioned discussions are ordinary
-        MR comments and are filtered out here. Reactions are not returned by the
-        discussions endpoint; per-comment reactions would require a separate
-        award_emoji call per note, so they are surfaced as empty lists.
+        MR comments and are filtered out here. Reactions are not included on this
+        response; use ``get_pull_request_comment_reactions`` with the note id (the
+        segment after ``:`` in composite comment ids from ``map_review_thread_comment``).
         """
         response = self.get(
             GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
@@ -2006,7 +2006,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
     discussion_id = str(raw["id"])
     return ReviewThread(
         id=discussion_id,
-        is_resolved=bool(head_note.get("resolved", False)),
+        is_collapsed=bool(head_note.get("resolved", False)),
         # GitLab does not expose an "outdated" flag on discussions; an outdated
         # discussion can be inferred from position.line_range vs the latest diff
         # but the API surfaces no boolean. Report False conservatively.

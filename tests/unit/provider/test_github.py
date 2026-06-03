@@ -2211,13 +2211,19 @@ def _make_thread_comment_node(
     author_typename: str = "User",
     created_at: str = "2026-02-04T10:00:00Z",
     updated_at: str = "2026-02-04T10:00:00Z",
+    reaction_contents: list[str] | None = None,
+    is_collapsed: bool = False,
 ) -> dict[str, Any]:
     return {
         "id": node_id,
         "fullDatabaseId": full_database_id,
         "body": body,
+        "isMinimized": is_collapsed,
         "createdAt": created_at,
         "updatedAt": updated_at,
+        "reactions": {
+            "nodes": [{"content": content} for content in (reaction_contents or [])],
+        },
         "author": {
             "login": author_login,
             "__typename": author_typename,
@@ -2240,6 +2246,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                                 "id": "PRRT_1",
                                 "isResolved": False,
                                 "isOutdated": True,
+                                "isCollapsed": False,
                                 "path": "src/main.py",
                                 "line": 10,
                                 "startLine": 5,
@@ -2252,6 +2259,8 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                                             author_login="sentry-bot",
                                             author_typename="Bot",
                                             author_database_id=None,
+                                            reaction_contents=["THUMBS_UP", "HEART"],
+                                            is_collapsed=True,
                                         ),
                                     ],
                                 },
@@ -2270,7 +2279,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
     assert result["data"] == [
         {
             "id": "PRRT_1",
-            "is_resolved": False,
+            "is_collapsed": True,
             "is_outdated": True,
             "file_path": "src/main.py",
             "line": 10,
@@ -2284,6 +2293,8 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "is_bot": True,
                     "created_at": "2026-02-04T10:00:00Z",
                     "updated_at": "2026-02-04T10:00:00Z",
+                    "reactions": ["THUMBS_UP", "HEART"],
+                    "is_collapsed": True,
                 },
             ],
         },

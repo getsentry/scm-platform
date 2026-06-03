@@ -13866,7 +13866,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
     assert result["data"] == [
         {
             "id": "diff_discussion_id",
-            "is_resolved": True,
+            "is_collapsed": True,
             "is_outdated": False,
             "file_path": "BLAH.md",
             "line": 7,

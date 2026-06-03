@@ -487,9 +487,10 @@ class ReviewThreadComment(TypedDict):
     """A comment in a pull-request review thread, with the extra fields needed
     to render or moderate the thread (bot indicator, timestamps).
 
-    Reactions are intentionally omitted: GitLab does not surface them on its
-    discussions endpoint, and the per-note award_emoji call would be N+1.
-    Use the dedicated comment-reaction protocols if reactions are needed."""
+    ``reactions`` is populated on GitHub via GraphQL when listing review threads.
+    GitLab does not include reactions on the discussions endpoint; callers should
+    use ``get_pull_request_comment_reactions`` with the note id (the segment after
+    ``:`` in composite comment ids)."""
 
     id: ResourceId
     unique_id: str | None
@@ -498,15 +499,20 @@ class ReviewThreadComment(TypedDict):
     is_bot: bool
     created_at: str | None
     updated_at: str | None
+    reactions: NotRequired[list[str]]
+    is_collapsed: NotRequired[bool]
 
 
 class ReviewThread(TypedDict):
     """A pull-request review thread, anchored at a file/line range, containing
     one or more comments. ``id`` is the provider-assigned thread/discussion id
-    accepted by ``ResolveReviewThreadProtocol.resolve_review_thread``."""
+    accepted by ``ResolveReviewThreadProtocol.resolve_review_thread``.
+
+    ``is_collapsed`` is True when the thread is hidden from active review
+    (resolved, collapsed in the GitHub UI, and/or root comment minimized)."""
 
     id: ResourceId
-    is_resolved: bool
+    is_collapsed: bool
     is_outdated: bool
     file_path: str | None
     line: int | None

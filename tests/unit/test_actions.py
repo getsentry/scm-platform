@@ -571,7 +571,7 @@ def _check_pr_review_threads(result: Any) -> None:
     assert len(result["data"]) == 1
     thread = result["data"][0]
     assert thread["id"] == "PRRT_1"
-    assert thread["is_resolved"] is False
+    assert thread["is_collapsed"] is False
     assert len(thread["comments"]) == 1
     assert thread["comments"][0]["unique_id"] == "PRRC_abc"
     assert thread["comments"][0]["is_bot"] is False

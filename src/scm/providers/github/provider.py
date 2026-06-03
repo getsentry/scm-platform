@@ -261,6 +261,7 @@ query ReviewThreads($owner: String!, $name: String!, $number: Int!, $cursor: Str
                     id
                     isResolved
                     isOutdated
+                    isCollapsed
                     path
                     line
                     startLine
@@ -270,8 +271,12 @@ query ReviewThreads($owner: String!, $name: String!, $number: Int!, $cursor: Str
                             id
                             fullDatabaseId
                             body
+                            isMinimized
                             createdAt
                             updatedAt
+                            reactions(first: 100) {
+                                nodes { content }
+                            }
                             author { login __typename ... on User { databaseId } }
                         }
                     }
@@ -292,8 +297,12 @@ query ReviewThreadFullComments($threadId: ID!, $cursor: String) {
                     id
                     fullDatabaseId
                     body
+                    isMinimized
                     createdAt
                     updatedAt
+                    reactions(first: 100) {
+                        nodes { content }
+                    }
                     author { login __typename ... on User { databaseId } }
                 }
             }
@@ -1681,10 +1690,15 @@ class GitHubProvider:
         threads: list[ReviewThread] = []
         for raw_thread in review_threads["nodes"]:
             comments = list(self._iter_review_thread_comments(raw_thread))
+            root_comment_collapsed = bool(comments and comments[0].get("is_collapsed"))
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
-                    is_resolved=raw_thread["isResolved"],
+                    is_collapsed=bool(
+                        raw_thread.get("isCollapsed")
+                        or raw_thread.get("isResolved")
+                        or root_comment_collapsed
+                    ),
                     is_outdated=raw_thread["isOutdated"],
                     file_path=raw_thread.get("path"),
                     line=raw_thread.get("line"),
@@ -2128,15 +2142,22 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
 def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
-    return ReviewThreadComment(
-        id=str(full_database_id) if full_database_id is not None else raw["id"],
-        unique_id=raw["id"],
-        body=raw.get("body", ""),
-        author=author,
-        is_bot=is_bot,
-        created_at=raw.get("createdAt"),
-        updated_at=raw.get("updatedAt"),
-    )
+    reaction_nodes = (raw.get("reactions") or {}).get("nodes") or []
+    reactions = [node["content"] for node in reaction_nodes if node.get("content")]
+    mapped: ReviewThreadComment = {
+        "id": str(full_database_id) if full_database_id is not None else raw["id"],
+        "unique_id": raw["id"],
+        "body": raw.get("body", ""),
+        "author": author,
+        "is_bot": is_bot,
+        "created_at": raw.get("createdAt"),
+        "updated_at": raw.get("updatedAt"),
+    }
+    if reactions:
+        mapped["reactions"] = reactions
+    if raw.get("isMinimized"):
+        mapped["is_collapsed"] = True
+    return mapped
 
 
 def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:
