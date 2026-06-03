@@ -2345,7 +2345,6 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "review_id": "555",
                     "commit_sha": "origsha",
                     "is_minimized": True,
-                    "reactions": [],
                 },
             ],
         },
@@ -2418,12 +2417,25 @@ def test_get_pull_request_review_threads_include_reactions() -> None:
 
     result = provider.get_pull_request_review_threads("42", include_reactions=True)
 
-    assert result["data"][0]["comments"][0]["reactions"] == [
+    comment = result["data"][0]["comments"][0]
+    assert comment["reactions"] == [
         {"id": "10", "content": "+1", "author": {"id": "100", "username": "alice"}},
         {"id": "11", "content": "heart", "author": {"id": "101", "username": "bob"}},
     ]
     assert client.calls[0]["query"] == REVIEW_THREADS_WITH_REACTIONS_QUERY
     assert "reactions(first: 10)" in client.calls[0]["query"]
+
+
+def test_get_pull_request_review_threads_omits_reactions_when_not_requested() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload([_review_thread_node("PRRT_1", [_make_thread_comment_node()])]),
+    )
+
+    result = provider.get_pull_request_review_threads("42", include_reactions=False)
+
+    assert "reactions" not in result["data"][0]["comments"][0]
 
 
 def test_get_pull_request_review_threads_commit_sha_falls_back_to_commit() -> None:

@@ -1992,12 +1992,20 @@ def _is_review_thread_discussion(discussion: dict[str, Any]) -> bool:
     return bool(notes) and notes[0].get("position") is not None
 
 
-def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> ReviewThreadComment:
+def map_review_thread_comment(
+    raw: dict[str, Any],
+    discussion_id: str,
+    *,
+    thread_head_sha: str | None = None,
+) -> ReviewThreadComment:
     """Map a GitLab discussion note to an scm ReviewThreadComment.
 
     ``id`` and ``unique_id`` use ``{discussion_id}:{note_id}`` so they match
     ``map_review_comment`` and work with ``update_review_comment`` /
     ``get_thread_id_from_review_comment_unique_id``.
+
+    Only the first note in a thread populates ``position.head_sha``; use ``thread_head_sha`` from
+    the discussion's first (anchored) note when the note has no SHA of its own.
     """
     composite_id = f"{discussion_id}:{raw['id']}"
     author_raw = raw.get("author") or {}
@@ -2005,6 +2013,10 @@ def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> Review
         author: Author | None = Author(id=str(author_raw["id"]), username=author_raw["username"])
     else:
         author = None
+
+    note_head_sha = (raw.get("position") or {}).get("head_sha")
+    commit_sha = note_head_sha if note_head_sha is not None else thread_head_sha or ""
+
     return ReviewThreadComment(
         id=composite_id,
         unique_id=composite_id,
@@ -2016,7 +2028,7 @@ def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> Review
         updated_at=raw.get("updated_at"),
         # GitLab does not have a concept of minimized ReviewThreadComment (you can only resolve the parent ReviewThread)
         is_minimized=False,
-        commit_sha=str((raw.get("position") or {}).get("head_sha") or ""),
+        commit_sha=commit_sha,
         url=None,
         diff_hunk=None,
         author_association=None,
@@ -2039,6 +2051,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
     start_line = _line(start_pos) if start_pos else None
 
     discussion_id = str(raw["id"])
+    thread_head_sha = position.get("head_sha")
     return ReviewThread(
         id=discussion_id,
         is_resolved=bool(head_note.get("resolved", False)),
@@ -2049,7 +2062,9 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
         file_path=position.get("new_path") or position.get("old_path"),
         line=line,
         start_line=start_line,
-        comments=[map_review_thread_comment(n, discussion_id) for n in notes],
+        comments=[
+            map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes
+        ],
     )
 
 

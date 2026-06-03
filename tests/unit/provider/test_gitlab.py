@@ -13817,6 +13817,62 @@ def test_map_review_thread_comment_populates_commit_sha_from_position_head_sha()
     assert result["commit_sha"] == "headsha123"
 
 
+def test_map_review_thread_comment_falls_back_to_thread_head_sha_for_replies():
+    from scm.providers.gitlab.provider import map_review_thread_comment
+
+    result = map_review_thread_comment(
+        {
+            "id": 3,
+            "body": "reply",
+            "author": {"id": 1, "username": "alice"},
+            "created_at": "2026-03-11T11:03:00.000Z",
+            "updated_at": "2026-03-11T11:03:00.000Z",
+            "position": {"position_type": "text"},
+        },
+        "diff_discussion_id",
+        thread_head_sha="head",
+    )
+
+    assert result["commit_sha"] == "head"
+
+
+def test_map_review_thread_reply_inherits_commit_sha_from_head_note():
+    from scm.providers.gitlab.provider import map_review_thread
+
+    thread = map_review_thread(
+        {
+            "id": "diff_discussion_id",
+            "notes": [
+                {
+                    "id": 2,
+                    "body": "fix me",
+                    "author": {"id": 2, "username": "sentry-bot", "bot": True},
+                    "created_at": "2026-03-11T11:01:00.000Z",
+                    "updated_at": "2026-03-11T11:02:00.000Z",
+                    "resolved": True,
+                    "position": {
+                        "head_sha": "anchor_sha",
+                        "new_path": "src/a.py",
+                        "new_line": 7,
+                        "position_type": "text",
+                    },
+                },
+                {
+                    "id": 3,
+                    "body": "reply",
+                    "author": {"id": 1, "username": "alice"},
+                    "created_at": "2026-03-11T11:03:00.000Z",
+                    "updated_at": "2026-03-11T11:03:00.000Z",
+                    "position": {"position_type": "text"},
+                },
+            ],
+        }
+    )
+
+    assert thread["comments"][0]["commit_sha"] == "anchor_sha"
+    assert thread["comments"][1]["commit_sha"] == "anchor_sha"
+
+
 def test_get_pull_request_review_threads_filters_non_positioned_discussions(client, provider: GitLabProvider):
     response = unittest.mock.MagicMock()
     response.json.return_value = [
@@ -13921,7 +13977,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "created_at": "2026-03-11T11:03:00.000Z",
                     "updated_at": "2026-03-11T11:03:00.000Z",
                     "is_minimized": False,
-                    "commit_sha": "",
+                    "commit_sha": "head",
                     "url": None,
                     "diff_hunk": None,
                     "author_association": None,
