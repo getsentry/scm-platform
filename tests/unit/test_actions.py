@@ -573,8 +573,12 @@ def _check_pr_review_threads(result: Any) -> None:
     assert thread["id"] == "PRRT_1"
     assert thread["is_resolved"] is False
     assert len(thread["comments"]) == 1
-    assert thread["comments"][0]["unique_id"] == "PRRC_abc"
-    assert thread["comments"][0]["is_bot"] is False
+    comment = thread["comments"][0]
+    assert comment["unique_id"] == "PRRC_abc"
+    assert comment["is_bot"] is False
+    assert comment["is_minimized"] is False
+    assert comment["commit_sha"] == ""
+    assert comment.get("reactions") in (None, [])
     assert result["type"] == "github"
 
 

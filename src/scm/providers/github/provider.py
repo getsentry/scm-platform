@@ -251,55 +251,86 @@ query ThreadComments($threadId: ID!, $cursor: String) {
 }
 """
 
-REVIEW_THREADS_QUERY = """
-query ReviewThreads($owner: String!, $name: String!, $number: Int!, $cursor: String, $perPage: Int!) {
-    repository(owner: $owner, name: $name) {
-        pullRequest(number: $number) {
-            reviewThreads(first: $perPage, after: $cursor) {
-                pageInfo { hasNextPage endCursor }
-                nodes {
+_REVIEW_THREAD_COMMENT_FIELDS = """
+                            id
+                            fullDatabaseId
+                            url
+                            body
+                            isMinimized
+                            diffHunk
+                            createdAt
+                            updatedAt
+                            authorAssociation
+                            commit { oid }
+                            originalCommit { oid }
+                            pullRequestReview { databaseId }
+                            author { login __typename ... on User { databaseId } }"""
+
+_REVIEW_THREAD_REACTIONS_FIELDS = """
+                            reactions(first: 10) {
+                                nodes {
+                                    databaseId
+                                    content
+                                    user { login __typename ... on User { databaseId } }
+                                }
+                            }"""
+
+
+def _review_thread_comment_fields(*, include_reactions: bool) -> str:
+    if include_reactions:
+        return _REVIEW_THREAD_COMMENT_FIELDS + _REVIEW_THREAD_REACTIONS_FIELDS
+    return _REVIEW_THREAD_COMMENT_FIELDS
+
+
+def _graphql_review_threads_query(*, include_reactions: bool) -> str:
+    query_name = "ReviewThreadsWithReactions" if include_reactions else "ReviewThreads"
+    comment_fields = _review_thread_comment_fields(include_reactions=include_reactions)
+    return f"""
+query {query_name}($owner: String!, $name: String!, $number: Int!, $cursor: String, $perPage: Int!) {{
+    repository(owner: $owner, name: $name) {{
+        pullRequest(number: $number) {{
+            reviewThreads(first: $perPage, after: $cursor) {{
+                pageInfo {{ hasNextPage endCursor }}
+                nodes {{
                     id
                     isResolved
                     isOutdated
                     path
                     line
                     startLine
-                    comments(first: 100) {
-                        pageInfo { hasNextPage endCursor }
-                        nodes {
-                            id
-                            fullDatabaseId
-                            body
-                            createdAt
-                            updatedAt
-                            author { login __typename ... on User { databaseId } }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+                    comments(first: 100) {{
+                        pageInfo {{ hasNextPage endCursor }}
+                        nodes {{
+{comment_fields}
+                        }}
+                    }}
+                }}
+            }}
+        }}
+    }}
+}}
 """
 
-REVIEW_THREAD_FULL_COMMENTS_QUERY = """
-query ReviewThreadFullComments($threadId: ID!, $cursor: String) {
-    node(id: $threadId) {
-        ... on PullRequestReviewThread {
-            comments(first: 100, after: $cursor) {
-                pageInfo { hasNextPage endCursor }
-                nodes {
-                    id
-                    fullDatabaseId
-                    body
-                    createdAt
-                    updatedAt
-                    author { login __typename ... on User { databaseId } }
-                }
-            }
-        }
-    }
-}
+
+def _graphql_review_thread_full_comments_query(*, include_reactions: bool) -> str:
+    query_name = (
+        "ReviewThreadFullCommentsWithReactions"
+        if include_reactions
+        else "ReviewThreadFullComments"
+    )
+    comment_fields = _review_thread_comment_fields(include_reactions=include_reactions)
+    return f"""
+query {query_name}($threadId: ID!, $cursor: String) {{
+    node(id: $threadId) {{
+        ... on PullRequestReviewThread {{
+            comments(first: 100, after: $cursor) {{
+                pageInfo {{ hasNextPage endCursor }}
+                nodes {{{comment_fields}
+                }}
+            }}
+        }}
+    }}
+}}
 """
 
 # Default page size for the reviewThreads connection. GitHub caps `first` at 100.
@@ -1655,13 +1686,15 @@ class GitHubProvider:
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
     ) -> PaginatedActionResult[list[ReviewThread]]:
         owner, name = self.repository["name"].split("/", 1)
         cursor: str | None = (pagination or {}).get("cursor") or None
         per_page = (pagination or {}).get("per_page") or GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE
 
         data = self.graphql(
-            REVIEW_THREADS_QUERY,
+            _graphql_review_threads_query(include_reactions=include_reactions),
             {
                 "owner": owner,
                 "name": name,
@@ -1680,7 +1713,9 @@ class GitHubProvider:
         review_threads = pull_request["reviewThreads"]
         threads: list[ReviewThread] = []
         for raw_thread in review_threads["nodes"]:
-            comments = list(self._iter_review_thread_comments(raw_thread))
+            comments = list(
+                self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions)
+            )
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
@@ -1702,21 +1737,26 @@ class GitHubProvider:
             "meta": {"next_cursor": next_cursor},
         }
 
-    def _iter_review_thread_comments(self, raw_thread: dict[str, Any]) -> Iterator[ReviewThreadComment]:
+    def _iter_review_thread_comments(
+        self, raw_thread: dict[str, Any], *, include_reactions: bool = False
+    ) -> Iterator[ReviewThreadComment]:
         comments_page = raw_thread["comments"]
         for raw_comment in comments_page["nodes"]:
-            yield map_graphql_review_thread_comment(raw_comment)
+            yield map_graphql_review_thread_comment(raw_comment, include_reactions=include_reactions)
         page_info = comments_page["pageInfo"]
         cursor = page_info["endCursor"] if page_info["hasNextPage"] else None
         while cursor is not None:
-            data = self.graphql(REVIEW_THREAD_FULL_COMMENTS_QUERY, {"threadId": raw_thread["id"], "cursor": cursor})
+            data = self.graphql(
+                _graphql_review_thread_full_comments_query(include_reactions=include_reactions),
+                {"threadId": raw_thread["id"], "cursor": cursor},
+            )
             node = data.get("node")
             if node is None:
                 # Thread was deleted between the outer query and this follow-up.
                 return
             page = node["comments"]
             for raw_comment in page["nodes"]:
-                yield map_graphql_review_thread_comment(raw_comment)
+                yield map_graphql_review_thread_comment(raw_comment, include_reactions=include_reactions)
             cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
 
     def get_thread_id_from_review_comment_unique_id(
@@ -2103,6 +2143,39 @@ def map_graphql_author(raw_author: dict[str, Any] | None) -> tuple[Author | None
     return Author(id=str(raw_id) if raw_id is not None else raw_author["login"], username=raw_author["login"]), is_bot
 
 
+# GraphQL ``ReactionContent`` enum -> provider-agnostic ``Reaction`` literal.
+# https://docs.github.com/en/graphql/reference/enums#reactioncontent
+_GRAPHQL_REACTION_CONTENT_TO_REACTION: dict[str, Reaction] = {
+    "THUMBS_UP": "+1",
+    "THUMBS_DOWN": "-1",
+    "LAUGH": "laugh",
+    "HOORAY": "hooray",
+    "CONFUSED": "confused",
+    "HEART": "heart",
+    "ROCKET": "rocket",
+    "EYES": "eyes",
+}
+
+
+def _map_graphql_review_comment_reactions(raw: dict[str, Any]) -> list[ReactionResult]:
+    reaction_nodes = (raw.get("reactions") or {}).get("nodes") or []
+    results: list[ReactionResult] = []
+    for node in reaction_nodes:
+        content = _GRAPHQL_REACTION_CONTENT_TO_REACTION.get(node.get("content"))
+        if content is None:
+            continue
+        author, _ = map_graphql_author(node.get("user"))
+        raw_id = node.get("databaseId")
+        results.append(
+            ReactionResult(
+                id=str(raw_id) if raw_id is not None else "",
+                content=content,
+                author=author,
+            )
+        )
+    return results
+
+
 def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewComment:
     author, _ = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
@@ -2125,10 +2198,15 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
     )
 
 
-def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+def map_graphql_review_thread_comment(
+    raw: dict[str, Any], *, include_reactions: bool = False
+) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
-    return ReviewThreadComment(
+    review = raw.get("pullRequestReview") or {}
+    review_database_id = review.get("databaseId")
+
+    comment = ReviewThreadComment(
         id=str(full_database_id) if full_database_id is not None else raw["id"],
         unique_id=raw["id"],
         body=raw.get("body", ""),
@@ -2136,7 +2214,22 @@ def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadCommen
         is_bot=is_bot,
         created_at=raw.get("createdAt"),
         updated_at=raw.get("updatedAt"),
+        is_minimized=bool(raw.get("isMinimized")),
+        commit_sha=str(
+            (raw.get("originalCommit") or {}).get("oid")
+            or (raw.get("commit") or {}).get("oid")
+            or ""
+        ),
+        url=raw.get("url"),
+        diff_hunk=raw.get("diffHunk"),
+        author_association=raw.get("authorAssociation"),
+        review_id=str(review_database_id) if review_database_id is not None else None,
     )
+
+    if include_reactions:
+        comment["reactions"] = _map_graphql_review_comment_reactions(raw)
+
+    return comment
 
 
 def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:

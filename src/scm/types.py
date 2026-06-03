@@ -486,10 +486,7 @@ class Review(TypedDict):
 class ReviewThreadComment(TypedDict):
     """A comment in a pull-request review thread, with the extra fields needed
     to render or moderate the thread (bot indicator, timestamps).
-
-    Reactions are intentionally omitted: GitLab does not surface them on its
-    discussions endpoint, and the per-note award_emoji call would be N+1.
-    Use the dedicated comment-reaction protocols if reactions are needed."""
+    """
 
     id: ResourceId
     unique_id: str | None
@@ -498,6 +495,21 @@ class ReviewThreadComment(TypedDict):
     is_bot: bool
     created_at: str | None
     updated_at: str | None
+    is_minimized: bool
+    # Reactions are populated when include_reactions=True
+    reactions: NotRequired[list[ReactionResult]]
+    # The commit the comment is anchored to
+    commit_sha: str
+    # ID of the parent review that groups this comment. Implemented by GitHub, not GitLab.
+    review_id: NotRequired[ResourceId | None]
+    # The unified-diff snippet the comment is anchored to (the surrounding code
+    # as it looked when the comment was made). Implemented by GitHub, not GitLab.
+    diff_hunk: NotRequired[str | None]
+    # Web permalink to the individual comment. Implemented by GitHub, not GitLab.
+    url: NotRequired[str | None]
+    # The author's relationship to the repository, e.g. "OWNER", "MEMBER",
+    # "CONTRIBUTOR", "NONE". Implemented by GitHub, not GitLab.
+    author_association: NotRequired[str | None]
 
 
 class ReviewThread(TypedDict):
@@ -1334,6 +1346,8 @@ class GetPullRequestReviewThreadsProtocol(Protocol):
         pull_request_id: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
     ) -> PaginatedActionResult[list[ReviewThread]]: ...
 
 

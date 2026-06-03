@@ -21,12 +21,12 @@ from scm.providers.github.provider import (
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
-    REVIEW_THREAD_FULL_COMMENTS_QUERY,
-    REVIEW_THREADS_QUERY,
     THREAD_COMMENTS_QUERY,
     UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     GitHubProvider,
+    _graphql_review_thread_full_comments_query,
+    _graphql_review_threads_query,
     map_app_installation,
     map_collaborator_permission_level,
     map_github_repository_permission,
@@ -64,6 +64,9 @@ from scm.types import (
     WriteCommitAction,
 )
 
+REVIEW_THREADS_QUERY = _graphql_review_threads_query(include_reactions=False)
+REVIEW_THREADS_WITH_REACTIONS_QUERY = _graphql_review_threads_query(include_reactions=True)
+REVIEW_THREAD_FULL_COMMENTS_QUERY = _graphql_review_thread_full_comments_query(include_reactions=False)
 
 def make_repository() -> Repository:
     return {
@@ -2202,6 +2205,50 @@ def test_get_thread_id_from_review_comment_unique_id_returns_none_when_not_found
     assert len(client.calls) == 1
 
 
+def _review_threads_graphql_payload(
+    nodes: list[dict[str, Any]],
+    *,
+    has_next_page: bool = False,
+    end_cursor: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "repository": {
+            "pullRequest": {
+                "reviewThreads": {
+                    "pageInfo": {"hasNextPage": has_next_page, "endCursor": end_cursor},
+                    "nodes": nodes,
+                }
+            }
+        }
+    }
+
+
+def _review_thread_node(
+    thread_id: str,
+    comment_nodes: list[dict[str, Any]],
+    *,
+    is_resolved: bool = False,
+    is_outdated: bool = False,
+    path: str = "src/main.py",
+    line: int | None = 10,
+    start_line: int | None = None,
+    comments_has_next_page: bool = False,
+    comments_end_cursor: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": thread_id,
+        "isResolved": is_resolved,
+        "isOutdated": is_outdated,
+        "path": path,
+        "line": line,
+        "startLine": start_line,
+        "comments": {
+            "pageInfo": {"hasNextPage": comments_has_next_page, "endCursor": comments_end_cursor},
+            "nodes": comment_nodes,
+        },
+    }
+
+
 def _make_thread_comment_node(
     node_id: str = "PRRC_a",
     full_database_id: int | None = 1001,
@@ -2211,56 +2258,64 @@ def _make_thread_comment_node(
     author_typename: str = "User",
     created_at: str = "2026-02-04T10:00:00Z",
     updated_at: str = "2026-02-04T10:00:00Z",
+    is_minimized: bool = False,
+    reactions: list[dict[str, Any]] | None = None,
+    url: str | None = "https://github.com/test-org/test-repo/pull/42#r1001",
+    diff_hunk: str | None = "@@ -1 +1 @@",
+    author_association: str | None = "MEMBER",
+    review_database_id: int | None = 555,
+    commit_oid: str | None = "headsha",
+    original_commit_oid: str | None = "origsha",
 ) -> dict[str, Any]:
-    return {
+    node: dict[str, Any] = {
         "id": node_id,
         "fullDatabaseId": full_database_id,
+        "url": url,
         "body": body,
+        "isMinimized": is_minimized,
+        "diffHunk": diff_hunk,
         "createdAt": created_at,
         "updatedAt": updated_at,
+        "authorAssociation": author_association,
+        "commit": {"oid": commit_oid} if commit_oid is not None else None,
+        "originalCommit": {"oid": original_commit_oid} if original_commit_oid is not None else None,
+        "pullRequestReview": (
+            {"databaseId": review_database_id} if review_database_id is not None else None
+        ),
         "author": {
             "login": author_login,
             "__typename": author_typename,
             "databaseId": author_database_id,
         },
     }
+    if reactions is not None:
+        node["reactions"] = {"nodes": reactions}
+    return node
 
 
 def test_get_pull_request_review_threads_returns_threads_with_comments() -> None:
     provider, client = make_provider()
     client.queue(
         "graphql",
-        {
-            "repository": {
-                "pullRequest": {
-                    "reviewThreads": {
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                        "nodes": [
-                            {
-                                "id": "PRRT_1",
-                                "isResolved": False,
-                                "isOutdated": True,
-                                "path": "src/main.py",
-                                "line": 10,
-                                "startLine": 5,
-                                "comments": {
-                                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                                    "nodes": [
-                                        _make_thread_comment_node(
-                                            node_id="PRRC_a",
-                                            full_database_id=1001,
-                                            author_login="sentry-bot",
-                                            author_typename="Bot",
-                                            author_database_id=None,
-                                        ),
-                                    ],
-                                },
-                            },
-                        ],
-                    }
-                }
-            }
-        },
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_1",
+                    [
+                        _make_thread_comment_node(
+                            node_id="PRRC_a",
+                            full_database_id=1001,
+                            author_login="sentry-bot",
+                            author_typename="Bot",
+                            author_database_id=None,
+                            is_minimized=True,
+                        ),
+                    ],
+                    is_outdated=True,
+                    start_line=5,
+                ),
+            ]
+        ),
     )
 
     result = provider.get_pull_request_review_threads("42")
@@ -2284,6 +2339,12 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
                     "is_bot": True,
                     "created_at": "2026-02-04T10:00:00Z",
                     "updated_at": "2026-02-04T10:00:00Z",
+                    "url": "https://github.com/test-org/test-repo/pull/42#r1001",
+                    "diff_hunk": "@@ -1 +1 @@",
+                    "author_association": "MEMBER",
+                    "review_id": "555",
+                    "commit_sha": "origsha",
+                    "is_minimized": True,
                 },
             ],
         },
@@ -2301,6 +2362,105 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
             },
         }
     ]
+
+
+def test_get_pull_request_review_threads_is_resolved_from_graphql() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload(
+            [_review_thread_node("PRRT_1", [_make_thread_comment_node()], is_resolved=True)],
+        ),
+    )
+
+    result = provider.get_pull_request_review_threads("42")
+
+    assert result["data"][0]["is_resolved"] is True
+
+
+def test_get_pull_request_review_threads_include_reactions() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_1",
+                    [
+                        _make_thread_comment_node(
+                            reactions=[
+                                {
+                                    "databaseId": 10,
+                                    "content": "THUMBS_UP",
+                                    "user": {
+                                        "login": "alice",
+                                        "__typename": "User",
+                                        "databaseId": 100,
+                                    },
+                                },
+                                {
+                                    "databaseId": 11,
+                                    "content": "HEART",
+                                    "user": {
+                                        "login": "bob",
+                                        "__typename": "User",
+                                        "databaseId": 101,
+                                    },
+                                },
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        ),
+    )
+
+    result = provider.get_pull_request_review_threads("42", include_reactions=True)
+
+    comment = result["data"][0]["comments"][0]
+    assert comment["reactions"] == [
+        {"id": "10", "content": "+1", "author": {"id": "100", "username": "alice"}},
+        {"id": "11", "content": "heart", "author": {"id": "101", "username": "bob"}},
+    ]
+    assert client.calls[0]["query"] == REVIEW_THREADS_WITH_REACTIONS_QUERY
+    assert "reactions(first: 10)" in client.calls[0]["query"]
+
+
+def test_get_pull_request_review_threads_omits_reactions_when_not_requested() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload([_review_thread_node("PRRT_1", [_make_thread_comment_node()])]),
+    )
+
+    result = provider.get_pull_request_review_threads("42", include_reactions=False)
+
+    assert "reactions" not in result["data"][0]["comments"][0]
+
+
+def test_get_pull_request_review_threads_commit_sha_falls_back_to_commit() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_1",
+                    [
+                        _make_thread_comment_node(
+                            original_commit_oid=None,
+                            commit_oid="headsha",
+                        ),
+                    ],
+                ),
+            ]
+        ),
+    )
+
+    result = provider.get_pull_request_review_threads("42")
+
+    # originalCommit absent -> falls back to the mutable commit HEAD.
+    assert result["data"][0]["comments"][0]["commit_sha"] == "headsha"
 
 
 def test_get_pull_request_review_threads_forwards_pagination_cursor_and_returns_next() -> None:
@@ -2338,29 +2498,18 @@ def test_get_pull_request_review_threads_paginates_inner_comments() -> None:
     provider, client = make_provider()
     client.queue(
         "graphql",
-        {
-            "repository": {
-                "pullRequest": {
-                    "reviewThreads": {
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                        "nodes": [
-                            {
-                                "id": "PRRT_big",
-                                "isResolved": False,
-                                "isOutdated": False,
-                                "path": "f.py",
-                                "line": 1,
-                                "startLine": None,
-                                "comments": {
-                                    "pageInfo": {"hasNextPage": True, "endCursor": "c1"},
-                                    "nodes": [_make_thread_comment_node(node_id="PRRC_1", full_database_id=1)],
-                                },
-                            }
-                        ],
-                    }
-                }
-            }
-        },
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_big",
+                    [_make_thread_comment_node(node_id="PRRC_1", full_database_id=1)],
+                    path="f.py",
+                    line=1,
+                    comments_has_next_page=True,
+                    comments_end_cursor="c1",
+                ),
+            ]
+        ),
     )
     client.queue(
         "graphql",
@@ -2388,29 +2537,18 @@ def test_get_pull_request_review_threads_skips_inner_pages_when_thread_deleted()
     provider, client = make_provider()
     client.queue(
         "graphql",
-        {
-            "repository": {
-                "pullRequest": {
-                    "reviewThreads": {
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                        "nodes": [
-                            {
-                                "id": "PRRT_ghost",
-                                "isResolved": False,
-                                "isOutdated": False,
-                                "path": "f.py",
-                                "line": 1,
-                                "startLine": None,
-                                "comments": {
-                                    "pageInfo": {"hasNextPage": True, "endCursor": "c1"},
-                                    "nodes": [_make_thread_comment_node(node_id="PRRC_1", full_database_id=1)],
-                                },
-                            }
-                        ],
-                    }
-                }
-            }
-        },
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_ghost",
+                    [_make_thread_comment_node(node_id="PRRC_1", full_database_id=1)],
+                    path="f.py",
+                    line=1,
+                    comments_has_next_page=True,
+                    comments_end_cursor="c1",
+                ),
+            ]
+        ),
     )
     client.queue("graphql", {"node": None})
 

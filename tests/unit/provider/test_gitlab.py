@@ -19,6 +19,7 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.gitlab.provider import (
+    GITLAB_MAX_INCLUDE_REACTIONS_FETCHES,
     ApiClient,
     GitLabProvider,
     _count_unified_diff_changes,
@@ -13790,6 +13791,86 @@ def test_map_review_thread_comment_uses_discussion_note_composite_id():
     )
     assert result["id"] == "diff_discussion_id:42"
     assert result["unique_id"] == "diff_discussion_id:42"
+    assert result["commit_sha"] == ""
+
+
+def test_map_review_thread_comment_populates_commit_sha_from_position_head_sha():
+    from scm.providers.gitlab.provider import map_review_thread_comment
+
+    result = map_review_thread_comment(
+        {
+            "id": 42,
+            "body": "fix me",
+            "author": {"id": 2, "username": "sentry-bot", "bot": True},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "updated_at": "2026-03-11T11:02:00.000Z",
+            "position": {
+                "base_sha": "base",
+                "start_sha": "start",
+                "head_sha": "headsha123",
+                "position_type": "text",
+                "new_line": 7,
+            },
+        },
+        "diff_discussion_id",
+    )
+    assert result["commit_sha"] == "headsha123"
+
+
+def test_map_review_thread_comment_falls_back_to_thread_head_sha_for_replies():
+    from scm.providers.gitlab.provider import map_review_thread_comment
+
+    result = map_review_thread_comment(
+        {
+            "id": 3,
+            "body": "reply",
+            "author": {"id": 1, "username": "alice"},
+            "created_at": "2026-03-11T11:03:00.000Z",
+            "updated_at": "2026-03-11T11:03:00.000Z",
+            "position": {"position_type": "text"},
+        },
+        "diff_discussion_id",
+        thread_head_sha="head",
+    )
+
+    assert result["commit_sha"] == "head"
+
+
+def test_map_review_thread_reply_inherits_commit_sha_from_head_note():
+    from scm.providers.gitlab.provider import map_review_thread
+
+    thread = map_review_thread(
+        {
+            "id": "diff_discussion_id",
+            "notes": [
+                {
+                    "id": 2,
+                    "body": "fix me",
+                    "author": {"id": 2, "username": "sentry-bot", "bot": True},
+                    "created_at": "2026-03-11T11:01:00.000Z",
+                    "updated_at": "2026-03-11T11:02:00.000Z",
+                    "resolved": True,
+                    "position": {
+                        "head_sha": "anchor_sha",
+                        "new_path": "src/a.py",
+                        "new_line": 7,
+                        "position_type": "text",
+                    },
+                },
+                {
+                    "id": 3,
+                    "body": "reply",
+                    "author": {"id": 1, "username": "alice"},
+                    "created_at": "2026-03-11T11:03:00.000Z",
+                    "updated_at": "2026-03-11T11:03:00.000Z",
+                    "position": {"position_type": "text"},
+                },
+            ],
+        }
+    )
+
+    assert thread["comments"][0]["commit_sha"] == "anchor_sha"
+    assert thread["comments"][1]["commit_sha"] == "anchor_sha"
 
 
 def test_get_pull_request_review_threads_filters_non_positioned_discussions(client, provider: GitLabProvider):
@@ -13880,6 +13961,12 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "is_bot": True,
                     "created_at": "2026-03-11T11:01:00.000Z",
                     "updated_at": "2026-03-11T11:02:00.000Z",
+                    "is_minimized": False,
+                    "commit_sha": "head",
+                    "url": None,
+                    "diff_hunk": None,
+                    "author_association": None,
+                    "review_id": None,
                 },
                 {
                     "id": "diff_discussion_id:3",
@@ -13889,10 +13976,120 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "is_bot": False,
                     "created_at": "2026-03-11T11:03:00.000Z",
                     "updated_at": "2026-03-11T11:03:00.000Z",
+                    "is_minimized": False,
+                    "commit_sha": "head",
+                    "url": None,
+                    "diff_hunk": None,
+                    "author_association": None,
+                    "review_id": None,
                 },
             ],
         }
     ]
+
+
+def test_get_pull_request_review_threads_include_reactions_caps_note_fetches(
+    client, provider: GitLabProvider
+) -> None:
+    position = {
+        "base_sha": "base",
+        "head_sha": "head",
+        "start_sha": "start",
+        "old_path": "a.md",
+        "new_path": "a.md",
+        "position_type": "text",
+        "new_line": 1,
+    }
+    discussions = [
+        {
+            "id": f"disc_{i}",
+            "notes": [
+                {
+                    "id": i + 1,
+                    "body": "note",
+                    "author": {"id": 1, "username": "user"},
+                    "created_at": "2026-03-11T11:00:00.000Z",
+                    "updated_at": "2026-03-11T11:00:00.000Z",
+                    "system": False,
+                    "position": position,
+                    "resolvable": True,
+                    "resolved": False,
+                }
+            ],
+        }
+        for i in range(30)
+    ]
+    award_paths: list[str] = []
+
+    def side_effect(**kwargs: Any) -> unittest.mock.MagicMock:
+        path = kwargs["path"]
+        if path.endswith("/discussions"):
+            return _make_mock_response(discussions)
+        if "/award_emoji" in path:
+            award_paths.append(path)
+            return _make_mock_response(
+                [{"id": 1, "name": "thumbsup", "user": {"id": 1, "username": "alice"}}]
+            )
+        raise AssertionError(f"unexpected path: {path}")
+
+    client.request.side_effect = side_effect
+
+    result = provider.get_pull_request_review_threads("1", include_reactions=True)
+
+    assert len(award_paths) == GITLAB_MAX_INCLUDE_REACTIONS_FETCHES
+    assert result["data"][0]["comments"][0]["reactions"] == [
+        {"id": "1", "content": "+1", "author": {"id": "1", "username": "alice"}}
+    ]
+    assert "reactions" not in result["data"][GITLAB_MAX_INCLUDE_REACTIONS_FETCHES]["comments"][0]
+
+
+def test_get_pull_request_review_threads_include_reactions_caps_empty_award_fetches(
+    client, provider: GitLabProvider
+) -> None:
+    position = {
+        "base_sha": "base",
+        "head_sha": "head",
+        "start_sha": "start",
+        "old_path": "a.md",
+        "new_path": "a.md",
+        "position_type": "text",
+        "new_line": 1,
+    }
+    discussions = [
+        {
+            "id": f"disc_{i}",
+            "notes": [
+                {
+                    "id": i + 1,
+                    "body": "note",
+                    "author": {"id": 1, "username": "user"},
+                    "created_at": "2026-03-11T11:00:00.000Z",
+                    "updated_at": "2026-03-11T11:00:00.000Z",
+                    "system": False,
+                    "position": position,
+                    "resolvable": True,
+                    "resolved": False,
+                }
+            ],
+        }
+        for i in range(30)
+    ]
+    award_paths: list[str] = []
+
+    def side_effect(**kwargs: Any) -> unittest.mock.MagicMock:
+        path = kwargs["path"]
+        if path.endswith("/discussions"):
+            return _make_mock_response(discussions)
+        if "/award_emoji" in path:
+            award_paths.append(path)
+            return _make_mock_response([])
+        raise AssertionError(f"unexpected path: {path}")
+
+    client.request.side_effect = side_effect
+
+    provider.get_pull_request_review_threads("1", include_reactions=True)
+
+    assert len(award_paths) == GITLAB_MAX_INCLUDE_REACTIONS_FETCHES
 
 
 def _gitlab_status_response(
