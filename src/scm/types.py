@@ -506,6 +506,7 @@ class ReviewThreadComment(TypedDict):
     is_bot: bool
     created_at: str | None
     updated_at: str | None
+    # GitHub only: set when GraphQL ``isMinimized`` is true.
     is_collapsed: NotRequired[bool]
     reactions: NotRequired[list[str]]
     # Web permalink to the individual comment. GitHub only; omitted when the
@@ -534,8 +535,8 @@ class ReviewThread(TypedDict):
     one or more comments. ``id`` is the provider-assigned thread/discussion id
     accepted by ``ResolveReviewThreadProtocol.resolve_review_thread``.
 
-    ``is_collapsed`` is True when the thread is hidden from active review
-    (resolved, collapsed in the GitHub UI, and/or root comment minimized)."""
+    On GitHub, ``is_collapsed`` mirrors GraphQL ``isResolved``. On GitLab,
+    it mirrors the discussion note ``resolved`` flag."""
 
     id: ResourceId
     is_collapsed: bool

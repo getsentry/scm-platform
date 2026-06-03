@@ -291,7 +291,6 @@ query {query_name}($owner: String!, $name: String!, $number: Int!, $cursor: Stri
                     id
                     isResolved
                     isOutdated
-                    isCollapsed
                     path
                     line
                     startLine
@@ -1724,7 +1723,7 @@ class GitHubProvider:
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
-                    is_collapsed=_github_review_thread_is_collapsed(raw_thread, comments),
+                    is_collapsed=bool(raw_thread.get("isResolved")),
                     is_outdated=raw_thread["isOutdated"],
                     file_path=raw_thread.get("path"),
                     line=raw_thread.get("line"),
@@ -2148,16 +2147,6 @@ def map_graphql_author(raw_author: dict[str, Any] | None) -> tuple[Author | None
     return Author(id=str(raw_id) if raw_id is not None else raw_author["login"], username=raw_author["login"]), is_bot
 
 
-def _github_review_thread_is_collapsed(
-    raw_thread: dict[str, Any], comments: list[ReviewThreadComment]
-) -> bool:
-    return bool(
-        raw_thread.get("isCollapsed")
-        or raw_thread.get("isResolved")
-        or (comments and comments[0].get("is_collapsed"))
-    )
-
-
 def _graphql_review_comment_ids(raw: dict[str, Any]) -> tuple[str, str, str | None]:
     full_database_id = raw.get("fullDatabaseId")
     review_database_id = (raw.get("pullRequestReview") or {}).get("databaseId")
@@ -2212,7 +2201,7 @@ def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadCommen
         "review_id": review_id,
         "commit_sha": _graphql_review_comment_commit_sha(raw),
     }
-    if raw.get("isMinimized"):
+    if bool(raw.get("isMinimized")):
         mapped["is_collapsed"] = True
     reactions = _graphql_review_comment_reactions(raw)
     if reactions:

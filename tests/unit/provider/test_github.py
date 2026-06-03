@@ -2227,7 +2227,6 @@ def _review_thread_node(
     *,
     is_resolved: bool = False,
     is_outdated: bool = False,
-    is_collapsed: bool = False,
     path: str = "src/main.py",
     line: int | None = 10,
     start_line: int | None = None,
@@ -2238,7 +2237,6 @@ def _review_thread_node(
         "id": thread_id,
         "isResolved": is_resolved,
         "isOutdated": is_outdated,
-        "isCollapsed": is_collapsed,
         "path": path,
         "line": line,
         "startLine": start_line,
@@ -2325,7 +2323,7 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
     assert result["data"] == [
         {
             "id": "PRRT_1",
-            "is_collapsed": True,
+            "is_collapsed": False,
             "is_outdated": True,
             "file_path": "src/main.py",
             "line": 10,
@@ -2362,6 +2360,20 @@ def test_get_pull_request_review_threads_returns_threads_with_comments() -> None
             },
         }
     ]
+
+
+def test_get_pull_request_review_threads_is_collapsed_from_is_resolved() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload(
+            [_review_thread_node("PRRT_1", [_make_thread_comment_node()], is_resolved=True)],
+        ),
+    )
+
+    result = provider.get_pull_request_review_threads("42")
+
+    assert result["data"][0]["is_collapsed"] is True
 
 
 def test_get_pull_request_review_threads_include_reactions() -> None:
