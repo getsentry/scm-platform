@@ -45,9 +45,9 @@ def initialize_provider(
     if not repository:
         raise RepositoryNotFound(organization_id=organization_id, repository_id=repository_id)
     if not repository["is_active"]:
-        raise RepositoryInactive(repository_id=repository["id"])
+        raise RepositoryInactive(organization_id=organization_id, repository_id=repository_id)
     if repository["organization_id"] != organization_id:
-        raise RepositoryOrganizationMismatch(organization_id=organization_id, repository_id=repository["id"])
+        raise RepositoryOrganizationMismatch(organization_id=organization_id, repository_id=repository_id)
 
     provider = fetch_provider(organization_id, repository)
     if provider is None:
