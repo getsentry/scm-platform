@@ -2209,9 +2209,13 @@ def map_graphql_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadCommen
         is_bot=is_bot,
         created_at=raw.get("createdAt"),
         updated_at=raw.get("updatedAt"),
-        is_minimized=raw.get("isMinimized"),
+        is_minimized=bool(raw.get("isMinimized")),
         reactions=_map_graphql_review_comment_reactions(raw),
-        commit_sha=(raw.get("originalCommit") or {}).get("oid") or (raw.get("commit") or {}).get("oid"),
+        commit_sha=str(
+            (raw.get("originalCommit") or {}).get("oid")
+            or (raw.get("commit") or {}).get("oid")
+            or ""
+        ),
         url=raw.get("url"),
         diff_hunk=raw.get("diffHunk"),
         author_association=raw.get("authorAssociation"),

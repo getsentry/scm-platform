@@ -13791,7 +13791,7 @@ def test_map_review_thread_comment_uses_discussion_note_composite_id():
     )
     assert result["id"] == "diff_discussion_id:42"
     assert result["unique_id"] == "diff_discussion_id:42"
-    assert result["commit_sha"] is None
+    assert result["commit_sha"] == ""
 
 
 def test_map_review_thread_comment_populates_commit_sha_from_position_head_sha():
@@ -13921,7 +13921,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "created_at": "2026-03-11T11:03:00.000Z",
                     "updated_at": "2026-03-11T11:03:00.000Z",
                     "is_minimized": False,
-                    "commit_sha": None,
+                    "commit_sha": "",
                     "url": None,
                     "diff_hunk": None,
                     "author_association": None,

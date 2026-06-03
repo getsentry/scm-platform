@@ -2016,7 +2016,7 @@ def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> Review
         updated_at=raw.get("updated_at"),
         # GitLab does not have a concept of minimized ReviewThreadComment (you can only resolve the parent ReviewThread)
         is_minimized=False,
-        commit_sha=(raw.get("position") or {}).get("head_sha"),
+        commit_sha=str((raw.get("position") or {}).get("head_sha") or ""),
         url=None,
         diff_hunk=None,
         author_association=None,
