@@ -4,7 +4,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-import requests
 
 from scm.errors import (
     RateLimitExceeded,
@@ -19,7 +18,6 @@ from scm.errors import (
     ResourceUnauthorized,
     ResourceUnprocessableContent,
     SCMCodedError,
-    TruncatedResponse,
     UnhandledException,
 )
 from scm.providers.github.provider import (
@@ -2662,28 +2660,6 @@ def test_request_maps_status_code_to_error(
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.detail == '{"message":"upstream said no"}'
-
-
-def test_truncated_json_body_surfaces_as_truncated_response() -> None:
-    # A 200 whose body was cut off mid-stream parses as an invalid JSON document partway through.
-    # ``requests`` raises its own JSONDecodeError from ``.json()``, so model that exact type and
-    # confirm the provider's parse path turns it into a retriable TruncatedResponse.
-    response = MagicMock(status_code=200, headers={})
-    response.json.side_effect = requests.exceptions.JSONDecodeError("Unterminated string", '{"sha":"a', 81905)
-    client = MagicMock(spec=ApiClient)
-    client.request.return_value = response
-    provider = GitHubProvider(
-        client,
-        organization_id=1,
-        repository=make_repository(),
-        rate_limiter=NoOpRateLimiter(),
-    )
-
-    with pytest.raises(TruncatedResponse) as exc_info:
-        provider.get_app_installation()
-
-    assert exc_info.value.code == "truncated_response"
-    assert exc_info.value.retriable is True
 
 
 def test_public_methods_are_accounted_for() -> None:

@@ -21,7 +21,6 @@ from scm.errors import (
     RpcInvalidGrant,
     SCMCodedError,
     SCMError,
-    TruncatedResponse,
     UnhandledException,
     error_class_for_status,
 )
@@ -104,7 +103,7 @@ class TestErrorClassForStatus:
 class TestRetriable:
     @pytest.mark.parametrize(
         "error_cls",
-        [RateLimitExceeded, ResourceServiceUnavailable, ResourceGatewayTimeout, TruncatedResponse],
+        [RateLimitExceeded, ResourceServiceUnavailable, ResourceGatewayTimeout],
     )
     def test_transient_errors_are_retriable(self, error_cls):
         assert error_cls.retriable is True

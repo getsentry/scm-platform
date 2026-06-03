@@ -4,11 +4,14 @@ from typing import Any, Protocol
 
 import msgspec
 import requests
-from requests.exceptions import ChunkedEncodingError
 from requests.exceptions import ConnectionError as RequestsConnectionError
-from urllib3.exceptions import ProtocolError
 
-from scm.errors import RpcErrorsCouldNotBeDeserialized, RpcInvalidGrant, SCMCodedError, TruncatedResponse
+from scm.errors import (
+    ResourceServiceUnavailable,
+    RpcErrorsCouldNotBeDeserialized,
+    RpcInvalidGrant,
+    SCMCodedError,
+)
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
@@ -17,14 +20,14 @@ from scm.types import ApiClient, CredentialsSet, Provider, Repository, Repositor
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
 
-# The proxy streams the upstream body after the status line is already on the wire, so a
-# mid-stream disconnect arrives as a transport-level abort rather than an HTTP error status.
-_RETRIABLE_TRANSPORT_ERRORS: tuple[type[Exception], ...] = (
-    ChunkedEncodingError,
-    RequestsConnectionError,
-    ProtocolError,
-)
-# Only methods without side effects can be safely re-sent after a partial response.
+# A transient blip between us and the proxy surfaces one of two ways: the connection drops before
+# a response is framed (a transport-level ``ConnectionError``), or the proxy's gateway returns an
+# Envoy local reply ("upstream connect error ... reset reason: connection termination") as a 503/504.
+# Both are safe to re-send for reads that have no side effects.
+_RETRIABLE_TRANSPORT_ERRORS: tuple[type[Exception], ...] = (RequestsConnectionError,)
+_RETRIABLE_STATUS_CODES = frozenset({503, 504})
+# Only methods without side effects can be safely re-sent: a write that errored at the transport
+# layer may still have landed upstream, so re-sending it could double-apply it.
 _IDEMPOTENT_METHODS = frozenset({"GET", "HEAD"})
 _DEFAULT_MAX_TRANSPORT_RETRIES = 2
 _TRANSPORT_RETRY_BACKOFF_SECONDS = 0.25
@@ -192,28 +195,50 @@ class RpcApiClient(ApiClient):
             "X-Credentials-Set": credentials_set,
         }
 
-        # The non-streaming session reads the body during ``post``, so a body that is cut off
-        # mid-stream raises here. Retry idempotent reads with backoff; surface a typed, retriable
-        # ``TruncatedResponse`` once the budget is exhausted (or immediately for unsafe methods)
-        # so callers see what happened instead of an opaque ``UnhandledException``. Metrics make the
-        # retries visible: counters fire per retry, on recovery, and on final failure.
+        # Retry transient proxy failures for idempotent reads with exponential backoff. Two flavors:
+        # a transport-level ``ConnectionError`` (no response framed) and an Envoy 503/504 local reply.
+        # Metrics make the retries visible: a counter per retry, one on recovery, one on exhaustion.
+        idempotent = method.upper() in _IDEMPOTENT_METHODS
         attempt = 0
         while True:
             try:
                 response = self.session.post(url=self.full_url, data=body, headers=request_headers)
             except _RETRIABLE_TRANSPORT_ERRORS as exc:
-                if method.upper() in _IDEMPOTENT_METHODS and attempt < self.max_transport_retries:
-                    self.record_count("sentry.scm.rpc.client.transport_retry", 1, {"method": method})
-                    time.sleep(_TRANSPORT_RETRY_BACKOFF_SECONDS * (2**attempt))
+                # A write that died at the transport layer may still have landed upstream, so only
+                # reads are safe to re-send; everything else surfaces the raw error untouched.
+                if not idempotent:
+                    raise
+                if attempt < self.max_transport_retries:
+                    self._retry("connection_error", method, attempt)
                     attempt += 1
                     continue
                 self.record_count(
-                    "sentry.scm.rpc.client.truncated_response",
+                    "sentry.scm.rpc.client.transport_retry_exhausted",
                     1,
-                    {"method": method, "retried": "true" if attempt else "false"},
+                    {"method": method, "reason": "connection_error"},
                 )
-                raise TruncatedResponse(detail=f"{type(exc).__name__}: {exc}") from exc
+                # Classify the exhausted read as a typed, retriable error instead of an opaque
+                # ConnectionError so callers can branch on ``exc.retriable``.
+                raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from exc
+
+            if idempotent and response.status_code in _RETRIABLE_STATUS_CODES:
+                if attempt < self.max_transport_retries:
+                    self._retry(f"status_{response.status_code}", method, attempt)
+                    attempt += 1
+                    continue
+                self.record_count(
+                    "sentry.scm.rpc.client.transport_retry_exhausted",
+                    1,
+                    {"method": method, "reason": f"status_{response.status_code}"},
+                )
+                # Hand the still-failing response back; the provider maps the status to a coded error.
+                return response
 
             if attempt:
                 self.record_count("sentry.scm.rpc.client.transport_retry_recovered", 1, {"method": method})
             return response
+
+    def _retry(self, reason: str, method: str, attempt: int) -> None:
+        """Record a retry and back off before the next attempt."""
+        self.record_count("sentry.scm.rpc.client.transport_retry", 1, {"method": method, "reason": reason})
+        time.sleep(_TRANSPORT_RETRY_BACKOFF_SECONDS * (2**attempt))

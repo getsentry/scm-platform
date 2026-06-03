@@ -18,7 +18,7 @@ from scm.errors import (
     UnexpectedResponseFormat,
     error_class_for_status,
 )
-from scm.helpers import decode_json, iter_all_pages
+from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
 from scm.rate_limit import (
     RateLimiter,
@@ -475,7 +475,7 @@ class GitHubProvider:
             payload["variables"] = variables
 
         response = self.post("/graphql", data=payload, headers={})
-        response_data = decode_json(response)
+        response_data = response.json()
 
         if not isinstance(response_data, dict) or ("data" not in response_data and "errors" not in response_data):
             raise UnexpectedResponseFormat(detail="GraphQL response is not in expected format")
@@ -493,7 +493,7 @@ class GitHubProvider:
     def get_authenticated_actor(self) -> ActionResult[Author]:
         # Get the app's bot user
         app_response = self.get("/app", credentials_set="application")
-        app_slug = decode_json(app_response).get("slug")
+        app_slug = app_response.json().get("slug")
         if not app_slug:
             raise UnexpectedResponseFormat(detail="GitHub /app response missing slug")
         bot_response = self.get(f"/users/{app_slug}[bot]")
@@ -862,7 +862,7 @@ class GitHubProvider:
             params={"ref": ref},
             request_options=request_options,
         )
-        if isinstance(decode_json(response), list):
+        if isinstance(response.json(), list):
             raise PathIsDirectory(detail=path)
         return map_action(response, map_file_content)
 
@@ -952,7 +952,7 @@ class GitHubProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        raw = decode_json(response)
+        raw = response.json()
         if not isinstance(raw, list):
             raise PathIsNotDirectory(detail=path)
         return {
@@ -2034,7 +2034,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 
 def map_action[T](response: requests.Response, fn: Callable[[dict[str, Any]], T]) -> ActionResult[T]:
-    raw = decode_json(response)
+    raw = response.json()
     return {
         "data": fn(raw),
         "type": "github",
@@ -2048,7 +2048,7 @@ def map_paginated_action[T](
     response: requests.Response,
     fn: Callable[[Any], T],
 ) -> PaginatedActionResult[T]:
-    raw = decode_json(response)
+    raw = response.json()
     meta: PaginatedResponseMeta = {
         **_extract_response_meta(response),
         "next_cursor": str(int(pagination["cursor"]) + 1 if pagination else 2),
@@ -2065,7 +2065,7 @@ def deserialize_action[T](response: requests.Response, fn: Callable[[bytes], T])
     return {
         "data": fn(response.content),
         "type": "github",
-        "raw": {"data": decode_json(response), "headers": dict(response.headers)},
+        "raw": {"data": response.json(), "headers": dict(response.headers)},
         "meta": _extract_response_meta(response),
     }
 

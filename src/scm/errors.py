@@ -27,7 +27,6 @@ type ErrorCode = Literal[
     "resource_bad_gateway",
     "resource_service_unavailable",
     "resource_gateway_timeout",
-    "truncated_response",
     "unexpected_response_format",
     "unhandled_exception",
     "draft_pull_request_not_supported",
@@ -61,7 +60,6 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_bad_gateway": "The service-provider returned an invalid response from an upstream gateway.",
     "resource_service_unavailable": "The service-provider is temporarily unavailable. The request can be retried.",
     "resource_gateway_timeout": "The service-provider did not respond in time. The request can be retried.",
-    "truncated_response": "The response body ended before it was fully received. The request can be retried.",
     "unexpected_response_format": "The response format was in an unexpected format.",
     "unhandled_exception": "An unhandled exception occurred.",
     "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
@@ -226,20 +224,6 @@ class ResourceServiceUnavailable(SCMCodedError):
 
 class ResourceGatewayTimeout(SCMCodedError):
     code = "resource_gateway_timeout"
-    retriable = True
-
-
-class TruncatedResponse(SCMCodedError):
-    """The response body was cut off before it was fully received.
-
-    The scm-rpc proxy commits the upstream status and headers before streaming the
-    body, so a mid-stream disconnect (connection reset, upstream timeout, worker
-    recycle) cannot be turned into a proper error status. It instead surfaces as an
-    aborted transfer or a body that parses as truncated. The affected reads are
-    idempotent, so the request can be retried.
-    """
-
-    code = "truncated_response"
     retriable = True
 
 

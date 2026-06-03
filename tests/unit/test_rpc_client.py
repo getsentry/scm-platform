@@ -2,9 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import msgspec
 import pytest
-from requests.exceptions import ChunkedEncodingError
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
-from scm.errors import ErrorCode, SCMCodedError, TruncatedResponse
+from scm.errors import ErrorCode, ResourceServiceUnavailable, SCMCodedError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
@@ -201,9 +201,8 @@ class TestRpcApiClient:
 
 
 class TestRpcApiClientTransportRetry:
-    """The proxy commits a 200 before streaming the upstream body, so a mid-stream disconnect
-    surfaces here as a transport abort. Idempotent reads retry; everything else fails fast as a
-    typed, retriable ``TruncatedResponse``."""
+    """A transient blip between us and the proxy surfaces either as a transport ``ConnectionError``
+    or as an Envoy 503/504 local reply. Idempotent reads retry with backoff; writes never do."""
 
     def _make_client(self, max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES) -> RpcApiClient:
         client = RpcApiClient(
@@ -223,10 +222,10 @@ class TestRpcApiClientTransportRetry:
         return [call.args[0] for call in client.record_count.call_args_list]  # type: ignore[attr-defined]
 
     @patch("scm.rpc.client.time.sleep")
-    def test_retries_idempotent_get_then_succeeds(self, mock_sleep):
+    def test_retries_connection_error_then_succeeds(self, mock_sleep):
         client = self._make_client()
-        ok = MagicMock()
-        client.session.post.side_effect = [ChunkedEncodingError("Response ended prematurely"), ok]
+        ok = MagicMock(status_code=200)
+        client.session.post.side_effect = [RequestsConnectionError("connection reset"), ok]
 
         result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
 
@@ -239,34 +238,79 @@ class TestRpcApiClientTransportRetry:
         ]
 
     @patch("scm.rpc.client.time.sleep")
-    def test_raises_truncated_response_after_exhausting_retries(self, mock_sleep):
+    def test_retries_503_then_succeeds(self, mock_sleep):
+        client = self._make_client()
+        unavailable = MagicMock(status_code=503)
+        ok = MagicMock(status_code=200)
+        client.session.post.side_effect = [unavailable, ok]
+
+        result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert result is ok
+        assert client.session.post.call_count == 2
+        retry_tags = client.record_count.call_args_list[0].args[2]  # type: ignore[attr-defined]
+        assert retry_tags == {"method": "GET", "reason": "status_503"}
+        assert self._metric_names(client) == [
+            "sentry.scm.rpc.client.transport_retry",
+            "sentry.scm.rpc.client.transport_retry_recovered",
+        ]
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_returns_final_503_after_exhausting_retries(self, mock_sleep):
         client = self._make_client(max_transport_retries=2)
-        client.session.post.side_effect = ChunkedEncodingError("Response ended prematurely")
+        unavailable = MagicMock(status_code=503)
+        client.session.post.return_value = unavailable
 
-        with pytest.raises(TruncatedResponse) as exc_info:
-            client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+        # The status is handed back unchanged; the provider maps it to a coded error.
+        result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
 
-        assert exc_info.value.retriable is True
+        assert result is unavailable
         # initial attempt + 2 retries
         assert client.session.post.call_count == 3
         assert self._metric_names(client) == [
             "sentry.scm.rpc.client.transport_retry",
             "sentry.scm.rpc.client.transport_retry",
-            "sentry.scm.rpc.client.truncated_response",
+            "sentry.scm.rpc.client.transport_retry_exhausted",
         ]
-        truncated_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
-        assert truncated_tags == {"method": "GET", "retried": "true"}
 
     @patch("scm.rpc.client.time.sleep")
-    def test_does_not_retry_non_idempotent_method(self, mock_sleep):
-        client = self._make_client()
-        client.session.post.side_effect = ChunkedEncodingError("Response ended prematurely")
+    def test_raises_service_unavailable_after_exhausting_connection_errors(self, mock_sleep):
+        client = self._make_client(max_transport_retries=2)
+        client.session.post.side_effect = RequestsConnectionError("connection reset")
 
-        with pytest.raises(TruncatedResponse):
+        with pytest.raises(ResourceServiceUnavailable) as exc_info:
+            client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert exc_info.value.retriable is True
+        assert client.session.post.call_count == 3
+        assert self._metric_names(client) == [
+            "sentry.scm.rpc.client.transport_retry",
+            "sentry.scm.rpc.client.transport_retry",
+            "sentry.scm.rpc.client.transport_retry_exhausted",
+        ]
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_does_not_retry_connection_error_on_non_idempotent_method(self, mock_sleep):
+        client = self._make_client()
+        client.session.post.side_effect = RequestsConnectionError("connection reset")
+
+        # A write may have landed upstream, so the raw error propagates untouched and unretried.
+        with pytest.raises(RequestsConnectionError):
             client.request(method="POST", path="/repos/org/repo/pulls/1/reviews", data={"body": "x"})
 
         assert client.session.post.call_count == 1
         mock_sleep.assert_not_called()
-        assert self._metric_names(client) == ["sentry.scm.rpc.client.truncated_response"]
-        truncated_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
-        assert truncated_tags == {"method": "POST", "retried": "false"}
+        assert self._metric_names(client) == []
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_does_not_retry_503_on_non_idempotent_method(self, mock_sleep):
+        client = self._make_client()
+        unavailable = MagicMock(status_code=503)
+        client.session.post.return_value = unavailable
+
+        result = client.request(method="POST", path="/repos/org/repo/pulls/1/reviews", data={"body": "x"})
+
+        assert result is unavailable
+        assert client.session.post.call_count == 1
+        mock_sleep.assert_not_called()
+        assert self._metric_names(client) == []
