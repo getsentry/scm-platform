@@ -13791,6 +13791,31 @@ def test_map_review_thread_comment_uses_discussion_note_composite_id():
     )
     assert result["id"] == "diff_discussion_id:42"
     assert result["unique_id"] == "diff_discussion_id:42"
+    # No diff position -> no commit anchor.
+    assert "commit_sha" not in result
+
+
+def test_map_review_thread_comment_populates_commit_sha_from_position_head_sha():
+    from scm.providers.gitlab.provider import map_review_thread_comment
+
+    result = map_review_thread_comment(
+        {
+            "id": 42,
+            "body": "fix me",
+            "author": {"id": 2, "username": "sentry-bot", "bot": True},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "updated_at": "2026-03-11T11:02:00.000Z",
+            "position": {
+                "base_sha": "base",
+                "start_sha": "start",
+                "head_sha": "headsha123",
+                "position_type": "text",
+                "new_line": 7,
+            },
+        },
+        "diff_discussion_id",
+    )
+    assert result["commit_sha"] == "headsha123"
 
 
 def test_get_pull_request_review_threads_filters_non_positioned_discussions(client, provider: GitLabProvider):
@@ -13881,6 +13906,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
                     "is_bot": True,
                     "created_at": "2026-03-11T11:01:00.000Z",
                     "updated_at": "2026-03-11T11:02:00.000Z",
+                    "commit_sha": "head",
                 },
                 {
                     "id": "diff_discussion_id:3",

@@ -159,7 +159,9 @@ AWARD_NAME_BY_REACTION: dict[Reaction, str] = {
 REACTION_BY_AWARD_NAME: dict[str, Reaction] = {award: reaction for reaction, award in AWARD_NAME_BY_REACTION.items()}
 
 # Cap per ``get_pull_request_review_threads(..., include_reactions=True)`` call.
-GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES = 25
+# Note that GitLab has 7,200 req/h, 3,600 req/s limit per "user"
+# https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
+GITLAB_INCLUDE_REACTIONS_MAX_NOTE_FETCHES = 15
 
 GITLAB_ARCHIVE_FORMAT_MAP: dict[ArchiveFormat, str] = {
     "tarball": ".tar.gz",
@@ -1965,11 +1967,22 @@ def _make_map_check_run(provider: "GitLabProvider", sha: SHA, name: str) -> Call
     return _map
 
 
+def _gitlab_discussion_comment_id(discussion_id: str, note_id: int | str) -> str:
+    return f"{discussion_id}:{note_id}"
+
+
+def _gitlab_note_author(raw: dict[str, Any]) -> tuple[Author | None, bool]:
+    author_raw = raw.get("author") or {}
+    if not author_raw:
+        return None, False
+    return (
+        Author(id=str(author_raw["id"]), username=author_raw["username"]),
+        bool(author_raw.get("bot")),
+    )
+
+
 def _gitlab_note_id_for_reactions(comment_id: str) -> str | None:
-    if ":" in comment_id:
-        note_id = comment_id.rpartition(":")[2]
-    else:
-        note_id = comment_id
+    note_id = comment_id.rpartition(":")[2] if ":" in comment_id else comment_id
     return note_id if note_id.isdigit() else None
 
 
@@ -1989,7 +2002,7 @@ def _attach_reactions_to_review_threads(
             if note_id is None:
                 continue
             page = provider.get_pull_request_comment_reactions(pull_request_id, note_id)
-            contents = [row["content"] for row in page["data"]]
+            contents = [str(row["content"]) for row in page["data"]]
             if contents:
                 comment["reactions"] = contents
             remaining -= 1
@@ -2008,23 +2021,28 @@ def map_review_thread_comment(raw: dict[str, Any], discussion_id: str) -> Review
     ``id`` and ``unique_id`` use ``{discussion_id}:{note_id}`` so they match
     ``map_review_comment`` and work with ``update_review_comment`` /
     ``get_thread_id_from_review_comment_unique_id``.
+
+    GitLab has no equivalent for ``url``, ``diff_hunk``, ``author_association``,
+    or ``review_id`` on notes, so those are left unset. ``commit_sha`` is
+    populated from the diff position's ``head_sha`` — the head commit of the
+    diff version, fixed when the note was created — which is the immutable
+    anchor callers use to compute diffs since the comment was posted.
     """
-    composite_id = f"{discussion_id}:{raw['id']}"
-    author_raw = raw.get("author") or {}
-    if author_raw:
-        author: Author | None = Author(id=str(author_raw["id"]), username=author_raw["username"])
-    else:
-        author = None
-    return ReviewThreadComment(
+    composite_id = _gitlab_discussion_comment_id(discussion_id, raw["id"])
+    author, is_bot = _gitlab_note_author(raw)
+    comment = ReviewThreadComment(
         id=composite_id,
         unique_id=composite_id,
         body=raw.get("body", ""),
         author=author,
-        # GitLab marks system actors via ``bot`` on the user object.
-        is_bot=bool(author_raw.get("bot")),
+        is_bot=is_bot,
         created_at=raw.get("created_at"),
         updated_at=raw.get("updated_at"),
     )
+    head_sha = (raw.get("position") or {}).get("head_sha")
+    if head_sha:
+        comment["commit_sha"] = head_sha
+    return comment
 
 
 def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
@@ -2058,14 +2076,15 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
 
 def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewComment]:
     def _map_review_comment(raw: dict[str, Any]) -> ReviewComment:
-        author_raw = raw.get("author")
+        composite_id = _gitlab_discussion_comment_id(discussion_id, raw["id"])
+        author, _ = _gitlab_note_author(raw)
         return ReviewComment(
-            id=f"{discussion_id}:{raw['id']}",
-            unique_id=f"{discussion_id}:{raw['id']}",
+            id=composite_id,
+            unique_id=composite_id,
             url=None,
             file_path=raw.get("position", {}).get("new_path"),
             body=raw["body"],
-            author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
+            author=author,
             created_at=raw.get("created_at"),
             diff_hunk=None,
             review_id=None,
