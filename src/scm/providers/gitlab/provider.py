@@ -1319,7 +1319,7 @@ class GitLabProvider:
             for action_future in action_futures:
                 action_future.result()
 
-        return ActionResult(
+        return ActionResult[Review](
             data=Review(
                 id="unset",
                 html_url=f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}",

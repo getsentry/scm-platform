@@ -125,6 +125,7 @@ type SHA = str
 type IssueState = Literal["open", "closed"]
 type PullRequestState = Literal["open", "closed"]
 type ReviewEvent = Literal["approve", "change_request", "comment"]
+type PullRequestReviewState = Literal["approved", "changes_requested", "commented", "dismissed", "pending"]
 type Encoding = Literal["utf-8", "base64"]
 type RepositoryPermission = Literal["admin", "read", "write", "none"]
 
@@ -481,6 +482,11 @@ class Review(TypedDict):
 
     id: ResourceId
     html_url: str
+    state: NotRequired[PullRequestReviewState]
+    author: NotRequired[Author | None]
+    body: NotRequired[str | None]
+    submitted_at: NotRequired[str | None]
+    commit_id: NotRequired[SHA | None]
 
 
 class ReviewThreadComment(TypedDict):
@@ -552,8 +558,6 @@ class CheckSuiteEventData(TypedDict):
 
 
 type PullRequestReviewAction = Literal["dismissed", "edited", "submitted"]
-
-type PullRequestReviewState = Literal["approved", "changes_requested", "commented", "dismissed", "pending"]
 
 
 class PullRequestReviewEventData(TypedDict):
@@ -1350,6 +1354,16 @@ class GetPullRequestReviewThreadsProtocol(Protocol):
     ) -> PaginatedActionResult[list[ReviewThread]]: ...
 
 
+@runtime_checkable
+class ListPullRequestReviewsProtocol(Protocol):
+    def list_pull_request_reviews(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Review]]: ...
+
+
 # Moderation Protocols
 
 
@@ -1463,6 +1477,7 @@ ALL_PROTOCOLS = (
     ListRepositoriesProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListCheckRunsForRefProtocol,
+    ListPullRequestReviewsProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,

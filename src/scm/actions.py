@@ -104,6 +104,7 @@ from scm.types import (
     Label,
     ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
+    ListPullRequestReviewsProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
     MinimizeCommentProtocol,
@@ -862,6 +863,19 @@ def list_check_runs_for_ref(
     )
 
 
+def list_pull_request_reviews(
+    scm: ListPullRequestReviewsProtocol,
+    pull_request_id: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[Review]]:
+    return scm.list_pull_request_reviews(
+        pull_request_id,
+        pagination=pagination,
+        request_options=request_options,
+    )
+
+
 def minimize_comment(scm: MinimizeCommentProtocol, comment_node_id: str, reason: str) -> None:
     return scm.minimize_comment(comment_node_id, reason)
 
@@ -991,6 +1005,7 @@ __all__ = (
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
     "list_check_runs_for_ref",
+    "list_pull_request_reviews",
     "list_repository_user_permissions",
     "list_repositories",
     "minimize_comment",

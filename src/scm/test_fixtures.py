@@ -423,11 +423,21 @@ def make_github_review_comment(
 def make_github_review(
     review_id: int = 200,
     html_url: str = "https://github.com/test-org/test-repo/pull/1#pullrequestreview-200",
+    state: str = "APPROVED",
+    user: dict[str, Any] | None = None,
+    body: str | None = "Looks good to me",
+    submitted_at: str | None = "2025-01-01T00:00:00Z",
+    commit_id: str | None = "abc123",
 ) -> dict[str, Any]:
     """Factory for GitHub review API responses."""
     return {
         "id": review_id,
         "html_url": html_url,
+        "state": state,
+        "user": user if user is not None else {"id": 42, "login": "testuser"},
+        "body": body,
+        "submitted_at": submitted_at,
+        "commit_id": commit_id,
     }
 
 

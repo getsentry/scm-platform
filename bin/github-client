@@ -128,6 +128,7 @@ from scm.types import (
     GetReviewCommentsProtocol,
     ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
+    ListPullRequestReviewsProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
     MoveCommitAction,
@@ -334,6 +335,11 @@ def main() -> None:
     p.add_argument("--check-name", default=None)
     p.add_argument("--status", choices=["queued", "in_progress", "completed"], default=None)
     p.add_argument("--filter", choices=["latest", "all"], default=None)
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("list-pull-request-reviews")
+    p.add_argument("pull_number")
     p.add_argument("--cursor", type=int, default=None)
     p.add_argument("--per-page", type=int, default=None)
 
@@ -587,6 +593,20 @@ def main() -> None:
                 check_name=args.check_name,
                 status=args.status,
                 timestamp_filter=args.filter,
+                pagination=pagination or None,
+            )
+        )
+
+    elif args.command == "list-pull-request-reviews":
+        assert isinstance(scm, ListPullRequestReviewsProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(
+            scm.list_pull_request_reviews(
+                args.pull_number,
                 pagination=pagination or None,
             )
         )
