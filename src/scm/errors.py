@@ -93,7 +93,7 @@ class SCMCodedError(SCMError):
         if code is not None:
             SCMCodedError._registry[code] = cls
 
-    def __init__(self, *args, code: ErrorCode | None = None, detail: str | None = None, **kwargs) -> None:
+    def __init__(self, *, code: ErrorCode | None = None, detail: str | None = None, **kwargs) -> None:
         if code is not None:
             self.code = code
         if not hasattr(self, "code"):
@@ -101,7 +101,8 @@ class SCMCodedError(SCMError):
 
         self.message = detail or ERROR_CODES[self.code]
         self.detail = detail or ERROR_CODES[self.code]
-        super().__init__(self.code, self.message, *args, *((k, v) for k, v in kwargs.items()))
+        self.extra_attributes = kwargs
+        super().__init__(self.message)
 
     @classmethod
     def from_code(cls, code: ErrorCode, detail: str | None = None) -> "SCMCodedError":

@@ -49,8 +49,9 @@ class TestFetchRepository:
     @patch("scm.rpc.client.requests.get")
     def test_single_error_raises_coded_error(self, mock_get):
         mock_get.return_value = MagicMock(status_code=404, content=make_error_response("repository_not_found"))
-        with pytest.raises(SCMCodedError, match="repository_not_found"):
+        with pytest.raises(SCMCodedError) as exc_info:
             fetch_repository("http://base", "secret", 1, 1)
+        assert exc_info.value.code == "repository_not_found"
 
     @patch("scm.rpc.client.requests.get")
     def test_multiple_errors_raises_exception_group(self, mock_get):
@@ -67,8 +68,9 @@ class TestFetchRepository:
     @patch("scm.rpc.client.requests.get")
     def test_undeserializable_error_response(self, mock_get):
         mock_get.return_value = MagicMock(status_code=500, content=b"not valid json")
-        with pytest.raises(SCMCodedError, match="rpc_errors_could_not_be_deserialized"):
+        with pytest.raises(SCMCodedError) as exc_info:
             fetch_repository("http://base", "secret", 1, 1)
+        assert exc_info.value.code == "rpc_errors_could_not_be_deserialized"
 
     @patch("scm.rpc.client.requests.get")
     def test_signs_get_request_headers(self, mock_get):
@@ -100,12 +102,14 @@ class TestDeserializeRepository:
         assert repo["provider_name"] == "github"
 
     def test_invalid_content_raises(self):
-        with pytest.raises(SCMCodedError, match="repository_could_not_be_deserialized"):
+        with pytest.raises(SCMCodedError) as exc_info:
             deserialize_repository(b"not valid json")
+        assert exc_info.value.code == "repository_could_not_be_deserialized"
 
     def test_wrong_structure_raises(self):
-        with pytest.raises(SCMCodedError, match="repository_could_not_be_deserialized"):
+        with pytest.raises(SCMCodedError) as exc_info:
             deserialize_repository(b'{"type": "unknown", "data": {}}')
+        assert exc_info.value.code == "repository_could_not_be_deserialized"
 
 
 class TestFetchProvider:
@@ -124,8 +128,9 @@ class TestFetchProvider:
     def test_github_enterprise_without_web_base_url_raises(self):
         client = MagicMock()
         repo = make_repository(provider_name="github_enterprise")
-        with pytest.raises(SCMCodedError, match="rpc_invalid_grant"):
+        with pytest.raises(SCMCodedError) as exc_info:
             fetch_provider(client, 1, repo)
+        assert exc_info.value.code == "rpc_invalid_grant"
 
     def test_gitlab_returns_gitlab_provider(self):
         client = MagicMock()
