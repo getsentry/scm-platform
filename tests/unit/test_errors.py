@@ -58,10 +58,17 @@ class TestConcreteErrors:
         exc = ResourceNotFound(detail="pull request org/repo#1")
         assert exc.detail == "pull request org/repo#1"
 
-    def test_positional_args_are_passed_through(self):
-        exc = RepositoryNotFound(1, 2)
-        assert exc.args[0] == "repository_not_found"
-        assert (1, 2) == exc.args[2:]
+    def test_args_contains_only_message(self):
+        exc = RepositoryNotFound()
+        assert exc.args == (ERROR_CODES["repository_not_found"],)
+
+    def test_extra_attributes_stored(self):
+        exc = ResourceNotFound(status_code=404, request_url="https://api.github.com/repos/org/repo")
+        assert exc.extra_attributes == {"status_code": 404, "request_url": "https://api.github.com/repos/org/repo"}
+
+    def test_extra_attributes_empty_by_default(self):
+        exc = RepositoryNotFound()
+        assert exc.extra_attributes == {}
 
     def test_can_be_caught_as_concrete_type(self):
         with pytest.raises(RpcInvalidGrant):

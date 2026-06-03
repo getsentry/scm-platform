@@ -70,27 +70,31 @@ class TestExtractHeaders:
         server = make_server()
         headers = make_headers()
         del headers["Authorization"]
-        with pytest.raises(SCMCodedError, match="rpc_malformed_request_headers"):
+        with pytest.raises(SCMCodedError) as exc_info:
             server._extract_headers(headers)
+        assert exc_info.value.code == "rpc_malformed_request_headers"
 
     def test_missing_organization_id_raises(self):
         server = make_server()
         headers = make_headers()
         del headers["X-Organization-Id"]
-        with pytest.raises(SCMCodedError, match="rpc_malformed_request_headers"):
+        with pytest.raises(SCMCodedError) as exc_info:
             server._extract_headers(headers)
+        assert exc_info.value.code == "rpc_malformed_request_headers"
 
     def test_non_integer_organization_id_raises(self):
         server = make_server()
         headers = make_headers(**{"X-Organization-Id": "not-a-number"})
-        with pytest.raises(SCMCodedError, match="rpc_malformed_request_headers"):
+        with pytest.raises(SCMCodedError) as exc_info:
             server._extract_headers(headers)
+        assert exc_info.value.code == "rpc_malformed_request_headers"
 
     def test_invalid_repository_id_json_raises(self):
         server = make_server()
         headers = make_headers(**{"X-Repository-Id": "not-json{"})
-        with pytest.raises(SCMCodedError, match="rpc_malformed_request_headers"):
+        with pytest.raises(SCMCodedError) as exc_info:
             server._extract_headers(headers)
+        assert exc_info.value.code == "rpc_malformed_request_headers"
 
 
 class TestGet:
