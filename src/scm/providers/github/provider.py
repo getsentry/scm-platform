@@ -251,36 +251,53 @@ query ThreadComments($threadId: ID!, $cursor: String) {
 }
 """
 
-REVIEW_THREADS_QUERY = """
-query ReviewThreads($owner: String!, $name: String!, $number: Int!, $cursor: String, $perPage: Int!) {
-    repository(owner: $owner, name: $name) {
-        pullRequest(number: $number) {
-            reviewThreads(first: $perPage, after: $cursor) {
-                pageInfo { hasNextPage endCursor }
-                nodes {
-                    id
-                    isResolved
-                    isOutdated
-                    path
-                    line
-                    startLine
-                    comments(first: 100) {
-                        pageInfo { hasNextPage endCursor }
-                        nodes {
-                            id
-                            fullDatabaseId
-                            body
-                            createdAt
-                            updatedAt
-                            author { login __typename ... on User { databaseId } }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-"""
+
+def get_review_threads_query(*, include_reactions: bool) -> str:
+    # Correctly handle reactions block: only insert if needed, and avoid trailing empty string
+    reactions_block = (
+        """
+                                reactions(first: 100) {
+                                    nodes {
+                                        content
+                                        user { login }
+                                    }
+                                }
+        """ if include_reactions else ""
+    )
+
+    query = f"""
+    query ReviewThreads($owner: String!, $name: String!, $number: Int!, $cursor: String, $perPage: Int!) {{
+        repository(owner: $owner, name: $name) {{
+            pullRequest(number: $number) {{
+                reviewThreads(first: $perPage, after: $cursor) {{
+                    pageInfo {{ hasNextPage endCursor }}
+                    nodes {{
+                        id
+                        isResolved
+                        isOutdated
+                        path
+                        line
+                        startLine
+                        comments(first: 100) {{
+                            pageInfo {{ hasNextPage endCursor }}
+                            nodes {{
+                                id
+                                fullDatabaseId
+                                body
+                                createdAt
+                                updatedAt
+                                author {{ login __typename ... on User {{ databaseId }} }}
+                                {reactions_block}
+                            }}
+                        }}
+                    }}
+                }}
+            }}
+        }}
+    }}
+    """
+
+    return query
 
 REVIEW_THREAD_FULL_COMMENTS_QUERY = """
 query ReviewThreadFullComments($threadId: ID!, $cursor: String) {
