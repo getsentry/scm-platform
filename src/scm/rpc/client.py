@@ -248,13 +248,10 @@ class RpcApiClient(ApiClient):
                     attempt += 1
                     continue
                 # Only a re-send that ran out of attempts is "exhausted"; with retries off there was
-                # nothing to exhaust, so stay quiet rather than mislabel a single failure.
+                # nothing to exhaust, so stay quiet rather than mislabel a single failure. The reason
+                # is the failure we are giving up on, which here is always the connection error.
                 if attempt:
-                    self.record_count(
-                        "sentry.scm.rpc.client.transport_retry_exhausted",
-                        1,
-                        {"method": method, "reason": "connection_error"},
-                    )
+                    self._record_retry_outcome("exhausted", method, "connection_error")
                 # Surface a typed, RPC-serializable error instead of an opaque ConnectionError that
                 # would not survive the proxy boundary — independent of whether we retried.
                 raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from exc
@@ -265,26 +262,36 @@ class RpcApiClient(ApiClient):
                     self._retry(last_reason, method, attempt, backoff_seconds)
                     attempt += 1
                     continue
+                # Reason is the status we are giving up on, taken from the final response rather than
+                # ``last_reason`` so a mixed sequence (503 retried, then a final 504) reports the 504.
                 if attempt:
-                    self.record_count(
-                        "sentry.scm.rpc.client.transport_retry_exhausted",
-                        1,
-                        {"method": method, "reason": f"status_{response.status_code}"},
-                    )
+                    self._record_retry_outcome("exhausted", method, f"status_{response.status_code}")
                 # Hand the still-failing response back; the provider maps the status to a coded error.
                 return response
 
+            # Falling through means the response is no longer a retriable status (and was not a
+            # connection error). If we had retried, the transient condition has cleared — that is a
+            # "recovery" at the transport layer regardless of the final HTTP status: a 503 that clears
+            # to a 200 or to a 404 both count, because the gateway stopped returning the retriable
+            # status. ``reason`` is the trigger of the last retry; a mixed-reason sequence reports
+            # only that final trigger.
             if attempt:
-                # ``reason`` is the trigger of the last retry; a mixed-reason sequence (e.g. a
-                # connection error then a 503) reports only that final trigger.
-                self.record_count(
-                    "sentry.scm.rpc.client.transport_retry_recovered",
-                    1,
-                    {"method": method, "reason": last_reason},
-                )
+                self._record_retry_outcome("recovered", method, last_reason)
             return response
 
     def _retry(self, reason: str, method: str, attempt: int, backoff_seconds: float) -> None:
-        """Record a retry and back off before the next attempt."""
+        """Record a retry attempt and back off before the next one."""
         self.record_count("sentry.scm.rpc.client.transport_retry", 1, {"method": method, "reason": reason})
         time.sleep(backoff_seconds * (2**attempt))
+
+    def _record_retry_outcome(self, outcome: str, method: str, reason: str) -> None:
+        """Emit a terminal retry counter (``recovered`` or ``exhausted``) with consistent tags.
+
+        Centralizing the metric name and ``{method, reason}`` tag shape keeps the three retry
+        counters from drifting apart as the loop evolves.
+        """
+        self.record_count(
+            f"sentry.scm.rpc.client.transport_retry_{outcome}",
+            1,
+            {"method": method, "reason": reason},
+        )
