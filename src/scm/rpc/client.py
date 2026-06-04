@@ -1,6 +1,6 @@
 import time
-from collections.abc import Callable
-from typing import Any, Protocol
+from collections.abc import Callable, Collection
+from typing import Any, Protocol, TypedDict
 
 import msgspec
 import requests
@@ -28,10 +28,24 @@ _RETRIABLE_STATUS_CODES = frozenset({503, 504})
 # Only methods without side effects can be safely re-sent: a write that errored at the transport
 # layer may still have landed upstream, so re-sending it could double-apply it.
 _IDEMPOTENT_METHODS = frozenset({"GET", "HEAD"})
-# Retries are opt-in: the library never re-sends a request unless a consumer asks it to. Consumers
-# that know their own latency budget and idempotency guarantees configure the limit and backoff.
-_DEFAULT_MAX_TRANSPORT_RETRIES = 0
-_DEFAULT_TRANSPORT_RETRY_BACKOFF_SECONDS = 0.25
+
+
+class RetryConfig(TypedDict):
+    """A complete transport-retry policy for the RPC client.
+
+    All keys are required (``total=True``): retries are an all-or-nothing choice so no surprising
+    latency budget is ever silently applied. Retries always remain restricted to idempotent methods
+    (GET/HEAD) and, for transport-level failures, to connection errors — those are fixed safety
+    invariants, not tunables, because a write that failed mid-flight may already have landed
+    upstream. Only ``status_codes`` selects which gateway HTTP responses are re-sent (pass a list or
+    set, e.g. ``{503, 504}``).
+
+    Retries are opt-in: pass ``retry=None`` (the default) and the library never re-sends a request.
+    """
+
+    max_retries: int
+    backoff_seconds: float
+    status_codes: Collection[int]
 
 
 class Session(Protocol):
@@ -146,8 +160,7 @@ class RpcApiClient(ApiClient):
         referrer: str,
         repository_id: RepositoryId,
         session: Callable[[], Session] = lambda: RequestsSession(),
-        max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES,
-        transport_retry_backoff_seconds: float = _DEFAULT_TRANSPORT_RETRY_BACKOFF_SECONDS,
+        retry: RetryConfig | None = None,
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
     ) -> None:
         self.full_url = full_url
@@ -156,8 +169,7 @@ class RpcApiClient(ApiClient):
         self.referrer = referrer
         self.repository_id = repository_id
         self.session = session()
-        self.max_transport_retries = max_transport_retries
-        self.transport_retry_backoff_seconds = transport_retry_backoff_seconds
+        self.retry = retry
         self.record_count = record_count
 
     def request(
@@ -199,8 +211,15 @@ class RpcApiClient(ApiClient):
         }
 
         # Retry transient proxy failures for idempotent reads with exponential backoff. Two flavors:
-        # a transport-level ``ConnectionError`` (no response framed) and a 503/504 from the gateway.
-        # Metrics make the retries visible: a counter per retry, one on recovery, one on exhaustion.
+        # a transport-level ``ConnectionError`` (no response framed) and a configured gateway status
+        # (503/504 by default). Metrics make retries visible: a counter per retry, one on recovery,
+        # one on exhaustion. With ``retry`` unset, this runs once: a read is never re-sent, but an
+        # exhausted connection error is still classified so callers can branch on ``allow_retry``.
+        retry = self.retry
+        max_retries = retry["max_retries"] if retry else 0
+        status_codes = retry["status_codes"] if retry else _RETRIABLE_STATUS_CODES
+        backoff_seconds = retry["backoff_seconds"] if retry else 0.0  # unused when max_retries == 0
+
         idempotent = method.upper() in _IDEMPOTENT_METHODS
         attempt = 0
         while True:
@@ -211,8 +230,8 @@ class RpcApiClient(ApiClient):
                 # reads are safe to re-send; everything else surfaces the raw error untouched.
                 if not idempotent:
                     raise
-                if attempt < self.max_transport_retries:
-                    self._retry("connection_error", method, attempt)
+                if attempt < max_retries:
+                    self._retry("connection_error", method, attempt, backoff_seconds)
                     attempt += 1
                     continue
                 self.record_count(
@@ -224,9 +243,9 @@ class RpcApiClient(ApiClient):
                 # ConnectionError so callers can branch on ``exc.allow_retry``.
                 raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from exc
 
-            if idempotent and response.status_code in _RETRIABLE_STATUS_CODES:
-                if attempt < self.max_transport_retries:
-                    self._retry(f"status_{response.status_code}", method, attempt)
+            if idempotent and response.status_code in status_codes:
+                if attempt < max_retries:
+                    self._retry(f"status_{response.status_code}", method, attempt, backoff_seconds)
                     attempt += 1
                     continue
                 self.record_count(
@@ -241,7 +260,7 @@ class RpcApiClient(ApiClient):
                 self.record_count("sentry.scm.rpc.client.transport_retry_recovered", 1, {"method": method})
             return response
 
-    def _retry(self, reason: str, method: str, attempt: int) -> None:
+    def _retry(self, reason: str, method: str, attempt: int, backoff_seconds: float) -> None:
         """Record a retry and back off before the next attempt."""
         self.record_count("sentry.scm.rpc.client.transport_retry", 1, {"method": method, "reason": reason})
-        time.sleep(self.transport_retry_backoff_seconds * (2**attempt))
+        time.sleep(backoff_seconds * (2**attempt))

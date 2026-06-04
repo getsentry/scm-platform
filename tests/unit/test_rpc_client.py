@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from unittest.mock import MagicMock, patch
 
 import msgspec
@@ -207,6 +208,7 @@ class TestRpcApiClientTransportRetry:
         self,
         max_transport_retries: int = 2,
         transport_retry_backoff_seconds: float = 0.25,
+        status_codes: Collection[int] = (503, 504),
     ) -> RpcApiClient:
         # Retries are off by default in the library; these tests opt in to exercise the retry path.
         client = RpcApiClient(
@@ -215,8 +217,11 @@ class TestRpcApiClientTransportRetry:
             organization_id=1,
             referrer="shared",
             repository_id=1,
-            max_transport_retries=max_transport_retries,
-            transport_retry_backoff_seconds=transport_retry_backoff_seconds,
+            retry={
+                "max_retries": max_transport_retries,
+                "backoff_seconds": transport_retry_backoff_seconds,
+                "status_codes": status_codes,
+            },
             record_count=MagicMock(),
         )
         client.session = MagicMock()
@@ -353,3 +358,32 @@ class TestRpcApiClientTransportRetry:
 
         # Exponential backoff off the configured base: base * 2**attempt.
         assert [call.args[0] for call in mock_sleep.call_args_list] == [1.5, 3.0]
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_retries_configured_status_codes_only(self, mock_sleep):
+        # A consumer can pick which gateway statuses are retriable. Here 429 is in, 503 is out.
+        client = self._make_client(status_codes={429})
+        rate_limited = MagicMock(status_code=429)
+        ok = MagicMock(status_code=200)
+        client.session.post.side_effect = [rate_limited, ok]
+
+        result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert result is ok
+        assert client.session.post.call_count == 2
+        retry_tags = client.record_count.call_args_list[0].args[2]  # type: ignore[attr-defined]
+        assert retry_tags == {"method": "GET", "reason": "status_429"}
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_does_not_retry_status_code_outside_config(self, mock_sleep):
+        # 503 is not in the configured set, so it is handed back unretried.
+        client = self._make_client(status_codes={429})
+        unavailable = MagicMock(status_code=503)
+        client.session.post.return_value = unavailable
+
+        result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert result is unavailable
+        assert client.session.post.call_count == 1
+        mock_sleep.assert_not_called()
+        assert self._metric_names(client) == []
