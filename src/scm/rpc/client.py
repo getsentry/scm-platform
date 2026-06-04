@@ -42,8 +42,8 @@ class RetryConfig(TypedDict):
       ``{503, 504}``; an empty collection retries no statuses).
     - ``retry_connection_errors`` (optional, defaults to ``False``) enables catching a
       transport-level ``ConnectionError`` (no response framed). When enabled, an exhausted read is
-      reclassified to ``ResourceServiceUnavailable`` so callers can branch on ``allow_retry``; when
-      disabled, the raw error propagates untouched.
+      reclassified to the typed, RPC-serializable ``ResourceServiceUnavailable``; when disabled, the
+      raw error propagates untouched.
 
     Retries are opt-in: pass ``retry=None`` (the default) and the library never re-sends a request
     nor intercepts a connection error.
@@ -251,8 +251,8 @@ class RpcApiClient(ApiClient):
                         1,
                         {"method": method, "reason": "connection_error"},
                     )
-                # Classify the read as a typed, retriable error instead of an opaque ConnectionError
-                # so callers can branch on ``exc.allow_retry`` — independent of whether we retried.
+                # Surface a typed, RPC-serializable error instead of an opaque ConnectionError that
+                # would not survive the proxy boundary — independent of whether we retried.
                 raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from exc
 
             if idempotent and response.status_code in status_codes:

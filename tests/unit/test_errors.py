@@ -100,23 +100,6 @@ class TestErrorClassForStatus:
         assert error_class_for_status(status_code) is UnhandledException
 
 
-class TestAllowRetry:
-    @pytest.mark.parametrize(
-        "error_cls",
-        [RateLimitExceeded, ResourceServiceUnavailable, ResourceGatewayTimeout],
-    )
-    def test_transient_errors_allow_retry(self, error_cls):
-        assert error_cls.allow_retry is True
-        assert error_cls().allow_retry is True
-
-    @pytest.mark.parametrize(
-        "error_cls",
-        [ResourceNotFound, ResourceBadRequest, ResourceUnprocessableContent, UnhandledException],
-    )
-    def test_non_transient_errors_do_not_allow_retry(self, error_cls):
-        assert error_cls.allow_retry is False
-
-
 class TestFromCode:
     def test_returns_concrete_subclass_for_every_code(self):
         for code in ALL_CODES:

@@ -290,10 +290,9 @@ class TestRpcApiClientTransportRetry:
         client = self._make_client(max_transport_retries=2)
         client.session.post.side_effect = RequestsConnectionError("connection reset")
 
-        with pytest.raises(ResourceServiceUnavailable) as exc_info:
+        with pytest.raises(ResourceServiceUnavailable):
             client.request(method="GET", path="/repos/org/repo/git/trees/abc")
 
-        assert exc_info.value.allow_retry is True
         assert client.session.post.call_count == 3
         assert self._metric_names(client) == [
             "sentry.scm.rpc.client.transport_retry",
