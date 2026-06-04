@@ -25,6 +25,8 @@ type ErrorCode = Literal[
     "resource_unprocessable_content",
     "resource_server_error",
     "resource_bad_gateway",
+    "resource_service_unavailable",
+    "resource_gateway_timeout",
     "unexpected_response_format",
     "unhandled_exception",
     "draft_pull_request_not_supported",
@@ -56,6 +58,8 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_unprocessable_content": "Request could not be processed.",
     "resource_server_error": "The service-provider encountered an internal error.",
     "resource_bad_gateway": "The service-provider returned an invalid response from an upstream gateway.",
+    "resource_service_unavailable": "The service-provider is temporarily unavailable. The request can be retried.",
+    "resource_gateway_timeout": "The service-provider did not respond in time. The request can be retried.",
     "unexpected_response_format": "The response format was in an unexpected format.",
     "unhandled_exception": "An unhandled exception occurred.",
     "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
@@ -209,6 +213,14 @@ class ResourceBadGateway(SCMCodedError):
     code = "resource_bad_gateway"
 
 
+class ResourceServiceUnavailable(SCMCodedError):
+    code = "resource_service_unavailable"
+
+
+class ResourceGatewayTimeout(SCMCodedError):
+    code = "resource_gateway_timeout"
+
+
 class UnexpectedResponseFormat(SCMCodedError):
     code = "unexpected_response_format"
 
@@ -233,8 +245,11 @@ _STATUS_TO_ERROR: dict[int, type[SCMCodedError]] = {
     404: ResourceNotFound,
     409: ResourceConflict,
     422: ResourceUnprocessableContent,
+    429: RateLimitExceeded,
     500: ResourceServerError,
     502: ResourceBadGateway,
+    503: ResourceServiceUnavailable,
+    504: ResourceGatewayTimeout,
 }
 
 

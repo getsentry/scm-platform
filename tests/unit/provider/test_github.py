@@ -6,12 +6,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from scm.errors import (
+    RateLimitExceeded,
     ResourceBadGateway,
     ResourceBadRequest,
     ResourceConflict,
     ResourceForbidden,
+    ResourceGatewayTimeout,
     ResourceNotFound,
     ResourceServerError,
+    ResourceServiceUnavailable,
     ResourceUnauthorized,
     ResourceUnprocessableContent,
     SCMCodedError,
@@ -2848,10 +2851,12 @@ def _error_response(status_code: int, body: bytes = b'{"message":"boom"}') -> An
         (404, "resource_not_found", ResourceNotFound),
         (409, "resource_conflict", ResourceConflict),
         (422, "resource_unprocessable_content", ResourceUnprocessableContent),
+        (429, "rate_limit_exceeded", RateLimitExceeded),
         (500, "resource_server_error", ResourceServerError),
         (502, "resource_bad_gateway", ResourceBadGateway),
+        (503, "resource_service_unavailable", ResourceServiceUnavailable),
+        (504, "resource_gateway_timeout", ResourceGatewayTimeout),
         (418, "unhandled_exception", UnhandledException),
-        (503, "unhandled_exception", UnhandledException),
     ],
 )
 def test_request_maps_status_code_to_error(

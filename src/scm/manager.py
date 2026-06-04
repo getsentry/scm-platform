@@ -2,7 +2,12 @@ from collections.abc import Callable
 
 from scm.facade import Facade
 from scm.helpers import initialize_provider
-from scm.rpc.client import SCM_API_URL, RequestsSession, RpcApiClient
+from scm.rpc.client import (
+    SCM_API_URL,
+    RequestsSession,
+    RetryConfig,
+    RpcApiClient,
+)
 from scm.rpc.client import fetch_provider as fetch_proxy_provider
 from scm.rpc.client import fetch_repository as fetch_proxy_repository
 from scm.types import Provider, Referrer, Repository, RepositoryId
@@ -41,11 +46,13 @@ class SourceCodeManager(Facade):
         base_url: str,
         signing_secret: str,
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
+        retry: RetryConfig | None = None,
     ):
         full_url = SCM_API_URL.format(base_url=base_url)
 
         # A specialized RpcApiClient is initialized. It will proxy the service-provider requests through Sentry. This
-        # forces clients to obey Sentry's strict access control requirements.
+        # forces clients to obey Sentry's strict access control requirements. Transport retries are opt-in: they stay
+        # off unless the consumer passes a ``retry`` policy.
         client = RpcApiClient(
             full_url=full_url,
             signing_secret=signing_secret,
@@ -53,6 +60,8 @@ class SourceCodeManager(Facade):
             referrer=referrer,
             repository_id=repository_id,
             session=RequestsSession,
+            retry=retry,
+            record_count=record_count,
         )
 
         return cls.make_client(

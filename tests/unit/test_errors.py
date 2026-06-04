@@ -6,13 +6,16 @@ import pytest
 from scm.errors import (
     ERROR_CODES,
     ErrorCode,
+    RateLimitExceeded,
     RepositoryNotFound,
     ResourceBadGateway,
     ResourceBadRequest,
     ResourceConflict,
     ResourceForbidden,
+    ResourceGatewayTimeout,
     ResourceNotFound,
     ResourceServerError,
+    ResourceServiceUnavailable,
     ResourceUnauthorized,
     ResourceUnprocessableContent,
     RpcInvalidGrant,
@@ -89,14 +92,17 @@ class TestErrorClassForStatus:
             (404, ResourceNotFound),
             (409, ResourceConflict),
             (422, ResourceUnprocessableContent),
+            (429, RateLimitExceeded),
             (500, ResourceServerError),
             (502, ResourceBadGateway),
+            (503, ResourceServiceUnavailable),
+            (504, ResourceGatewayTimeout),
         ],
     )
     def test_maps_known_status_to_concrete_class(self, status_code, expected_type):
         assert error_class_for_status(status_code) is expected_type
 
-    @pytest.mark.parametrize("status_code", [418, 451, 503, 504, 599])
+    @pytest.mark.parametrize("status_code", [418, 451, 599])
     def test_unmapped_status_falls_back_to_unhandled_exception(self, status_code):
         assert error_class_for_status(status_code) is UnhandledException
 
