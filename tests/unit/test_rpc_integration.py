@@ -701,6 +701,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    (
+        "list_pull_request_reviews",
+        lambda scm: actions.list_pull_request_reviews(scm, "1"),
+        [make_github_review()],
+        200,
+        None,
+    ),
     # Minimize comment (GraphQL)
     (
         "minimize_comment",
