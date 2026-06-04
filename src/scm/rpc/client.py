@@ -232,6 +232,7 @@ class RpcApiClient(ApiClient):
 
         idempotent = method.upper() in _IDEMPOTENT_METHODS
         attempt = 0
+        last_reason = ""  # trigger of the most recent retry; tags the recovery metric on success
         while True:
             try:
                 response = self.session.post(url=self.full_url, data=body, headers=request_headers)
@@ -242,7 +243,8 @@ class RpcApiClient(ApiClient):
                 if not (retry_connection_errors and idempotent):
                     raise
                 if attempt < max_retries:
-                    self._retry("connection_error", method, attempt, backoff_seconds)
+                    last_reason = "connection_error"
+                    self._retry(last_reason, method, attempt, backoff_seconds)
                     attempt += 1
                     continue
                 # Only a re-send that ran out of attempts is "exhausted"; with retries off there was
@@ -259,7 +261,8 @@ class RpcApiClient(ApiClient):
 
             if idempotent and response.status_code in status_codes:
                 if attempt < max_retries:
-                    self._retry(f"status_{response.status_code}", method, attempt, backoff_seconds)
+                    last_reason = f"status_{response.status_code}"
+                    self._retry(last_reason, method, attempt, backoff_seconds)
                     attempt += 1
                     continue
                 if attempt:
@@ -272,7 +275,13 @@ class RpcApiClient(ApiClient):
                 return response
 
             if attempt:
-                self.record_count("sentry.scm.rpc.client.transport_retry_recovered", 1, {"method": method})
+                # ``reason`` is the trigger of the last retry; a mixed-reason sequence (e.g. a
+                # connection error then a 503) reports only that final trigger.
+                self.record_count(
+                    "sentry.scm.rpc.client.transport_retry_recovered",
+                    1,
+                    {"method": method, "reason": last_reason},
+                )
             return response
 
     def _retry(self, reason: str, method: str, attempt: int, backoff_seconds: float) -> None:

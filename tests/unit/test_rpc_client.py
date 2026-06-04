@@ -248,6 +248,8 @@ class TestRpcApiClientTransportRetry:
             "sentry.scm.rpc.client.transport_retry",
             "sentry.scm.rpc.client.transport_retry_recovered",
         ]
+        recovered_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
+        assert recovered_tags == {"method": "GET", "reason": "connection_error"}
 
     @patch("scm.rpc.client.time.sleep")
     def test_retries_503_then_succeeds(self, mock_sleep):
@@ -266,6 +268,23 @@ class TestRpcApiClientTransportRetry:
             "sentry.scm.rpc.client.transport_retry",
             "sentry.scm.rpc.client.transport_retry_recovered",
         ]
+        recovered_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
+        assert recovered_tags == {"method": "GET", "reason": "status_503"}
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_recovered_reason_reports_last_retry_trigger(self, mock_sleep):
+        # A mixed-reason sequence (connection error, then 503, then success) tags the recovery with
+        # the trigger of the final retry — there is no single reason for the whole sequence.
+        client = self._make_client(max_transport_retries=3, retry_connection_errors=True)
+        unavailable = MagicMock(status_code=503)
+        ok = MagicMock(status_code=200)
+        client.session.post.side_effect = [RequestsConnectionError("reset"), unavailable, ok]
+
+        result = client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert result is ok
+        recovered_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
+        assert recovered_tags == {"method": "GET", "reason": "status_503"}
 
     @patch("scm.rpc.client.time.sleep")
     def test_returns_final_503_after_exhausting_retries(self, mock_sleep):
