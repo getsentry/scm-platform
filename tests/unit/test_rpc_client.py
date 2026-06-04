@@ -364,6 +364,21 @@ class TestRpcApiClientTransportRetry:
         assert self._metric_names(client) == []
 
     @patch("scm.rpc.client.time.sleep")
+    def test_reclassifies_connection_error_without_retries(self, mock_sleep):
+        # Opting into connection-error interception with max_retries=0 is a coherent config: convert
+        # the error to a typed, RPC-serializable one without re-sending. No retry happened, so no
+        # transport_retry metric fires.
+        client = self._make_client(max_transport_retries=0, retry_connection_errors=True)
+        client.session.post.side_effect = RequestsConnectionError("connection reset")
+
+        with pytest.raises(ResourceServiceUnavailable):
+            client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert client.session.post.call_count == 1
+        mock_sleep.assert_not_called()
+        assert self._metric_names(client) == []
+
+    @patch("scm.rpc.client.time.sleep")
     def test_connection_error_intercept_defaults_off_when_omitted(self, mock_sleep):
         # retry_connection_errors is optional; omitting it leaves connection errors untouched.
         client = RpcApiClient(

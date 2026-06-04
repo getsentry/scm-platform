@@ -41,9 +41,11 @@ class RetryConfig(TypedDict):
     - ``status_codes`` selects which gateway HTTP responses are re-sent (pass a list or set, e.g.
       ``{503, 504}``; an empty collection retries no statuses).
     - ``retry_connection_errors`` (optional, defaults to ``False``) enables catching a
-      transport-level ``ConnectionError`` (no response framed). When enabled, an exhausted read is
-      reclassified to the typed, RPC-serializable ``ResourceServiceUnavailable``; when disabled, the
-      raw error propagates untouched.
+      transport-level ``ConnectionError`` (no response framed) on idempotent reads. The read is
+      re-sent up to ``max_retries`` times; whether or not any re-send happens (e.g. ``max_retries``
+      is 0), the failure is surfaced as the typed, RPC-serializable ``ResourceServiceUnavailable``
+      rather than an opaque ``ConnectionError`` that would not survive the proxy boundary. When
+      disabled, the raw error propagates untouched.
 
     Retries are opt-in: pass ``retry=None`` (the default) and the library never re-sends a request
     nor intercepts a connection error.
