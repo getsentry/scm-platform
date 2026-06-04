@@ -8,7 +8,6 @@ from scm.errors import ErrorCode, ResourceServiceUnavailable, SCMCodedError
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
-    _DEFAULT_MAX_TRANSPORT_RETRIES,
     RpcApiClient,
     deserialize_repository,
     fetch_provider,
@@ -204,7 +203,12 @@ class TestRpcApiClientTransportRetry:
     """A transient blip between us and the proxy surfaces either as a transport ``ConnectionError``
     or as a 503/504 from the gateway. Idempotent reads retry with backoff; writes never do."""
 
-    def _make_client(self, max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES) -> RpcApiClient:
+    def _make_client(
+        self,
+        max_transport_retries: int = 2,
+        transport_retry_backoff_seconds: float = 0.25,
+    ) -> RpcApiClient:
+        # Retries are off by default in the library; these tests opt in to exercise the retry path.
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
             signing_secret="secret",
@@ -212,6 +216,7 @@ class TestRpcApiClientTransportRetry:
             referrer="shared",
             repository_id=1,
             max_transport_retries=max_transport_retries,
+            transport_retry_backoff_seconds=transport_retry_backoff_seconds,
             record_count=MagicMock(),
         )
         client.session = MagicMock()
@@ -314,3 +319,37 @@ class TestRpcApiClientTransportRetry:
         assert client.session.post.call_count == 1
         mock_sleep.assert_not_called()
         assert self._metric_names(client) == []
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_no_retries_by_default(self, mock_sleep):
+        # The library default is no retries: a consumer must opt in. An idempotent read that hits a
+        # ConnectionError is still classified, but is not re-sent.
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret="secret",
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+            record_count=MagicMock(),
+        )
+        client.session = MagicMock()
+        client.session.post.side_effect = RequestsConnectionError("connection reset")
+
+        with pytest.raises(ResourceServiceUnavailable):
+            client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        assert client.session.post.call_count == 1
+        mock_sleep.assert_not_called()
+        assert self._metric_names(client) == ["sentry.scm.rpc.client.transport_retry_exhausted"]
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_uses_configured_backoff(self, mock_sleep):
+        client = self._make_client(max_transport_retries=2, transport_retry_backoff_seconds=1.5)
+        unavailable = MagicMock(status_code=503)
+        ok = MagicMock(status_code=200)
+        client.session.post.side_effect = [unavailable, unavailable, ok]
+
+        client.request(method="GET", path="/repos/org/repo/git/trees/abc")
+
+        # Exponential backoff off the configured base: base * 2**attempt.
+        assert [call.args[0] for call in mock_sleep.call_args_list] == [1.5, 3.0]

@@ -28,8 +28,10 @@ _RETRIABLE_STATUS_CODES = frozenset({503, 504})
 # Only methods without side effects can be safely re-sent: a write that errored at the transport
 # layer may still have landed upstream, so re-sending it could double-apply it.
 _IDEMPOTENT_METHODS = frozenset({"GET", "HEAD"})
-_DEFAULT_MAX_TRANSPORT_RETRIES = 2
-_TRANSPORT_RETRY_BACKOFF_SECONDS = 0.25
+# Retries are opt-in: the library never re-sends a request unless a consumer asks it to. Consumers
+# that know their own latency budget and idempotency guarantees configure the limit and backoff.
+_DEFAULT_MAX_TRANSPORT_RETRIES = 0
+_DEFAULT_TRANSPORT_RETRY_BACKOFF_SECONDS = 0.25
 
 
 class Session(Protocol):
@@ -145,6 +147,7 @@ class RpcApiClient(ApiClient):
         repository_id: RepositoryId,
         session: Callable[[], Session] = lambda: RequestsSession(),
         max_transport_retries: int = _DEFAULT_MAX_TRANSPORT_RETRIES,
+        transport_retry_backoff_seconds: float = _DEFAULT_TRANSPORT_RETRY_BACKOFF_SECONDS,
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
     ) -> None:
         self.full_url = full_url
@@ -154,6 +157,7 @@ class RpcApiClient(ApiClient):
         self.repository_id = repository_id
         self.session = session()
         self.max_transport_retries = max_transport_retries
+        self.transport_retry_backoff_seconds = transport_retry_backoff_seconds
         self.record_count = record_count
 
     def request(
@@ -240,4 +244,4 @@ class RpcApiClient(ApiClient):
     def _retry(self, reason: str, method: str, attempt: int) -> None:
         """Record a retry and back off before the next attempt."""
         self.record_count("sentry.scm.rpc.client.transport_retry", 1, {"method": method, "reason": reason})
-        time.sleep(_TRANSPORT_RETRY_BACKOFF_SECONDS * (2**attempt))
+        time.sleep(self.transport_retry_backoff_seconds * (2**attempt))
