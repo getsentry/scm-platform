@@ -54,6 +54,7 @@ from scm.types import (
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
     DownloadArchiveProtocol,
+    DownloadWorkflowJobLogProtocol,
     FileContent,
     GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
@@ -107,6 +108,8 @@ from scm.types import (
     ListPullRequestReviewsProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
+    ListWorkflowJobsProtocol,
+    ListWorkflowRunsProtocol,
     MinimizeCommentProtocol,
     MoveCommitAction,
     PaginatedActionResult,
@@ -134,6 +137,8 @@ from scm.types import (
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
     UserPermissions,
+    WorkflowJob,
+    WorkflowRun,
     WriteCommitAction,
 )
 
@@ -871,6 +876,41 @@ def list_check_runs_for_ref(
     )
 
 
+def list_workflow_runs(
+    scm: ListWorkflowRunsProtocol,
+    head_sha: SHA | None = None,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[WorkflowRun]]:
+    return scm.list_workflow_runs(
+        head_sha,
+        pagination=pagination,
+        request_options=request_options,
+    )
+
+
+def list_workflow_jobs(
+    scm: ListWorkflowJobsProtocol,
+    workflow_run_id: ResourceId,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[WorkflowJob]]:
+    return scm.list_workflow_jobs(
+        workflow_run_id,
+        pagination=pagination,
+        request_options=request_options,
+    )
+
+
+def download_workflow_job_log(
+    scm: DownloadWorkflowJobLogProtocol,
+    job_id: ResourceId,
+    request_options: RequestOptions | None = None,
+) -> requests.Response:
+    """Download the plaintext log for a single workflow job."""
+    return scm.download_workflow_job_log(job_id, request_options=request_options)
+
+
 def list_pull_request_reviews(
     scm: ListPullRequestReviewsProtocol,
     pull_request_id: str,
@@ -1013,6 +1053,9 @@ __all__ = (
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
     "list_check_runs_for_ref",
+    "list_workflow_runs",
+    "list_workflow_jobs",
+    "download_workflow_job_log",
     "list_pull_request_reviews",
     "list_repository_user_permissions",
     "list_repositories",

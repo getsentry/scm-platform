@@ -37,6 +37,8 @@ from scm.test_fixtures import (
     make_github_repository,
     make_github_review,
     make_github_review_comment,
+    make_github_workflow_job,
+    make_github_workflow_run,
 )
 from scm.types import Repository, WriteCommitAction
 
@@ -702,6 +704,20 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "list_workflow_runs",
+        lambda scm: actions.list_workflow_runs(scm, "abc123"),
+        {"total_count": 1, "workflow_runs": [make_github_workflow_run()]},
+        200,
+        None,
+    ),
+    (
+        "list_workflow_jobs",
+        lambda scm: actions.list_workflow_jobs(scm, "400"),
+        {"total_count": 1, "jobs": [make_github_workflow_job()]},
+        200,
+        None,
+    ),
+    (
         "list_pull_request_reviews",
         lambda scm: actions.list_pull_request_reviews(scm, "1"),
         [make_github_review()],
@@ -769,6 +785,14 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         "tarball-bytes",
         200,
         {"Content-Type": "application/x-gzip"},
+    ),
+    # Download workflow job log (raw plaintext bytes via server-followed redirect)
+    (
+        "download_workflow_job_log",
+        lambda scm: actions.download_workflow_job_log(scm, "400"),
+        "job-log-bytes",
+        200,
+        {"Content-Type": "text/plain"},
     ),
 ]
 

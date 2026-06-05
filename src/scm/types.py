@@ -550,6 +550,24 @@ class CheckRun(TypedDict):
     html_url: str
 
 
+class WorkflowRun(TypedDict):
+    """A CI workflow run (GitHub Actions run); the Actions surface for job logs, distinct from CheckRun."""
+
+    id: ResourceId
+    name: str
+    status: BuildStatus
+    conclusion: BuildConclusion | None
+
+
+class WorkflowJob(TypedDict):
+    """A single job within a workflow run"""
+
+    id: ResourceId
+    name: str
+    status: BuildStatus
+    conclusion: BuildConclusion | None
+
+
 type CheckRunAction = Literal["completed", "created", "requested_action", "rerequested"]
 
 
@@ -1270,6 +1288,35 @@ class ListCheckRunsForRefProtocol(Protocol):
     ) -> PaginatedActionResult[list[CheckRun]]: ...
 
 
+@runtime_checkable
+class ListWorkflowRunsProtocol(Protocol):
+    def list_workflow_runs(
+        self,
+        head_sha: SHA | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[WorkflowRun]]: ...
+
+
+@runtime_checkable
+class ListWorkflowJobsProtocol(Protocol):
+    def list_workflow_jobs(
+        self,
+        workflow_run_id: ResourceId,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[WorkflowJob]]: ...
+
+
+@runtime_checkable
+class DownloadWorkflowJobLogProtocol(Protocol):
+    def download_workflow_job_log(
+        self,
+        job_id: ResourceId,
+        request_options: RequestOptions | None = None,
+    ) -> requests.Response: ...
+
+
 # Review Protocols
 
 
@@ -1491,6 +1538,9 @@ ALL_PROTOCOLS = (
     ListRepositoriesProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListCheckRunsForRefProtocol,
+    ListWorkflowRunsProtocol,
+    ListWorkflowJobsProtocol,
+    DownloadWorkflowJobLogProtocol,
     ListPullRequestReviewsProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,
