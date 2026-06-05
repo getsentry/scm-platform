@@ -96,6 +96,7 @@ from scm.types import (
     DeleteBranchProtocol,
     DeleteCommitAction,
     DownloadArchiveProtocol,
+    DownloadWorkflowJobLogProtocol,
     GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
     GetAuthenticatedActorProtocol,
@@ -131,6 +132,8 @@ from scm.types import (
     ListPullRequestReviewsProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
+    ListWorkflowJobsProtocol,
+    ListWorkflowRunsProtocol,
     MoveCommitAction,
     PaginationParams,
     UpdateAndCollapsePullRequestCommentProtocol,
@@ -342,6 +345,19 @@ def main() -> None:
     p.add_argument("--filter", choices=["latest", "all"], default=None)
     p.add_argument("--cursor", type=int, default=None)
     p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("list-workflow-runs")
+    p.add_argument("head_sha")
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("list-workflow-jobs")
+    p.add_argument("workflow_run_id")
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("download-workflow-job-log")
+    p.add_argument("job_id")
 
     p = sub.add_parser("list-pull-request-reviews")
     p.add_argument("pull_number")
@@ -606,6 +622,38 @@ def main() -> None:
                 pagination=pagination or None,
             )
         )
+
+    elif args.command == "list-workflow-runs":
+        assert isinstance(scm, ListWorkflowRunsProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(
+            scm.list_workflow_runs(
+                args.head_sha,
+                pagination=pagination or None,
+            )
+        )
+
+    elif args.command == "list-workflow-jobs":
+        assert isinstance(scm, ListWorkflowJobsProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(
+            scm.list_workflow_jobs(
+                args.workflow_run_id,
+                pagination=pagination or None,
+            )
+        )
+
+    elif args.command == "download-workflow-job-log":
+        assert isinstance(scm, DownloadWorkflowJobLogProtocol)
+        logger.info(scm.download_workflow_job_log(args.job_id).text)
 
     elif args.command == "list-pull-request-reviews":
         assert isinstance(scm, ListPullRequestReviewsProtocol)

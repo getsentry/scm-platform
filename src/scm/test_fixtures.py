@@ -458,6 +458,40 @@ def make_github_check_run(
     }
 
 
+def make_github_workflow_run(
+    run_id: int = 400,
+    name: str = "Tests",
+    head_sha: str = "abc123",
+    status: str = "completed",
+    conclusion: str | None = "success",
+) -> dict[str, Any]:
+    """Factory for GitHub Actions workflow run API responses."""
+    return {
+        "id": run_id,
+        "name": name,
+        "head_sha": head_sha,
+        "status": status,
+        "conclusion": conclusion,
+    }
+
+
+def make_github_workflow_job(
+    job_id: int = 400,
+    run_id: int = 400,
+    name: str = "Tests",
+    status: str = "completed",
+    conclusion: str | None = "success",
+) -> dict[str, Any]:
+    """Factory for GitHub Actions workflow job API responses."""
+    return {
+        "id": job_id,
+        "run_id": run_id,
+        "name": name,
+        "status": status,
+        "conclusion": conclusion,
+    }
+
+
 def make_github_graphql_issue_comment(
     node_id: str = "IC_abc123",
     body: str = "Test issue comment",

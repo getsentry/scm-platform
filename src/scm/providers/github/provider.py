@@ -86,6 +86,8 @@ from scm.types import (
     ReviewThreadComment,
     TreeEntry,
     UserPermissions,
+    WorkflowJob,
+    WorkflowRun,
     WriteCommitAction,
 )
 
@@ -1638,6 +1640,46 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_check_run(f) for f in r["check_runs"]])
 
+    def list_workflow_runs(
+        self,
+        head_sha: SHA | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[WorkflowRun]]:
+        params: dict[str, Any] = {}
+        if head_sha is not None:
+            params["head_sha"] = head_sha
+        response = self.get(
+            f"/repos/{self.repository['name']}/actions/runs",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_workflow_run(w) for w in r["workflow_runs"]])
+
+    def list_workflow_jobs(
+        self,
+        workflow_run_id: ResourceId,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[WorkflowJob]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/actions/runs/{workflow_run_id}/jobs",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_workflow_job(w) for w in r["jobs"]])
+
+    def download_workflow_job_log(
+        self,
+        job_id: ResourceId,
+        request_options: RequestOptions | None = None,
+    ) -> requests.Response:
+        return self.get(
+            f"/repos/{self.repository['name']}/actions/jobs/{job_id}/logs",
+            request_options=request_options,
+        )
+
     def get_archive_link(
         self,
         ref: str,
@@ -2083,6 +2125,28 @@ def map_check_run(raw: dict[str, Any]) -> CheckRun:
         status=GITHUB_STATUS_MAP.get(raw_status, "pending"),
         conclusion=GITHUB_CONCLUSION_MAP.get(raw_conclusion) if raw_conclusion else None,
         html_url=raw.get("html_url", ""),
+    )
+
+
+def map_workflow_run(raw: dict[str, Any]) -> WorkflowRun:
+    raw_status = raw.get("status", "")
+    raw_conclusion = raw.get("conclusion")
+    return WorkflowRun(
+        id=str(raw["id"]),
+        name=raw.get("name", ""),
+        status=GITHUB_STATUS_MAP.get(raw_status, "pending"),
+        conclusion=GITHUB_CONCLUSION_MAP.get(raw_conclusion) if raw_conclusion else None,
+    )
+
+
+def map_workflow_job(raw: dict[str, Any]) -> WorkflowJob:
+    raw_status = raw.get("status", "")
+    raw_conclusion = raw.get("conclusion")
+    return WorkflowJob(
+        id=str(raw["id"]),
+        name=raw.get("name", ""),
+        status=GITHUB_STATUS_MAP.get(raw_status, "pending"),
+        conclusion=GITHUB_CONCLUSION_MAP.get(raw_conclusion) if raw_conclusion else None,
     )
 
 

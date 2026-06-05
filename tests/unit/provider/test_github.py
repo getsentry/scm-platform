@@ -55,6 +55,8 @@ from scm.test_fixtures import (
     make_github_repository,
     make_github_review,
     make_github_review_comment,
+    make_github_workflow_job,
+    make_github_workflow_run,
 )
 from scm.types import (
     ApiClient,
@@ -70,6 +72,7 @@ from scm.types import (
 REVIEW_THREADS_QUERY = _graphql_review_threads_query(include_reactions=False)
 REVIEW_THREADS_WITH_REACTIONS_QUERY = _graphql_review_threads_query(include_reactions=True)
 REVIEW_THREAD_FULL_COMMENTS_QUERY = _graphql_review_thread_full_comments_query(include_reactions=False)
+
 
 def make_repository() -> Repository:
     return {
@@ -461,6 +464,24 @@ def expected_check_run(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_workflow_run(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": str(raw["id"]),
+        "name": raw["name"],
+        "status": "completed" if raw["status"] == "completed" else "pending",
+        "conclusion": raw["conclusion"],
+    }
+
+
+def expected_workflow_job(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": str(raw["id"]),
+        "name": raw["name"],
+        "status": "completed" if raw["status"] == "completed" else "pending",
+        "conclusion": raw["conclusion"],
+    }
+
+
 REPOSITORY_RAW = make_github_repository()
 ASSIGNEE_RAW = make_github_assignee()
 LABEL_RAW = make_github_label()
@@ -481,6 +502,8 @@ PULL_REQUEST_COMMIT_RAW = make_github_pull_request_commit()
 REVIEW_COMMENT_RAW = make_github_review_comment(user={"id": 42, "login": "testuser"})
 REVIEW_RAW = make_github_review()
 CHECK_RUN_RAW = make_github_check_run()
+WORKFLOW_RUN_RAW = make_github_workflow_run()
+WORKFLOW_JOB_RAW = make_github_workflow_job()
 
 
 PAGINATED_CASES: list[dict[str, Any]] = [
@@ -756,6 +779,46 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "pagination": {"cursor": "3", "per_page": 10},
         "raw": {"total_count": 1, "check_runs": [CHECK_RUN_RAW]},
         "expected_data": [expected_check_run(CHECK_RUN_RAW)],
+        "next_cursor": "4",
+    },
+    {
+        "name": "list_workflow_runs",
+        "kwargs": {"head_sha": "abc123"},
+        "path": "/repos/test-org/test-repo/actions/runs",
+        "params": {"head_sha": "abc123"},
+        "pagination": None,
+        "raw": {"total_count": 1, "workflow_runs": [WORKFLOW_RUN_RAW]},
+        "expected_data": [expected_workflow_run(WORKFLOW_RUN_RAW)],
+        "next_cursor": "2",
+    },
+    {
+        "name": "list_workflow_runs",
+        "kwargs": {"head_sha": "abc123", "pagination": {"cursor": "3", "per_page": 10}},
+        "path": "/repos/test-org/test-repo/actions/runs",
+        "params": {"head_sha": "abc123"},
+        "pagination": {"cursor": "3", "per_page": 10},
+        "raw": {"total_count": 1, "workflow_runs": [WORKFLOW_RUN_RAW]},
+        "expected_data": [expected_workflow_run(WORKFLOW_RUN_RAW)],
+        "next_cursor": "4",
+    },
+    {
+        "name": "list_workflow_jobs",
+        "kwargs": {"workflow_run_id": "400"},
+        "path": "/repos/test-org/test-repo/actions/runs/400/jobs",
+        "params": None,
+        "pagination": None,
+        "raw": {"total_count": 1, "jobs": [WORKFLOW_JOB_RAW]},
+        "expected_data": [expected_workflow_job(WORKFLOW_JOB_RAW)],
+        "next_cursor": "2",
+    },
+    {
+        "name": "list_workflow_jobs",
+        "kwargs": {"workflow_run_id": "400", "pagination": {"cursor": "3", "per_page": 10}},
+        "path": "/repos/test-org/test-repo/actions/runs/400/jobs",
+        "params": None,
+        "pagination": {"cursor": "3", "per_page": 10},
+        "raw": {"total_count": 1, "jobs": [WORKFLOW_JOB_RAW]},
+        "expected_data": [expected_workflow_job(WORKFLOW_JOB_RAW)],
         "next_cursor": "4",
     },
     {
@@ -1854,6 +1917,27 @@ def test_download_archive_zip_uses_zipball_path() -> None:
     assert client.calls[0]["timeout"] == (10, 300)
 
 
+def test_download_workflow_job_log_returns_bytes_from_response() -> None:
+    provider, client = make_provider()
+    _queue_raw_bytes(client, b"job-log-bytes")
+
+    result = provider.download_workflow_job_log("400", request_options={"timeout": 10.5})
+
+    assert result.content == b"job-log-bytes"
+    assert client.calls == [
+        {
+            "operation": "get",
+            "path": "/repos/test-org/test-repo/actions/jobs/400/logs",
+            "params": None,
+            "pagination": None,
+            "request_options": {"timeout": 10.5},
+            "extra_headers": None,
+            "credentials_set": "installation",
+            "timeout": 10.5,
+        }
+    ]
+
+
 def test_get_file_url_builds_blob_url() -> None:
     provider, _ = make_provider()
 
@@ -2886,6 +2970,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_pull_request_template",
         "get_pull_request_review_threads",
         "download_archive",
+        "download_workflow_job_log",
         "get_file_url",
         "get_commit_url",
         "get_pull_request_url",
