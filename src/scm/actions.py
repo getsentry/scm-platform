@@ -878,7 +878,7 @@ def list_check_runs_for_ref(
 
 def list_workflow_runs(
     scm: ListWorkflowRunsProtocol,
-    head_sha: SHA,
+    head_sha: SHA | None = None,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
 ) -> PaginatedActionResult[list[WorkflowRun]]:

@@ -1292,7 +1292,7 @@ class ListCheckRunsForRefProtocol(Protocol):
 class ListWorkflowRunsProtocol(Protocol):
     def list_workflow_runs(
         self,
-        head_sha: SHA,
+        head_sha: SHA | None = None,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[WorkflowRun]]: ...
