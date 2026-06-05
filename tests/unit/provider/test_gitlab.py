@@ -46,15 +46,14 @@ def client() -> ApiClient:
     return unittest.mock.MagicMock(_name="client")
 
 
-@pytest.fixture
-def provider(client: ApiClient) -> GitLabProvider:
+def _make_gitlab_provider(client: ApiClient, *, name: str = "test-repo") -> GitLabProvider:
     return GitLabProvider(
         client=client,
         organization_id=1,
         repository=Repository(
             id=1,
             integration_id=1,
-            name="test-repo",
+            name=name,
             organization_id=1,
             is_active=True,
             external_id="gitlab.com:79787061",
@@ -62,6 +61,11 @@ def provider(client: ApiClient) -> GitLabProvider:
             web_base_url=None,
         ),
     )
+
+
+@pytest.fixture
+def provider(client: ApiClient) -> GitLabProvider:
+    return _make_gitlab_provider(client)
 
 
 class ClientForwardedCall(NamedTuple):
@@ -13574,6 +13578,32 @@ def test_download_archive_zip_uses_zip_extension(client, provider: GitLabProvide
 
     call = client.request.call_args
     assert call.kwargs["path"] == "/projects/79787061/repository/archive.zip"
+
+
+@pytest.mark.parametrize(
+    ("repository_name", "expected_path"),
+    [
+        ("test-org/test-repo", "test-org/test-repo"),
+        ("my-group / my-project", "my-group/my-project"),
+        ("my-group / my-subteam / my-project", "my-group/my-subteam/my-project"),
+    ],
+)
+def test_web_repository_path_normalizes_namespaced_name(
+    client: ApiClient, repository_name: str, expected_path: str
+) -> None:
+    provider = _make_gitlab_provider(client, name=repository_name)
+
+    assert provider.web_repository_path == expected_path
+
+
+def test_web_repository_path_used_in_commit_and_mr_urls(client: ApiClient) -> None:
+    provider = _make_gitlab_provider(client, name="my-group / my-project")
+
+    assert provider.get_commit_url("abc123") == "https://gitlab.com/my-group/my-project/-/commit/abc123"
+    assert provider.get_pull_request_url("42") == "https://gitlab.com/my-group/my-project/-/merge_requests/42"
+    assert provider.get_file_url("src/main.py", "abc123") == (
+        "https://gitlab.com/my-group/my-project/-/blob/abc123/src/main.py"
+    )
 
 
 def test_get_file_url_builds_blob_url(provider: GitLabProvider):

@@ -238,6 +238,14 @@ class GitLabProvider:
         netloc, self.project_id = repository["external_id"].rsplit(":", maxsplit=1)
         self.web_base_url = f"https://{netloc}"
 
+    @property
+    def web_repository_path(self) -> str:
+        """
+        Normalize Sentry's GitLab full repo name (e.g., "my-group / my-team / my-subteam / my-project"
+        --> "my-group/my-team/my-subteam/my-project") for use in web URLs.
+        """
+        return self.repository["name"].replace(" ", "")
+
     def is_rate_limited(self, referrer: Referrer) -> bool:
         return False
 
@@ -695,7 +703,7 @@ class GitLabProvider:
         start_line: int | None = None,
         end_line: int | None = None,
     ) -> str:
-        url = f"{self.web_base_url}/{self.repository['name']}/-/blob/{sha}/{file_path}"
+        url = f"{self.web_base_url}/{self.web_repository_path}/-/blob/{sha}/{file_path}"
         if start_line:
             url += f"#L{start_line}"
         if start_line and end_line:
@@ -705,10 +713,10 @@ class GitLabProvider:
         return url
 
     def get_commit_url(self, commit_sha: SHA) -> str:
-        return f"{self.web_base_url}/{self.repository['name']}/-/commit/{commit_sha}"
+        return f"{self.web_base_url}/{self.web_repository_path}/-/commit/{commit_sha}"
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
-        return f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}"
+        return f"{self.web_base_url}/{self.web_repository_path}/-/merge_requests/{pull_request_id}"
 
     def get_tree(
         self,
@@ -1327,7 +1335,7 @@ class GitLabProvider:
         return ActionResult[Review](
             data=Review(
                 id="unset",
-                html_url=f"{self.web_base_url}/{self.repository['name']}/-/merge_requests/{pull_request_id}",
+                html_url=f"{self.web_base_url}/{self.web_repository_path}/-/merge_requests/{pull_request_id}",
             ),
             type="gitlab",
             raw={"data": {}, "headers": None},
