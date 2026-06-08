@@ -45,6 +45,7 @@ from scm.actions import (
     get_directory_contents,
     get_file_content,
     get_file_url,
+    get_full_tree,
     get_git_commit,
     get_git_ref,
     get_issue,
@@ -179,6 +180,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     ),
     # Git data operations
     (get_tree, {"tree_sha": "tree123"}),
+    (get_full_tree, {"tree_sha": "tree123"}),
     (get_git_commit, {"sha": "abc123"}),
     (create_git_tree, {"tree": [{"path": "f.py", "mode": "100644", "type": "blob", "sha": "x"}]}),
     (create_git_commit, {"message": "msg", "tree_sha": "t", "parent_shas": ["p"]}),
@@ -800,6 +802,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         _check_create_commit,
     ),
     (get_tree, {"tree_sha": "tree123"}, _check_get_tree),
+    (get_full_tree, {"tree_sha": "tree123"}, _check_get_tree),
     (get_git_commit, {"sha": "abc123"}, _check_get_git_commit),
     (
         create_git_tree,

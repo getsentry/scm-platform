@@ -1132,6 +1132,17 @@ class GetTreeProtocol(Protocol):
         self,
         tree_sha: SHA,
         recursive: bool = True,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitTree]: ...
+
+
+@runtime_checkable
+class GetFullTreeProtocol(Protocol):
+    def get_full_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitTree]: ...
 
@@ -1534,6 +1545,7 @@ ALL_PROTOCOLS = (
     GetRepositoryTopicsProtocol,
     GetRepositoryUserPermissionProtocol,
     ListRepositoryUserPermissionsProtocol,
+    GetFullTreeProtocol,
     GetTreeProtocol,
     ListRepositoriesProtocol,
     ListCheckRunsInCheckSuiteProtocol,

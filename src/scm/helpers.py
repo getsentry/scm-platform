@@ -26,9 +26,11 @@ def iter_all_pages[T](
 
         yield result
 
-        # If the next-cursor value is empty exit the loop.
+        # If the next-cursor value is empty exit the loop. GitLab's X-Next-Page
+        # header is an empty string (not None) on the final page, so guard
+        # against any falsy cursor rather than `is None`.
         next_cursor = result["meta"]["next_cursor"]
-        if next_cursor is None:
+        if not next_cursor:
             return None
 
         cursor = next_cursor

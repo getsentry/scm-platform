@@ -69,6 +69,7 @@ from scm.types import (
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
+    GetFullTreeProtocol,
     GetGitCommitProtocol,
     GetGitRefProtocol,
     GetIssueCommentReactionsProtocol,
@@ -594,9 +595,30 @@ def get_tree(
     scm: GetTreeProtocol,
     tree_sha: SHA,
     recursive: bool = True,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[GitTree]:
+    """Fetch a single page of the repository tree.
+
+    Providers that paginate the tree (e.g. GitLab) expose the next page via
+    ``meta["next_cursor"]``; callers paginate manually by passing it back in
+    ``pagination``.  Use :func:`get_full_tree` to fetch every page at once.
+    """
+    return scm.get_tree(tree_sha, recursive=recursive, pagination=pagination, request_options=request_options)
+
+
+def get_full_tree(
+    scm: GetFullTreeProtocol,
+    tree_sha: SHA,
+    recursive: bool = True,
     request_options: RequestOptions | None = None,
 ) -> ActionResult[GitTree]:
-    return scm.get_tree(tree_sha, recursive=recursive, request_options=request_options)
+    """Fetch the complete repository tree, walking every page.
+
+    This can be expensive on large repositories since it follows pagination to
+    exhaustion.  Prefer :func:`get_tree` when manual pagination is acceptable.
+    """
+    return scm.get_full_tree(tree_sha, recursive=recursive, request_options=request_options)
 
 
 def get_git_commit(
@@ -1052,6 +1074,7 @@ __all__ = (
     "get_repository_topics",
     "get_thread_id_from_review_comment_unique_id",
     "get_tree",
+    "get_full_tree",
     "list_check_runs_for_ref",
     "list_workflow_runs",
     "list_workflow_jobs",

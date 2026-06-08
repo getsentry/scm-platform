@@ -724,12 +724,17 @@ class GitLabProvider:
         recursive: bool = True,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
-    ) -> ActionResult[GitTree]:
-        """List the repository tree at a given ref.
+    ) -> PaginatedActionResult[GitTree]:
+        """List a single page of the repository tree at a given ref.
 
         GitLab's tree API takes a ref (commit SHA, branch, tag) rather than a
         tree-object SHA.  We treat ``tree_sha`` as a ref so callers can pass a
         commit SHA obtained from ``get_git_commit``.
+
+        GitLab paginates the tree endpoint (default 20 entries, max 100 per
+        page), so this returns just one page.  ``meta["next_cursor"]`` carries
+        the next page for manual pagination, and ``truncated`` reflects whether
+        more pages remain.  Use :meth:`get_full_tree` to fetch every page.
         """
         params: dict[str, str] = {"ref": tree_sha}
         if recursive:
@@ -737,16 +742,56 @@ class GitLabProvider:
         response = self.get(
             GitLab.tree.format(project=self.project_id),
             params=params,
+            pagination=pagination,
+            request_options=request_options,
         )
         raw = response.json()
-        return ActionResult(
+        next_cursor = response.headers.get("X-Next-Page")
+        return PaginatedActionResult(
             data=GitTree(
                 sha=tree_sha,
                 tree=[map_tree_entry(e) for e in raw],
-                truncated=False,
+                truncated=bool(next_cursor),
             ),
             type="gitlab",
             raw={"data": raw, "headers": None},
+            meta=PaginatedResponseMeta(next_cursor=next_cursor),
+        )
+
+    def get_full_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitTree]:
+        """List the complete repository tree, walking every page.
+
+        This can be expensive on large repositories since GitLab paginates the
+        tree endpoint and we follow ``X-Next-Page`` to exhaustion.  Prefer
+        :meth:`get_tree` when manual pagination is acceptable.
+        """
+        entries: list[TreeEntry] = []
+        raw_entries: list[dict[str, Any]] = []
+        pagination: PaginationParams = {"per_page": 100, "cursor": "1"}
+        while True:
+            page = self.get_tree(
+                tree_sha,
+                recursive=recursive,
+                pagination=pagination,
+                request_options=request_options,
+            )
+            entries.extend(page["data"]["tree"])
+            raw_entries.extend(page["raw"]["data"])
+
+            next_cursor = page["meta"]["next_cursor"]
+            if not next_cursor:
+                break
+            pagination = {"per_page": 100, "cursor": next_cursor}
+
+        return ActionResult(
+            data=GitTree(sha=tree_sha, tree=entries, truncated=False),
+            type="gitlab",
+            raw={"data": raw_entries, "headers": None},
             meta={},
         )
 

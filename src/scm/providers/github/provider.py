@@ -1186,20 +1186,57 @@ class GitHubProvider:
             meta=new_commit["meta"],
         )
 
+    def _fetch_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool,
+        request_options: RequestOptions | None,
+    ) -> requests.Response:
+        params: dict[str, Any] = {}
+        if recursive:
+            params["recursive"] = 1
+        return self.get(
+            f"/repos/{self.repository['name']}/git/trees/{tree_sha}",
+            params=params,
+            request_options=request_options,
+        )
+
     def get_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitTree]:
+        """Fetch the repository tree.
+
+        GitHub returns the whole (recursively-expanded) tree in a single
+        response — there is no cursor pagination — so ``pagination`` is accepted
+        only for protocol conformance and ``meta["next_cursor"]`` is always
+        ``None``.  When the tree exceeds GitHub's limits the response itself
+        reports ``truncated=True``.
+        """
+        response = self._fetch_tree(tree_sha, recursive, request_options)
+        raw = response.json()
+        return {
+            "data": map_git_tree(raw),
+            "type": "github",
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": {**_extract_response_meta(response), "next_cursor": None},
+        }
+
+    def get_full_tree(
         self,
         tree_sha: SHA,
         recursive: bool = True,
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitTree]:
-        params: dict[str, Any] = {}
-        if recursive:
-            params["recursive"] = 1
-        response = self.get(
-            f"/repos/{self.repository['name']}/git/trees/{tree_sha}",
-            params=params,
-            request_options=request_options,
-        )
+        """Fetch the complete repository tree.
+
+        GitHub already returns the entire tree in one response, so this simply
+        wraps that response as a non-paginated result.
+        """
+        response = self._fetch_tree(tree_sha, recursive, request_options)
         return map_action(response, map_git_tree)
 
     def get_git_commit(
