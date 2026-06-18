@@ -210,12 +210,30 @@ class Author(TypedDict):
     username: str
 
 
+class ReactionResult(TypedDict):
+    """Provider-agnostic representation of a reaction on an issue, comment, or pull request."""
+
+    id: ResourceId
+    content: Reaction
+    author: Author | None
+
+
 class Comment(TypedDict):
     """Provider-agnostic representation of an issue or pull-request comment."""
 
     id: ResourceId
     body: str | None
     author: Author | None
+    # ISO-8601 creation timestamp. Populated by GitHub and GitLab.
+    created_at: NotRequired[str | None]
+    # The author's relationship to the repository, e.g. "OWNER", "MEMBER",
+    # "CONTRIBUTOR", "NONE". Implemented by GitHub; GitLab has no equivalent (None).
+    author_association: NotRequired[str | None]
+    # Reactions on the comment. GitHub populates these from the inline REST
+    # reaction rollup (one entry per reaction; the rollup carries no per-reaction
+    # author/id, so those are empty). GitLab does not surface comment reactions
+    # inline, so it leaves this unset.
+    reactions: NotRequired[list[ReactionResult]]
 
 
 class Label(TypedDict):
@@ -225,14 +243,6 @@ class Label(TypedDict):
     name: str
     color: str
     description: str | None
-
-
-class ReactionResult(TypedDict):
-    """Provider-agnostic representation of a reaction on an issue, comment, or pull request."""
-
-    id: ResourceId
-    content: Reaction
-    author: Author | None
 
 
 class PullRequestBranch(TypedDict):

@@ -32,7 +32,9 @@ from scm.providers.github.provider import (
     _graphql_review_threads_query,
     map_app_installation,
     map_collaborator_permission_level,
+    map_comment,
     map_github_repository_permission,
+    map_reaction_rollup,
 )
 from scm.test_fixtures import (
     make_github_assignee,
@@ -243,6 +245,9 @@ def expected_comment(raw: dict[str, Any]) -> dict[str, Any]:
         "id": str(raw["id"]),
         "body": raw["body"],
         "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]},
+        "created_at": raw.get("created_at"),
+        "author_association": raw.get("author_association"),
+        "reactions": map_reaction_rollup(raw.get("reactions")),
     }
 
 
@@ -2927,6 +2932,41 @@ def test_map_collaborator_permission_level(permission: str, expected: str) -> No
 def test_map_collaborator_permission_level_rejects_unknown() -> None:
     with pytest.raises(ValueError, match="unmappable repository permission"):
         map_collaborator_permission_level("bogus")
+
+
+@pytest.mark.parametrize("rollup", [None, {}, {"+1": 0, "heart": 0, "total_count": 0}])
+def test_map_reaction_rollup_empty(rollup: dict[str, Any] | None) -> None:
+    assert map_reaction_rollup(rollup) == []
+
+
+def test_map_reaction_rollup_expands_counts_in_canonical_order() -> None:
+    # Rollup keys are unordered (and carry a total_count); the output is one entry
+    # per reaction in the canonical content order, with no per-reaction author/id.
+    rollup = {"url": "https://x", "total_count": 4, "heart": 1, "+1": 2, "eyes": 1}
+
+    assert map_reaction_rollup(rollup) == [
+        {"id": "", "content": "+1", "author": None},
+        {"id": "", "content": "+1", "author": None},
+        {"id": "", "content": "heart", "author": None},
+        {"id": "", "content": "eyes", "author": None},
+    ]
+
+
+def test_map_comment_populates_metadata_from_rest_payload() -> None:
+    raw = make_github_comment(
+        author_association="OWNER",
+        reactions={"total_count": 3, "+1": 2, "rocket": 1},
+    )
+
+    comment = map_comment(raw)
+
+    assert comment["created_at"] == raw["created_at"]
+    assert comment["author_association"] == "OWNER"
+    assert comment["reactions"] == [
+        {"id": "", "content": "+1", "author": None},
+        {"id": "", "content": "+1", "author": None},
+        {"id": "", "content": "rocket", "author": None},
+    ]
 
 
 def _error_response(status_code: int, body: bytes = b'{"message":"boom"}') -> Any:
