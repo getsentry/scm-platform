@@ -76,15 +76,21 @@ def make_github_comment(
     body: str = "Test comment",
     user_id: int = 123,
     username: str = "testuser",
+    author_association: str = "MEMBER",
+    reactions: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub comment API responses."""
-    return {
+    comment: dict[str, Any] = {
         "id": comment_id,
         "body": body,
         "user": {"id": user_id, "login": username},
         "created_at": "2026-02-04T10:00:00Z",
         "updated_at": "2026-02-04T10:00:00Z",
+        "author_association": author_association,
     }
+    if reactions is not None:
+        comment["reactions"] = reactions
+    return comment
 
 
 def make_github_pull_request(

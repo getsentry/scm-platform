@@ -1659,6 +1659,10 @@ def map_comment(raw: dict[str, Any]) -> Comment:
         id=str(raw["id"]),
         body=raw["body"],
         author=map_author(raw["author"]),
+        created_at=raw.get("created_at"),
+        # GitLab has no author-association concept, and award-emoji reactions are
+        # not surfaced inline on notes — mirroring map_review_thread_comment.
+        author_association=None,
     )
 
 

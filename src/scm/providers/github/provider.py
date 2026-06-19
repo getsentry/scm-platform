@@ -1994,11 +1994,47 @@ def map_authenticated_actor(raw_user: dict[str, Any]) -> Author:
     return Author(id=str(raw_user["id"]), username=raw_user["login"])
 
 
+# GitHub's REST API returns a reaction rollup (counts per content type) inline on
+# issue/PR comments, ordered as below. The individual reactions (with author/id)
+# are only available from the dedicated reactions endpoint, so we expand the
+# rollup into one content-only ReactionResult per reaction — giving callers the
+# same flat list shape as review-thread reactions.
+_REST_REACTION_ROLLUP_CONTENTS: tuple[Reaction, ...] = (
+    "+1",
+    "-1",
+    "laugh",
+    "confused",
+    "heart",
+    "hooray",
+    "rocket",
+    "eyes",
+)
+
+
+def map_reaction_rollup(rollup: dict[str, Any] | None) -> list[ReactionResult]:
+    """Expand a GitHub REST reaction rollup into a flat list of reactions.
+
+    The rollup maps each content type to a count (e.g. ``{"+1": 2, "heart": 1}``);
+    expand it to ``count`` entries per type. The rollup omits per-reaction author
+    and id, so those are left empty.
+    """
+    if not rollup:
+        return []
+    return [
+        ReactionResult(id="", content=content, author=None)
+        for content in _REST_REACTION_ROLLUP_CONTENTS
+        for _ in range(rollup.get(content, 0) or 0)
+    ]
+
+
 def map_comment(raw: dict[str, Any]) -> Comment:
     return Comment(
         id=str(raw["id"]),
         body=raw["body"],
         author=map_author(raw.get("user")),
+        created_at=raw.get("created_at"),
+        author_association=raw.get("author_association"),
+        reactions=map_reaction_rollup(raw.get("reactions")),
     )
 
 
