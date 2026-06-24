@@ -31,6 +31,10 @@ The SCM solves all the problems you don't want to care about.
 
 We have extensive documentation both inline in the Sentry codebase and on the [Sentry developer documentation](https://develop.sentry.dev/backend/source-code-management-platform/) portal. If you're interested in expanding your SCM usage or in enabling new service-providers for a limited amount of effort take a took at the SCM platform.
 
+### Quick reference of actions
+
+Here is a [summary of SCM provider API endpoints called by actions](actions-quick-ref.md).
+
 # Releasing a New Version
 
 1. On the `getsentry/scm-platform` repository page click the **Actions** tab.
