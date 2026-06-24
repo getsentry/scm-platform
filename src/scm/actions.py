@@ -15,6 +15,7 @@ from scm.types import (
     BuildConclusion,
     BuildStatus,
     CheckRun,
+    CheckSuite,
     CheckRunOutput,
     ChmodCommitAction,
     CollapsePullRequestCommentProtocol,
@@ -106,6 +107,7 @@ from scm.types import (
     Label,
     ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
+    ListCheckSuitesForRefProtocol,
     ListPullRequestReviewsProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
@@ -898,6 +900,19 @@ def list_check_runs_for_ref(
     )
 
 
+def list_check_suites_for_ref(
+    scm: ListCheckSuitesForRefProtocol,
+    ref: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[CheckSuite]]:
+    return scm.list_check_suites_for_ref(
+        ref,
+        pagination=pagination,
+        request_options=request_options,
+    )
+
+
 def list_workflow_runs(
     scm: ListWorkflowRunsProtocol,
     head_sha: SHA | None = None,
@@ -1076,6 +1091,7 @@ __all__ = (
     "get_tree",
     "get_full_tree",
     "list_check_runs_for_ref",
+    "list_check_suites_for_ref",
     "list_workflow_runs",
     "list_workflow_jobs",
     "download_workflow_job_log",

@@ -36,6 +36,7 @@ from scm.types import (
     BuildStatus,
     CheckRun,
     CheckRunOutput,
+    CheckSuite,
     ChmodCommitAction,
     Comment,
     Commit,
@@ -1677,6 +1678,19 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_check_run(f) for f in r["check_runs"]])
 
+    def list_check_suites_for_ref(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckSuite]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/commits/{ref}/check-suites",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_check_suite(f) for f in r["check_suites"]])
+
     def list_workflow_runs(
         self,
         head_sha: SHA | None = None,
@@ -2198,6 +2212,17 @@ def map_check_run(raw: dict[str, Any]) -> CheckRun:
         status=GITHUB_STATUS_MAP.get(raw_status, "pending"),
         conclusion=GITHUB_CONCLUSION_MAP.get(raw_conclusion) if raw_conclusion else None,
         html_url=raw.get("html_url", ""),
+    )
+
+
+def map_check_suite(raw: dict[str, Any]) -> CheckSuite:
+    raw_status = raw.get("status", "")
+    raw_conclusion = raw.get("conclusion")
+    return CheckSuite(
+        id=str(raw["id"]),
+        status=GITHUB_STATUS_MAP.get(raw_status, "pending"),
+        conclusion=GITHUB_CONCLUSION_MAP.get(raw_conclusion) if raw_conclusion else None,
+        html_url=raw.get("html_url"),
     )
 
 

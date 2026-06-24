@@ -40,6 +40,7 @@ from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
     make_github_check_run,
+    make_github_check_suite,
     make_github_comment,
     make_github_commit,
     make_github_commit_comparison,
@@ -469,6 +470,15 @@ def expected_check_run(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_check_suite(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": str(raw["id"]),
+        "status": "completed" if raw["status"] == "completed" else "pending",
+        "conclusion": raw["conclusion"],
+        "html_url": raw["html_url"],
+    }
+
+
 def expected_workflow_run(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
@@ -507,6 +517,7 @@ PULL_REQUEST_COMMIT_RAW = make_github_pull_request_commit()
 REVIEW_COMMENT_RAW = make_github_review_comment(user={"id": 42, "login": "testuser"})
 REVIEW_RAW = make_github_review()
 CHECK_RUN_RAW = make_github_check_run()
+CHECK_SUITE_RAW = make_github_check_suite()
 WORKFLOW_RUN_RAW = make_github_workflow_run()
 WORKFLOW_JOB_RAW = make_github_workflow_job()
 
@@ -796,6 +807,26 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "pagination": {"cursor": "3", "per_page": 10},
         "raw": {"total_count": 1, "check_runs": [CHECK_RUN_RAW]},
         "expected_data": [expected_check_run(CHECK_RUN_RAW)],
+        "next_cursor": "4",
+    },
+    {
+        "name": "list_check_suites_for_ref",
+        "kwargs": {"ref": "abc123"},
+        "path": "/repos/test-org/test-repo/commits/abc123/check-suites",
+        "params": None,
+        "pagination": None,
+        "raw": {"total_count": 1, "check_suites": [CHECK_SUITE_RAW]},
+        "expected_data": [expected_check_suite(CHECK_SUITE_RAW)],
+        "next_cursor": "2",
+    },
+    {
+        "name": "list_check_suites_for_ref",
+        "kwargs": {"ref": "abc123", "pagination": {"cursor": "3", "per_page": 10}},
+        "path": "/repos/test-org/test-repo/commits/abc123/check-suites",
+        "params": None,
+        "pagination": {"cursor": "3", "per_page": 10},
+        "raw": {"total_count": 1, "check_suites": [CHECK_SUITE_RAW]},
+        "expected_data": [expected_check_suite(CHECK_SUITE_RAW)],
         "next_cursor": "4",
     },
     {

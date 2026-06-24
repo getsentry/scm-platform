@@ -560,6 +560,15 @@ class CheckRun(TypedDict):
     html_url: str
 
 
+class CheckSuite(TypedDict):
+    """Provider-agnostic representation of a check suite."""
+
+    id: ResourceId
+    status: BuildStatus
+    conclusion: BuildConclusion | None
+    html_url: str | None
+
+
 class WorkflowRun(TypedDict):
     """A CI workflow run (GitHub Actions run); the Actions surface for job logs, distinct from CheckRun."""
 
@@ -1310,6 +1319,16 @@ class ListCheckRunsForRefProtocol(Protocol):
 
 
 @runtime_checkable
+class ListCheckSuitesForRefProtocol(Protocol):
+    def list_check_suites_for_ref(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckSuite]]: ...
+
+
+@runtime_checkable
 class ListWorkflowRunsProtocol(Protocol):
     def list_workflow_runs(
         self,
@@ -1560,6 +1579,7 @@ ALL_PROTOCOLS = (
     ListRepositoriesProtocol,
     ListCheckRunsInCheckSuiteProtocol,
     ListCheckRunsForRefProtocol,
+    ListCheckSuitesForRefProtocol,
     ListWorkflowRunsProtocol,
     ListWorkflowJobsProtocol,
     DownloadWorkflowJobLogProtocol,

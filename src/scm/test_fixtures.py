@@ -464,6 +464,20 @@ def make_github_check_run(
     }
 
 
+def make_github_check_suite(
+    check_suite_id: int = 350,
+    status: str = "completed",
+    conclusion: str | None = "success",
+    html_url: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": check_suite_id,
+        "status": status,
+        "conclusion": conclusion,
+        "html_url": html_url,
+    }
+
+
 def make_github_workflow_run(
     run_id: int = 400,
     name: str = "Tests",

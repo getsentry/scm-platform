@@ -72,6 +72,7 @@ Commands:
     get-repository-topics
     get-app-installation
     get-authenticated-actor
+    list-check-suites-for-ref <ref> [--cursor <n>] [--per-page <n>]
 """
 
 import argparse
@@ -129,6 +130,7 @@ from scm.types import (
     GetReviewCommentsProtocol,
     ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
+    ListCheckSuitesForRefProtocol,
     ListPullRequestReviewsProtocol,
     ListRepositoriesProtocol,
     ListRepositoryUserPermissionsProtocol,
@@ -343,6 +345,11 @@ def main() -> None:
     p.add_argument("--check-name", default=None)
     p.add_argument("--status", choices=["queued", "in_progress", "completed"], default=None)
     p.add_argument("--filter", choices=["latest", "all"], default=None)
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("list-check-suites-for-ref")
+    p.add_argument("ref")
     p.add_argument("--cursor", type=int, default=None)
     p.add_argument("--per-page", type=int, default=None)
 
@@ -619,6 +626,20 @@ def main() -> None:
                 check_name=args.check_name,
                 status=args.status,
                 timestamp_filter=args.filter,
+                pagination=pagination or None,
+            )
+        )
+
+    elif args.command == "list-check-suites-for-ref":
+        assert isinstance(scm, ListCheckSuitesForRefProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(
+            scm.list_check_suites_for_ref(
+                args.ref,
                 pagination=pagination or None,
             )
         )
