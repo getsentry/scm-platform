@@ -32,7 +32,9 @@ GitHub: [GET /repos/{owner}/{repo}/compare/{start_sha}...{end_sha}](https://docs
 
 GitLab: [GET /projects/:id/repository/compare](https://docs.gitlab.com/api/repositories/#compare-branches-tags-or-commits)
 
-Bitbucket: @todo Verify that it's *not supported* (no single compare endpoint; ahead/behind unavailable)
+Bitbucket:
+- [GET /repositories/{workspace}/{repo_slug}/commits/{revision}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-revision-get)
+- [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
 
 ## `create_branch`
 
@@ -146,11 +148,11 @@ Bitbucket: *not supported* (no emoji reactions)
 
 ## `create_pull_request_draft`
 
-GitHub: [POST /repos/{owner}/{repo}/pulls](https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request)
+GitHub: [POST /repos/{owner}/{repo}/pulls](https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request) with `draft: true`
 
 GitLab: [POST /projects/:id/merge_requests](https://docs.gitlab.com/api/merge_requests/#create-a-merge-request) with `Draft:` title prefix
 
-Bitbucket: @todo Find out
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post) with `draft: true`
 
 ## `create_pull_request_reaction`
 
@@ -274,7 +276,7 @@ GitHub: [GET /repos/{owner}/{repo}/tarball/{ref}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/archive{format}](https://docs.gitlab.com/api/repositories/#retrieve-file-archive-from-a-repository)
 
-Bitbucket: @todo Verify that it's *not supported* (only a non-API web URL)
+Bitbucket: [GET https://bitbucket.org/<workspace-id>/<repository-slug>/get/<branch>.<zip|gz|bz2>](https://support.atlassian.com/bitbucket-cloud/kb/how-to-download-repositories-using-the-api/)
 
 ## `download_workflow_job_log`
 
@@ -570,7 +572,7 @@ GitHub: [GET /repos/{owner}/{repo}/labels](https://docs.github.com/en/rest/issue
 
 GitLab: [GET /projects/:id/labels](https://docs.gitlab.com/api/labels/#list-all-project-labels)
 
-Bitbucket: @todo Verify that it's *not supported* (no labels)
+Bitbucket: *not supported* (issue tracker deprecated)
 
 ## `get_repository_topics`
 
@@ -578,7 +580,7 @@ GitHub: [GET /repos/{owner}/{repo}/topics](https://docs.github.com/en/rest/repos
 
 GitLab: [GET /projects/:id](https://docs.gitlab.com/api/projects/#retrieve-a-project)
 
-Bitbucket: @todo Verify that it's *not supported* (no topics)
+Bitbucket: *not supported* (no topics)
 
 ## `get_repository_user_permission`
 
