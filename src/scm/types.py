@@ -1,6 +1,6 @@
 import dataclasses
 from collections.abc import Iterator, MutableMapping
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict, runtime_checkable
 
 import requests
@@ -968,6 +968,18 @@ class GetCommitUrlProtocol(Protocol):
 
 
 @runtime_checkable
+class GetCommitsUrlProtocol(Protocol):
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str: ...
+
+
+@runtime_checkable
 class GetPullRequestUrlProtocol(Protocol):
     def get_pull_request_url(self, pull_request_id: str) -> str: ...
 
@@ -1526,6 +1538,7 @@ ALL_PROTOCOLS = (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,

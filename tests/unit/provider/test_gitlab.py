@@ -13682,6 +13682,7 @@ def test_web_repository_path_used_in_commit_and_mr_urls(client: ApiClient) -> No
     provider = _make_gitlab_provider(client, name="my-group / my-project")
 
     assert provider.get_commit_url("abc123") == "https://gitlab.com/my-group/my-project/-/commit/abc123"
+    assert provider.get_commits_url("abc123") == "https://gitlab.com/my-group/my-project/-/commits/abc123"
     assert provider.get_pull_request_url("42") == "https://gitlab.com/my-group/my-project/-/merge_requests/42"
     assert provider.get_file_url("src/main.py", "abc123") == (
         "https://gitlab.com/my-group/my-project/-/blob/abc123/src/main.py"
@@ -13703,6 +13704,33 @@ def test_get_file_url_builds_blob_url(provider: GitLabProvider):
 
 def test_get_commit_url_builds_commit_url(provider: GitLabProvider):
     assert provider.get_commit_url("abc123") == "https://gitlab.com/test-repo/-/commit/abc123"
+
+
+def test_get_commits_url_builds_commits_list_url(provider: GitLabProvider):
+    # GitLab uses `/-/commits/<sha>` and names its date filters
+    # committed_after / committed_before (unlike GitHub's since / until).
+    assert provider.get_commits_url("abc123") == "https://gitlab.com/test-repo/-/commits/abc123"
+    assert (
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py")
+        == "https://gitlab.com/test-repo/-/commits/abc123/src/foo/bar.py"
+    )
+    assert (
+        provider.get_commits_url("abc123", since=datetime.date(2026, 1, 15))
+        == "https://gitlab.com/test-repo/-/commits/abc123?committed_after=2026-01-15"
+    )
+    assert (
+        provider.get_commits_url("abc123", until=datetime.date(2026, 3, 20))
+        == "https://gitlab.com/test-repo/-/commits/abc123?committed_before=2026-03-20"
+    )
+    assert (
+        provider.get_commits_url(
+            "abc123",
+            file_path="src/foo/bar.py",
+            since=datetime.date(2026, 1, 15),
+            until=datetime.date(2026, 3, 20),
+        )
+        == "https://gitlab.com/test-repo/-/commits/abc123/src/foo/bar.py?committed_after=2026-01-15&committed_before=2026-03-20"
+    )
 
 
 def test_get_pull_request_url_builds_mr_url(provider: GitLabProvider):

@@ -42,6 +42,7 @@ from scm.actions import (
     get_commit_url,
     get_commits,
     get_commits_by_path,
+    get_commits_url,
     get_directory_contents,
     get_file_content,
     get_file_url,
@@ -155,6 +156,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # URL builders
     (get_file_url, {"file_path": "src/main.py", "sha": "abc123"}),
     (get_commit_url, {"commit_sha": "abc123"}),
+    (get_commits_url, {"commit_sha": "abc123"}),
     (get_pull_request_url, {"pull_request_id": "1"}),
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
@@ -437,6 +439,10 @@ def _check_get_file_url(result: Any) -> None:
 
 def _check_get_commit_url(result: Any) -> None:
     assert result == "https://github.com/test-org/test-repo/commit/abc123"
+
+
+def _check_get_commits_url(result: Any) -> None:
+    assert result == "https://github.com/test-org/test-repo/commits/abc123"
 
 
 def _check_get_pull_request_url(result: Any) -> None:
@@ -772,6 +778,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_git_ref, {"ref": "heads/main"}, _check_get_git_ref),
     (get_file_url, {"file_path": "src/main.py", "sha": "abc123"}, _check_get_file_url),
     (get_commit_url, {"commit_sha": "abc123"}, _check_get_commit_url),
+    (get_commits_url, {"commit_sha": "abc123"}, _check_get_commits_url),
     (get_pull_request_url, {"pull_request_id": "1"}, _check_get_pull_request_url),
     (
         create_git_blob,
