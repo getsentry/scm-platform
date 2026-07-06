@@ -142,7 +142,7 @@ class TestFetchProvider:
 
     def test_unknown_provider_returns_none(self):
         client = MagicMock()
-        repo = make_repository(provider_name="bitbucket")
+        repo = make_repository(provider_name="not-a-provider")
         provider = fetch_provider(client, 1, repo)
         assert provider is None
 

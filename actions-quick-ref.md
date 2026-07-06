@@ -556,7 +556,7 @@ GitHub: [GET /repos/{owner}/{repo}](https://docs.github.com/en/rest/repos/repos#
 
 GitLab: [GET /projects/:id](https://docs.gitlab.com/api/projects/#retrieve-a-project)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-repositories-workspace-repo-slug-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-repositories-workspace-repo-slug-get)
 
 ## `get_repository_assignees`
 

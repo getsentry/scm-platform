@@ -1,0 +1,224 @@
+#!/usr/bin/env python
+"""
+Standalone RPC server that proxies requests to the Bitbucket Cloud API
+using API token authentication.
+
+Usage:
+    bin/bitbucket-server                          # reads from .credentials
+    bin/bitbucket-server --api-token ATATT3...    # CLI overrides
+
+Credentials are loaded from .credentials (KEY=VALUE, one per line) then
+overridden by env vars, then by CLI args.
+
+Configuration:
+    --api-token / BITBUCKET_API_TOKEN        Atlassian API token (required, see below)
+    --secret / SCM_RPC_SIGNING_SECRET        HMAC signing secret (default: "secret")
+    --host                                   Bind address (default: 127.0.0.1)
+    --port                                   Listen port (default: 8080)
+
+Credentials:
+    An Atlassian API access token is required to authenticate API requests.
+    You can create an API token on https://id.atlassian.com/manage-profile/security/api-tokens.
+    Create it "with scopes" and choose the Bitbucket application.
+"""
+
+import argparse
+import dataclasses
+import json
+import logging
+import os
+import pathlib
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
+
+import requests
+import requests.auth
+
+from scm.providers.bitbucket.provider import BitbucketProvider
+from scm.rpc.server import RpcServer
+from scm.types import CredentialsSet, Provider, Repository, RepositoryId
+
+logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class BitbucketCredentials:
+    email: str
+    api_token: str
+
+
+class BitbucketApiClient:
+    """API client that makes authenticated HTTP requests to the Bitbucket API."""
+
+    def __init__(self, credentials: BitbucketCredentials) -> None:
+        self.credentials = credentials
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool = True,
+        raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
+    ) -> requests.Response:
+        url = f"https://api.bitbucket.org/2.0{path}"
+
+        kwargs: dict[str, Any] = {}
+        if headers is not None:
+            kwargs["headers"] = headers
+        if data is not None:
+            kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
+        if allow_redirects is not None:
+            kwargs["allow_redirects"] = allow_redirects
+        if stream is not None:
+            kwargs["stream"] = stream
+
+        return requests.request(
+            method, url, auth=requests.auth.HTTPBasicAuth(self.credentials.email, self.credentials.api_token), **kwargs
+        )
+
+
+def fetch_repository(organization_id: int, repository_id: RepositoryId) -> Repository | None:
+    if isinstance(repository_id, (list, tuple)):
+        provider_name, external_id = repository_id
+        return {
+            "id": 1,
+            "external_id": f"{external_id}",
+            "integration_id": 1,
+            "is_active": True,
+            "name": external_id,
+            "organization_id": organization_id,
+            "provider_name": provider_name,
+            "web_base_url": None,
+        }
+    return None
+
+
+def make_fetch_provider(credentials: BitbucketCredentials) -> Any:
+    def fetch_provider(organization_id: int, repository: Repository) -> Provider | None:
+        client = BitbucketApiClient(credentials)
+        return BitbucketProvider(
+            client=client,
+            organization_id=organization_id,
+            repository=repository,
+        )
+
+    return fetch_provider
+
+
+class RpcHandler(BaseHTTPRequestHandler):
+    server: "RpcHTTPServer"
+
+    def do_GET(self):
+        headers = dict(self.headers.items())
+        response = self.server.rpc.get(headers)
+        self.send_response(response.status_code)
+        for k, v in response.headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(response.content)
+
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        data = self.rfile.read(content_length)
+        headers = dict(self.headers.items())
+
+        try:
+            response = self.server.rpc.post(data, headers)
+        except Exception as exc:
+            body = json.dumps({"errors": [{"detail": str(exc)}]}).encode()
+            self.send_response(502)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self.send_response(response.status_code)
+        for k, v in response.headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        for chunk in response.content:
+            self.wfile.write(chunk)
+
+    def log_message(self, format, *args):
+        sys.stderr.write(f"[{self.log_date_time_string()}] {format % args}\n")
+
+
+class RpcHTTPServer(HTTPServer):
+    def __init__(self, server_address, handler_class, rpc: RpcServer) -> None:
+        self.rpc = rpc
+        super().__init__(server_address, handler_class)
+
+
+def load_credentials() -> dict[str, str]:
+    """Load KEY=VALUE pairs from .credentials, skipping blanks and comments."""
+    creds: dict[str, str] = {}
+    path = pathlib.Path(__file__).resolve().parent.parent / ".credentials"
+    if not path.exists():
+        return creds
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if value:
+            creds[key.strip()] = value
+    return creds
+
+
+def resolve(key: str, cli_value: str | None, creds: dict[str, str]) -> str | None:
+    """CLI arg wins, then env var, then .credentials file."""
+    return cli_value or os.environ.get(key) or creds.get(key)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Bitbucket RPC Server (API Token Auth)")
+    parser.add_argument("--api-token", default=None)
+    parser.add_argument("--secret", default=None)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+
+    creds = load_credentials()
+
+    email = resolve("BITBUCKET_EMAIL", None, creds)
+    if not email:
+        logger.error("Error: missing required config: BITBUCKET_EMAIL")
+        sys.exit(1)
+
+    access_token = resolve("BITBUCKET_API_TOKEN", args.api_token, creds)
+    if not access_token:
+        logger.error("Error: missing required config: BITBUCKET_API_TOKEN")
+        sys.exit(1)
+
+    secret = resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret"
+
+    rpc = RpcServer(
+        secrets=[secret],
+        fetch_repository=fetch_repository,
+        fetch_provider=make_fetch_provider(BitbucketCredentials(email=email, api_token=access_token)),
+        record_count=lambda name, value, tags: None,
+        emit_error=lambda e: logger.exception(e),
+    )
+
+    server = RpcHTTPServer((args.host, args.port), RpcHandler, rpc)
+    logger.debug(f"Listening on {args.host}:{args.port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        logger.debug("\nShutting down.")
+        server.server_close()
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    main()

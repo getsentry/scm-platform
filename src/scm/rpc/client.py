@@ -12,6 +12,7 @@ from scm.errors import (
     RpcInvalidGrant,
     SCMCodedError,
 )
+from scm.providers.bitbucket.provider import BitbucketProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
@@ -142,6 +143,8 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
         )
     elif repository["provider_name"] == "gitlab":
         return GitLabProvider(client, organization_id, repository)
+    elif repository["provider_name"] == "bitbucket":
+        return BitbucketProvider(client, organization_id, repository)
     else:
         return None
 
