@@ -1,6 +1,9 @@
+import datetime
+import re
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
@@ -9,10 +12,13 @@ from scm.errors import (
     error_class_for_status,
 )
 from scm.types import (
+    SHA,
     ActionResult,
     ApiClient,
     Author,
     BranchName,
+    Commit,
+    CommitAuthor,
     CredentialsSet,
     GitRepository,
     PaginatedActionResult,
@@ -220,6 +226,80 @@ class BitbucketProvider:
 
         return make_result(map_pull_request, response.json())
 
+    def get_commits(
+        self,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        since: datetime.datetime | None = None,
+        until: datetime.datetime | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Commit]]:
+        """List repository commits, most recent first.
+
+        ``ref`` (branch, tag, or SHA) is passed as Bitbucket's ``include``
+        filter; without it, Bitbucket lists commits from the main branch.
+
+        Bitbucket's commits endpoint has no date filtering (no ``since``/
+        ``until`` params and no ``q`` support), so passing either is rejected
+        rather than silently returning unfiltered results.
+        """
+        if since is not None or until is not None:
+            raise ResourceBadRequest(
+                detail="Bitbucket's commits endpoint does not support date filtering (since/until).",
+            )
+        params: dict[str, Any] = {}
+        if ref:
+            params["include"] = ref
+        response = self.get(
+            f"/repositories/{self.repository['name']}/commits",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_commit, response.json())
+
+    def get_commits_by_path(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        since: datetime.datetime | None = None,
+        until: datetime.datetime | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Commit]]:
+        """List commits that touched ``path``, most recent first.
+
+        Uses Bitbucket's file-history endpoint, whose ``{commit}`` path segment
+        is required; when ``ref`` is omitted we resolve the repository's default
+        branch. As with ``get_commits``, Bitbucket has no date filtering here,
+        so ``since``/``until`` are rejected.
+
+        File-history entries embed only an abbreviated commit (hash + links), so
+        we follow up with one ``get_commit`` call per entry to hydrate the full
+        commit. These N calls are issued concurrently via a thread pool, but it
+        is still an N+1 fan-out bounded by the page size.
+        """
+        if since is not None or until is not None:
+            raise ResourceBadRequest(
+                detail="Bitbucket's file-history endpoint does not support date filtering (since/until).",
+            )
+        commit = ref or self.get_repository()["data"]["default_branch"]
+        response = self.get(
+            f"/repositories/{self.repository['name']}/filehistory/{commit}/{quote(path, safe='/')}",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        raw = response.json()
+        hashes = [entry["commit"]["hash"] for entry in raw.get("values", [])]
+        # executor.map preserves input order, so the commits stay newest-first.
+        with ThreadPoolExecutor() as executor:
+            full_commits = list(executor.map(self._fetch_commit, hashes))
+        return make_paginated_result(map_commit, raw, raw_items=full_commits)
+
+    def _fetch_commit(self, commit_hash: SHA) -> dict[str, Any]:
+        """Fetch a single commit's full representation by hash."""
+        return self.get(f"/repositories/{self.repository['name']}/commit/{commit_hash}").json()
+
 
 def _head_to_source_branch(head: str) -> str:
     """Normalize a GitHub-style ``head`` filter to a bare Bitbucket branch name.
@@ -230,6 +310,37 @@ def _head_to_source_branch(head: str) -> str:
     """
     branch = head.split(":", 1)[-1]
     return branch.removeprefix("refs/heads/")
+
+
+def _parse_raw_author(raw: str) -> tuple[str, str]:
+    """Split Bitbucket's git-style author string into ``(name, email)``.
+
+    Bitbucket encodes commit authors as ``"Name <email>"`` in the ``raw`` field.
+    When no angle-bracketed email is present we return the whole string as the
+    name and an empty email.
+    """
+    match = re.match(r"^(.*?)\s*<(.*)>\s*$", raw)
+    if match:
+        return match.group(1), match.group(2)
+    return raw, ""
+
+
+def map_commit(raw: dict[str, Any]) -> Commit:
+    author_raw = (raw.get("author") or {}).get("raw", "")
+    name, email = _parse_raw_author(author_raw)
+    date = raw.get("date")
+    return Commit(
+        id=raw["hash"],
+        message=raw["message"],
+        author=CommitAuthor(
+            name=name,
+            email=email,
+            date=datetime.datetime.fromisoformat(date) if date else None,
+        ),
+        # Bitbucket's commit list carries no per-commit line stats.
+        additions=None,
+        deletions=None,
+    )
 
 
 def map_author(raw: dict[str, Any]) -> Author:

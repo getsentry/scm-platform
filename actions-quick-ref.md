@@ -356,7 +356,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits](https://docs.github.com/en/rest/comm
 
 GitLab: [GET /projects/:id/repository/commits](https://docs.gitlab.com/api/commits/#list-repository-commits)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-get)
 
 ## `get_commits_by_path`
 
@@ -364,7 +364,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits](https://docs.github.com/en/rest/comm
 
 GitLab: [GET /projects/:id/repository/commits](https://docs.gitlab.com/api/commits/#list-repository-commits)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/filehistory/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-filehistory-commit-path-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/filehistory/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-filehistory-commit-path-get)
 
 ## `get_directory_contents`
 

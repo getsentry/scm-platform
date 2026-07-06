@@ -20,6 +20,8 @@ Commands:
     create-pull-request <title> <body> <head> <base>
     update-pull-request <id> [--title <title>] [--body <body>] [--state open|closed]
         (--state closed declines the PR; --state open is unsupported — Bitbucket cannot reopen)
+    get-commits [--ref <ref>]
+    get-commits-by-path <path> [--ref <ref>]
     get-repository
 """
 
@@ -32,6 +34,8 @@ import sys
 from scm.manager import SourceCodeManager
 from scm.types import (
     CreatePullRequestProtocol,
+    GetCommitsByPathProtocol,
+    GetCommitsProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
     GetRepositoryProtocol,
@@ -96,6 +100,13 @@ def main():
     p.add_argument("--body", default=None)
     p.add_argument("--state", choices=["open", "closed"], default=None)
 
+    p = sub.add_parser("get-commits")
+    p.add_argument("--ref", default=None)
+
+    p = sub.add_parser("get-commits-by-path")
+    p.add_argument("path")
+    p.add_argument("--ref", default=None)
+
     sub.add_parser("get-repository")
 
     args = parser.parse_args()
@@ -129,6 +140,14 @@ def main():
     elif args.command == "update-pull-request":
         assert isinstance(scm, UpdatePullRequestProtocol)
         dump(scm.update_pull_request(args.id, title=args.title, body=args.body, state=args.state))
+
+    elif args.command == "get-commits":
+        assert isinstance(scm, GetCommitsProtocol)
+        dump(scm.get_commits(ref=args.ref))
+
+    elif args.command == "get-commits-by-path":
+        assert isinstance(scm, GetCommitsByPathProtocol)
+        dump(scm.get_commits_by_path(args.path, ref=args.ref))
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
