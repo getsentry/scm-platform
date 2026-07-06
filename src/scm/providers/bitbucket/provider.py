@@ -17,8 +17,10 @@ from scm.types import (
     ApiClient,
     Author,
     BranchName,
+    Comment,
     Commit,
     CommitAuthor,
+    CoPilotChatExtension,
     CredentialsSet,
     GitRepository,
     PaginatedActionResult,
@@ -300,6 +302,48 @@ class BitbucketProvider:
         """Fetch a single commit's full representation by hash."""
         return self.get(f"/repositories/{self.repository['name']}/commit/{commit_hash}").json()
 
+    def get_pull_request_comments(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Comment]]:
+        """List a pull request's conversation comments.
+
+        Bitbucket returns inline (review) comments and deleted tombstones from
+        the same endpoint. To stay consistent with GitHub — whose "list issue
+        comments" excludes review comments — we drop entries carrying an
+        ``inline`` anchor as well as deleted ones.
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments?q=deleted=false",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        raw = response.json()
+        return make_paginated_result(
+            map_comment,
+            raw,
+            raw_items=(c for c in raw.get("values", []) if "inline" not in c),
+        )
+
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list[CoPilotChatExtension] | None = None,
+    ) -> ActionResult[Comment]:
+        response = self.post(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments",
+            data={"content": {"raw": body}},
+        )
+        return make_result(map_comment, response.json())
+
+    def delete_pull_request_comment(self, pull_request_id: str, comment_id: str) -> None:
+        self.delete(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{comment_id}",
+        )
+
 
 def _head_to_source_branch(head: str) -> str:
     """Normalize a GitHub-style ``head`` filter to a bare Bitbucket branch name.
@@ -340,6 +384,18 @@ def map_commit(raw: dict[str, Any]) -> Commit:
         # Bitbucket's commit list carries no per-commit line stats.
         additions=None,
         deletions=None,
+    )
+
+
+def map_comment(raw: dict[str, Any]) -> Comment:
+    user = raw.get("user")
+    return Comment(
+        id=str(raw["id"]),
+        body=(raw.get("content") or {}).get("raw"),
+        author=map_author(user) if user else None,
+        created_at=raw.get("created_on"),
+        # Bitbucket has no author-association concept.
+        author_association=None,
     )
 
 

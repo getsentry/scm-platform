@@ -22,6 +22,9 @@ Commands:
         (--state closed declines the PR; --state open is unsupported — Bitbucket cannot reopen)
     get-commits [--ref <ref>]
     get-commits-by-path <path> [--ref <ref>]
+    get-pull-request-comments <pr_id>
+    create-pull-request-comment <pr_id> <body>
+    delete-pull-request-comment <pr_id> <comment_id>
     get-repository
 """
 
@@ -33,9 +36,12 @@ import sys
 
 from scm.manager import SourceCodeManager
 from scm.types import (
+    CreatePullRequestCommentProtocol,
     CreatePullRequestProtocol,
+    DeletePullRequestCommentProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetPullRequestCommentsProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
     GetRepositoryProtocol,
@@ -107,6 +113,17 @@ def main():
     p.add_argument("path")
     p.add_argument("--ref", default=None)
 
+    p = sub.add_parser("get-pull-request-comments")
+    p.add_argument("pr_id")
+
+    p = sub.add_parser("create-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("body")
+
+    p = sub.add_parser("delete-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+
     sub.add_parser("get-repository")
 
     args = parser.parse_args()
@@ -148,6 +165,18 @@ def main():
     elif args.command == "get-commits-by-path":
         assert isinstance(scm, GetCommitsByPathProtocol)
         dump(scm.get_commits_by_path(args.path, ref=args.ref))
+
+    elif args.command == "get-pull-request-comments":
+        assert isinstance(scm, GetPullRequestCommentsProtocol)
+        dump(scm.get_pull_request_comments(args.pr_id))
+
+    elif args.command == "create-pull-request-comment":
+        assert isinstance(scm, CreatePullRequestCommentProtocol)
+        dump(scm.create_pull_request_comment(args.pr_id, args.body))
+
+    elif args.command == "delete-pull-request-comment":
+        assert isinstance(scm, DeletePullRequestCommentProtocol)
+        scm.delete_pull_request_comment(args.pr_id, args.comment_id)
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)

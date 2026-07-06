@@ -136,7 +136,7 @@ GitHub: [POST /repos/{owner}/{repo}/issues/{pull_number}/comments](https://docs.
 
 GitLab: [POST /projects/:id/merge_requests/:merge_request_iid/notes](https://docs.gitlab.com/api/notes/#create-a-merge-request-note)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post)
 
 ## `create_pull_request_comment_reaction`
 
@@ -252,7 +252,7 @@ GitHub: [DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}](https://docs
 
 GitLab: [DELETE /projects/:id/merge_requests/:merge_request_iid/notes/:note_id](https://docs.gitlab.com/api/notes/#delete-a-merge-request-note)
 
-Bitbucket: @todo Use [DELETE /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-delete)
+Bitbucket: [DELETE /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-delete)
 
 ## `delete_pull_request_comment_reaction`
 
@@ -468,7 +468,7 @@ GitHub: [GET /repos/{owner}/{repo}/issues/{pull_number}/comments](https://docs.g
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/notes](https://docs.gitlab.com/api/notes/#list-all-merge-request-notes)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get)
 
 ## `get_pull_request_commits`
 
