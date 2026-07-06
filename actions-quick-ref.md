@@ -24,7 +24,7 @@ GitHub: [`resolveReviewThread`](https://docs.github.com/en/graphql/reference/pul
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id](https://docs.gitlab.com/api/discussions/#resolve-a-merge-request-thread)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
 
 ## `compare_commits`
 
@@ -32,7 +32,7 @@ GitHub: [GET /repos/{owner}/{repo}/compare/{start_sha}...{end_sha}](https://docs
 
 GitLab: [GET /projects/:id/repository/compare](https://docs.gitlab.com/api/repositories/#compare-branches-tags-or-commits)
 
-Bitbucket:
+Bitbucket: @todo Use:
 - [GET /repositories/{workspace}/{repo_slug}/commits/{revision}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-revision-get)
 - [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
 
@@ -42,7 +42,7 @@ GitHub: [POST /repos/{owner}/{repo}/git/refs](https://docs.github.com/en/rest/gi
 
 GitLab: [POST /projects/:id/repository/branches](https://docs.gitlab.com/api/branches/#create-repository-branch)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/refs/branches](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/refs/branches](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-post)
 
 ## `create_check_run`
 
@@ -50,7 +50,7 @@ GitHub: [POST /repos/{owner}/{repo}/check-runs](https://docs.github.com/en/rest/
 
 GitLab: [POST /projects/:id/statuses/:sha](https://docs.gitlab.com/api/commits/#set-commit-pipeline-status)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-post)
 
 ## `create_commit`
 
@@ -64,7 +64,7 @@ GitHub:
 
 GitLab: [POST /projects/:id/repository/commits](https://docs.gitlab.com/api/commits/#create-a-commit)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/src](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/src](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-post)
 
 ## `create_git_blob`
 
@@ -128,7 +128,7 @@ GitHub: [POST /repos/{owner}/{repo}/pulls](https://docs.github.com/en/rest/pulls
 
 GitLab: [POST /projects/:id/merge_requests](https://docs.gitlab.com/api/merge_requests/#create-a-merge-request)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post)
 
 ## `create_pull_request_comment`
 
@@ -136,7 +136,7 @@ GitHub: [POST /repos/{owner}/{repo}/issues/{pull_number}/comments](https://docs.
 
 GitLab: [POST /projects/:id/merge_requests/:merge_request_iid/notes](https://docs.gitlab.com/api/notes/#create-a-merge-request-note)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post)
 
 ## `create_pull_request_comment_reaction`
 
@@ -152,7 +152,7 @@ GitHub: [POST /repos/{owner}/{repo}/pulls](https://docs.github.com/en/rest/pulls
 
 GitLab: [POST /projects/:id/merge_requests](https://docs.gitlab.com/api/merge_requests/#create-a-merge-request) with `Draft:` title prefix
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post) with `draft: true`
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post) with `draft: true`
 
 ## `create_pull_request_reaction`
 
@@ -172,7 +172,7 @@ GitLab:
 - [POST /projects/:id/merge_requests/:merge_request_iid/notes](https://docs.gitlab.com/api/notes/#create-a-merge-request-note)
 - [POST /projects/:id/merge_requests/:merge_request_iid/approve](https://docs.gitlab.com/api/merge_request_approvals/#approve-merge-request)
 
-Bitbucket:
+Bitbucket: @todo Use:
 - [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) per inline comment (sets `inline`) and the review body
 - [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/approve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-approve-post) when the event is `approve`
 
@@ -184,7 +184,7 @@ GitLab:
 - [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
 
 ## `create_review_comment_line`
 
@@ -194,7 +194,7 @@ GitLab:
 - [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
 
 ## `create_review_comment_multiline`
 
@@ -204,7 +204,7 @@ GitLab:
 - [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
 
 ## `create_review_comment_reply`
 
@@ -212,7 +212,7 @@ GitHub: [POST /repos/{owner}/{repo}/pulls/{pull_number}/comments](https://docs.g
 
 GitLab: [POST /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id/notes](https://docs.gitlab.com/api/discussions/#add-note-to-a-merge-request-thread)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (reply sets `parent`)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (reply sets `parent`)
 
 ## `delete_branch`
 
@@ -220,7 +220,7 @@ GitHub: [DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}](https://docs.gith
 
 GitLab: [DELETE /projects/:id/repository/branches/:branch](https://docs.gitlab.com/api/branches/#delete-repository-branch)
 
-Bitbucket: [DELETE /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-delete)
+Bitbucket: @todo Use [DELETE /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-delete)
 
 ## `delete_issue_comment`
 
@@ -252,7 +252,7 @@ GitHub: [DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}](https://docs
 
 GitLab: [DELETE /projects/:id/merge_requests/:merge_request_iid/notes/:note_id](https://docs.gitlab.com/api/notes/#delete-a-merge-request-note)
 
-Bitbucket: [DELETE /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-delete)
+Bitbucket: @todo Use [DELETE /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-delete)
 
 ## `delete_pull_request_comment_reaction`
 
@@ -276,7 +276,7 @@ GitHub: [GET /repos/{owner}/{repo}/tarball/{ref}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/archive{format}](https://docs.gitlab.com/api/repositories/#retrieve-file-archive-from-a-repository)
 
-Bitbucket: [GET https://bitbucket.org/<workspace-id>/<repository-slug>/get/<branch>.<zip|gz|bz2>](https://support.atlassian.com/bitbucket-cloud/kb/how-to-download-repositories-using-the-api/)
+Bitbucket: @todo Use [GET https://bitbucket.org/<workspace-id>/<repository-slug>/get/<branch>.<zip|gz|bz2>](https://support.atlassian.com/bitbucket-cloud/kb/how-to-download-repositories-using-the-api/)
 
 ## `download_workflow_job_log`
 
@@ -292,7 +292,7 @@ GitHub: [GET /repos/{owner}/{repo}/installation](https://docs.github.com/en/rest
 
 GitLab: [GET /projects/:id](https://docs.gitlab.com/api/projects/#retrieve-a-project)
 
-Bitbucket: [GET /user/workspaces/{workspace}/permissions/repositories](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-user-workspaces-workspace-permissions-repositories-get) (current user's permission, filtered by repo; no check-run permission concept)
+Bitbucket: @todo Use [GET /user/workspaces/{workspace}/permissions/repositories](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-user-workspaces-workspace-permissions-repositories-get) (current user's permission, filtered by repo; no check-run permission concept)
 
 ## `get_archive_link`
 
@@ -308,7 +308,7 @@ GitHub: [GET /app](https://docs.github.com/en/rest/apps/apps#get-the-authenticat
 
 GitLab: [GET /user](https://docs.gitlab.com/api/users/#retrieve-the-current-user)
 
-Bitbucket: [GET /user](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/#api-user-get)
+Bitbucket: @todo Use [GET /user](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/#api-user-get)
 
 ## `get_branch`
 
@@ -316,7 +316,7 @@ GitHub: [GET /repos/{owner}/{repo}/branches/{branch}](https://docs.github.com/en
 
 GitLab: [GET /projects/:id/repository/branches/:branch](https://docs.gitlab.com/api/branches/#retrieve-a-repository-branch)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-get)
 
 ## `get_check_run`
 
@@ -324,7 +324,7 @@ GitHub: [GET /repos/{owner}/{repo}/check-runs/{check_run_id}](https://docs.githu
 
 GitLab: [GET /projects/:id/repository/commits/:sha/statuses](https://docs.gitlab.com/api/commits/#list-commit-statuses)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-get)
 
 ## `get_commit`
 
@@ -332,7 +332,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits/{sha}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/commits/:sha](https://docs.gitlab.com/api/commits/#retrieve-a-commit)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
 
 ## `get_commit_changes`
 
@@ -340,7 +340,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits/{sha}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/commits/:sha/diff](https://docs.gitlab.com/api/commits/#retrieve-commit-diff)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
 
 ## `get_commit_url`
 
@@ -348,7 +348,7 @@ GitHub: return {web_base}/{owner}/{repo}/commit/{commit_sha}
 
 GitLab: return {web_repo}/-/commit/{commit_sha}
 
-Bitbucket: return {web_base}/{workspace}/{repo_slug}/commits/{commit_sha}
+Bitbucket: @todo return {web_base}/{workspace}/{repo_slug}/commits/{commit_sha}
 
 ## `get_commits`
 
@@ -356,7 +356,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits](https://docs.github.com/en/rest/comm
 
 GitLab: [GET /projects/:id/repository/commits](https://docs.gitlab.com/api/commits/#list-repository-commits)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-get)
 
 ## `get_commits_by_path`
 
@@ -364,7 +364,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits](https://docs.github.com/en/rest/comm
 
 GitLab: [GET /projects/:id/repository/commits](https://docs.gitlab.com/api/commits/#list-repository-commits)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/filehistory/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-filehistory-commit-path-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/filehistory/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-filehistory-commit-path-get)
 
 ## `get_directory_contents`
 
@@ -372,7 +372,7 @@ GitHub: [GET /repos/{owner}/{repo}/contents/{path}](https://docs.github.com/en/r
 
 GitLab: [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
 
 ## `get_file_content`
 
@@ -380,7 +380,7 @@ GitHub: [GET /repos/{owner}/{repo}/contents/{path}](https://docs.github.com/en/r
 
 GitLab: [GET /projects/:id/repository/files/:file_path](https://docs.gitlab.com/api/repository_files/#retrieve-a-file-from-a-repository)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
 
 ## `get_file_url`
 
@@ -388,7 +388,7 @@ GitHub: return {web_base}/{owner}/{repo}/blob/{sha}/{file_path}
 
 GitLab: return {web_repo}/-/blob/{sha}/{file_path}
 
-Bitbucket: return {web_base}/{workspace}/{repo_slug}/src/{sha}/{file_path}
+Bitbucket: @todo return {web_base}/{workspace}/{repo_slug}/src/{sha}/{file_path}
 
 ## `get_full_tree`
 
@@ -396,7 +396,7 @@ GitHub: [GET /repos/{owner}/{repo}/git/trees/{tree_sha}](https://docs.github.com
 
 GitLab: [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (recursive listing, walking every page)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (recursive listing, walking every page)
 
 ## `get_git_commit`
 
@@ -404,7 +404,7 @@ GitHub: [GET /repos/{owner}/{repo}/git/commits/{sha}](https://docs.github.com/en
 
 GitLab: [GET /projects/:id/repository/commits/:sha](https://docs.gitlab.com/api/commits/#retrieve-a-commit)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
 
 ## `get_git_ref`
 
@@ -452,7 +452,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}](https://docs.github.com/
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid](https://docs.gitlab.com/api/merge_requests/#retrieve-a-merge-request)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-get)
 
 ## `get_pull_request_comment_reactions`
 
@@ -468,7 +468,7 @@ GitHub: [GET /repos/{owner}/{repo}/issues/{pull_number}/comments](https://docs.g
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/notes](https://docs.gitlab.com/api/notes/#list-all-merge-request-notes)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get)
 
 ## `get_pull_request_commits`
 
@@ -476,7 +476,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}/commits](https://docs.git
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/commits](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-commits)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-commits-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-commits-get)
 
 ## `get_pull_request_diff`
 
@@ -484,7 +484,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}](https://docs.github.com/
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/raw_diffs](https://docs.gitlab.com/api/merge_requests/#show-merge-request-raw-diffs)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diff](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diff-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diff](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diff-get)
 
 ## `get_pull_request_files`
 
@@ -492,7 +492,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}/files](https://docs.githu
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/diffs](https://docs.gitlab.com/api/merge_requests/#list-merge-request-diffs)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diffstat](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diffstat-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diffstat](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diffstat-get)
 
 ## `get_pull_request_reactions`
 
@@ -508,7 +508,7 @@ GitHub: [`pullRequest.reviewThreads`](https://docs.github.com/en/graphql/referen
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#list-all-merge-request-discussion-items)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get) (inline comments)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get) (inline comments)
 
 ## `get_pull_request_template`
 
@@ -518,7 +518,7 @@ GitLab:
 - [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 - [GET /projects/:id/repository/files/:file_path](https://docs.gitlab.com/api/repository_files/#retrieve-a-file-from-a-repository)
 
-Bitbucket:
+Bitbucket: @todo Use:
 - [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (lists the template directory)
 - [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (fetches each template)
 
@@ -528,7 +528,7 @@ GitHub: return {web_base}/{owner}/{repo}/pull/{pull_number}
 
 GitLab: return {web_repo}/-/merge_requests/{pull_request}
 
-Bitbucket: return {web_base}/{workspace}/{repo_slug}/pull-requests/{pull_request_id}
+Bitbucket: @todo return {web_base}/{workspace}/{repo_slug}/pull-requests/{pull_request_id}
 
 ## `get_pull_requests`
 
@@ -536,7 +536,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls](https://docs.github.com/en/rest/pulls/
 
 GitLab: [GET /projects/:id/merge_requests](https://docs.gitlab.com/api/merge_requests/#list-project-merge-requests)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-get)
 
 ## `get_readme`
 
@@ -546,7 +546,7 @@ GitLab:
 - [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 - [GET /projects/:id/repository/files/:file_path](https://docs.gitlab.com/api/repository_files/#retrieve-a-file-from-a-repository)
 
-Bitbucket:
+Bitbucket: @todo Use:
 - [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (lists the repo root)
 - [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (fetches the README)
 
@@ -556,7 +556,7 @@ GitHub: [GET /repos/{owner}/{repo}](https://docs.github.com/en/rest/repos/repos#
 
 GitLab: [GET /projects/:id](https://docs.gitlab.com/api/projects/#retrieve-a-project)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-repositories-workspace-repo-slug-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-repositories-workspace-repo-slug-get)
 
 ## `get_repository_assignees`
 
@@ -564,7 +564,7 @@ GitHub: [GET /repos/{owner}/{repo}/assignees](https://docs.github.com/en/rest/is
 
 GitLab: [GET /projects/:id/users](https://docs.gitlab.com/api/projects/#list-all-members-of-a-project)
 
-Bitbucket: [GET /workspaces/{workspace}/permissions/repositories/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-workspaces/#api-workspaces-workspace-permissions-repositories-repo-slug-get) (admin only)
+Bitbucket: @todo Use [GET /workspaces/{workspace}/permissions/repositories/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-workspaces/#api-workspaces-workspace-permissions-repositories-repo-slug-get) (admin only)
 
 ## `get_repository_labels`
 
@@ -612,7 +612,7 @@ GitHub: [GET /repos/{owner}/{repo}/git/trees/{tree_sha}](https://docs.github.com
 
 GitLab: [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 
-Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
+Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
 
 ## `list_check_runs_for_ref`
 
@@ -692,7 +692,7 @@ GitHub: [`resolveReviewThread`](https://docs.github.com/en/graphql/reference/pul
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id](https://docs.gitlab.com/api/discussions/#resolve-a-merge-request-thread)
 
-Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
+Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
 
 ## `update_and_collapse_pull_request_comment`
 
@@ -702,7 +702,7 @@ GitLab:
 - [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id/notes/:note_id](https://docs.gitlab.com/api/discussions/#update-a-merge-request-thread-note)
 - [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id](https://docs.gitlab.com/api/discussions/#resolve-a-merge-request-thread)
 
-Bitbucket:
+Bitbucket: @todo Use:
 - [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-put)
 - [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
 
@@ -720,7 +720,7 @@ GitHub: [PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}](https://docs.git
 
 GitLab: [POST /projects/:id/statuses/:sha](https://docs.gitlab.com/api/commits/#set-commit-pipeline-status)
 
-Bitbucket: [PUT /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-put)
+Bitbucket: @todo Use [PUT /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-put)
 
 ## `update_issue`
 
@@ -736,7 +736,7 @@ GitHub: [PATCH /repos/{owner}/{repo}/pulls/{pull_number}](https://docs.github.co
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid](https://docs.gitlab.com/api/merge_requests/#update-a-merge-request)
 
-Bitbucket: [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-put)
+Bitbucket: @todo Use [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-put)
 
 ## `update_review_comment`
 
@@ -744,5 +744,5 @@ GitHub: [PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}](https://docs.g
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id/notes/:note_id](https://docs.gitlab.com/api/discussions/#update-a-merge-request-thread-note)
 
-Bitbucket: [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-put)
+Bitbucket: @todo Use [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-put)
 
