@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import date, datetime
 from email.utils import format_datetime, parsedate_to_datetime
 from typing import Any, Literal, cast
 
@@ -884,6 +884,26 @@ class GitHubProvider:
 
     def get_commit_url(self, commit_sha: SHA) -> str:
         return f"{self._web_base_url}/{self.repository['name']}/commit/{commit_sha}"
+
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str:
+        url = f"{self._web_base_url}/{self.repository['name']}/commits/{commit_sha}"
+        if file_path is not None:
+            url += f"/{file_path}"
+        params: list[str] = []
+        if since is not None:
+            params.append(f"since={since.strftime('%Y-%m-%d')}")
+        if until is not None:
+            params.append(f"until={until.strftime('%Y-%m-%d')}")
+        if params:
+            url += f"?{'&'.join(params)}"
+        return url
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self._web_base_url}/{self.repository['name']}/pull/{pull_request_id}"

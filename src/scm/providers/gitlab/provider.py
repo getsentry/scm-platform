@@ -715,6 +715,28 @@ class GitLabProvider:
     def get_commit_url(self, commit_sha: SHA) -> str:
         return f"{self.web_base_url}/{self.web_repository_path}/-/commit/{commit_sha}"
 
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: datetime.date | None = None,
+        until: datetime.date | None = None,
+    ) -> str:
+        url = f"{self.web_base_url}/{self.web_repository_path}/-/commits/{commit_sha}"
+        if file_path is not None:
+            url += f"/{file_path}"
+        # GitLab's commits web page names its date filters differently from
+        # GitHub's (?since/&until): committed_after / committed_before.
+        params: list[str] = []
+        if since is not None:
+            params.append(f"committed_after={since.strftime('%Y-%m-%d')}")
+        if until is not None:
+            params.append(f"committed_before={until.strftime('%Y-%m-%d')}")
+        if params:
+            url += f"?{'&'.join(params)}"
+        return url
+
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self.web_base_url}/{self.web_repository_path}/-/merge_requests/{pull_request_id}"
 
