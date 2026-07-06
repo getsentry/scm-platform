@@ -1980,21 +1980,29 @@ def test_get_commit_url_builds_commit_url() -> None:
 
 def test_get_commits_url_builds_commits_list_url() -> None:
     provider, _ = make_provider()
-    base = "https://github.com/test-org/test-repo/commits"
 
-    assert provider.get_commits_url("abc123") == f"{base}/abc123"
-    assert provider.get_commits_url("abc123", file_path="src/foo/bar.py") == f"{base}/abc123/src/foo/bar.py"
-    assert provider.get_commits_url("abc123", since=date(2026, 1, 15)) == f"{base}/abc123?since=2026-01-15"
-    assert provider.get_commits_url("abc123", until=date(2026, 3, 20)) == f"{base}/abc123?until=2026-03-20"
+    assert provider.get_commits_url("abc123") == "https://github.com/test-org/test-repo/commits/abc123"
+    assert (
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py")
+        == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py"
+    )
+    assert (
+        provider.get_commits_url("abc123", since=date(2026, 1, 15))
+        == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15"
+    )
+    assert (
+        provider.get_commits_url("abc123", until=date(2026, 3, 20))
+        == "https://github.com/test-org/test-repo/commits/abc123?until=2026-03-20"
+    )
     assert (
         provider.get_commits_url("abc123", since=date(2026, 1, 15), until=date(2026, 3, 20))
-        == f"{base}/abc123?since=2026-01-15&until=2026-03-20"
+        == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15&until=2026-03-20"
     )
     assert (
         provider.get_commits_url(
             "abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20)
         )
-        == f"{base}/abc123/src/foo/bar.py?since=2026-01-15&until=2026-03-20"
+        == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py?since=2026-01-15&until=2026-03-20"
     )
 
 

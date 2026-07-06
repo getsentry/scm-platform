@@ -13709,17 +13709,18 @@ def test_get_commit_url_builds_commit_url(provider: GitLabProvider):
 def test_get_commits_url_builds_commits_list_url(provider: GitLabProvider):
     # GitLab uses `/-/commits/<sha>` and names its date filters
     # committed_after / committed_before (unlike GitHub's since / until).
-    base = "https://gitlab.com/test-repo/-/commits"
-
-    assert provider.get_commits_url("abc123") == f"{base}/abc123"
-    assert provider.get_commits_url("abc123", file_path="src/foo/bar.py") == f"{base}/abc123/src/foo/bar.py"
+    assert provider.get_commits_url("abc123") == "https://gitlab.com/test-repo/-/commits/abc123"
+    assert (
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py")
+        == "https://gitlab.com/test-repo/-/commits/abc123/src/foo/bar.py"
+    )
     assert (
         provider.get_commits_url("abc123", since=datetime.date(2026, 1, 15))
-        == f"{base}/abc123?committed_after=2026-01-15"
+        == "https://gitlab.com/test-repo/-/commits/abc123?committed_after=2026-01-15"
     )
     assert (
         provider.get_commits_url("abc123", until=datetime.date(2026, 3, 20))
-        == f"{base}/abc123?committed_before=2026-03-20"
+        == "https://gitlab.com/test-repo/-/commits/abc123?committed_before=2026-03-20"
     )
     assert (
         provider.get_commits_url(
@@ -13728,7 +13729,7 @@ def test_get_commits_url_builds_commits_list_url(provider: GitLabProvider):
             since=datetime.date(2026, 1, 15),
             until=datetime.date(2026, 3, 20),
         )
-        == f"{base}/abc123/src/foo/bar.py?committed_after=2026-01-15&committed_before=2026-03-20"
+        == "https://gitlab.com/test-repo/-/commits/abc123/src/foo/bar.py?committed_after=2026-01-15&committed_before=2026-03-20"
     )
 
 
