@@ -476,7 +476,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}/commits](https://docs.git
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/commits](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-commits)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-commits-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/commits](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-commits-get)
 
 ## `get_pull_request_diff`
 

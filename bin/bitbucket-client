@@ -32,6 +32,7 @@ Commands:
     compare-commits <start_sha> <end_sha>
     get-commit <sha>
     get-pull-request-files <id>
+    get-pull-request-commits <id>
     get-repository
 """
 
@@ -55,6 +56,7 @@ from scm.types import (
     GetCommitsProtocol,
     GetFileContentProtocol,
     GetPullRequestCommentsProtocol,
+    GetPullRequestCommitsProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
@@ -162,6 +164,9 @@ def main():
     p = sub.add_parser("get-pull-request-files")
     p.add_argument("id")
 
+    p = sub.add_parser("get-pull-request-commits")
+    p.add_argument("id")
+
     sub.add_parser("get-repository")
 
     args = parser.parse_args()
@@ -243,6 +248,10 @@ def main():
     elif args.command == "get-pull-request-files":
         assert isinstance(scm, GetPullRequestFilesProtocol)
         dump(scm.get_pull_request_files(args.id))
+
+    elif args.command == "get-pull-request-commits":
+        assert isinstance(scm, GetPullRequestCommitsProtocol)
+        dump(scm.get_pull_request_commits(args.id))
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)

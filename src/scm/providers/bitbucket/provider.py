@@ -36,6 +36,7 @@ from scm.types import (
     PaginationParams,
     PullRequest,
     PullRequestBranch,
+    PullRequestCommit,
     PullRequestFile,
     PullRequestState,
     Referrer,
@@ -497,6 +498,29 @@ class BitbucketProvider:
         )
         return make_paginated_result(map_pull_request_file, response.json())
 
+    def get_pull_request_commits(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequestCommit]]:
+        """List a pull request's commits.
+
+        Bitbucket returns commits newest-first; we reverse the page to match the
+        oldest-first order GitHub and GitLab produce.
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/commits",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        raw = response.json()
+        return make_paginated_result(
+            map_pull_request_commit,
+            raw,
+            raw_items=reversed(raw.get("values", [])),
+        )
+
 
 def _head_to_source_branch(head: str) -> str:
     """Normalize a GitHub-style ``head`` filter to a bare Bitbucket branch name.
@@ -533,21 +557,37 @@ def _parse_raw_author(raw: str) -> tuple[str, str]:
     return raw, ""
 
 
-def map_commit(raw: dict[str, Any]) -> Commit:
-    author_raw = (raw.get("author") or {}).get("raw", "")
-    name, email = _parse_raw_author(author_raw)
+def _commit_author(raw: dict[str, Any]) -> CommitAuthor:
+    """Build a CommitAuthor from a Bitbucket commit object.
+
+    The git-style author string lives under ``author.raw``; the commit date is
+    the top-level ``date``.
+    """
+    name, email = _parse_raw_author((raw.get("author") or {}).get("raw", ""))
     date = raw.get("date")
+    return CommitAuthor(
+        name=name,
+        email=email,
+        date=datetime.datetime.fromisoformat(date) if date else None,
+    )
+
+
+def map_commit(raw: dict[str, Any]) -> Commit:
     return Commit(
         id=raw["hash"],
         message=raw["message"],
-        author=CommitAuthor(
-            name=name,
-            email=email,
-            date=datetime.datetime.fromisoformat(date) if date else None,
-        ),
+        author=_commit_author(raw),
         # Bitbucket's commit list carries no per-commit line stats.
         additions=None,
         deletions=None,
+    )
+
+
+def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
+    return PullRequestCommit(
+        sha=raw["hash"],
+        message=raw["message"],
+        author=_commit_author(raw),
     )
 
 
@@ -575,17 +615,10 @@ def map_diffstat(raw: dict[str, Any]) -> CommitFile:
 
 
 def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
-    author_raw = (raw.get("author") or {}).get("raw", "")
-    name, email = _parse_raw_author(author_raw)
-    date = raw.get("date")
     return CommitWithChanges(
         id=raw["hash"],
         message=raw["message"],
-        author=CommitAuthor(
-            name=name,
-            email=email,
-            date=datetime.datetime.fromisoformat(date) if date else None,
-        ),
+        author=_commit_author(raw),
         # Bitbucket's commit endpoint carries no diff or line stats.
         files=None,
         additions=None,
