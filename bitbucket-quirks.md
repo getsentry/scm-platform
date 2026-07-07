@@ -21,6 +21,12 @@ Closing works via the separate `POST .../pullrequests/{id}/decline` endpoint (th
 
 - **No patch text.** Backed by Bitbucket's diffstat endpoint, which reports per-file line counts but no diff hunks, so `patch` is always `None` (GitHub/GitLab populate it) and `sha` is empty.
 
+## `create_check_run` / `get_check_run` / `update_check_run`
+
+- **Mapped to commit build statuses.** Check runs are Bitbucket commit build statuses, keyed per commit. The `check_run_id` is `"{sha}:{key}"`, where `key` is the caller's `external_id` (falling back to `name`).
+- **Reduced fidelity.** States collapse to INPROGRESS/SUCCESSFUL/FAILED/STOPPED; `started_at`/`completed_at` are ignored; only the output title is forwarded (as the status `description`). Bitbucket requires a link, so `url` defaults to the commit page.
+- **40-char name/key limit.** Bitbucket caps the build status key at 40 characters. Since we derive the key from `external_id` (falling back to `name`), a name/external_id longer than 40 chars is rejected.
+
 ## `create_review`
 
 - **Not atomic.** Bitbucket has no single review endpoint (unlike GitHub). The inline comments, review body, and approval are separate requests fanned out concurrently, so individual calls can succeed independently. Only `event == "approve"` triggers an action (the approve endpoint); `"comment"`/`"change_request"` just post comments. The returned `Review` has a placeholder `id` of `"unset"`.

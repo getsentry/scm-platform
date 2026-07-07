@@ -19,6 +19,10 @@ from scm.types import (
     ApiClient,
     Author,
     BranchName,
+    BuildConclusion,
+    BuildStatus,
+    CheckRun,
+    CheckRunOutput,
     Comment,
     Commit,
     CommitAuthor,
@@ -42,6 +46,7 @@ from scm.types import (
     Referrer,
     Repository,
     RequestOptions,
+    ResourceId,
     Review,
     ReviewComment,
     ReviewCommentInput,
@@ -54,6 +59,28 @@ from scm.types import (
 PULL_REQUEST_STATE_RETRIEVE_MAP: dict[PullRequestState, list[str]] = {
     "open": ["OPEN"],
     "closed": ["MERGED", "DECLINED", "SUPERSEDED"],
+}
+
+# Bitbucket build states are INPROGRESS/SUCCESSFUL/FAILED/STOPPED. This collapses
+# our (status, conclusion) model into one of those on write. Conclusions without
+# a direct equivalent fall back to FAILED; "neutral" maps to SUCCESSFUL.
+BITBUCKET_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
+    "success": "SUCCESSFUL",
+    "failure": "FAILED",
+    "cancelled": "STOPPED",
+    "skipped": "STOPPED",
+    "timed_out": "FAILED",
+    "neutral": "SUCCESSFUL",
+    "action_required": "FAILED",
+    "unknown": "FAILED",
+}
+
+# Reverse map for reads: Bitbucket build state -> (BuildStatus, BuildConclusion).
+BITBUCKET_BUILD_STATE_READ_MAP: dict[str, tuple[BuildStatus, BuildConclusion | None]] = {
+    "INPROGRESS": ("running", None),
+    "SUCCESSFUL": ("completed", "success"),
+    "FAILED": ("completed", "failure"),
+    "STOPPED": ("completed", "cancelled"),
 }
 
 
@@ -633,6 +660,84 @@ class BitbucketProvider:
             raw_items=reversed(raw.get("values", [])),
         )
 
+    def _commit_web_url(self, sha: SHA) -> str:
+        return f"https://bitbucket.org/{self.repository['name']}/commits/{sha}"
+
+    def create_check_run(
+        self,
+        name: str,
+        head_sha: SHA,
+        status: BuildStatus | None = None,
+        conclusion: BuildConclusion | None = None,
+        external_id: str | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        output: CheckRunOutput | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Create a Bitbucket commit build status, mapped to a check run.
+
+        Bitbucket keys a build status by ``key`` (unique per commit); we use
+        ``external_id`` when given, otherwise ``name``. The check run id is
+        ``"{sha}:{key}"``. ``started_at``/``completed_at`` have no Bitbucket
+        equivalent and are ignored; of ``output`` only the title is forwarded
+        (as the status ``description``). Bitbucket requires a link, so ``url``
+        defaults to the commit page.
+        """
+        key = external_id or name
+        data: dict[str, Any] = {
+            "key": key,
+            "state": _bitbucket_build_state(status, conclusion),
+            "name": name,
+            "url": self._commit_web_url(head_sha),
+        }
+        description = _description_from_output(output)
+        if description is not None:
+            data["description"] = description
+        response = self.post(
+            f"/repositories/{self.repository['name']}/commit/{head_sha}/statuses/build",
+            data=data,
+        )
+        return make_result(_make_map_check_run(self, head_sha, key), response.json())
+
+    def get_check_run(
+        self,
+        check_run_id: ResourceId,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Get a commit build status. ``check_run_id`` is ``"{sha}:{key}"``."""
+        sha, key = _split_check_run_id(check_run_id)
+        response = self.get(
+            f"/repositories/{self.repository['name']}/commit/{sha}/statuses/build/{key}",
+            request_options=request_options,
+        )
+        return make_result(_make_map_check_run(self, sha, key), response.json())
+
+    def update_check_run(
+        self,
+        check_run_id: ResourceId,
+        status: BuildStatus | None = None,
+        conclusion: BuildConclusion | None = None,
+        output: CheckRunOutput | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Update a commit build status via Bitbucket's PUT endpoint.
+
+        Unlike GitLab's append-only statuses, Bitbucket has a real PUT keyed by
+        ``key``, so a state change is not required; the title (from ``output``)
+        can be updated on its own.
+        """
+        sha, key = _split_check_run_id(check_run_id)
+        data: dict[str, Any] = {}
+        if status is not None or conclusion is not None:
+            data["state"] = _bitbucket_build_state(status, conclusion)
+        description = _description_from_output(output)
+        if description is not None:
+            data["description"] = description
+        response = self.put(
+            f"/repositories/{self.repository['name']}/commit/{sha}/statuses/build/{key}",
+            data=data,
+        )
+        return make_result(_make_map_check_run(self, sha, key), response.json())
+
 
 def _head_to_source_branch(head: str) -> str:
     """Normalize a GitHub-style ``head`` filter to a bare Bitbucket branch name.
@@ -752,6 +857,44 @@ def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
         sha="",
         previous_filename=old.get("path") if status == "renamed" else None,
     )
+
+
+def _bitbucket_build_state(status: BuildStatus | None, conclusion: BuildConclusion | None) -> str:
+    if conclusion is not None:
+        return BITBUCKET_BUILD_CONCLUSION_WRITE_MAP[conclusion]
+    if status == "completed":
+        raise ResourceBadRequest(detail="A 'conclusion' is required when 'status' is 'completed'.")
+    # Bitbucket has no distinct pending/running; both are INPROGRESS.
+    return "INPROGRESS"
+
+
+def _description_from_output(output: CheckRunOutput | None) -> str | None:
+    """Bitbucket build statuses have only a short description; forward the title."""
+    if output is None:
+        return None
+    return output.get("title") or None
+
+
+def _split_check_run_id(check_run_id: ResourceId) -> tuple[str, str]:
+    """Parse a ``"{sha}:{key}"`` check run id."""
+    sha, sep, key = check_run_id.partition(":")
+    if not sep or not sha or not key:
+        raise ResourceBadRequest(detail=f"Expected '<sha>:<key>', got {check_run_id!r}.")
+    return sha, key
+
+
+def _make_map_check_run(provider: "BitbucketProvider", sha: SHA, key: str) -> Callable[[dict[str, Any]], CheckRun]:
+    def _map(raw: dict[str, Any]) -> CheckRun:
+        status, conclusion = BITBUCKET_BUILD_STATE_READ_MAP.get(raw.get("state", ""), ("running", None))
+        return CheckRun(
+            id=f"{sha}:{key}",
+            name=raw.get("name") or key,
+            status=status,
+            conclusion=conclusion,
+            html_url=raw.get("url") or provider._commit_web_url(sha),
+        )
+
+    return _map
 
 
 def _inline_anchor(path: str, line: int, side: ReviewSide) -> dict[str, Any]:

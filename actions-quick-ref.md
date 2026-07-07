@@ -50,7 +50,7 @@ GitHub: [POST /repos/{owner}/{repo}/check-runs](https://docs.github.com/en/rest/
 
 GitLab: [POST /projects/:id/statuses/:sha](https://docs.gitlab.com/api/commits/#set-commit-pipeline-status)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-post)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-post)
 
 ## `create_commit`
 
@@ -324,7 +324,7 @@ GitHub: [GET /repos/{owner}/{repo}/check-runs/{check_run_id}](https://docs.githu
 
 GitLab: [GET /projects/:id/repository/commits/:sha/statuses](https://docs.gitlab.com/api/commits/#list-commit-statuses)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-get)
 
 ## `get_commit`
 
@@ -720,7 +720,7 @@ GitHub: [PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}](https://docs.git
 
 GitLab: [POST /projects/:id/statuses/:sha](https://docs.gitlab.com/api/commits/#set-commit-pipeline-status)
 
-Bitbucket: @todo Use [PUT /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-put)
+Bitbucket: [PUT /repositories/{workspace}/{repo_slug}/commit/{commit}/statuses/build/{key}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commit-statuses/#api-repositories-workspace-repo-slug-commit-commit-statuses-build-key-put)
 
 ## `update_issue`
 
