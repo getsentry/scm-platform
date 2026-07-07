@@ -1,4 +1,6 @@
+import base64
 import datetime
+import hashlib
 import re
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -22,6 +24,7 @@ from scm.types import (
     CommitAuthor,
     CoPilotChatExtension,
     CredentialsSet,
+    FileContent,
     GitRef,
     GitRepository,
     PaginatedActionResult,
@@ -162,6 +165,40 @@ class BitbucketProvider:
 
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(f"/repositories/{self.repository['name']}/refs/branches/{quote(branch, safe='/')}")
+
+    def get_file_content(
+        self,
+        path: str,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        """Fetch a file's contents at a ref.
+
+        Bitbucket's ``/src`` endpoint returns raw bytes (no blob SHA and no
+        line/size metadata in the body), so we base64-encode the response and
+        report ``size`` from its byte length. Since Bitbucket exposes no git
+        blob id, we compute one locally so ``sha`` matches the blob SHA that
+        GitHub and GitLab report.
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/src/{quote(ref, safe='')}/{quote(path, safe='/')}",
+            request_options=request_options,
+        )
+        raw_content = response.content
+        content = base64.b64encode(raw_content).decode("ascii")
+        return ActionResult(
+            data=FileContent(
+                path=path,
+                sha=_git_blob_sha1(raw_content),
+                content=content,
+                encoding="base64",
+                size=len(raw_content),
+                type="file",
+            ),
+            type="bitbucket",
+            raw={"data": content, "headers": None},
+            meta={},
+        )
 
     def get_pull_request(
         self,
@@ -376,6 +413,17 @@ def _head_to_source_branch(head: str) -> str:
     """
     branch = head.split(":", 1)[-1]
     return branch.removeprefix("refs/heads/")
+
+
+def _git_blob_sha1(content: bytes) -> str:
+    """Compute a git blob object id for ``content``.
+
+    Git names a blob by ``sha1("blob <bytelen>\\0" + content)``. Bitbucket does
+    not expose this id, so we recompute it to match the blob SHA GitHub and
+    GitLab return for the same file.
+    """
+    header = f"blob {len(content)}\0".encode()
+    return hashlib.sha1(header + content, usedforsecurity=False).hexdigest()
 
 
 def _parse_raw_author(raw: str) -> tuple[str, str]:
