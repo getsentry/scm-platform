@@ -22,6 +22,7 @@ from scm.types import (
     CommitAuthor,
     CoPilotChatExtension,
     CredentialsSet,
+    GitRef,
     GitRepository,
     PaginatedActionResult,
     PaginatedResponseMeta,
@@ -140,6 +141,27 @@ class BitbucketProvider:
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repositories/{self.repository['name']}")
         return make_result(map_repository, response.json())
+
+    def get_branch(
+        self,
+        branch: BranchName,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        response = self.get(
+            f"/repositories/{self.repository['name']}/refs/branches/{quote(branch, safe='/')}",
+            request_options=request_options,
+        )
+        return make_result(map_git_ref, response.json())
+
+    def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
+        response = self.post(
+            f"/repositories/{self.repository['name']}/refs/branches",
+            data={"name": branch, "target": {"hash": sha}},
+        )
+        return make_result(map_git_ref, response.json())
+
+    def delete_branch(self, branch: BranchName) -> None:
+        self.delete(f"/repositories/{self.repository['name']}/refs/branches/{quote(branch, safe='/')}")
 
     def get_pull_request(
         self,
@@ -385,6 +407,10 @@ def map_commit(raw: dict[str, Any]) -> Commit:
         additions=None,
         deletions=None,
     )
+
+
+def map_git_ref(raw: dict[str, Any]) -> GitRef:
+    return GitRef(ref=raw["name"], sha=raw["target"]["hash"])
 
 
 def map_comment(raw: dict[str, Any]) -> Comment:

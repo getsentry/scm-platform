@@ -42,7 +42,7 @@ GitHub: [POST /repos/{owner}/{repo}/git/refs](https://docs.github.com/en/rest/gi
 
 GitLab: [POST /projects/:id/repository/branches](https://docs.gitlab.com/api/branches/#create-repository-branch)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/refs/branches](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-post)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/refs/branches](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-post)
 
 ## `create_check_run`
 
@@ -220,7 +220,7 @@ GitHub: [DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}](https://docs.gith
 
 GitLab: [DELETE /projects/:id/repository/branches/:branch](https://docs.gitlab.com/api/branches/#delete-repository-branch)
 
-Bitbucket: @todo Use [DELETE /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-delete)
+Bitbucket: [DELETE /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-delete)
 
 ## `delete_issue_comment`
 
@@ -316,7 +316,7 @@ GitHub: [GET /repos/{owner}/{repo}/branches/{branch}](https://docs.github.com/en
 
 GitLab: [GET /projects/:id/repository/branches/:branch](https://docs.gitlab.com/api/branches/#retrieve-a-repository-branch)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-get)
 
 ## `get_check_run`
 

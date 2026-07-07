@@ -25,6 +25,9 @@ Commands:
     get-pull-request-comments <pr_id>
     create-pull-request-comment <pr_id> <body>
     delete-pull-request-comment <pr_id> <comment_id>
+    get-branch <name>
+    create-branch <name> <sha>
+    delete-branch <name>
     get-repository
 """
 
@@ -36,9 +39,12 @@ import sys
 
 from scm.manager import SourceCodeManager
 from scm.types import (
+    CreateBranchProtocol,
     CreatePullRequestCommentProtocol,
     CreatePullRequestProtocol,
+    DeleteBranchProtocol,
     DeletePullRequestCommentProtocol,
+    GetBranchProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
     GetPullRequestCommentsProtocol,
@@ -124,6 +130,16 @@ def main():
     p.add_argument("pr_id")
     p.add_argument("comment_id")
 
+    p = sub.add_parser("get-branch")
+    p.add_argument("name")
+
+    p = sub.add_parser("create-branch")
+    p.add_argument("name")
+    p.add_argument("sha")
+
+    p = sub.add_parser("delete-branch")
+    p.add_argument("name")
+
     sub.add_parser("get-repository")
 
     args = parser.parse_args()
@@ -177,6 +193,18 @@ def main():
     elif args.command == "delete-pull-request-comment":
         assert isinstance(scm, DeletePullRequestCommentProtocol)
         scm.delete_pull_request_comment(args.pr_id, args.comment_id)
+
+    elif args.command == "get-branch":
+        assert isinstance(scm, GetBranchProtocol)
+        dump(scm.get_branch(args.name))
+
+    elif args.command == "create-branch":
+        assert isinstance(scm, CreateBranchProtocol)
+        dump(scm.create_branch(args.name, args.sha))
+
+    elif args.command == "delete-branch":
+        assert isinstance(scm, DeleteBranchProtocol)
+        scm.delete_branch(args.name)
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
