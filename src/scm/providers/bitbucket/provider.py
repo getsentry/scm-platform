@@ -22,9 +22,12 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitComparison,
+    CommitFile,
     CoPilotChatExtension,
     CredentialsSet,
     FileContent,
+    FileStatus,
     GitRef,
     GitRepository,
     PaginatedActionResult,
@@ -361,6 +364,60 @@ class BitbucketProvider:
         """Fetch a single commit's full representation by hash."""
         return self.get(f"/repositories/{self.repository['name']}/commit/{commit_hash}").json()
 
+    def compare_commits(
+        self,
+        start_sha: SHA,
+        end_sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[CommitComparison]:
+        """Compare two commits, ``start_sha`` (base) to ``end_sha`` (head).
+
+        Bitbucket has no single compare endpoint, so we combine two: the commits
+        reachable from ``end_sha`` but not ``start_sha`` (the "ahead" commits),
+        and the diffstat. The commit list is paginated (the cursor pages it);
+        the diffstat is walked in full so the changed-file list is complete.
+
+        Note Bitbucket's diffstat ``spec`` orders commits opposite to git: the
+        first is the changes to preview, the second the baseline, so we pass
+        ``end..start`` to mirror git's ``start..end``.
+        """
+        commits_response = self.get(
+            f"/repositories/{self.repository['name']}/commits/{end_sha}",
+            params={"exclude": start_sha},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        commits_raw = commits_response.json()
+        commits = [map_commit(c) for c in commits_raw.get("values", [])]
+        diff = self._fetch_all_diffstat(f"{end_sha}..{start_sha}", request_options)
+        return PaginatedActionResult(
+            data=CommitComparison(
+                ahead_by=len(commits),
+                commits=commits,
+                diff=diff,
+            ),
+            type="bitbucket",
+            raw={"data": commits_raw, "headers": None},
+            meta=PaginatedResponseMeta(next_cursor=_next_cursor(commits_raw)),
+        )
+
+    def _fetch_all_diffstat(self, spec: str, request_options: RequestOptions | None) -> list[CommitFile]:
+        """Walk every diffstat page for ``spec`` and return all changed files."""
+        files: list[CommitFile] = []
+        page = "1"
+        while True:
+            raw = self.get(
+                f"/repositories/{self.repository['name']}/diffstat/{spec}",
+                params={"page": page},
+                request_options=request_options,
+            ).json()
+            files.extend(map_diffstat(d) for d in raw.get("values", []))
+            cursor = _next_cursor(raw)
+            if not cursor:
+                return files
+            page = cursor
+
     def get_pull_request_comments(
         self,
         pull_request_id: str,
@@ -454,6 +511,29 @@ def map_commit(raw: dict[str, Any]) -> Commit:
         # Bitbucket's commit list carries no per-commit line stats.
         additions=None,
         deletions=None,
+    )
+
+
+_BITBUCKET_DIFFSTAT_STATUS: dict[str, FileStatus] = {
+    "added": "added",
+    "removed": "removed",
+    "modified": "modified",
+    "renamed": "renamed",
+}
+
+
+def map_diffstat(raw: dict[str, Any]) -> CommitFile:
+    new = raw.get("new") or {}
+    old = raw.get("old") or {}
+    status = _BITBUCKET_DIFFSTAT_STATUS.get(raw.get("status", ""), "modified")
+    return CommitFile(
+        filename=new.get("path") or old.get("path") or "",
+        status=status,
+        # Diffstat carries only counts, not the patch text.
+        patch=None,
+        additions=raw.get("lines_added"),
+        deletions=raw.get("lines_removed"),
+        previous_filename=old.get("path") if status == "renamed" else None,
     )
 
 

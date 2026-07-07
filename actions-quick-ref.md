@@ -32,7 +32,7 @@ GitHub: [GET /repos/{owner}/{repo}/compare/{start_sha}...{end_sha}](https://docs
 
 GitLab: [GET /projects/:id/repository/compare](https://docs.gitlab.com/api/repositories/#compare-branches-tags-or-commits)
 
-Bitbucket: @todo Use:
+Bitbucket:
 - [GET /repositories/{workspace}/{repo_slug}/commits/{revision}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commits-revision-get)
 - [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
 
