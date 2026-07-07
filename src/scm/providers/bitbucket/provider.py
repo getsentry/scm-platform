@@ -36,6 +36,7 @@ from scm.types import (
     PaginationParams,
     PullRequest,
     PullRequestBranch,
+    PullRequestFile,
     PullRequestState,
     Referrer,
     Repository,
@@ -478,6 +479,24 @@ class BitbucketProvider:
             f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{comment_id}",
         )
 
+    def get_pull_request_files(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequestFile]]:
+        """List the files changed in a pull request.
+
+        Backed by Bitbucket's diffstat endpoint, which reports per-file line
+        counts but no patch text, so ``patch`` is ``None`` and ``sha`` is empty.
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/diffstat",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_pull_request_file, response.json())
+
 
 def _head_to_source_branch(head: str) -> str:
     """Normalize a GitHub-style ``head`` filter to a bare Bitbucket branch name.
@@ -571,6 +590,22 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
         files=None,
         additions=None,
         deletions=None,
+    )
+
+
+def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
+    new = raw.get("new") or {}
+    old = raw.get("old") or {}
+    status = _BITBUCKET_DIFFSTAT_STATUS.get(raw.get("status", ""), "modified")
+    return PullRequestFile(
+        filename=new.get("path") or old.get("path") or "",
+        status=status,
+        # Diffstat has no patch text.
+        patch=None,
+        changes=(raw.get("lines_added") or 0) + (raw.get("lines_removed") or 0),
+        # Bitbucket exposes no blob SHA on diffstat entries.
+        sha="",
+        previous_filename=old.get("path") if status == "renamed" else None,
     )
 
 

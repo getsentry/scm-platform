@@ -492,7 +492,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}/files](https://docs.githu
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/diffs](https://docs.gitlab.com/api/merge_requests/#list-merge-request-diffs)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diffstat](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diffstat-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diffstat](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diffstat-get)
 
 ## `get_pull_request_reactions`
 

@@ -17,6 +17,10 @@ Closing works via the separate `POST .../pullrequests/{id}/decline` endpoint (th
 - **No single compare endpoint.** We combine the commits endpoint (`{end_sha}` excluding `{start_sha}`) with the diffstat endpoint. The commit list is paginated via the cursor; the diffstat is walked in full so the changed-file list is complete, and `ahead_by` reflects only the current commit page.
 - **Diffstat `spec` order is opposite git.** Bitbucket reads `A..B` as "preview A's changes against baseline B", so we pass `{end_sha}..{start_sha}` to get git's `start..end` diff. `diff` entries come from diffstat, so `patch` is always `None` (counts only).
 
+## `get_pull_request_files`
+
+- **No patch text.** Backed by Bitbucket's diffstat endpoint, which reports per-file line counts but no diff hunks, so `patch` is always `None` (GitHub/GitLab populate it) and `sha` is empty.
+
 ## `get_file_content`
 
 - **Blob SHA computed locally.** Bitbucket's `/src` endpoint returns raw bytes with no git blob id, so we recompute it as `sha1("blob <len>\0" + content)` to match the blob SHA GitHub/GitLab report. Content is base64-encoded and `size` is derived from the response's byte length.
