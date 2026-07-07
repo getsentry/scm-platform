@@ -901,6 +901,11 @@ LOCAL_ACTION_TEST_CASES: list[tuple[str, Callable, Any]] = [
         "https://github.com/org/repo/commit/abc123",
     ),
     (
+        "get_commits_url",
+        lambda scm: actions.get_commits_url(scm, "abc123"),
+        "https://github.com/org/repo/commits/abc123",
+    ),
+    (
         "get_pull_request_url",
         lambda scm: actions.get_pull_request_url(scm, "42"),
         "https://github.com/org/repo/pull/42",

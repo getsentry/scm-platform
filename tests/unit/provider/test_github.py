@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -2009,6 +2009,34 @@ def test_get_commit_url_builds_commit_url() -> None:
     assert provider.get_commit_url("abc123") == "https://github.com/test-org/test-repo/commit/abc123"
 
 
+def test_get_commits_url_builds_commits_list_url() -> None:
+    provider, _ = make_provider()
+
+    assert provider.get_commits_url("abc123") == "https://github.com/test-org/test-repo/commits/abc123"
+    assert (
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py")
+        == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py"
+    )
+    assert (
+        provider.get_commits_url("abc123", since=date(2026, 1, 15))
+        == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15"
+    )
+    assert (
+        provider.get_commits_url("abc123", until=date(2026, 3, 20))
+        == "https://github.com/test-org/test-repo/commits/abc123?until=2026-03-20"
+    )
+    assert (
+        provider.get_commits_url("abc123", since=date(2026, 1, 15), until=date(2026, 3, 20))
+        == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15&until=2026-03-20"
+    )
+    assert (
+        provider.get_commits_url(
+            "abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20)
+        )
+        == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py?since=2026-01-15&until=2026-03-20"
+    )
+
+
 def test_get_pull_request_url_builds_pr_url() -> None:
     provider, _ = make_provider()
 
@@ -2028,6 +2056,9 @@ def test_ghe_web_base_url_used_in_url_methods() -> None:
         "https://github.example.com/test-org/test-repo/blob/abc123/src/main.py"
     )
     assert provider.get_commit_url("abc123") == ("https://github.example.com/test-org/test-repo/commit/abc123")
+    assert provider.get_commits_url("abc123", since=date(2026, 1, 15)) == (
+        "https://github.example.com/test-org/test-repo/commits/abc123?since=2026-01-15"
+    )
     assert provider.get_pull_request_url("42") == ("https://github.example.com/test-org/test-repo/pull/42")
 
 
@@ -3056,6 +3087,7 @@ def test_public_methods_are_accounted_for() -> None:
         "download_workflow_job_log",
         "get_file_url",
         "get_commit_url",
+        "get_commits_url",
         "get_pull_request_url",
         "create_commit",
         "update_issue",

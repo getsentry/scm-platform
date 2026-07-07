@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 import requests
@@ -66,6 +66,7 @@ from scm.types import (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
@@ -447,6 +448,22 @@ def get_file_url(
 def get_commit_url(scm: GetCommitUrlProtocol, commit_sha: SHA) -> str:
     """Build a web URL pointing at a commit."""
     return scm.get_commit_url(commit_sha)
+
+
+def get_commits_url(
+    scm: GetCommitsUrlProtocol,
+    commit_sha: SHA,
+    *,
+    file_path: str | None = None,
+    since: date | None = None,
+    until: date | None = None,
+) -> str:
+    """Build a web URL pointing at the commits-list view for a ref.
+
+    Optionally scoped to a file path and/or a date range. Each provider maps
+    the arguments onto its own web-UI URL shape.
+    """
+    return scm.get_commits_url(commit_sha, file_path=file_path, since=since, until=until)
 
 
 def get_pull_request_url(scm: GetPullRequestUrlProtocol, pull_request_id: str) -> str:
@@ -1057,6 +1074,7 @@ __all__ = (
     "get_branch",
     "get_check_run",
     "get_commit_url",
+    "get_commits_url",
     "get_commit",
     "get_commit_changes",
     "get_commits_by_path",

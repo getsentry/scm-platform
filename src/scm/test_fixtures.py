@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -1084,6 +1084,26 @@ class BaseTestProvider(Provider):
 
     def get_commit_url(self, commit_sha: str) -> str:
         return f"https://github.com/test-org/test-repo/commit/{commit_sha}"
+
+    def get_commits_url(
+        self,
+        commit_sha: str,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str:
+        url = f"https://github.com/test-org/test-repo/commits/{commit_sha}"
+        if file_path is not None:
+            url += f"/{file_path}"
+        params: list[str] = []
+        if since is not None:
+            params.append(f"since={since.strftime('%Y-%m-%d')}")
+        if until is not None:
+            params.append(f"until={until.strftime('%Y-%m-%d')}")
+        if params:
+            url += f"?{'&'.join(params)}"
+        return url
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"https://github.com/test-org/test-repo/pull/{pull_request_id}"
