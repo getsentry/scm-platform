@@ -33,6 +33,12 @@ Commands:
     get-commit <sha>
     get-pull-request-files <id>
     get-pull-request-commits <id>
+    create-review-comment-file <pr_id> <commit_id> <body> <path> <side>
+    create-review-comment-reply <pr_id> <body> <comment_id>
+    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
+    create-review <pr_id> <commit_sha> <event>
+        [--body <text>]
+        [--comment <json> ...]
     get-repository
 """
 
@@ -48,6 +54,10 @@ from scm.types import (
     CreateBranchProtocol,
     CreatePullRequestCommentProtocol,
     CreatePullRequestProtocol,
+    CreateReviewCommentFileProtocol,
+    CreateReviewCommentLineProtocol,
+    CreateReviewCommentReplyProtocol,
+    CreateReviewProtocol,
     DeleteBranchProtocol,
     DeletePullRequestCommentProtocol,
     GetBranchProtocol,
@@ -61,6 +71,7 @@ from scm.types import (
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
     GetRepositoryProtocol,
+    ReviewCommentInput,
     UpdatePullRequestProtocol,
 )
 
@@ -167,6 +178,33 @@ def main():
     p = sub.add_parser("get-pull-request-commits")
     p.add_argument("id")
 
+    p = sub.add_parser("create-review-comment-file")
+    p.add_argument("pr_id")
+    p.add_argument("commit_id")
+    p.add_argument("body")
+    p.add_argument("path")
+    p.add_argument("side", choices=["base", "head"])
+
+    p = sub.add_parser("create-review-comment-reply")
+    p.add_argument("pr_id")
+    p.add_argument("body")
+    p.add_argument("comment_id")
+
+    p = sub.add_parser("create-review-comment-line")
+    p.add_argument("pr_id")
+    p.add_argument("commit_id")
+    p.add_argument("body")
+    p.add_argument("path")
+    p.add_argument("side", choices=["base", "head"])
+    p.add_argument("line", type=int)
+
+    p = sub.add_parser("create-review")
+    p.add_argument("pr_id")
+    p.add_argument("commit_sha")
+    p.add_argument("event", choices=["approve", "change_request", "comment"])
+    p.add_argument("--body", default=None)
+    p.add_argument("--comment", action="append", dest="comments", default=None, metavar="JSON")
+
     sub.add_parser("get-repository")
 
     args = parser.parse_args()
@@ -252,6 +290,23 @@ def main():
     elif args.command == "get-pull-request-commits":
         assert isinstance(scm, GetPullRequestCommitsProtocol)
         dump(scm.get_pull_request_commits(args.id))
+
+    elif args.command == "create-review-comment-file":
+        assert isinstance(scm, CreateReviewCommentFileProtocol)
+        dump(scm.create_review_comment_file(args.pr_id, args.commit_id, args.body, args.path, args.side))
+
+    elif args.command == "create-review-comment-reply":
+        assert isinstance(scm, CreateReviewCommentReplyProtocol)
+        dump(scm.create_review_comment_reply(args.pr_id, args.body, args.comment_id))
+
+    elif args.command == "create-review-comment-line":
+        assert isinstance(scm, CreateReviewCommentLineProtocol)
+        dump(scm.create_review_comment_line(args.pr_id, args.commit_id, args.body, args.path, args.side, args.line))
+
+    elif args.command == "create-review":
+        assert isinstance(scm, CreateReviewProtocol)
+        review_comments: list[ReviewCommentInput] = [json.loads(c) for c in (args.comments or [])]
+        dump(scm.create_review(args.pr_id, args.commit_sha, args.event, review_comments, body=args.body))
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)

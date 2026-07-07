@@ -172,7 +172,7 @@ GitLab:
 - [POST /projects/:id/merge_requests/:merge_request_iid/notes](https://docs.gitlab.com/api/notes/#create-a-merge-request-note)
 - [POST /projects/:id/merge_requests/:merge_request_iid/approve](https://docs.gitlab.com/api/merge_request_approvals/#approve-merge-request)
 
-Bitbucket: @todo Use:
+Bitbucket:
 - [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) per inline comment (sets `inline`) and the review body
 - [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/approve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-approve-post) when the event is `approve`
 
@@ -184,7 +184,7 @@ GitLab:
 - [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
 
 ## `create_review_comment_line`
 
@@ -194,7 +194,7 @@ GitLab:
 - [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
 
 ## `create_review_comment_multiline`
 
@@ -204,7 +204,7 @@ GitLab:
 - [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
+Bitbucket: *not supported* (inline comments anchor to a single line per side; no line range)
 
 ## `create_review_comment_reply`
 
@@ -212,7 +212,7 @@ GitHub: [POST /repos/{owner}/{repo}/pulls/{pull_number}/comments](https://docs.g
 
 GitLab: [POST /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id/notes](https://docs.gitlab.com/api/discussions/#add-note-to-a-merge-request-thread)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (reply sets `parent`)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (reply sets `parent`)
 
 ## `delete_branch`
 

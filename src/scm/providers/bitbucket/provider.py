@@ -42,6 +42,11 @@ from scm.types import (
     Referrer,
     Repository,
     RequestOptions,
+    Review,
+    ReviewComment,
+    ReviewCommentInput,
+    ReviewEvent,
+    ReviewSide,
 )
 
 # Bitbucket pull request states, grouped to match our binary open/closed model.
@@ -463,6 +468,113 @@ class BitbucketProvider:
             raw_items=(c for c in raw.get("values", []) if "inline" not in c),
         )
 
+    def create_review_comment_file(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment anchored to a whole file.
+
+        A Bitbucket inline comment with only a ``path`` (no line) attaches to the
+        file. Bitbucket anchors inline comments to the pull request rather than a
+        commit or side, so ``commit_id`` and ``side`` are not used.
+        """
+        response = self.post(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments",
+            data={"content": {"raw": body}, "inline": {"path": path}},
+        )
+        return make_result(map_review_comment, response.json())
+
+    def create_review_comment_reply(
+        self,
+        pull_request_id: str,
+        body: str,
+        comment_id: str,
+    ) -> ActionResult[ReviewComment]:
+        """Reply to an existing review comment.
+
+        Bitbucket threads replies by referencing the parent comment's id; the
+        reply inherits the parent's inline anchor.
+        """
+        response = self.post(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments",
+            data={"content": {"raw": body}, "parent": {"id": int(comment_id)}},
+        )
+        return make_result(map_review_comment, response.json())
+
+    def create_review_comment_line(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+        line: int,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment on a single line of the diff."""
+        response = self.post(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments",
+            data={"content": {"raw": body}, "inline": _inline_anchor(path, line, side)},
+        )
+        return make_result(map_review_comment, response.json())
+
+    def create_review(
+        self,
+        pull_request_id: str,
+        commit_sha: SHA,
+        event: ReviewEvent,
+        comments: list[ReviewCommentInput],
+        body: str | None = None,
+    ) -> ActionResult[Review]:
+        """Create a review on a Bitbucket pull request.
+
+        Bitbucket has no atomic review endpoint (unlike GitHub's single reviews
+        call): the inline comments, the review body, and the approval verdict
+        are each separate requests. Like the GitLab implementation, we fan these
+        out concurrently, so the operation is **not atomic** — individual calls
+        may succeed independently. Only ``event == "approve"`` maps to an action
+        (the approve endpoint); ``"comment"`` and ``"change_request"`` post the
+        comments/body without a verdict.
+        """
+        base = f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}"
+        comments_path = f"{base}/comments"
+
+        def _create_review_comment(comment: ReviewCommentInput) -> None:
+            if "line" in comment:
+                side: ReviewSide = comment["side"] if "side" in comment else "head"
+                inline = _inline_anchor(comment["path"], comment["line"], side)
+            else:
+                inline = {"path": comment["path"]}
+            self.post(comments_path, data={"content": {"raw": comment["body"]}, "inline": inline})
+
+        def _create_review_body() -> None:
+            self.post(comments_path, data={"content": {"raw": body}})
+
+        def _approve_pull_request() -> None:
+            self.post(f"{base}/approve", data={})
+
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(_create_review_comment, comment) for comment in comments]
+            if body is not None:
+                futures.append(executor.submit(_create_review_body))
+            if event == "approve":
+                futures.append(executor.submit(_approve_pull_request))
+            for future in futures:
+                future.result()
+
+        return ActionResult(
+            data=Review(
+                id="unset",
+                html_url=f"https://bitbucket.org/{self.repository['name']}/pull-requests/{pull_request_id}",
+            ),
+            type="bitbucket",
+            raw={"data": {}, "headers": None},
+            meta={},
+        )
+
     def create_pull_request_comment(
         self,
         pull_request_id: str,
@@ -639,6 +751,40 @@ def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
         # Bitbucket exposes no blob SHA on diffstat entries.
         sha="",
         previous_filename=old.get("path") if status == "renamed" else None,
+    )
+
+
+def _inline_anchor(path: str, line: int, side: ReviewSide) -> dict[str, Any]:
+    """Build a Bitbucket ``inline`` anchor for a diff line.
+
+    Bitbucket keys the line by side: ``to`` is the line in the new/destination
+    file, ``from`` the line in the old/source file.
+    """
+    return {"path": path, "to" if side == "head" else "from": line}
+
+
+def map_review_comment(raw: dict[str, Any]) -> ReviewComment:
+    user = raw.get("user")
+    inline = raw.get("inline") or {}
+    comment_id = str(raw["id"])
+    return ReviewComment(
+        id=comment_id,
+        # Bitbucket has a single comment id; replies reference it via `parent`.
+        unique_id=comment_id,
+        url=((raw.get("links") or {}).get("html") or {}).get("href"),
+        file_path=inline.get("path"),
+        body=(raw.get("content") or {}).get("raw", ""),
+        author=map_author(user) if user else None,
+        created_at=raw.get("created_on"),
+        # Bitbucket inline comments carry no diff hunk, review grouping, or
+        # author association, and anchor to the PR rather than a commit.
+        diff_hunk=None,
+        review_id=None,
+        author_association=None,
+        commit_sha=None,
+        head=None,
+        # A top-level comment roots its own thread; replies point back via parent.
+        thread_id=comment_id,
     )
 
 

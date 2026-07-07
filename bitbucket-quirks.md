@@ -21,6 +21,10 @@ Closing works via the separate `POST .../pullrequests/{id}/decline` endpoint (th
 
 - **No patch text.** Backed by Bitbucket's diffstat endpoint, which reports per-file line counts but no diff hunks, so `patch` is always `None` (GitHub/GitLab populate it) and `sha` is empty.
 
+## `create_review`
+
+- **Not atomic.** Bitbucket has no single review endpoint (unlike GitHub). The inline comments, review body, and approval are separate requests fanned out concurrently, so individual calls can succeed independently. Only `event == "approve"` triggers an action (the approve endpoint); `"comment"`/`"change_request"` just post comments. The returned `Review` has a placeholder `id` of `"unset"`.
+
 ## `get_file_content`
 
 - **Blob SHA computed locally.** Bitbucket's `/src` endpoint returns raw bytes with no git blob id, so we recompute it as `sha1("blob <len>\0" + content)` to match the blob SHA GitHub/GitLab report. Content is base64-encoded and `size` is derived from the response's byte length.
