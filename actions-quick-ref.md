@@ -332,7 +332,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits/{sha}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/commits/:sha](https://docs.gitlab.com/api/commits/#retrieve-a-commit)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
 
 ## `get_commit_changes`
 

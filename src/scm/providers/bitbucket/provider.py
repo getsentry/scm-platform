@@ -24,6 +24,7 @@ from scm.types import (
     CommitAuthor,
     CommitComparison,
     CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     FileContent,
@@ -290,6 +291,23 @@ class BitbucketProvider:
 
         return make_result(map_pull_request, response.json())
 
+    def get_commit(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[CommitWithChanges]:
+        """Get a single commit.
+
+        Bitbucket's commit endpoint returns commit metadata without the file
+        diff, so ``files`` is always ``None`` (use ``get_commit_changes`` for
+        the changed files).
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/commit/{sha}",
+            request_options=request_options,
+        )
+        return make_result(map_commit_with_changes, response.json())
+
     def get_commits(
         self,
         ref: str | None = None,
@@ -534,6 +552,25 @@ def map_diffstat(raw: dict[str, Any]) -> CommitFile:
         additions=raw.get("lines_added"),
         deletions=raw.get("lines_removed"),
         previous_filename=old.get("path") if status == "renamed" else None,
+    )
+
+
+def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
+    author_raw = (raw.get("author") or {}).get("raw", "")
+    name, email = _parse_raw_author(author_raw)
+    date = raw.get("date")
+    return CommitWithChanges(
+        id=raw["hash"],
+        message=raw["message"],
+        author=CommitAuthor(
+            name=name,
+            email=email,
+            date=datetime.datetime.fromisoformat(date) if date else None,
+        ),
+        # Bitbucket's commit endpoint carries no diff or line stats.
+        files=None,
+        additions=None,
+        deletions=None,
     )
 
 

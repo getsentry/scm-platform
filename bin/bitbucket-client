@@ -30,6 +30,7 @@ Commands:
     delete-branch <name>
     get-file-content <path> --ref <ref>
     compare-commits <start_sha> <end_sha>
+    get-commit <sha>
     get-repository
 """
 
@@ -48,6 +49,7 @@ from scm.types import (
     DeleteBranchProtocol,
     DeletePullRequestCommentProtocol,
     GetBranchProtocol,
+    GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
     GetFileContentProtocol,
@@ -152,6 +154,9 @@ def main():
     p.add_argument("start_sha")
     p.add_argument("end_sha")
 
+    p = sub.add_parser("get-commit")
+    p.add_argument("sha")
+
     sub.add_parser("get-repository")
 
     args = parser.parse_args()
@@ -225,6 +230,10 @@ def main():
     elif args.command == "compare-commits":
         assert isinstance(scm, CompareCommitsProtocol)
         dump(scm.compare_commits(args.start_sha, args.end_sha))
+
+    elif args.command == "get-commit":
+        assert isinstance(scm, GetCommitProtocol)
+        dump(scm.get_commit(args.sha))
 
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
