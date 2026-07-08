@@ -1,0 +1,102 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/files/README.md?ref=main
+  response:
+    body:
+      string: '{"file_name":"README.md","file_path":"README.md","size":92,"encoding":"base64","content_sha256":"34ecd6d09e3a9b3c386fcac36a83339c744154b3713d8d44d75fb0cd82f0b26a","ref":"main","blob_id":"d96986775b6793cac0a358b35650de94752a9530","commit_id":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","last_commit_id":"1403774c82d64068af027d0b5d0cc4f52473b6f2","execute_filemode":false,"content":"IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo="}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6c9cf16213d-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:43 GMT
+      ETag:
+      - W/"6c73db86f4495eb8733682a7cc385ca1"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '506'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-29-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '27'
+      ratelimit-remaining:
+      - '1973'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-blob-id:
+      - d96986775b6793cac0a358b35650de94752a9530
+      x-gitlab-commit-id:
+      - 0941ee0a9eac9914cfddf5adec7a9558a2f1c447
+      x-gitlab-content-sha256:
+      - 34ecd6d09e3a9b3c386fcac36a83339c744154b3713d8d44d75fb0cd82f0b26a
+      x-gitlab-encoding:
+      - base64
+      x-gitlab-execute-filemode:
+      - 'false'
+      x-gitlab-file-name:
+      - README.md
+      x-gitlab-file-path:
+      - README.md
+      x-gitlab-last-commit-id:
+      - 1403774c82d64068af027d0b5d0cc4f52473b6f2
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6c9cf16213d-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-ref:
+      - main
+      x-gitlab-score-gitaly:
+      - '4'
+      x-gitlab-size:
+      - '92'
+      x-request-id:
+      - a17fb6c9cf16213d-CDG
+      x-runtime:
+      - '0.356021'
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -1,0 +1,562 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/vnd.github+json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/app/installations/_/access_tokens
+  response:
+    body:
+      string: '{"token": "SCRUBBED", "expires_at": "2026-07-08T15:13:17Z", "permissions":
+        {"administration": "read", "checks": "write", "contents": "write", "issues":
+        "write", "metadata": "read", "pull_requests": "write", "repository_hooks":
+        "write", "statuses": "write", "workflows": "write"}, "repository_selection":
+        "selected"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - public, max-age=60, s-maxage=60
+      Content-Length:
+      - '323'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:17 GMT
+      ETag:
+      - '"d2534d41497a54bbbc62359aa2f9a1046f7ad7365e3a703df6fbd05ec355656c"'
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3D4:E493E:F0CA3B:E4FEEF:6A4E5AFD
+      X-XSS-Protection:
+      - '0'
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"body": "A review comment, on a file, made by the API on 2026-07-08 12:00:00.",
+      "commit_id": "7497e018d01503b6abc3053b7896266115e631f6", "path": "BLAH.md",
+      "side": "RIGHT", "subject_type": "file"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '197'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226","pull_request_review_id":4654961615,"id":3544675226,"node_id":"PRRC_kwDORRhd7M7TR3Oa","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        review comment, on a file, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:18Z","updated_at":"2026-07-08T14:13:18Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675226","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675226"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2787'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:18 GMT
+      ETag:
+      - '"3a9bdeb82f28336918be5885645a76191f203db7d69d0852861781540c2d2196"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3D5:E493E:F0CD9F:E50251:6A4E5AFE
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4965'
+      X-RateLimit-Reset:
+      - '1783523568'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '35'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"body": "A reply to the previous comment, made by the API on 2026-07-08
+      12:00:00.", "in_reply_to": 3544675226}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '111'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357","pull_request_review_id":4654961777,"id":3544675357,"node_id":"PRRC_kwDORRhd7M7TR3Qd","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        reply to the previous comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:19Z","updated_at":"2026-07-08T14:13:19Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675357","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675357"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","in_reply_to_id":3544675226,"author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2819'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:20 GMT
+      ETag:
+      - '"83b2148755f579163864c7d6ccc0e77ccc0c4ea39830325422494cd1230e426d"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3D6:399664:F06C90:E5089A:6A4E5AFE
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4964'
+      X-RateLimit-Reset:
+      - '1783523568'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '36'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"body": "A review comment, on a line, made by the API on 2026-07-08 12:00:00.",
+      "commit_id": "7497e018d01503b6abc3053b7896266115e631f6", "path": "BLAH.md",
+      "line": 5, "side": "RIGHT"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '184'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495","pull_request_review_id":4654961932,"id":3544675495,"node_id":"PRRC_kwDORRhd7M7TR3Sn","diff_hunk":"@@
+        -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        review comment, on a line, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:20Z","updated_at":"2026-07-08T14:13:20Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675495","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675495"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":5,"original_line":5,"side":"RIGHT","author_association":"NONE","original_position":5,"position":5,"subject_type":"line"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2822'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:20 GMT
+      ETag:
+      - '"e9f5a9df88d5f601cabfb7779f9d01be7a1d7c31b6f847f2d105acfd67c02061"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3D7:2EC612:F8BEB6:ECE1B4:6A4E5B00
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4963'
+      X-RateLimit-Reset:
+      - '1783523568'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '37'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"body": "A reply to the previous line comment, made by the API on 2026-07-08
+      12:00:00.", "in_reply_to": 3544675495}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '116'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609","pull_request_review_id":4654962050,"id":3544675609,"node_id":"PRRC_kwDORRhd7M7TR3UZ","diff_hunk":"@@
+        -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        reply to the previous line comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:21Z","updated_at":"2026-07-08T14:13:21Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675609","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675609"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":5,"original_line":5,"side":"RIGHT","in_reply_to_id":3544675495,"author_association":"NONE","original_position":5,"position":5,"subject_type":"line"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2859'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:22 GMT
+      ETag:
+      - '"89f1c15b64f8f21a2e5dedad450ea1745f01e98c7099cf0d3d811f91d80032e3"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3D8:A52AE:F19B57:E5F66F:6A4E5B01
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4962'
+      X-RateLimit-Reset:
+      - '1783523568'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '38'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"body": "A review comment, on multiple lines, made by the API on 2026-07-08
+      12:00:00.", "commit_id": "7497e018d01503b6abc3053b7896266115e631f6", "path":
+      "BLAH.md", "line": 7, "side": "RIGHT", "start_line": 5, "start_side": "RIGHT"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '232'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745","pull_request_review_id":4654962195,"id":3544675745,"node_id":"PRRC_kwDORRhd7M7TR3Wh","diff_hunk":"@@
+        -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5\n+6\n+7","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        review comment, on multiple lines, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:22Z","updated_at":"2026-07-08T14:13:22Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675745","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675745"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":5,"original_start_line":5,"start_side":"RIGHT","line":7,"original_line":7,"side":"RIGHT","author_association":"NONE","original_position":7,"position":7,"subject_type":"line"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2835'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:22 GMT
+      ETag:
+      - '"a835054d74ba3d1aaad8fa91c09dd25072afebf91cfa0b6d1eae0af4e6e00c0a"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3DA:126C04:EFD28E:E43B38:6A4E5B02
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4961'
+      X-RateLimit-Reset:
+      - '1783523568'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '39'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"body": "A reply to the previous multiline comment, made by the API on
+      2026-07-08 12:00:00.", "in_reply_to": 3544675745}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '121'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839","pull_request_review_id":4654962309,"id":3544675839,"node_id":"PRRC_kwDORRhd7M7TR3X_","diff_hunk":"@@
+        -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5\n+6\n+7","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        reply to the previous multiline comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:23Z","updated_at":"2026-07-08T14:13:23Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675839","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675839"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":5,"original_start_line":5,"start_side":"RIGHT","line":7,"original_line":7,"side":"RIGHT","in_reply_to_id":3544675745,"author_association":"NONE","original_position":7,"position":7,"subject_type":"line"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2869'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:13:23 GMT
+      ETag:
+      - '"8a0f437f39ee8d983fe3cdcbd7f27624c29a9586e9c2122f2bfb614773866da7"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - C3DB:126C04:EFDD1F:E4456D:6A4E5B03
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4960'
+      X-RateLimit-Reset:
+      - '1783523568'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '40'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+version: 1

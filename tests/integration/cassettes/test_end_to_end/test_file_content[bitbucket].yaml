@@ -1,0 +1,119 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/main/README.md
+  response:
+    body:
+      string: '# test-Sentry-Integration-Dev-jacquev6
+
+        Test repo for my developments in Sentry''s GitHub App
+
+        '
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 4c30aab4-c99b-4f17-bf60-f7ab14d288dc
+      Atl-Traceid:
+      - 4c30aab4c99b4f17bf60f7ab14d288dc
+      Cache-Control:
+      - s-maxage=900, max-age=900
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '92'
+      Content-Type:
+      - text/plain
+      Date:
+      - Wed, 08 Jul 2026 14:35:11 GMT
+      Etag:
+      - '"de0b149472c7be8489d5fbbee7219dc8"'
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=294,atl-edge;dur=211,atl-edge-internal;dur=7,atl-edge-upstream;dur=205,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG50-P1",cdn-rid;desc="obac75gojf8uBsN8sX9CsNvIC3ksi8sdFaSEcEGAzE8CfkcFxwOl7g==",cdn-downstream-fbl;dur=298
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Vary:
+      - Authorization, origin, cookie, user-context
+      Via:
+      - 1.1 b1d588fd1c781c1c3a3cb8e0d6c6f49e.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - repository
+      X-Amz-Cf-Id:
+      - obac75gojf8uBsN8sX9CsNvIC3ksi8sdFaSEcEGAzE8CfkcFxwOl7g==
+      X-Amz-Cf-Pop:
+      - CDG50-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 71eec4ea213aa158
+      X-B3-Traceid:
+      - 4c30aab4c99b4f17bf60f7ab14d288dc
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:pipeline:bitbucket, read:user:bitbucket, write:repository:bitbucket,
+        read:permission:bitbucket, read:issue:bitbucket, read:gpg-key:bitbucket, write:pullrequest:bitbucket,
+        write:issue:bitbucket, read:test:bitbucket, read:workspace:bitbucket, read:runner:bitbucket,
+        read:project:bitbucket, read:wiki:bitbucket, read:ssh-key:bitbucket, read:package:bitbucket,
+        read:snippet:bitbucket, read:webhook:bitbucket, read:repository:bitbucket,
+        read:pullrequest:bitbucket, write:test:bitbucket
+      X-Render-Time:
+      - '0.1654069423675537'
+      X-Request-Count:
+      - '2451'
+      X-Served-By:
+      - bf545e914899
+      X-Static-Version:
+      - 20825b29ac86
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '24'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.011350'
+      X-Usage-User-Time:
+      - '0.073727'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 20825b29ac86
+      X-View-Name:
+      - bitbucket.apps.repo2.api.v20.src.SourceHandler
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1

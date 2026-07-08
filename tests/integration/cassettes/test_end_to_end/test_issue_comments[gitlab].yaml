@@ -1,0 +1,434 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/notes
+  response:
+    body:
+      string: '[{"id":3123861269,"type":null,"body":"A comment!","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T09:24:34.040Z","updated_at":"2026-04-16T14:49:42.591Z","system":false,"noteable_id":185129497,"noteable_type":"Issue","project_id":79787061,"resolvable":false,"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6a11cabd161-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:36 GMT
+      ETag:
+      - W/"e71b333617ac21e2235c3c475a83cde8"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/issues/1/notes?activity_filter=all_notes&id=79787061&noteable_id=1&order_by=created_at&page=1&per_page=20&sort=desc>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/issues/1/notes?activity_filter=all_notes&id=79787061&noteable_id=1&order_by=created_at&page=1&per_page=20&sort=desc>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '649'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-24-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '16'
+      ratelimit-remaining:
+      - '1984'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6a11cabd161-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb6a11cabd161-CDG
+      x-runtime:
+      - '0.129191'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"body": "Another comment, made through the API."}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '50'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/notes
+  response:
+    body:
+      string: '{"id":3537328258,"type":null,"body":"Another comment, made through
+        the API.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-08T14:17:36.954Z","updated_at":"2026-07-08T14:17:36.954Z","system":false,"noteable_id":185129497,"noteable_type":"Issue","project_id":79787061,"resolvable":false,"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6a3ff579edb-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '675'
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:37 GMT
+      ETag:
+      - W/"9d943df94a180ba93998a73626c620a6"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-15-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '17'
+      ratelimit-remaining:
+      - '1983'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6a3ff579edb-CDG","version":"1"}'
+      x-request-id:
+      - a17fb6a3ff579edb-CDG
+      x-runtime:
+      - '0.339472'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/notes
+  response:
+    body:
+      string: '[{"id":3537328258,"type":null,"body":"Another comment, made through
+        the API.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-08T14:17:36.954Z","updated_at":"2026-07-08T14:17:36.954Z","system":false,"noteable_id":185129497,"noteable_type":"Issue","project_id":79787061,"resolvable":false,"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}},{"id":3123861269,"type":null,"body":"A
+        comment!","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T09:24:34.040Z","updated_at":"2026-04-16T14:49:42.591Z","system":false,"noteable_id":185129497,"noteable_type":"Issue","project_id":79787061,"resolvable":false,"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6a7efded0bf-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:37 GMT
+      ETag:
+      - W/"12cfbc10d44b0a55a1030161458cd5c2"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/issues/1/notes?activity_filter=all_notes&id=79787061&noteable_id=1&order_by=created_at&page=1&per_page=20&sort=desc>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/issues/1/notes?activity_filter=all_notes&id=79787061&noteable_id=1&order_by=created_at&page=1&per_page=20&sort=desc>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1325'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-10-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '18'
+      ratelimit-remaining:
+      - '1982'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6a7efded0bf-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb6a7efded0bf-CDG
+      x-runtime:
+      - '0.197226'
+      x-total:
+      - '2'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: DELETE
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/notes/3537328258
+  response:
+    body:
+      string: ''
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6aa6c2d02e2-CDG
+      Cache-Control:
+      - no-cache
+      Connection:
+      - keep-alive
+      Date:
+      - Wed, 08 Jul 2026 14:17:38 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-17-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '19'
+      ratelimit-remaining:
+      - '1981'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6aa6c2d02e2-CDG","version":"1"}'
+      x-request-id:
+      - a17fb6aa6c2d02e2-CDG
+      x-runtime:
+      - '0.234835'
+    status:
+      code: 204
+      message: No Content
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/notes
+  response:
+    body:
+      string: '[{"id":3123861269,"type":null,"body":"A comment!","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T09:24:34.040Z","updated_at":"2026-04-16T14:49:42.591Z","system":false,"noteable_id":185129497,"noteable_type":"Issue","project_id":79787061,"resolvable":false,"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6ad48106f5a-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:38 GMT
+      ETag:
+      - W/"e71b333617ac21e2235c3c475a83cde8"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/issues/1/notes?activity_filter=all_notes&id=79787061&noteable_id=1&order_by=created_at&page=1&per_page=20&sort=desc>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/issues/1/notes?activity_filter=all_notes&id=79787061&noteable_id=1&order_by=created_at&page=1&per_page=20&sort=desc>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '649'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-43-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '20'
+      ratelimit-remaining:
+      - '1980'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6ad48106f5a-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb6ad48106f5a-CDG
+      x-runtime:
+      - '0.121999'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1
