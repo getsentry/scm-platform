@@ -945,6 +945,38 @@ class BaseTestProvider(Provider):
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         return None
 
+    # Review comment reactions
+
+    def get_review_comment_reactions(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReactionResult]]:
+        return PaginatedActionResult(
+            data=[
+                ReactionResult(id="3", content="rocket", author={"id": "1", "username": "testuser"}),
+                ReactionResult(id="4", content="hooray", author={"id": "2", "username": "otheruser"}),
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def create_review_comment_reaction(
+        self, pull_request_id: str, comment_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]:
+        return ActionResult(
+            data=ReactionResult(id="1", content=reaction, author=None),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
+    def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
+        return None
+
     # Issue reactions
 
     def get_issue_reactions(

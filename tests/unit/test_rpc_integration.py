@@ -440,6 +440,28 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         204,
         None,
     ),
+    # Review comment reaction operations
+    (
+        "get_review_comment_reactions",
+        lambda scm: actions.get_review_comment_reactions(scm, "1", "5"),
+        [make_github_reaction()],
+        200,
+        None,
+    ),
+    (
+        "create_review_comment_reaction",
+        lambda scm: actions.create_review_comment_reaction(scm, "1", "5", "heart"),
+        make_github_reaction(content="heart"),
+        201,
+        None,
+    ),
+    (
+        "delete_review_comment_reaction",
+        lambda scm: actions.delete_review_comment_reaction(scm, "1", "5", "99"),
+        {},
+        204,
+        None,
+    ),
     # Issue reaction operations
     (
         "get_issue_reactions",

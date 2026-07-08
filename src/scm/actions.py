@@ -43,6 +43,7 @@ from scm.types import (
     CreateReviewCommentFileProtocol,
     CreateReviewCommentLineProtocol,
     CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
@@ -53,6 +54,7 @@ from scm.types import (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DeleteReviewCommentReactionProtocol,
     DownloadArchiveProtocol,
     DownloadWorkflowJobLogProtocol,
     FileContent,
@@ -94,6 +96,7 @@ from scm.types import (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetRepositoryUserPermissionProtocol,
+    GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,
     GetTreeProtocol,
     GitBlob,
@@ -351,6 +354,37 @@ def delete_pull_request_comment_reaction(
 ) -> None:
     """Delete a reaction on a pull request comment."""
     return scm.delete_pull_request_comment_reaction(pull_request_id, comment_id, reaction_id)
+
+
+def get_review_comment_reactions(
+    scm: GetReviewCommentReactionsProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[ReactionResult]]:
+    """Get reactions on a pull request review comment."""
+    return scm.get_review_comment_reactions(pull_request_id, comment_id, pagination, request_options)
+
+
+def create_review_comment_reaction(
+    scm: CreateReviewCommentReactionProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    reaction: Reaction,
+) -> ActionResult[ReactionResult]:
+    """Create a reaction on a pull request review comment."""
+    return scm.create_review_comment_reaction(pull_request_id, comment_id, reaction)
+
+
+def delete_review_comment_reaction(
+    scm: DeleteReviewCommentReactionProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    reaction_id: str,
+) -> None:
+    """Delete a reaction on a pull request review comment."""
+    return scm.delete_review_comment_reaction(pull_request_id, comment_id, reaction_id)
 
 
 def get_issue_reactions(
