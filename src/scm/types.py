@@ -861,6 +861,32 @@ class DeletePullRequestCommentReactionProtocol(Protocol):
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None: ...
 
 
+# Review Comment Reaction Protocols
+
+
+@runtime_checkable
+class GetReviewCommentReactionsProtocol(Protocol):
+    def get_review_comment_reactions(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReactionResult]]: ...
+
+
+@runtime_checkable
+class CreateReviewCommentReactionProtocol(Protocol):
+    def create_review_comment_reaction(
+        self, pull_request_id: str, comment_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]: ...
+
+
+@runtime_checkable
+class DeleteReviewCommentReactionProtocol(Protocol):
+    def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None: ...
+
+
 # Issue Reaction Protocols
 
 
@@ -1519,6 +1545,7 @@ ALL_PROTOCOLS = (
     CreateReviewCommentFileProtocol,
     CreateReviewCommentLineProtocol,
     CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
@@ -1528,6 +1555,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DeleteReviewCommentReactionProtocol,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
     GetAuthenticatedActorProtocol,
@@ -1557,6 +1585,7 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestReviewThreadsProtocol,
+    GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,

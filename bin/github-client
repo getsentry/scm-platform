@@ -30,6 +30,9 @@ Commands:
     create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
     create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
     update-review-comment <pr_id> <comment_id> <body>
+    get-review-comment-reactions <pr_id> <comment_id> [--cursor <n>] [--per-page <n>]
+    create-review-comment-reaction <pr_id> <comment_id> <reaction>
+    delete-review-comment-reaction <pr_id> <comment_id> <reaction_id>
     collapse-pull-request-comment <pr_id> <thread_id> <comment_node_id> [--reason OUTDATED]
     update-and-collapse-pull-request-comment <pr_id> <thread_id> <comment_id> <comment_node_id> <body>
         [--reason OUTDATED]
@@ -95,8 +98,10 @@ from scm.types import (
     CreatePullRequestCommentProtocol,
     CreateReviewCommentLineProtocol,
     CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentReactionProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
+    DeleteReviewCommentReactionProtocol,
     DownloadArchiveProtocol,
     DownloadWorkflowJobLogProtocol,
     GetAppInstallationProtocol,
@@ -129,6 +134,7 @@ from scm.types import (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetRepositoryUserPermissionProtocol,
+    GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,
     ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
@@ -157,6 +163,7 @@ BUILD_CONCLUSION_CHOICES = [
     "action_required",
     "unknown",
 ]
+REACTION_CHOICES = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"]
 
 
 def build_check_run_output(args: argparse.Namespace) -> CheckRunOutput | None:
@@ -299,6 +306,22 @@ def main() -> None:
     p.add_argument("pr_id")
     p.add_argument("comment_id")
     p.add_argument("body")
+
+    p = sub.add_parser("get-review-comment-reactions")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("create-review-comment-reaction")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("reaction", choices=REACTION_CHOICES)
+
+    p = sub.add_parser("delete-review-comment-reaction")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("reaction_id")
 
     p = sub.add_parser("collapse-pull-request-comment")
     p.add_argument("pr_id")
@@ -550,6 +573,23 @@ def main() -> None:
     elif args.command == "update-review-comment":
         assert isinstance(scm, UpdateReviewCommentProtocol)
         dump(scm.update_review_comment(args.pr_id, args.comment_id, args.body))
+
+    elif args.command == "get-review-comment-reactions":
+        assert isinstance(scm, GetReviewCommentReactionsProtocol)
+        pagination = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(scm.get_review_comment_reactions(args.pr_id, args.comment_id, pagination=pagination or None))
+
+    elif args.command == "create-review-comment-reaction":
+        assert isinstance(scm, CreateReviewCommentReactionProtocol)
+        dump(scm.create_review_comment_reaction(args.pr_id, args.comment_id, args.reaction))
+
+    elif args.command == "delete-review-comment-reaction":
+        assert isinstance(scm, DeleteReviewCommentReactionProtocol)
+        scm.delete_review_comment_reaction(args.pr_id, args.comment_id, args.reaction_id)
 
     elif args.command == "collapse-pull-request-comment":
         assert isinstance(scm, CollapsePullRequestCommentProtocol)

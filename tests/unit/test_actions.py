@@ -25,6 +25,7 @@ from scm.actions import (
     create_review,
     create_review_comment_file,
     create_review_comment_line,
+    create_review_comment_reaction,
     create_review_comment_reply,
     delete_branch,
     delete_issue_comment,
@@ -33,6 +34,7 @@ from scm.actions import (
     delete_pull_request_comment,
     delete_pull_request_comment_reaction,
     delete_pull_request_reaction,
+    delete_review_comment_reaction,
     download_archive,
     get_authenticated_actor,
     get_branch,
@@ -68,6 +70,7 @@ from scm.actions import (
     get_repository_assignees,
     get_repository_labels,
     get_repository_topics,
+    get_review_comment_reactions,
     get_review_comments,
     get_thread_id_from_review_comment_unique_id,
     get_tree,
@@ -136,6 +139,16 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     ),
     (
         delete_pull_request_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
+    ),
+    # Review comment reactions
+    (get_review_comment_reactions, {"pull_request_id": "1", "comment_id": "1"}),
+    (
+        create_review_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction": "eyes"},
+    ),
+    (
+        delete_review_comment_reaction,
         {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
     ),
     # Issue reactions
@@ -746,6 +759,21 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     ),
     (
         delete_pull_request_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
+        _check_none,
+    ),
+    (
+        get_review_comment_reactions,
+        {"pull_request_id": "1", "comment_id": "1"},
+        _check_pr_comment_reactions,
+    ),
+    (
+        create_review_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction": "eyes"},
+        _check_created_reaction,
+    ),
+    (
+        delete_review_comment_reaction,
         {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
         _check_none,
     ),

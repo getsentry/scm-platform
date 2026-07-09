@@ -783,6 +783,32 @@ class GitHubProvider:
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         return self.delete_issue_comment_reaction(pull_request_id, comment_id, reaction_id)
 
+    def get_review_comment_reactions(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReactionResult]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_reaction(c) for c in r])
+
+    def create_review_comment_reaction(
+        self, pull_request_id: str, comment_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]:
+        response = self.post(
+            f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions",
+            data={"content": reaction},
+        )
+        return map_action(response, map_reaction)
+
+    def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
+        self.delete(f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions/{reaction_id}")
+
     def get_issue_reactions(
         self,
         issue_id: str,
