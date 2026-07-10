@@ -21,6 +21,7 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.github.provider import (
+    GITHUB_CONCLUSION_MAP,
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
@@ -31,6 +32,7 @@ from scm.providers.github.provider import (
     _graphql_review_thread_full_comments_query,
     _graphql_review_threads_query,
     map_app_installation,
+    map_check_run,
     map_collaborator_permission_level,
     map_comment,
     map_github_repository_permission,
@@ -2950,6 +2952,13 @@ def test_get_pull_request_review_threads_handles_null_author() -> None:
 )
 def test_map_app_installation_checks_permission(permissions: dict[str, str], expected: dict[str, bool]) -> None:
     assert map_app_installation({"permissions": permissions}) == expected
+
+
+def test_map_check_run_normalizes_startup_failure() -> None:
+    raw = make_github_check_run(conclusion="startup_failure")
+
+    assert GITHUB_CONCLUSION_MAP["startup_failure"] == "failure"
+    assert map_check_run(raw)["conclusion"] == "failure"
 
 
 @pytest.mark.parametrize(
