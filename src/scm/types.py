@@ -634,6 +634,7 @@ type PullRequestAction = Literal[
     "reopened",
     "review_request_removed",
     "review_requested",
+    "stacked",
     "synchronize",  # Commits were pushed.
     "unassigned",
     "unlabeled",

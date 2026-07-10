@@ -108,6 +108,7 @@ GITHUB_STATUS_MAP: dict[str, BuildStatus] = {
 GITHUB_CONCLUSION_MAP: dict[str, BuildConclusion] = {
     "success": "success",
     "failure": "failure",
+    "startup_failure": "failure",
     "neutral": "neutral",
     "cancelled": "cancelled",
     "skipped": "skipped",
