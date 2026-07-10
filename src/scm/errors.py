@@ -88,6 +88,11 @@ class SCMCodedError(SCMError):
 
     code: ErrorCode
 
+    #: Low-cardinality route template of the request that produced this error, when known
+    #: (e.g. ``/repos/{repo}/issues/{issue_id}``). Set by a provider's request layer. Kept off
+    #: ``extra_attributes`` on purpose: it is a stable dimension for grouping, not per-event context.
+    scm_route: str | None = None
+
     #: Maps every known error code to its concrete exception subclass.
     _registry: ClassVar[dict[ErrorCode, type["SCMCodedError"]]] = {}
 
