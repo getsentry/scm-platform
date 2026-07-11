@@ -80,6 +80,11 @@ def exec_provider_fn[T](
         record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
         raise
     except Exception as e:
+        # Celery/billiard control-flow exceptions (e.g. SoftTimeLimitExceeded) must not be
+        # wrapped: they carry task-runner semantics that callers rely on for correct shutdown.
+        exc_module = getattr(type(e), "__module__", "") or ""
+        if exc_module.startswith(("billiard.", "celery.")):
+            raise
         record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})
         record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
         # The cause is chained for server-side Sentry, but exception chains do not survive the RPC
