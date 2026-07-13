@@ -292,7 +292,7 @@ GitHub: [GET /repos/{owner}/{repo}/installation](https://docs.github.com/en/rest
 
 GitLab: [GET /projects/:id](https://docs.gitlab.com/api/projects/#retrieve-a-project)
 
-Bitbucket: @todo Use [GET /user/workspaces/{workspace}/permissions/repositories](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/#api-user-workspaces-workspace-permissions-repositories-get) (current user's permission, filtered by repo; no check-run permission concept)
+Bitbucket: [GET /user/workspaces/{workspace}/permission](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-workspaces/#api-user-workspaces-workspace-permission-get)
 
 ## `get_archive_link`
 
@@ -308,7 +308,7 @@ GitHub: [GET /app](https://docs.github.com/en/rest/apps/apps#get-the-authenticat
 
 GitLab: [GET /user](https://docs.gitlab.com/api/users/#retrieve-the-current-user)
 
-Bitbucket: @todo Use [GET /user](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/#api-user-get)
+Bitbucket: [GET /user](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/#api-user-get)
 
 ## `get_branch`
 
@@ -564,7 +564,7 @@ GitHub: [GET /repos/{owner}/{repo}/assignees](https://docs.github.com/en/rest/is
 
 GitLab: [GET /projects/:id/users](https://docs.gitlab.com/api/projects/#list-all-members-of-a-project)
 
-Bitbucket: @todo Use [GET /workspaces/{workspace}/permissions/repositories/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-workspaces/#api-workspaces-workspace-permissions-repositories-repo-slug-get) (admin only)
+Bitbucket: [GET /workspaces/{workspace}/permissions/repositories/{repo_slug}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-workspaces/#api-workspaces-workspace-permissions-repositories-repo-slug-get)
 
 ## `get_repository_labels`
 

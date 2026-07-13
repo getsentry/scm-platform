@@ -3,6 +3,22 @@
 Corner cases and limitations discovered while implementing the Bitbucket provider.
 These are behaviors that diverge from GitHub/GitLab or from what the generic action signatures suggest.
 
+## `get_authenticated_actor`
+
+- **Returns the human account, not a bot.** Unlike GitHub (which resolves the app's bot user), `GET /user` returns the Atlassian account tied to the credentials, so it requires user-level auth (email + API token, or OAuth with the `account` scope) and 403s for repository/project access tokens.
+- **`username` is the nickname.** Bitbucket dropped real usernames for privacy, so `Author.username` is `nickname` (falling back to `display_name`) and `Author.id` is the opaque, brace-wrapped account `uuid`.
+
+## `get_repository_assignees`
+
+- **No assignee concept; returns users with repo permission.** Bitbucket has no assignable-users list, so we return every user with an explicit permission on the repository (`GET /workspaces/{workspace}/permissions/repositories/{repo_slug}`), mapping each entry's `user` to an `Author`. Permissions are effective (highest of direct/group), and the list is not filtered by permission level.
+- **Requires admin.** Only a caller with admin permission on the repository may read this endpoint; others get `403`.
+
+## `get_app_installation`
+
+- **No app-installation concept.** Bitbucket has nothing equivalent to a GitHub App installation, and the per-repository permission endpoint (`GET /user/permissions/repositories`) was deprecated (CHANGE-2770, returns `410 Gone`). The closest remaining signal is the authenticated user's *workspace-level* role, from `GET /user/workspaces/{workspace}/permission`.
+- **Coarse, workspace-wide access.** The role is one of `owner` > `member` > `collaborator`. We map `owner`/`member` to write access and `collaborator` to read-only. This is coarser than a per-repo permission: it reflects the workspace role, not any per-repo override.
+- **No check-run permission.** Bitbucket has no separate permission for commit build statuses; they only need repository write access, so `has_check_run_write_access` mirrors `has_write_access`.
+
 ## `update_pull_request`
 
 - **Cannot reopen a pull request.** Bitbucket has no API to reopen a declined  pull request, so `state="open"` raises `ResourceBadRequest`.

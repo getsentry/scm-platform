@@ -1,0 +1,129 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/workspaces/jacquev6-sentry/permissions/repositories/test-sentry-integration-dev-jacquev6
+  response:
+    body:
+      string: '{"values": [{"repository": {"type": "repository", "full_name": "jacquev6-sentry/test-sentry-integration-dev-jacquev6",
+        "links": {"self": {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6"},
+        "avatar": {"href": "https://bytebucket.org/ravatar/%7B3f35a240-0a4c-4f25-b27c-8d0b3e84c063%7D?ts=default"}},
+        "name": "test-sentry-integration-dev-jacquev6", "uuid": "{3f35a240-0a4c-4f25-b27c-8d0b3e84c063}"},
+        "type": "repository_permission", "permission": "admin", "user": {"display_name":
+        "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}}],
+        "pagelen": 10, "size": 1, "page": 1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 169d2097-b6b6-4d7d-a5b1-04542661206b
+      Atl-Traceid:
+      - 169d2097b6b64d7da5b104542661206b
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 10:27:56 GMT
+      Etag:
+      - W/"6e84025fd56f67bfff3fd08cc9b3aa6a"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=372,atl-edge;dur=288,atl-edge-internal;dur=19,atl-edge-upstream;dur=270,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG50-P1",cdn-rid;desc="st5VTENwFOwZSp6TLNXrGKXz_0pVehkIB1YmlN8JqQw5wsIW23qCFA==",cdn-downstream-fbl;dur=375
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 c520df9e82ad5c39d2b9c40e491eeeb6.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - repository
+      X-Amz-Cf-Id:
+      - st5VTENwFOwZSp6TLNXrGKXz_0pVehkIB1YmlN8JqQw5wsIW23qCFA==
+      X-Amz-Cf-Pop:
+      - CDG50-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 220f2087acb666a0
+      X-B3-Traceid:
+      - 169d2097b6b64d7da5b104542661206b
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:webhook:bitbucket, write:test:bitbucket, write:repository:bitbucket,
+        write:pullrequest:bitbucket, read:package:bitbucket, read:user:bitbucket,
+        read:pipeline:bitbucket, read:project:bitbucket, read:gpg-key:bitbucket, read:workspace:bitbucket,
+        read:snippet:bitbucket, read:test:bitbucket, read:wiki:bitbucket, read:repository:bitbucket,
+        read:runner:bitbucket, read:issue:bitbucket, read:pullrequest:bitbucket, read:ssh-key:bitbucket,
+        read:permission:bitbucket, write:issue:bitbucket
+      X-Render-Time:
+      - '0.24535489082336426'
+      X-Request-Count:
+      - '1511'
+      X-Served-By:
+      - b2144503658f
+      X-Static-Version:
+      - a1ea9c7db4bd
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.009016'
+      X-Usage-User-Time:
+      - '0.100728'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - a1ea9c7db4bd
+      X-View-Name:
+      - bitbucket.apps.workspaces.api.v20.handlers.WorkspacePermissionsRepoHandler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '1229'
+    status:
+      code: 200
+      message: OK
+version: 1

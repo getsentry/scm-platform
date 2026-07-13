@@ -47,7 +47,9 @@ from scm.types import (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    GetAppInstallationProtocol,
     GetArchiveLinkProtocol,
+    GetAuthenticatedActorProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
     GetCommitProtocol,
@@ -64,6 +66,7 @@ from scm.types import (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     Provider,
     Repository,
@@ -578,6 +581,30 @@ def test_get_repository(switch: Switch, client: SourceCodeManager) -> None:
         "size": switch(1, 7, 5),
         "topics": [],
     }
+
+
+def test_get_repository_assignees(switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, GetRepositoryAssigneesProtocol)
+    assert client.get_repository_assignees()["data"] == [
+        {"id": switch("327146", "150871", "{b116ba0e-54b0-48c1-8118-77624b8c8d33}"), "username": "jacquev6"}
+    ]
+
+
+def test_get_app_installation(client: SourceCodeManager) -> None:
+    assert isinstance(client, GetAppInstallationProtocol)
+    # The authenticated identity owns the test repo, so it has full access everywhere.
+    assert client.get_app_installation()["data"] == {
+        "has_read_access": True,
+        "has_write_access": True,
+        "has_check_run_write_access": True,
+    }
+
+
+def test_get_authenticated_actor(switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, GetAuthenticatedActorProtocol)
+    actor = client.get_authenticated_actor()["data"]
+    assert actor["username"] == switch("sentry-integration-dev-jacquev6[bot]", "jacquev6", "jacquev6")
+    assert actor["id"] == switch("261902604", "150871", "{b116ba0e-54b0-48c1-8118-77624b8c8d33}")
 
 
 def test_get_archive_link(service: str, switch: Switch, client: SourceCodeManager) -> None:

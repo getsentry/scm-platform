@@ -1,0 +1,79 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/user
+  response:
+    body:
+      string: '{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6","created_at":"2015-05-14T15:48:33.753Z","bio":"","location":"","linkedin":"","twitter":"","discord":"","website_url":"","github":"","job_title":"","pronouns":null,"organization":"","bot":false,"work_information":null,"local_time":null,"last_sign_in_at":"2026-06-16T14:09:25.810Z","confirmed_at":"2015-05-14T15:52:01.370Z","last_activity_on":"2026-07-13","email":"gitlab.com@vincent-jacques.net","theme_id":null,"color_scheme_id":1,"projects_limit":100000,"current_sign_in_at":"2026-07-06T08:57:57.952Z","identities":[],"can_create_group":true,"can_create_project":true,"two_factor_enabled":false,"external":false,"private_profile":false,"commit_email":"gitlab.com@vincent-jacques.net","preferred_language":"en","shared_runners_minutes_limit":null,"extra_shared_runners_minutes_limit":null,"scim_identities":[]}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a76148496c6f4c-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 09:49:50 GMT
+      ETag:
+      - W/"a6b34455805192c7c43419e40418fcb3"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1097'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-33-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '1'
+      ratelimit-remaining:
+      - '1999'
+      ratelimit-reset:
+      - '1783936200'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a76148496c6f4c-CDG","version":"1"}'
+      x-request-id:
+      - a1a76148496c6f4c-CDG
+      x-runtime:
+      - '0.068882'
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -51,7 +51,10 @@ Commands:
     update-check-run <check_run_id>
         [--status ...] [--conclusion ...]
         [--output-title <title> --output-summary <summary> [--output-text <text>]]
+    get-authenticated-actor
+    get-app-installation
     get-repository
+    get-repository-assignees
 """
 
 import argparse
@@ -75,6 +78,8 @@ from scm.types import (
     CreateReviewProtocol,
     DeleteBranchProtocol,
     DeletePullRequestCommentProtocol,
+    GetAppInstallationProtocol,
+    GetAuthenticatedActorProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
     GetCommitProtocol,
@@ -86,6 +91,7 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
+    GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     ReviewCommentInput,
     UpdateCheckRunProtocol,
@@ -277,7 +283,13 @@ def main():
     p.add_argument("--conclusion", choices=BUILD_CONCLUSION_CHOICES, default=None)
     add_check_run_output_args(p)
 
+    sub.add_parser("get-authenticated-actor")
+
+    sub.add_parser("get-app-installation")
+
     sub.add_parser("get-repository")
+
+    sub.add_parser("get-repository-assignees")
 
     args = parser.parse_args()
     if not args.command:
@@ -414,9 +426,21 @@ def main():
             )
         )
 
+    elif args.command == "get-authenticated-actor":
+        assert isinstance(scm, GetAuthenticatedActorProtocol)
+        dump(scm.get_authenticated_actor())
+
+    elif args.command == "get-app-installation":
+        assert isinstance(scm, GetAppInstallationProtocol)
+        dump(scm.get_app_installation())
+
     elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
         dump(scm.get_repository())
+
+    elif args.command == "get-repository-assignees":
+        assert isinstance(scm, GetRepositoryAssigneesProtocol)
+        dump(scm.get_repository_assignees())
 
 
 if __name__ == "__main__":

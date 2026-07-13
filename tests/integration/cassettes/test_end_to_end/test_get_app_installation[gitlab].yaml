@@ -1,0 +1,82 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061?statistics=true
+  response:
+    body:
+      string: '{"id":79787061,"description":"Test repo for my developments in Sentry''s
+        App","name":"test-Sentry-Integration-Dev-jacquev6","name_with_namespace":"jacquev6-sentry
+        / test-Sentry-Integration-Dev-jacquev6","path":"test-sentry-integration-dev-jacquev6","path_with_namespace":"jacquev6-sentry/test-sentry-integration-dev-jacquev6","created_at":"2026-02-25T13:42:44.445Z","default_branch":"main","tag_list":[],"topics":[],"ssh_url_to_repo":"git@gitlab.com:jacquev6-sentry/test-sentry-integration-dev-jacquev6.git","http_url_to_repo":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6.git","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6","readme_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/blob/main/README.md","forks_count":0,"avatar_url":null,"star_count":0,"last_activity_at":"2026-07-13T09:38:19.891Z","visibility":"public","namespace":{"id":125657886,"name":"jacquev6-sentry","path":"jacquev6-sentry","kind":"group","full_path":"jacquev6-sentry","parent_id":null,"avatar_url":null,"web_url":"https://gitlab.com/groups/jacquev6-sentry"},"container_registry_image_prefix":"registry.gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6","_links":{"self":"https://gitlab.com/api/v4/projects/79787061","issues":"https://gitlab.com/api/v4/projects/79787061/issues","merge_requests":"https://gitlab.com/api/v4/projects/79787061/merge_requests","repo_branches":"https://gitlab.com/api/v4/projects/79787061/repository/branches","labels":"https://gitlab.com/api/v4/projects/79787061/labels","events":"https://gitlab.com/api/v4/projects/79787061/events","members":"https://gitlab.com/api/v4/projects/79787061/members","cluster_agents":"https://gitlab.com/api/v4/projects/79787061/cluster_agents"},"marked_for_deletion_at":null,"marked_for_deletion_on":null,"packages_enabled":true,"empty_repo":false,"archived":false,"resolve_outdated_diff_discussions":false,"container_expiration_policy":{"cadence":"1d","enabled":false,"keep_n":10,"older_than":"90d","name_regex":".*","name_regex_keep":null,"next_run_at":"2026-02-26T13:42:44.459Z"},"repository_object_format":"sha1","issues_enabled":true,"merge_requests_enabled":true,"wiki_enabled":true,"jobs_enabled":true,"snippets_enabled":true,"container_registry_enabled":true,"service_desk_enabled":true,"service_desk_address":"contact-project+jacquev6-sentry-test-sentry-integration-dev-jacquev6-79787061-issue-@incoming.gitlab.com","can_create_merge_request_in":true,"issues_access_level":"enabled","repository_access_level":"enabled","merge_requests_access_level":"enabled","forking_access_level":"enabled","wiki_access_level":"enabled","builds_access_level":"enabled","snippets_access_level":"enabled","pages_access_level":"private","analytics_access_level":"enabled","container_registry_access_level":"enabled","security_and_compliance_access_level":"private","releases_access_level":"enabled","environments_access_level":"enabled","feature_flags_access_level":"enabled","infrastructure_access_level":"enabled","monitor_access_level":"enabled","model_experiments_access_level":"enabled","model_registry_access_level":"enabled","package_registry_access_level":"enabled","emails_disabled":false,"emails_enabled":true,"show_diff_preview_in_email":true,"shared_runners_enabled":true,"lfs_enabled":true,"creator_id":150871,"import_url":null,"import_type":null,"import_status":"none","import_error":null,"open_issues_count":1,"description_html":"\u003cp
+        data-sourcepos=\"1:1-1:45\" dir=\"auto\"\u003eTest repo for my developments
+        in Sentry''s App\u003c/p\u003e","updated_at":"2026-07-13T09:38:19.891Z","ci_default_git_depth":20,"ci_delete_pipelines_in_seconds":null,"ci_forward_deployment_enabled":true,"ci_forward_deployment_rollback_allowed":true,"ci_job_token_scope_enabled":false,"ci_separated_caches":true,"ci_allow_fork_pipelines_to_run_in_parent_project":true,"ci_id_token_sub_claim_components":["project_path","ref_type","ref"],"build_git_strategy":"fetch","keep_latest_artifact":true,"restrict_user_defined_variables":true,"ci_pipeline_variables_minimum_override_role":"no_one_allowed","runner_token_expiration_interval":null,"group_runners_enabled":true,"resource_group_default_process_mode":"unordered","auto_cancel_pending_pipelines":"enabled","build_timeout":3600,"auto_devops_enabled":false,"auto_devops_deploy_strategy":"continuous","ci_push_repository_for_job_token_allowed":false,"protect_merge_request_pipelines":true,"ci_display_pipeline_variables":false,"ci_config_path":"","public_jobs":true,"shared_with_groups":[],"only_allow_merge_if_pipeline_succeeds":false,"allow_merge_on_skipped_pipeline":null,"request_access_enabled":true,"only_allow_merge_if_all_discussions_are_resolved":false,"remove_source_branch_after_merge":true,"printing_merge_request_link_enabled":true,"merge_method":"merge","squash_option":"default_off","enforce_auth_checks_on_uploads":true,"suggestion_commit_message":null,"merge_commit_template":null,"squash_commit_template":null,"mr_default_title_template":null,"issue_branch_template":null,"statistics":{"commit_count":2,"storage_size":7743,"repository_size":7743,"wiki_size":0,"lfs_objects_size":0,"job_artifacts_size":0,"pipeline_artifacts_size":0,"packages_size":0,"snippets_size":0,"uploads_size":0,"container_registry_size":0},"warn_about_potentially_unwanted_characters":true,"autoclose_referenced_issues":true,"max_artifacts_size":null,"external_authorization_classification_label":"","requirements_enabled":false,"requirements_access_level":"enabled","security_and_compliance_enabled":true,"compliance_frameworks":[],"web_based_commit_signing_enabled":false,"permissions":{"project_access":null,"group_access":{"access_level":50,"notification_level":3}}}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a76b742c269ef1-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 09:56:47 GMT
+      ETag:
+      - W/"0e22c6dbbc7ed2c6ac5b15a7e03184ef"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '5741'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-22-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '1'
+      ratelimit-remaining:
+      - '1999'
+      ratelimit-reset:
+      - '1783936620'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a76b742c269ef1-CDG","version":"1"}'
+      x-request-id:
+      - a1a76b742c269ef1-CDG
+      x-runtime:
+      - '0.121529'
+    status:
+      code: 200
+      message: OK
+version: 1

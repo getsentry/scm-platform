@@ -17,6 +17,7 @@ from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    AppInstallation,
     Author,
     BranchName,
     BuildConclusion,
@@ -179,9 +180,36 @@ class BitbucketProvider:
     def delete(self, path: str) -> requests.Response:
         return self.request("DELETE", path=path)
 
+    def get_authenticated_actor(self) -> ActionResult[Author]:
+        response = self.get("/user")
+        return make_result(map_author, response.json())
+
+    def get_app_installation(self) -> ActionResult[AppInstallation]:
+        # Bitbucket has no "app installation"; the closest signal is the authenticated
+        # user's workspace-level role. (The per-repository permission endpoint was
+        # deprecated -- CHANGE-2770.)
+        workspace = self.repository["name"].split("/", 1)[0]
+        response = self.get(f"/user/workspaces/{quote(workspace, safe='')}/permission")
+        return make_result(map_app_installation, response.json())
+
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repositories/{self.repository['name']}")
         return make_result(map_repository, response.json())
+
+    def get_repository_assignees(
+        self,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Author]]:
+        # Bitbucket has no assignee list; the closest analog is the set of users with an
+        # explicit permission on the repository. Requires admin access on the repository.
+        workspace, _, repo_slug = self.repository["name"].partition("/")
+        response = self.get(
+            f"/workspaces/{quote(workspace, safe='')}/permissions/repositories/{quote(repo_slug, safe='')}",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_repository_permission_author, response.json())
 
     def get_branch(
         self,
@@ -968,6 +996,26 @@ def map_comment(raw: dict[str, Any]) -> Comment:
         # Bitbucket has no author-association concept.
         author_association=None,
     )
+
+
+def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
+    # Bitbucket workspace roles, from most to least privileged: "owner" (admin) >
+    # "member" (write) > "collaborator" (read-only external user). This is coarser
+    # than a per-repo permission, but the per-repo endpoint was deprecated.
+    permission = raw.get("permission")
+    has_write = permission in ("owner", "member")
+    return AppInstallation(
+        has_read_access=permission in ("owner", "member", "collaborator"),
+        has_write_access=has_write,
+        # Bitbucket has no check-run permission concept; commit build statuses only
+        # require repository write access.
+        has_check_run_write_access=has_write,
+    )
+
+
+def map_repository_permission_author(raw: dict[str, Any]) -> Author:
+    # Each entry is a ``repository_permission`` wrapping the actual ``user`` account.
+    return map_author(raw["user"])
 
 
 def map_author(raw: dict[str, Any]) -> Author:
