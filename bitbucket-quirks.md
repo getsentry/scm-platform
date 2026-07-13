@@ -3,6 +3,10 @@
 Corner cases and limitations discovered while implementing the Bitbucket provider.
 These are behaviors that diverge from GitHub/GitLab or from what the generic action signatures suggest.
 
+## `get_pull_request_template`
+
+- **A single template file, not a directory.** Unlike GitHub (multiple parent dirs) and GitLab (a `merge_request_templates/` directory), Bitbucket Cloud reads exactly one file, `.bitbucket/pull_request_template.md`, so the iterator yields at most one `FileContent`. The template is read from the source branch, so `ref` should be the PR's source branch; `pagination` is unused. A missing file yields nothing.
+
 ## `get_authenticated_actor`
 
 - **Returns the human account, not a bot.** Unlike GitHub (which resolves the app's bot user), `GET /user` returns the Atlassian account tied to the credentials, so it requires user-level auth (email + API token, or OAuth with the `account` scope) and 403s for repository/project access tokens.
@@ -60,9 +64,11 @@ Closing works via the separate `POST .../pullrequests/{id}/decline` endpoint (th
 ## `get_file_content`
 
 - **Blob SHA computed locally.** Bitbucket's `/src` endpoint returns raw bytes with no git blob id, so we recompute it as `sha1("blob <len>\0" + content)` to match the blob SHA GitHub/GitLab report. Content is base64-encoded and `size` is derived from the response's byte length.
+- **Refs containing `/` need resolving.** `/src/{commit}/{path}` parses the commit only up to the first `/`, so a branch/tag name like `topics/templates` is truncated to `topics` ("Commit not found") -- even when the slash is URL-encoded as `%2F`. We resolve a slash-containing ref to its commit hash (via `/refs/branches/{ref}`, falling back to `/refs/tags/{ref}`) before calling `/src`, at the cost of one extra request. Slash-free refs pass through unchanged.
 
 ## `get_commits_by_path`
 
 - **No date filtering.** Same as `get_commits`: the file-history endpoint has no date filter, so `since`/`until` are rejected.
 - **`ref` is effectively required.** The `/filehistory/{commit}/{path}` endpoint needs a commit in the URL, so when `ref` is omitted we spend an extra call resolving the repository's default branch.
+- **Slash-containing refs are resolved first.** The `{commit}` path segment is parsed only up to the first `/` (same as `get_file_content`), so a slashed branch/tag ref is resolved to a commit hash via `_ref_to_commit` before the call.
 - **N+1 to hydrate commits.** File-history entries embed only an abbreviated commit (hash + `links`, no message/author/date). We follow each entry's commit hash with a `GET .../commit/{hash}` call to get the full commit, so a page of N entries costs N+1 requests. The N hydration calls run concurrently via a thread pool.

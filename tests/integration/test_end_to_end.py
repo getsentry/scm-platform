@@ -63,10 +63,12 @@ from scm.types import (
     GetPullRequestCommentReactionsProtocol,
     GetPullRequestCommentsProtocol,
     GetPullRequestCommitsProtocol,
+    GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
+    GetPullRequestTemplateProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     Provider,
@@ -1170,6 +1172,15 @@ def test_file_content(switch: Switch, client: SourceCodeManager) -> None:
         "type": "file",
     }
 
+    assert client.get_file_content(path="BLAH.md", ref="topics/blah")["data"] == {
+        "content": "MQoyCjMKNAo1CjYKNwo4CjkK" + switch("\n", "", ""),
+        "encoding": "base64",
+        "path": "BLAH.md",
+        "sha": "07193989308c972f8a2d0f1b3a15c29ea4ac565b",
+        "size": 18,
+        "type": "file",
+    }
+
 
 def test_compare_commits(switch: Switch, client: SourceCodeManager) -> None:
     assert isinstance(client, CompareCommitsProtocol)
@@ -1261,6 +1272,12 @@ def test_get_pull_request_files(switch: Switch, client: SourceCodeManager) -> No
         }
     ]
 
+    # The raw unified diff of the same PR.
+    assert isinstance(client, GetPullRequestDiffProtocol)
+    diff = client.get_pull_request_diff(pull_request_id)["data"]
+    assert "BLAH.md" in diff
+    assert "+1\n+2\n+3\n+4\n+5\n+6\n+7\n+8\n+9" in diff
+
 
 def test_get_pull_request_commits(switch: Switch, client: SourceCodeManager) -> None:
     assert isinstance(client, GetPullRequestCommitsProtocol)
@@ -1286,6 +1303,20 @@ def test_get_pull_request_commits(switch: Switch, client: SourceCodeManager) -> 
             },
         },
     ]
+
+
+def test_get_pull_request_template(service: str, switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, GetPullRequestTemplateProtocol)
+    # Each repo carries a single PR template at the provider's conventional path.
+    templates = list(client.get_pull_request_template(ref="topics/templates"))
+    assert len(templates) == 1
+    template = templates[0]["data"]
+    assert template["path"] == switch(
+        ".github/pull_request_template.md",
+        ".gitlab/merge_request_templates/Default.md",
+        ".bitbucket/pull_request_template.md",
+    )
+    assert base64.b64decode(template["content"]).decode() == f"Template for {service}.\n"
 
 
 def test_review_comments(service: str, switch: Switch, now: datetime, client: SourceCodeManager) -> None:

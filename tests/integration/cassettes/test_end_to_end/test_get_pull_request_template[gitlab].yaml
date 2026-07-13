@@ -13,15 +13,15 @@ interactions:
       authorization:
       - SCRUBBED
     method: GET
-    uri: https://gitlab.com/api/v4/projects/79787061/repository/files/README.md?ref=main
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/tree?path=.gitlab%2Fmerge_request_templates&ref=topics%2Ftemplates&per_page=50&page=1
   response:
     body:
-      string: '{"file_name":"README.md","file_path":"README.md","size":92,"encoding":"base64","content_sha256":"34ecd6d09e3a9b3c386fcac36a83339c744154b3713d8d44d75fb0cd82f0b26a","ref":"main","blob_id":"d96986775b6793cac0a358b35650de94752a9530","commit_id":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","last_commit_id":"1403774c82d64068af027d0b5d0cc4f52473b6f2","execute_filemode":false,"content":"IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCByZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFwcAo="}'
+      string: '[{"id":"4db8a7a22fe0cfea520830392545d90b3f9155c5","name":"Default.md","type":"blob","path":".gitlab/merge_request_templates/Default.md","mode":"100644"}]'
     headers:
       CF-Cache-Status:
       - BYPASS
       CF-Ray:
-      - a1a8af23fd70d09f-CDG
+      - a1a889df2ed2f4ff-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -29,9 +29,13 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 13:37:45 GMT
+      - Mon, 13 Jul 2026 13:12:19 GMT
       ETag:
-      - W/"6c73db86f4495eb8733682a7cc385ca1"
+      - W/"8262e01a91eba5c452d0ce1e8a38bb17"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/repository/tree?id=79787061&page=1&pagination=legacy&path=.gitlab%2Fmerge_request_templates&per_page=50&recursive=false&ref=topics%2Ftemplates>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/repository/tree?id=79787061&page=1&pagination=legacy&path=.gitlab%2Fmerge_request_templates&per_page=50&recursive=false&ref=topics%2Ftemplates>;
+        rel="last"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -41,11 +45,11 @@ interactions:
       Vary:
       - Origin
       content-length:
-      - '506'
+      - '153'
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-20-lb-gprd
+      - haproxy-main-41-lb-gprd
       gitlab-sv:
       - api-gke-us-east1-c
       nel:
@@ -59,43 +63,35 @@ interactions:
       ratelimit-remaining:
       - '1999'
       ratelimit-reset:
-      - '1783949880'
+      - '1783948380'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
       - nosniff
       x-frame-options:
       - SAMEORIGIN
-      x-gitlab-blob-id:
-      - d96986775b6793cac0a358b35650de94752a9530
-      x-gitlab-commit-id:
-      - 0941ee0a9eac9914cfddf5adec7a9558a2f1c447
-      x-gitlab-content-sha256:
-      - 34ecd6d09e3a9b3c386fcac36a83339c744154b3713d8d44d75fb0cd82f0b26a
-      x-gitlab-encoding:
-      - base64
-      x-gitlab-execute-filemode:
-      - 'false'
-      x-gitlab-file-name:
-      - README.md
-      x-gitlab-file-path:
-      - README.md
-      x-gitlab-last-commit-id:
-      - 1403774c82d64068af027d0b5d0cc4f52473b6f2
       x-gitlab-meta:
-      - '{"correlation_id":"a1a8af23fd70d09f-CDG","version":"1"}'
+      - '{"correlation_id":"a1a889df2ed2f4ff-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
-      x-gitlab-ref:
-      - main
       x-gitlab-score-gitaly:
-      - '6'
-      x-gitlab-size:
-      - '92'
+      - '8'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '50'
+      x-prev-page:
+      - ''
       x-request-id:
-      - a1a8af23fd70d09f-CDG
+      - a1a889df2ed2f4ff-CDG
       x-runtime:
-      - '0.166660'
+      - '0.213106'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
     status:
       code: 200
       message: OK
@@ -113,15 +109,15 @@ interactions:
       authorization:
       - SCRUBBED
     method: GET
-    uri: https://gitlab.com/api/v4/projects/79787061/repository/files/BLAH.md?ref=topics%2Fblah
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/files/.gitlab%2Fmerge_request_templates%2FDefault.md?ref=topics%2Ftemplates
   response:
     body:
-      string: '{"file_name":"BLAH.md","file_path":"BLAH.md","size":18,"encoding":"base64","content_sha256":"90cdaf13f564e4d2e76706f84226a554a2bbdb2542c2e48764d16bffd17bb38a","ref":"topics/blah","blob_id":"07193989308c972f8a2d0f1b3a15c29ea4ac565b","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","last_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","execute_filemode":false,"content":"MQoyCjMKNAo1CjYKNwo4CjkK"}'
+      string: '{"file_name":"Default.md","file_path":".gitlab/merge_request_templates/Default.md","size":21,"encoding":"base64","content_sha256":"cdf404f2da52d00a8ee7cf3f9572dc02454125a6ae4df26e0eaa16b6a8e686d8","ref":"topics/templates","blob_id":"4db8a7a22fe0cfea520830392545d90b3f9155c5","commit_id":"77dfc3738e864cd54cdc71ffc127266598d5a889","last_commit_id":"77dfc3738e864cd54cdc71ffc127266598d5a889","execute_filemode":false,"content":"VGVtcGxhdGUgZm9yIGdpdGxhYi4K"}'
     headers:
       CF-Cache-Status:
       - BYPASS
       CF-Ray:
-      - a1a8af265b2a99ac-CDG
+      - a1a889e2789a3ef4-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -129,9 +125,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 13:37:46 GMT
+      - Mon, 13 Jul 2026 13:12:19 GMT
       ETag:
-      - W/"9fd6c2061cf1354fb12d394f647e8b43"
+      - W/"e194fe030999b5afa5fa08a4f04ac15e"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -141,13 +137,13 @@ interactions:
       Vary:
       - Origin
       content-length:
-      - '409'
+      - '456'
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-17-lb-gprd
+      - haproxy-main-31-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-c
+      - api-gke-us-east1-b
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -159,7 +155,7 @@ interactions:
       ratelimit-remaining:
       - '1998'
       ratelimit-reset:
-      - '1783949880'
+      - '1783948380'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -167,35 +163,35 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-blob-id:
-      - 07193989308c972f8a2d0f1b3a15c29ea4ac565b
+      - 4db8a7a22fe0cfea520830392545d90b3f9155c5
       x-gitlab-commit-id:
-      - 7497e018d01503b6abc3053b7896266115e631f6
+      - 77dfc3738e864cd54cdc71ffc127266598d5a889
       x-gitlab-content-sha256:
-      - 90cdaf13f564e4d2e76706f84226a554a2bbdb2542c2e48764d16bffd17bb38a
+      - cdf404f2da52d00a8ee7cf3f9572dc02454125a6ae4df26e0eaa16b6a8e686d8
       x-gitlab-encoding:
       - base64
       x-gitlab-execute-filemode:
       - 'false'
       x-gitlab-file-name:
-      - BLAH.md
+      - Default.md
       x-gitlab-file-path:
-      - BLAH.md
+      - .gitlab/merge_request_templates/Default.md
       x-gitlab-last-commit-id:
-      - 7497e018d01503b6abc3053b7896266115e631f6
+      - 77dfc3738e864cd54cdc71ffc127266598d5a889
       x-gitlab-meta:
-      - '{"correlation_id":"a1a8af265b2a99ac-CDG","version":"1"}'
+      - '{"correlation_id":"a1a889e2789a3ef4-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-ref:
-      - topics/blah
+      - topics/templates
       x-gitlab-score-gitaly:
       - '6'
       x-gitlab-size:
-      - '18'
+      - '21'
       x-request-id:
-      - a1a8af265b2a99ac-CDG
+      - a1a889e2789a3ef4-CDG
       x-runtime:
-      - '0.145222'
+      - '0.119695'
     status:
       code: 200
       message: OK

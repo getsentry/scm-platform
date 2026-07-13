@@ -2,7 +2,7 @@ import base64
 import datetime
 import hashlib
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
@@ -11,6 +11,7 @@ import requests
 
 from scm.errors import (
     ResourceBadRequest,
+    SCMCodedError,
     error_class_for_status,
 )
 from scm.types import (
@@ -54,6 +55,9 @@ from scm.types import (
     ReviewEvent,
     ReviewSide,
 )
+
+# Bitbucket Cloud reads a single PR template from this path on the source branch.
+PULL_REQUEST_TEMPLATE_PATH = ".bitbucket/pull_request_template.md"
 
 # Bitbucket pull request states, grouped to match our binary open/closed model.
 # "closed" collapses every non-open terminal state Bitbucket exposes.
@@ -232,6 +236,32 @@ class BitbucketProvider:
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(f"/repositories/{self.repository['name']}/refs/branches/{quote(branch, safe='/')}")
 
+    def _ref_to_commit(self, ref: str, request_options: RequestOptions | None) -> str:
+        """Resolve a ref to a slash-free commit hash when it contains a ``/``.
+
+        Bitbucket's ``/src`` endpoint parses the commit only up to the first ``/``,
+        so a branch/tag name containing ``/`` (e.g. ``topics/templates``) is truncated
+        to ``topics`` -- even when the slash is URL-encoded as ``%2F``. We resolve such
+        refs to their commit hash first. Slash-free refs (commit SHAs and simple
+        branch/tag names, which ``/src`` handles fine) pass through unchanged.
+        """
+        if "/" not in ref:
+            return ref
+        quoted = quote(ref, safe="/")
+        try:
+            response = self.get(
+                f"/repositories/{self.repository['name']}/refs/branches/{quoted}",
+                request_options=request_options,
+            )
+        except SCMCodedError as e:
+            if e.code != "resource_not_found":
+                raise
+            response = self.get(
+                f"/repositories/{self.repository['name']}/refs/tags/{quoted}",
+                request_options=request_options,
+            )
+        return response.json()["target"]["hash"]
+
     def get_file_content(
         self,
         path: str,
@@ -246,8 +276,9 @@ class BitbucketProvider:
         blob id, we compute one locally so ``sha`` matches the blob SHA that
         GitHub and GitLab report.
         """
+        commit = self._ref_to_commit(ref, request_options)
         response = self.get(
-            f"/repositories/{self.repository['name']}/src/{quote(ref, safe='')}/{quote(path, safe='/')}",
+            f"/repositories/{self.repository['name']}/src/{quote(commit, safe='')}/{quote(path, safe='/')}",
             request_options=request_options,
         )
         raw_content = response.content
@@ -438,8 +469,10 @@ class BitbucketProvider:
 
         Uses Bitbucket's file-history endpoint, whose ``{commit}`` path segment
         is required; when ``ref`` is omitted we resolve the repository's default
-        branch. As with ``get_commits``, Bitbucket has no date filtering here,
-        so ``since``/``until`` are rejected.
+        branch. The ``{commit}`` segment is parsed only up to the first ``/`` (see
+        ``_ref_to_commit``), so a slash-containing ref is resolved to a commit hash
+        first. As with ``get_commits``, Bitbucket has no date filtering here, so
+        ``since``/``until`` are rejected.
 
         File-history entries embed only an abbreviated commit (hash + links), so
         we follow up with one ``get_commit`` call per entry to hydrate the full
@@ -450,7 +483,7 @@ class BitbucketProvider:
             raise ResourceBadRequest(
                 detail="Bitbucket's file-history endpoint does not support date filtering (since/until).",
             )
-        commit = ref or self.get_repository()["data"]["default_branch"]
+        commit = self._ref_to_commit(ref or self.get_repository()["data"]["default_branch"], request_options)
         response = self.get(
             f"/repositories/{self.repository['name']}/filehistory/{commit}/{quote(path, safe='/')}",
             pagination=pagination,
@@ -720,6 +753,37 @@ class BitbucketProvider:
         result = self.update_review_comment(pull_request_id, comment_id, body)
         self.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
         return result
+
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]:
+        # Bitbucket supports a single template file, read from the source branch (``ref``).
+        # There is no directory of templates, so ``pagination`` is unused.
+        try:
+            yield self.get_file_content(PULL_REQUEST_TEMPLATE_PATH, ref=ref, request_options=request_options)
+        except SCMCodedError as e:
+            if e.code == "resource_not_found":
+                return
+            raise
+
+    def get_pull_request_diff(
+        self,
+        pull_request_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[str]:
+        response = self.get(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/diff",
+            request_options=request_options,
+        )
+        return ActionResult(
+            data=response.text,
+            type="bitbucket",
+            raw={"data": response.text, "headers": None},
+            meta={},
+        )
 
     def get_pull_request_files(
         self,

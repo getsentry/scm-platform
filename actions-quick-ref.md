@@ -484,7 +484,7 @@ GitHub: [GET /repos/{owner}/{repo}/pulls/{pull_number}](https://docs.github.com/
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/raw_diffs](https://docs.gitlab.com/api/merge_requests/#show-merge-request-raw-diffs)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diff](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diff-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/diff](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-diff-get)
 
 ## `get_pull_request_files`
 
@@ -518,9 +518,7 @@ GitLab:
 - [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 - [GET /projects/:id/repository/files/:file_path](https://docs.gitlab.com/api/repository_files/#retrieve-a-file-from-a-repository)
 
-Bitbucket: @todo Use:
-- [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (lists the template directory)
-- [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (fetches each template)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (single `.bitbucket/pull_request_template.md`)
 
 ## `get_pull_request_url`
 

@@ -18,7 +18,7 @@ interactions:
     uri: https://api.github.com/app/installations/_/access_tokens
   response:
     body:
-      string: '{"token": "SCRUBBED", "expires_at": "2026-07-08T15:13:13Z", "permissions":
+      string: '{"token": "SCRUBBED", "expires_at": "2026-07-13T14:37:44Z", "permissions":
         {"administration": "read", "checks": "write", "contents": "write", "issues":
         "write", "metadata": "read", "pull_requests": "write", "repository_hooks":
         "write", "statuses": "write", "workflows": "write"}, "repository_selection":
@@ -40,9 +40,9 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:13 GMT
+      - Mon, 13 Jul 2026 13:37:44 GMT
       ETag:
-      - '"ab614e2d157c3b9d75c4a61a757315cbf68d92dd33f294e586d1ce9402f8dcf4"'
+      - '"0ec8a290a6b7f5bb2ca0a218708d95813bc7a2763bc6d8b4edf6d42739ae64a7"'
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -58,7 +58,7 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3CA:FB064:FE5BE1:F2FC91:6A4E5AF9
+      - CC1A:152382:9018815:88F8ABC:6A54EA28
       X-XSS-Protection:
       - '0'
       x-github-api-version-selected:
@@ -91,7 +91,7 @@ interactions:
       - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
         X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
         X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
-        X-GitHub-Request-Id, Deprecation, Sunset
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
       Cache-Control:
       - private, max-age=60, s-maxage=60
       Content-Length:
@@ -101,7 +101,7 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:14 GMT
+      - Mon, 13 Jul 2026 13:37:44 GMT
       ETag:
       - '"d96986775b6793cac0a358b35650de94752a9530"'
       Last-Modified:
@@ -110,6 +110,8 @@ interactions:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
       - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
       Vary:
       - Accept, Authorization, Cookie, X-GitHub-OTP, Accept-Encoding, Accept, X-Requested-With
       X-Content-Type-Options:
@@ -119,17 +121,92 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3CB:37DAB0:EDB4AF:E20EA1:6A4E5AFA
+      - CC1B:207646:8A2610D:8352BC7:6A54EA28
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4970'
+      - '4999'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783953464'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '30'
+      - '1'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - contents=read
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/BLAH.md?ref=topics%2Fblah
+  response:
+    body:
+      string: '{"name":"BLAH.md","path":"BLAH.md","sha":"07193989308c972f8a2d0f1b3a15c29ea4ac565b","size":18,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/BLAH.md?ref=topics/blah","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/blah/BLAH.md","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/07193989308c972f8a2d0f1b3a15c29ea4ac565b","download_url":"https://raw.githubusercontent.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/topics/blah/BLAH.md","type":"file","content":"MQoyCjMKNAo1CjYKNwo4CjkK\n","encoding":"base64","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/BLAH.md?ref=topics/blah","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/07193989308c972f8a2d0f1b3a15c29ea4ac565b","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/blah/BLAH.md"}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '1002'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 13:37:45 GMT
+      ETag:
+      - '"07193989308c972f8a2d0f1b3a15c29ea4ac565b"'
+      Last-Modified:
+      - Thu, 05 Mar 2026 11:15:50 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP, Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - CC1C:340F7:8C77818:856EBFE:6A54EA29
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4998'
+      X-RateLimit-Reset:
+      - '1783953464'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '2'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
