@@ -829,6 +829,29 @@ class BitbucketProvider:
     def _commit_web_url(self, sha: SHA) -> str:
         return f"https://bitbucket.org/{self.repository['name']}/commits/{sha}"
 
+    def get_commit_url(self, commit_sha: SHA) -> str:
+        return self._commit_web_url(commit_sha)
+
+    def get_pull_request_url(self, pull_request_id: str) -> str:
+        return f"https://bitbucket.org/{self.repository['name']}/pull-requests/{pull_request_id}"
+
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: SHA,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str:
+        url = f"https://bitbucket.org/{self.repository['name']}/src/{sha}/{file_path}"
+        # Bitbucket anchors source lines as ``#lines-N`` (single) or ``#lines-N:M`` (range).
+        if start_line and end_line:
+            url += f"#lines-{start_line}:{end_line}"
+        elif start_line:
+            url += f"#lines-{start_line}"
+        elif end_line:
+            url += f"#lines-{end_line}"
+        return url
+
     def create_check_run(
         self,
         name: str,

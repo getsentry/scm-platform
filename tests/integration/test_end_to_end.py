@@ -9,7 +9,6 @@ from collections.abc import Callable
 from concurrent.futures import Future
 from datetime import datetime
 from typing import Any, Literal
-from urllib.parse import urlparse
 
 import jwt
 import pytest
@@ -56,7 +55,9 @@ from scm.types import (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitUrlProtocol,
     GetFileContentProtocol,
+    GetFileUrlProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueReactionsProtocol,
@@ -69,6 +70,7 @@ from scm.types import (
     GetPullRequestReactionsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
+    GetPullRequestUrlProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     Provider,
@@ -248,13 +250,15 @@ def _gitlab_provider(creds: dict[str, str], organization_id: int, external_id: s
     base_url = resolve("GITLAB_BASE_URL", creds, "https://gitlab.com")
     assert base_url is not None
     access_token = resolve("GITLAB_ACCESS_TOKEN", creds, "") or ""
-    netloc = urlparse(base_url).netloc
     repository: Repository = {
         "id": 1,
-        "external_id": f"{netloc}:{external_id}",
+        # external_id is "{netloc}:{project_id}" (drives the API and web_base_url); the
+        # client fixture already includes the netloc.
+        "external_id": external_id,
         "integration_id": 1,
         "is_active": True,
-        "name": external_id,
+        # name is the human full path, used to build web URLs (the API uses project_id).
+        "name": "jacquev6-sentry/test-sentry-integration-dev-jacquev6",
         "organization_id": organization_id,
         "provider_name": "gitlab",
         "web_base_url": None,
@@ -587,6 +591,32 @@ def test_get_repository(switch: Switch, client: SourceCodeManager) -> None:
         "size": switch(1, 7, 5),
         "topics": [],
     }
+
+
+def test_url_builders(switch: Switch, client: SourceCodeManager) -> None:
+    # Pure URL builders -- no HTTP, so no cassette is recorded.
+    assert isinstance(client, GetCommitUrlProtocol)
+    assert client.get_commit_url("7497e018d01503b6abc3053b7896266115e631f6") == switch(
+        "https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/commit/7497e018d01503b6abc3053b7896266115e631f6",
+        "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
+        "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/7497e018d01503b6abc3053b7896266115e631f6",
+    )
+
+    assert isinstance(client, GetPullRequestUrlProtocol)
+    assert client.get_pull_request_url("2") == switch(
+        "https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2",
+        "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/2",
+        "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/2",
+    )
+
+    assert isinstance(client, GetFileUrlProtocol)
+    assert client.get_file_url(
+        "BLAH.md", "7497e018d01503b6abc3053b7896266115e631f6", start_line=5, end_line=10
+    ) == switch(
+        "https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/7497e018d01503b6abc3053b7896266115e631f6/BLAH.md#L5-L10",
+        "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/blob/7497e018d01503b6abc3053b7896266115e631f6/BLAH.md#L5-L10",
+        "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/7497e018d01503b6abc3053b7896266115e631f6/BLAH.md#lines-5:10",
+    )
 
 
 def test_get_repository_assignees(switch: Switch, client: SourceCodeManager) -> None:
@@ -1467,7 +1497,7 @@ def test_create_review(switch: Switch, now: datetime, client: SourceCodeManager)
         "id": review["id"],
         "html_url": switch(
             f"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#pullrequestreview-{review['id']}",
-            "https://gitlab.com:gitlab.com/gitlab.com:79787061/-/merge_requests/1",
+            "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1",
             "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1",
         ),
         **switch(
@@ -1503,7 +1533,7 @@ def test_check_runs(switch: Switch, now: datetime, client: SourceCodeManager) ->
     check_run_id = check_run["id"]
     check_run_url = switch(
         f"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/runs/{check_run_id}",
-        "https://gitlab.com:gitlab.com/gitlab.com:79787061/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
+        "https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6",
         "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/7497e018d01503b6abc3053b7896266115e631f6",
     )
     assert check_run == {

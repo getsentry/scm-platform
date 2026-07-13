@@ -348,7 +348,7 @@ GitHub: return {web_base}/{owner}/{repo}/commit/{commit_sha}
 
 GitLab: return {web_repo}/-/commit/{commit_sha}
 
-Bitbucket: @todo return {web_base}/{workspace}/{repo_slug}/commits/{commit_sha}
+Bitbucket: return {web_base}/{workspace}/{repo_slug}/commits/{commit_sha}
 
 ## `get_commits`
 
@@ -388,7 +388,7 @@ GitHub: return {web_base}/{owner}/{repo}/blob/{sha}/{file_path}
 
 GitLab: return {web_repo}/-/blob/{sha}/{file_path}
 
-Bitbucket: @todo return {web_base}/{workspace}/{repo_slug}/src/{sha}/{file_path}
+Bitbucket: return {web_base}/{workspace}/{repo_slug}/src/{sha}/{file_path}
 
 ## `get_full_tree`
 
@@ -526,7 +526,7 @@ GitHub: return {web_base}/{owner}/{repo}/pull/{pull_number}
 
 GitLab: return {web_repo}/-/merge_requests/{pull_request}
 
-Bitbucket: @todo return {web_base}/{workspace}/{repo_slug}/pull-requests/{pull_request_id}
+Bitbucket: return {web_base}/{workspace}/{repo_slug}/pull-requests/{pull_request_id}
 
 ## `get_pull_requests`
 
