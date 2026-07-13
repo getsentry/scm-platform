@@ -31,6 +31,7 @@ from scm.types import (
     CreateIssueReactionProtocol,
     CreatePullRequestCommentProtocol,
     CreatePullRequestCommentReactionProtocol,
+    CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
     CreateReviewCommentFileProtocol,
@@ -687,6 +688,29 @@ def test_pull_requests(switch: Switch, now: datetime, client: SourceCodeManager)
     assert len(client.get_pull_requests()["data"]) == 1
     closed = client.get_pull_request(new_pull_request["id"])["data"]
     assert closed["body"] == "Another PR, made through the API."
+
+
+def test_create_pull_request_draft(service: str, switch: Switch, now: datetime, client: SourceCodeManager) -> None:
+    assert isinstance(client, CreatePullRequestDraftProtocol)
+
+    title = f"Draft PR from API {now}"
+    result = client.create_pull_request_draft(
+        title=title,
+        body="A draft PR, made through the API.",
+        head="topics/blih",
+        base="main",
+    )
+    draft = result["data"]
+    assert draft["body"] == "A draft PR, made through the API."
+    assert draft["state"] == "open"
+    # GitLab encodes draft-ness as a title prefix; GitHub and Bitbucket use a flag.
+    assert draft["title"] == switch(title, f"Draft: {title}", title)
+    if service in ("github", "bitbucket"):
+        assert result["raw"]["data"]["draft"] is True
+
+    # Clean up the pull request created while recording.
+    assert isinstance(client, UpdatePullRequestProtocol)
+    client.update_pull_request(draft["id"], state="closed")
 
 
 def test_get_closed_pull_requests(switch: Switch, client: SourceCodeManager) -> None:

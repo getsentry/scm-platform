@@ -282,12 +282,35 @@ class BitbucketProvider:
         head: BranchName,
         base: BranchName,
     ) -> ActionResult[PullRequest]:
+        return self._create_pull_request(title, body, head, base, draft=False)
+
+    def create_pull_request_draft(
+        self,
+        title: str,
+        body: str,
+        head: BranchName,
+        base: BranchName,
+    ) -> ActionResult[PullRequest]:
+        """Create a draft pull request via Bitbucket's ``draft`` flag."""
+        return self._create_pull_request(title, body, head, base, draft=True)
+
+    def _create_pull_request(
+        self,
+        title: str,
+        body: str,
+        head: BranchName,
+        base: BranchName,
+        *,
+        draft: bool,
+    ) -> ActionResult[PullRequest]:
         data: dict[str, Any] = {
             "title": title,
             "description": body,
             "source": {"branch": {"name": head}},
             "destination": {"branch": {"name": base}},
         }
+        if draft:
+            data["draft"] = True
         response = self.post(f"/repositories/{self.repository['name']}/pullrequests", data=data)
         return make_result(map_pull_request, response.json())
 

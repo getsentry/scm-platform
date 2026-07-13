@@ -18,6 +18,7 @@ Commands:
     get-pull-request <id>
     get-pull-requests [--state open|closed]
     create-pull-request <title> <body> <head> <base>
+    create-pull-request-draft <title> <body> <head> <base>
     update-pull-request <id> [--title <title>] [--body <body>] [--state open|closed]
         (--state closed declines the PR; --state open is unsupported — Bitbucket cannot reopen)
     get-commits [--ref <ref>]
@@ -66,6 +67,7 @@ from scm.types import (
     CreateBranchProtocol,
     CreateCheckRunProtocol,
     CreatePullRequestCommentProtocol,
+    CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreateReviewCommentFileProtocol,
     CreateReviewCommentLineProtocol,
@@ -167,6 +169,12 @@ def main():
     p.add_argument("--state", default="open", choices=["open", "closed"])
 
     p = sub.add_parser("create-pull-request")
+    p.add_argument("title")
+    p.add_argument("body")
+    p.add_argument("head")
+    p.add_argument("base")
+
+    p = sub.add_parser("create-pull-request-draft")
     p.add_argument("title")
     p.add_argument("body")
     p.add_argument("head")
@@ -298,6 +306,10 @@ def main():
     elif args.command == "create-pull-request":
         assert isinstance(scm, CreatePullRequestProtocol)
         dump(scm.create_pull_request(args.title, args.body, args.head, args.base))
+
+    elif args.command == "create-pull-request-draft":
+        assert isinstance(scm, CreatePullRequestDraftProtocol)
+        dump(scm.create_pull_request_draft(args.title, args.body, args.head, args.base))
 
     elif args.command == "update-pull-request":
         assert isinstance(scm, UpdatePullRequestProtocol)

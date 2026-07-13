@@ -152,7 +152,7 @@ GitHub: [POST /repos/{owner}/{repo}/pulls](https://docs.github.com/en/rest/pulls
 
 GitLab: [POST /projects/:id/merge_requests](https://docs.gitlab.com/api/merge_requests/#create-a-merge-request) with `Draft:` title prefix
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post) with `draft: true`
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-post) with `draft: true`
 
 ## `create_pull_request_reaction`
 
