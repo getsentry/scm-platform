@@ -2974,6 +2974,45 @@ def test_get_pull_request_review_threads_handles_null_author() -> None:
     assert thread["comments"][0]["is_bot"] is False
 
 
+def test_get_pull_request_review_threads_skips_null_reaction_nodes() -> None:
+    """Regression: GitHub GraphQL may return null entries in reactions.nodes; these should be skipped."""
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_1",
+                    [
+                        _make_thread_comment_node(
+                            reactions=[
+                                None,
+                                {
+                                    "databaseId": 10,
+                                    "content": "THUMBS_UP",
+                                    "user": {
+                                        "login": "alice",
+                                        "__typename": "User",
+                                        "databaseId": 100,
+                                    },
+                                },
+                                None,
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        ),
+    )
+
+    result = provider.get_pull_request_review_threads("42", include_reactions=True)
+
+    comment = result["data"][0]["comments"][0]
+    assert comment["reactions"] == [
+        {"id": "10", "content": "+1", "author": {"id": "100", "username": "alice"}},
+    ]
+
+
 @pytest.mark.parametrize(
     ("permissions", "expected"),
     [
