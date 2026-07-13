@@ -746,5 +746,5 @@ GitHub: [PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}](https://docs.g
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id/notes/:note_id](https://docs.gitlab.com/api/discussions/#update-a-merge-request-thread-note)
 
-Bitbucket: @todo Use [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-put)
+Bitbucket: [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-put)
 

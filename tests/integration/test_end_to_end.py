@@ -77,6 +77,7 @@ from scm.types import (
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
 )
 
 # GitHub client
@@ -1357,6 +1358,12 @@ def test_review_comments(service: str, switch: Switch, now: datetime, client: So
         )
         assert isinstance(reply_comment["data"]["id"], str)
         assert reply_comment["data"]["body"] == body
+
+    # Edit a comment in place.
+    assert isinstance(client, UpdateReviewCommentProtocol)
+    updated_body = f"An edited review comment, made by the API on {now}."
+    updated = client.update_review_comment(pull_request_id, comment_on_file["data"]["id"], updated_body)
+    assert updated["data"]["body"] == updated_body
 
     # A third top-level comment, so each resolve action below gets its own thread:
     # Bitbucket rejects re-resolving an already-resolved thread (409), so no thread

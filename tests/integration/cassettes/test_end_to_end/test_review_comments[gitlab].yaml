@@ -21,7 +21,7 @@ interactions:
       CF-Cache-Status:
       - BYPASS
       CF-Ray:
-      - a1a83eb59d6653ad-CDG
+      - a1a851199d499edf-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -29,7 +29,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:00 GMT
+      - Mon, 13 Jul 2026 12:33:34 GMT
       ETag:
       - W/"c06439a8c56f71c8e40feb9fd73897c1"
       Link:
@@ -49,7 +49,7 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-07-lb-gprd
+      - haproxy-main-16-lb-gprd
       gitlab-sv:
       - api-gke-us-east1-b
       nel:
@@ -63,7 +63,7 @@ interactions:
       ratelimit-remaining:
       - '1999'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -71,7 +71,7 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83eb59d6653ad-CDG","version":"1"}'
+      - '{"correlation_id":"a1a851199d499edf-CDG","version":"1"}'
       x-next-page:
       - ''
       x-page:
@@ -81,9 +81,9 @@ interactions:
       x-prev-page:
       - ''
       x-request-id:
-      - a1a83eb59d6653ad-CDG
+      - a1a851199d499edf-CDG
       x-runtime:
-      - '0.076069'
+      - '0.148414'
       x-total:
       - '2'
       x-total-pages:
@@ -115,14 +115,14 @@ interactions:
     uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions
   response:
     body:
-      string: '{"id":"087684727cc6d823dcfce76754900421a06a7fec","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551846613,"type":"DiffNote","body":"A
+      string: '{"id":"0d02f285dc3986d506473e728c7d8c0cebe39974","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551916106,"type":"DiffNote","body":"A
         review comment, on a file, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:00.923Z","updated_at":"2026-07-13T12:21:00.923Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:34.538Z","updated_at":"2026-07-13T12:33:34.538Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83eb75a38d14b-CDG
+      - a1a8511bfb342a74-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -132,9 +132,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:01 GMT
+      - Mon, 13 Jul 2026 12:33:34 GMT
       ETag:
-      - W/"6213f3a6f620d5a335760bdf39e8eb38"
+      - W/"c38e79897960034e815472ea4bc068b0"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -144,9 +144,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-04-lb-gprd
+      - haproxy-main-57-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-b
+      - api-gke-us-east1-d
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -158,7 +158,7 @@ interactions:
       ratelimit-remaining:
       - '1998'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -166,15 +166,15 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83eb75a38d14b-CDG","version":"1"}'
+      - '{"correlation_id":"a1a8511bfb342a74-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '22'
       x-request-id:
-      - a1a83eb75a38d14b-CDG
+      - a1a8511bfb342a74-CDG
       x-runtime:
-      - '0.388658'
+      - '0.668106'
     status:
       code: 201
       message: Created
@@ -197,17 +197,17 @@ interactions:
       authorization:
       - SCRUBBED
     method: POST
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/087684727cc6d823dcfce76754900421a06a7fec/notes
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/0d02f285dc3986d506473e728c7d8c0cebe39974/notes
   response:
     body:
-      string: '{"id":3551846715,"type":"DiffNote","body":"A reply to the previous
+      string: '{"id":3551916173,"type":"DiffNote","body":"A reply to the previous
         comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:02.222Z","updated_at":"2026-07-13T12:21:02.222Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:35.435Z","updated_at":"2026-07-13T12:33:35.435Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ebafbf29e49-CDG
+      - a1a851223c3c6efc-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -217,9 +217,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:02 GMT
+      - Mon, 13 Jul 2026 12:33:35 GMT
       ETag:
-      - W/"f73064b15a36f84cfd5ef8fa343e89b1"
+      - W/"3ee0cff2ff3d6f3ea6c29a8a657216a1"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -229,9 +229,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-56-lb-gprd
+      - haproxy-main-43-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-c
+      - api-gke-us-east1-b
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -243,7 +243,7 @@ interactions:
       ratelimit-remaining:
       - '1997'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -251,15 +251,15 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ebafbf29e49-CDG","version":"1"}'
+      - '{"correlation_id":"a1a851223c3c6efc-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '7'
       x-request-id:
-      - a1a83ebafbf29e49-CDG
+      - a1a851223c3c6efc-CDG
       x-runtime:
-      - '1.366330'
+      - '0.339970'
     status:
       code: 201
       message: Created
@@ -285,7 +285,7 @@ interactions:
       CF-Cache-Status:
       - BYPASS
       CF-Ray:
-      - a1a83ec53b1c019a-CDG
+      - a1a851261c6c00b5-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -293,7 +293,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:03 GMT
+      - Mon, 13 Jul 2026 12:33:35 GMT
       ETag:
       - W/"c06439a8c56f71c8e40feb9fd73897c1"
       Link:
@@ -313,9 +313,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-56-lb-gprd
+      - haproxy-main-16-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-c
+      - api-gke-us-east1-b
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -327,7 +327,7 @@ interactions:
       ratelimit-remaining:
       - '1996'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -335,7 +335,7 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ec53b1c019a-CDG","version":"1"}'
+      - '{"correlation_id":"a1a851261c6c00b5-CDG","version":"1"}'
       x-next-page:
       - ''
       x-page:
@@ -345,9 +345,9 @@ interactions:
       x-prev-page:
       - ''
       x-request-id:
-      - a1a83ec53b1c019a-CDG
+      - a1a851261c6c00b5-CDG
       x-runtime:
-      - '0.123922'
+      - '0.119464'
       x-total:
       - '2'
       x-total-pages:
@@ -379,14 +379,14 @@ interactions:
     uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions
   response:
     body:
-      string: '{"id":"c6af88dad1c69bf3ef8ece4f66c8b2bfe93b770d","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551846838,"type":"DiffNote","body":"A
+      string: '{"id":"777db63ab6c69c1fc53c9c9e04401443b81fb4cc","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551916278,"type":"DiffNote","body":"A
         review comment, on a line, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:03.731Z","updated_at":"2026-07-13T12:21:03.731Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:36.605Z","updated_at":"2026-07-13T12:33:36.605Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ec75d3b9e8b-CDG
+      - a1a8512839a03cf3-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -396,9 +396,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:04 GMT
+      - Mon, 13 Jul 2026 12:33:37 GMT
       ETag:
-      - W/"df16f41513c90716cc7d9e206d395a79"
+      - W/"baab6b68a0c1ba5b83b44342108c7599"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -408,7 +408,7 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-36-lb-gprd
+      - haproxy-main-60-lb-gprd
       gitlab-sv:
       - gke-cny-api
       nel:
@@ -422,21 +422,21 @@ interactions:
       ratelimit-remaining:
       - '1995'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       x-content-type-options:
       - nosniff
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ec75d3b9e8b-CDG","version":"1"}'
+      - '{"correlation_id":"a1a8512839a03cf3-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '60'
       x-request-id:
-      - a1a83ec75d3b9e8b-CDG
+      - a1a8512839a03cf3-CDG
       x-runtime:
-      - '0.805482'
+      - '0.879095'
     status:
       code: 201
       message: Created
@@ -459,17 +459,17 @@ interactions:
       authorization:
       - SCRUBBED
     method: POST
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/c6af88dad1c69bf3ef8ece4f66c8b2bfe93b770d/notes
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/777db63ab6c69c1fc53c9c9e04401443b81fb4cc/notes
   response:
     body:
-      string: '{"id":3551846929,"type":"DiffNote","body":"A reply to the previous
+      string: '{"id":3551916349,"type":"DiffNote","body":"A reply to the previous
         line comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:04.807Z","updated_at":"2026-07-13T12:21:04.807Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:37.516Z","updated_at":"2026-07-13T12:33:37.516Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ece1e032a03-CDG
+      - a1a8512f3e2d75de-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -479,9 +479,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:05 GMT
+      - Mon, 13 Jul 2026 12:33:37 GMT
       ETag:
-      - W/"bfbd163b979a664968385fb26ce57c13"
+      - W/"05eaf7d95b808fbe393d8c74e27f27cf"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -491,9 +491,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-25-lb-gprd
+      - haproxy-main-47-lb-gprd
       gitlab-sv:
-      - gke-cny-api
+      - api-gke-us-east1-c
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -505,21 +505,23 @@ interactions:
       ratelimit-remaining:
       - '1994'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
+      referrer-policy:
+      - strict-origin-when-cross-origin
       x-content-type-options:
       - nosniff
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ece1e032a03-CDG","version":"1"}'
+      - '{"correlation_id":"a1a8512f3e2d75de-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '20'
       x-request-id:
-      - a1a83ece1e032a03-CDG
+      - a1a8512f3e2d75de-CDG
       x-runtime:
-      - '0.713173'
+      - '0.519151'
     status:
       code: 201
       message: Created
@@ -545,7 +547,7 @@ interactions:
       CF-Cache-Status:
       - BYPASS
       CF-Ray:
-      - a1a83ed40b169ec1-CDG
+      - a1a85133aa01d0ae-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -553,7 +555,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:05 GMT
+      - Mon, 13 Jul 2026 12:33:38 GMT
       ETag:
       - W/"c06439a8c56f71c8e40feb9fd73897c1"
       Link:
@@ -573,9 +575,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-37-lb-gprd
+      - haproxy-main-57-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-b
+      - api-gke-us-east1-d
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -587,7 +589,7 @@ interactions:
       ratelimit-remaining:
       - '1993'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -595,7 +597,7 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ed40b169ec1-CDG","version":"1"}'
+      - '{"correlation_id":"a1a85133aa01d0ae-CDG","version":"1"}'
       x-next-page:
       - ''
       x-page:
@@ -605,9 +607,9 @@ interactions:
       x-prev-page:
       - ''
       x-request-id:
-      - a1a83ed40b169ec1-CDG
+      - a1a85133aa01d0ae-CDG
       x-runtime:
-      - '0.137705'
+      - '0.095124'
       x-total:
       - '2'
       x-total-pages:
@@ -640,14 +642,14 @@ interactions:
     uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions
   response:
     body:
-      string: '{"id":"cca76ec6b37b322022dc0b3d49d8b68ca5c899bd","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551847079,"type":"DiffNote","body":"A
+      string: '{"id":"ef11d21abbf07c282790ff56790173aa806ee31a","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551916430,"type":"DiffNote","body":"A
         review comment, on multiple lines, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:06.161Z","updated_at":"2026-07-13T12:21:06.161Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":7,"line_range":{"start":{"new_line":5,"type":"new"},"end":{"new_line":7,"type":"new"}}},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:38.549Z","updated_at":"2026-07-13T12:33:38.549Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":7,"line_range":{"start":{"new_line":5,"type":"new"},"end":{"new_line":7,"type":"new"}}},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ed64f00f82e-CDG
+      - a1a85135ffa39ef0-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -657,9 +659,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:06 GMT
+      - Mon, 13 Jul 2026 12:33:38 GMT
       ETag:
-      - W/"76b9c0c84b3022178799da5dcde6b4ed"
+      - W/"bf5dd8113415ff715a1cb8fe30717b4a"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -669,9 +671,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-44-lb-gprd
+      - haproxy-main-24-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-c
+      - api-gke-us-east1-d
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -683,7 +685,7 @@ interactions:
       ratelimit-remaining:
       - '1992'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -691,15 +693,15 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ed64f00f82e-CDG","version":"1"}'
+      - '{"correlation_id":"a1a85135ffa39ef0-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '60'
       x-request-id:
-      - a1a83ed64f00f82e-CDG
+      - a1a85135ffa39ef0-CDG
       x-runtime:
-      - '1.172593'
+      - '0.572716'
     status:
       code: 201
       message: Created
@@ -722,17 +724,17 @@ interactions:
       authorization:
       - SCRUBBED
     method: POST
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/cca76ec6b37b322022dc0b3d49d8b68ca5c899bd/notes
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/ef11d21abbf07c282790ff56790173aa806ee31a/notes
   response:
     body:
-      string: '{"id":3551847225,"type":"DiffNote","body":"A reply to the previous
+      string: '{"id":3551916481,"type":"DiffNote","body":"A reply to the previous
         multiline comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:07.379Z","updated_at":"2026-07-13T12:21:07.379Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":7,"line_range":{"start":{"new_line":5,"type":"new"},"end":{"new_line":7,"type":"new"}}},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:39.333Z","updated_at":"2026-07-13T12:33:39.333Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":7,"line_range":{"start":{"new_line":5,"type":"new"},"end":{"new_line":7,"type":"new"}}},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ededc2e99d9-CDG
+      - a1a8513ad8b00340-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -742,9 +744,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:07 GMT
+      - Mon, 13 Jul 2026 12:33:39 GMT
       ETag:
-      - W/"49da3559a3d270e0a8d20e6528bca9d8"
+      - W/"1b85db068d9856ba0cd3d07298b2877c"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -754,9 +756,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-57-lb-gprd
+      - haproxy-main-50-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-d
+      - api-gke-us-east1-c
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -768,7 +770,7 @@ interactions:
       ratelimit-remaining:
       - '1991'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -776,18 +778,104 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ededc2e99d9-CDG","version":"1"}'
+      - '{"correlation_id":"a1a8513ad8b00340-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '20'
       x-request-id:
-      - a1a83ededc2e99d9-CDG
+      - a1a8513ad8b00340-CDG
       x-runtime:
-      - '0.617000'
+      - '0.519557'
     status:
       code: 201
       message: Created
+- request:
+    body: '{"body": "An edited review comment, made by the API on 2026-07-08 12:00:00."}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '77'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: PUT
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/0d02f285dc3986d506473e728c7d8c0cebe39974/notes/3551916106
+  response:
+    body:
+      string: '{"id":3551916106,"type":"DiffNote","body":"An edited review comment,
+        made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:34.538Z","updated_at":"2026-07-13T12:33:40.328Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a1a8513fbb0e98a1-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 12:33:40 GMT
+      ETag:
+      - W/"a669cf327589c57171d71b4ca88a25af"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1044'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-32-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '10'
+      ratelimit-remaining:
+      - '1990'
+      ratelimit-reset:
+      - '1783946040'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a8513fbb0e98a1-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '4'
+      x-request-id:
+      - a1a8513fbb0e98a1-CDG
+      x-runtime:
+      - '0.925163'
+    status:
+      code: 200
+      message: OK
 - request:
     body: null
     headers:
@@ -810,7 +898,7 @@ interactions:
       CF-Cache-Status:
       - BYPASS
       CF-Ray:
-      - a1a83ee4b88a11ff-CDG
+      - a1a85146c812da68-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -818,7 +906,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:08 GMT
+      - Mon, 13 Jul 2026 12:33:41 GMT
       ETag:
       - W/"c06439a8c56f71c8e40feb9fd73897c1"
       Link:
@@ -838,9 +926,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-33-lb-gprd
+      - haproxy-main-28-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-d
+      - api-gke-us-east1-b
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -848,11 +936,11 @@ interactions:
       ratelimit-name:
       - throttle_authenticated_api
       ratelimit-observed:
-      - '10'
+      - '11'
       ratelimit-remaining:
-      - '1990'
+      - '1989'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -860,7 +948,7 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ee4b88a11ff-CDG","version":"1"}'
+      - '{"correlation_id":"a1a85146c812da68-CDG","version":"1"}'
       x-next-page:
       - ''
       x-page:
@@ -870,9 +958,9 @@ interactions:
       x-prev-page:
       - ''
       x-request-id:
-      - a1a83ee4b88a11ff-CDG
+      - a1a85146c812da68-CDG
       x-runtime:
-      - '0.139383'
+      - '0.235338'
       x-total:
       - '2'
       x-total-pages:
@@ -904,14 +992,14 @@ interactions:
     uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions
   response:
     body:
-      string: '{"id":"c6fba4ec942338a1cf4c95fadeef57899b8cf10d","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551847333,"type":"DiffNote","body":"A
+      string: '{"id":"86cf4d1aebd790d9448f21082ddd450e153567b5","individual_note":false,"resolvable":true,"resolved":false,"notes":[{"id":3551916654,"type":"DiffNote","body":"A
         review comment to collapse, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:08.590Z","updated_at":"2026-07-13T12:21:08.590Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:41.649Z","updated_at":"2026-07-13T12:33:41.649Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ee70b7299c6-CDG
+      - a1a85149afe07005-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -921,9 +1009,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:08 GMT
+      - Mon, 13 Jul 2026 12:33:41 GMT
       ETag:
-      - W/"6ff3532a10f687e79b981cc424dcb867"
+      - W/"02be9c982388e6a2103009cfb4c4ef2e"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -933,9 +1021,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-58-lb-gprd
+      - haproxy-main-32-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-b
+      - api-gke-us-east1-c
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -943,11 +1031,11 @@ interactions:
       ratelimit-name:
       - throttle_authenticated_api
       ratelimit-observed:
-      - '11'
+      - '12'
       ratelimit-remaining:
-      - '1989'
+      - '1988'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -955,15 +1043,15 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ee70b7299c6-CDG","version":"1"}'
+      - '{"correlation_id":"a1a85149afe07005-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '22'
       x-request-id:
-      - a1a83ee70b7299c6-CDG
+      - a1a85149afe07005-CDG
       x-runtime:
-      - '0.373648'
+      - '0.366230'
     status:
       code: 201
       message: Created
@@ -985,21 +1073,21 @@ interactions:
       authorization:
       - SCRUBBED
     method: PUT
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/087684727cc6d823dcfce76754900421a06a7fec
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/0d02f285dc3986d506473e728c7d8c0cebe39974
   response:
     body:
-      string: '{"id":"087684727cc6d823dcfce76754900421a06a7fec","individual_note":false,"resolvable":true,"resolved":true,"notes":[{"id":3551846613,"type":"DiffNote","body":"A
-        review comment, on a file, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:00.923Z","updated_at":"2026-07-13T12:21:09.168Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:21:09.168Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}},{"id":3551846715,"type":"DiffNote","body":"A
+      string: '{"id":"0d02f285dc3986d506473e728c7d8c0cebe39974","individual_note":false,"resolvable":true,"resolved":true,"notes":[{"id":3551916106,"type":"DiffNote","body":"An
+        edited review comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:34.538Z","updated_at":"2026-07-13T12:33:42.218Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:33:42.218Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}},{"id":3551916173,"type":"DiffNote","body":"A
         reply to the previous comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:02.222Z","updated_at":"2026-07-13T12:21:09.168Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:21:09.168Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:35.435Z","updated_at":"2026-07-13T12:33:42.218Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:33:42.218Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83eeaea39017d-CDG
+      - a1a8514d4b9e00a0-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -1007,9 +1095,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:09 GMT
+      - Mon, 13 Jul 2026 12:33:42 GMT
       ETag:
-      - W/"a9591cfb4eaa3362a7fb8e3b9ee49449"
+      - W/"0d651f2102823237e21753f6ee8c13b7"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -1019,13 +1107,13 @@ interactions:
       Vary:
       - Origin
       content-length:
-      - '2825'
+      - '2822'
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-40-lb-gprd
+      - haproxy-main-20-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-b
+      - api-gke-us-east1-c
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -1033,11 +1121,11 @@ interactions:
       ratelimit-name:
       - throttle_authenticated_api
       ratelimit-observed:
-      - '12'
+      - '13'
       ratelimit-remaining:
-      - '1988'
+      - '1987'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -1045,11 +1133,11 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83eeaea39017d-CDG","version":"1"}'
+      - '{"correlation_id":"a1a8514d4b9e00a0-CDG","version":"1"}'
       x-request-id:
-      - a1a83eeaea39017d-CDG
+      - a1a8514d4b9e00a0-CDG
       x-runtime:
-      - '0.193238'
+      - '0.257554'
     status:
       code: 200
       message: OK
@@ -1071,18 +1159,18 @@ interactions:
       authorization:
       - SCRUBBED
     method: PUT
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/c6fba4ec942338a1cf4c95fadeef57899b8cf10d
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/86cf4d1aebd790d9448f21082ddd450e153567b5
   response:
     body:
-      string: '{"id":"c6fba4ec942338a1cf4c95fadeef57899b8cf10d","individual_note":false,"resolvable":true,"resolved":true,"notes":[{"id":3551847333,"type":"DiffNote","body":"A
+      string: '{"id":"86cf4d1aebd790d9448f21082ddd450e153567b5","individual_note":false,"resolvable":true,"resolved":true,"notes":[{"id":3551916654,"type":"DiffNote","body":"A
         review comment to collapse, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:08.590Z","updated_at":"2026-07-13T12:21:09.803Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:21:09.803Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:41.649Z","updated_at":"2026-07-13T12:33:42.598Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"file"},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:33:42.598Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83eedcd206ed3-CDG
+      - a1a851503c327017-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -1090,9 +1178,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:09 GMT
+      - Mon, 13 Jul 2026 12:33:42 GMT
       ETag:
-      - W/"ac5c04be4679d0db40fb65de093033c4"
+      - W/"45bf6b7342baeade8276ce693443632b"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -1106,7 +1194,7 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-08-lb-gprd
+      - haproxy-main-50-lb-gprd
       gitlab-sv:
       - api-gke-us-east1-c
       nel:
@@ -1116,11 +1204,11 @@ interactions:
       ratelimit-name:
       - throttle_authenticated_api
       ratelimit-observed:
-      - '13'
+      - '14'
       ratelimit-remaining:
-      - '1987'
+      - '1986'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -1128,11 +1216,11 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83eedcd206ed3-CDG","version":"1"}'
+      - '{"correlation_id":"a1a851503c327017-CDG","version":"1"}'
       x-request-id:
-      - a1a83eedcd206ed3-CDG
+      - a1a851503c327017-CDG
       x-runtime:
-      - '0.161941'
+      - '0.131907'
     status:
       code: 200
       message: OK
@@ -1155,17 +1243,17 @@ interactions:
       authorization:
       - SCRUBBED
     method: PUT
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/c6af88dad1c69bf3ef8ece4f66c8b2bfe93b770d/notes/3551846838
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/777db63ab6c69c1fc53c9c9e04401443b81fb4cc/notes/3551916278
   response:
     body:
-      string: '{"id":3551846838,"type":"DiffNote","body":"An edited, then collapsed,
+      string: '{"id":3551916278,"type":"DiffNote","body":"An edited, then collapsed,
         review comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:03.731Z","updated_at":"2026-07-13T12:21:10.504Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:36.605Z","updated_at":"2026-07-13T12:33:43.093Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":false,"resolved_by":null,"resolved_at":null,"suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ef1cc3dd12e-CDG
+      - a1a8515259cb02b7-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -1173,9 +1261,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:11 GMT
+      - Mon, 13 Jul 2026 12:33:43 GMT
       ETag:
-      - W/"760d8125cd00899e6b6476a4cbe9ed86"
+      - W/"8f7e6c631eb05f46985a39872a3144d4"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -1189,9 +1277,9 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-48-lb-gprd
+      - haproxy-main-58-lb-gprd
       gitlab-sv:
-      - api-gke-us-east1-d
+      - api-gke-us-east1-b
       nel:
       - '{"max_age": 0}'
       ratelimit-limit:
@@ -1199,11 +1287,11 @@ interactions:
       ratelimit-name:
       - throttle_authenticated_api
       ratelimit-observed:
-      - '14'
+      - '15'
       ratelimit-remaining:
-      - '1986'
+      - '1985'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -1211,15 +1299,15 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ef1cc3dd12e-CDG","version":"1"}'
+      - '{"correlation_id":"a1a8515259cb02b7-CDG","version":"1"}'
       x-gitlab-namespace:
       - jacquev6-sentry
       x-gitlab-score-gitaly:
       - '24'
       x-request-id:
-      - a1a83ef1cc3dd12e-CDG
+      - a1a8515259cb02b7-CDG
       x-runtime:
-      - '0.880709'
+      - '0.381303'
     status:
       code: 200
       message: OK
@@ -1241,21 +1329,21 @@ interactions:
       authorization:
       - SCRUBBED
     method: PUT
-    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/c6af88dad1c69bf3ef8ece4f66c8b2bfe93b770d
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/discussions/777db63ab6c69c1fc53c9c9e04401443b81fb4cc
   response:
     body:
-      string: '{"id":"c6af88dad1c69bf3ef8ece4f66c8b2bfe93b770d","individual_note":false,"resolvable":true,"resolved":true,"notes":[{"id":3551846838,"type":"DiffNote","body":"An
+      string: '{"id":"777db63ab6c69c1fc53c9c9e04401443b81fb4cc","individual_note":false,"resolvable":true,"resolved":true,"notes":[{"id":3551916278,"type":"DiffNote","body":"An
         edited, then collapsed, review comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:03.731Z","updated_at":"2026-07-13T12:21:11.503Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:21:11.503Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}},{"id":3551846929,"type":"DiffNote","body":"A
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:36.605Z","updated_at":"2026-07-13T12:33:43.849Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:33:43.849Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}},{"id":3551916349,"type":"DiffNote","body":"A
         reply to the previous line comment, made by the API on 2026-07-08 12:00:00.","author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:21:04.807Z","updated_at":"2026-07-13T12:21:11.503Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
-        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:21:11.503Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T12:33:37.516Z","updated_at":"2026-07-13T12:33:43.849Z","system":false,"noteable_id":459277081,"noteable_type":"MergeRequest","project_id":79787061,"commit_id":null,"position":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","old_path":"BLAH.md","new_path":"BLAH.md","position_type":"text","old_line":null,"new_line":5,"line_range":null},"resolvable":true,"resolved":true,"resolved_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"resolved_at":"2026-07-13T12:33:43.849Z","suggestions":[],"confidential":false,"internal":false,"imported":false,"imported_from":"none","noteable_iid":1,"commands_changes":{}}]}'
     headers:
       CF-Cache-Status:
       - DYNAMIC
       CF-Ray:
-      - a1a83ef97970cddf-CDG
+      - a1a85156dae402c3-CDG
       Cache-Control:
       - max-age=0, private, must-revalidate
       Connection:
@@ -1263,9 +1351,9 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Jul 2026 12:21:11 GMT
+      - Mon, 13 Jul 2026 12:33:43 GMT
       ETag:
-      - W/"b8d4c9c4864288cc1474d61425cb539a"
+      - W/"65fe18f069d203cd7a444b6a3c0214c7"
       Server:
       - cloudflare
       Strict-Transport-Security:
@@ -1279,7 +1367,7 @@ interactions:
       content-security-policy:
       - default-src 'none'
       gitlab-lb:
-      - haproxy-main-52-lb-gprd
+      - haproxy-main-40-lb-gprd
       gitlab-sv:
       - api-gke-us-east1-b
       nel:
@@ -1289,11 +1377,11 @@ interactions:
       ratelimit-name:
       - throttle_authenticated_api
       ratelimit-observed:
-      - '15'
+      - '16'
       ratelimit-remaining:
-      - '1985'
+      - '1984'
       ratelimit-reset:
-      - '1783945320'
+      - '1783946040'
       referrer-policy:
       - strict-origin-when-cross-origin
       x-content-type-options:
@@ -1301,11 +1389,11 @@ interactions:
       x-frame-options:
       - SAMEORIGIN
       x-gitlab-meta:
-      - '{"correlation_id":"a1a83ef97970cddf-CDG","version":"1"}'
+      - '{"correlation_id":"a1a85156dae402c3-CDG","version":"1"}'
       x-request-id:
-      - a1a83ef97970cddf-CDG
+      - a1a85156dae402c3-CDG
       x-runtime:
-      - '0.172183'
+      - '0.219477'
     status:
       code: 200
       message: OK

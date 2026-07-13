@@ -26,6 +26,7 @@ Commands:
     get-pull-request-comments <pr_id>
     create-pull-request-comment <pr_id> <body>
     delete-pull-request-comment <pr_id> <comment_id>
+    update-review-comment <pr_id> <comment_id> <body>
     collapse-pull-request-comment <pr_id> <thread_id> <comment_node_id> [--reason OUTDATED]
     update-and-collapse-pull-request-comment <pr_id> <thread_id> <comment_id> <comment_node_id> <body>
     get-branch <name>
@@ -100,6 +101,7 @@ from scm.types import (
     UpdateAndCollapsePullRequestCommentProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
+    UpdateReviewCommentProtocol,
 )
 
 BUILD_STATUS_CHOICES = ["pending", "running", "completed"]
@@ -213,6 +215,11 @@ def main():
     p = sub.add_parser("delete-pull-request-comment")
     p.add_argument("pr_id")
     p.add_argument("comment_id")
+
+    p = sub.add_parser("update-review-comment")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("body")
 
     p = sub.add_parser("collapse-pull-request-comment")
     p.add_argument("pr_id")
@@ -364,6 +371,10 @@ def main():
     elif args.command == "delete-pull-request-comment":
         assert isinstance(scm, DeletePullRequestCommentProtocol)
         scm.delete_pull_request_comment(args.pr_id, args.comment_id)
+
+    elif args.command == "update-review-comment":
+        assert isinstance(scm, UpdateReviewCommentProtocol)
+        dump(scm.update_review_comment(args.pr_id, args.comment_id, args.body))
 
     elif args.command == "collapse-pull-request-comment":
         assert isinstance(scm, CollapsePullRequestCommentProtocol)

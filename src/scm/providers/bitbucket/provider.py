@@ -695,6 +695,18 @@ class BitbucketProvider:
         # GitHub-only ``comment_node_id`` are ignored.
         self.resolve_review_thread(pull_request_id, thread_id)
 
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]:
+        response = self.put(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{comment_id}",
+            data={"content": {"raw": body}},
+        )
+        return make_result(map_review_comment, response.json())
+
     def update_and_collapse_pull_request_comment(
         self,
         pull_request_id: str,
@@ -705,11 +717,7 @@ class BitbucketProvider:
         reason: str = "OUTDATED",
     ) -> ActionResult[ReviewComment]:
         # Bitbucket has no atomic edit-and-resolve; update the comment, then resolve.
-        response = self.put(
-            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{comment_id}",
-            data={"content": {"raw": body}},
-        )
-        result = make_result(map_review_comment, response.json())
+        result = self.update_review_comment(pull_request_id, comment_id, body)
         self.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
         return result
 
