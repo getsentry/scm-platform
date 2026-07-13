@@ -24,7 +24,7 @@ GitHub: [`resolveReviewThread`](https://docs.github.com/en/graphql/reference/pul
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id](https://docs.gitlab.com/api/discussions/#resolve-a-merge-request-thread)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
 
 ## `compare_commits`
 
@@ -604,7 +604,7 @@ GitHub: [`pullRequest.reviewThreads`](https://docs.github.com/en/graphql/referen
 
 GitLab: local parsing
 
-Bitbucket: @todo Find out
+Bitbucket: local parsing (a comment roots its own thread, so its id is the thread id)
 
 ## `get_tree`
 
@@ -692,7 +692,7 @@ GitHub: [`resolveReviewThread`](https://docs.github.com/en/graphql/reference/pul
 
 GitLab: [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id](https://docs.gitlab.com/api/discussions/#resolve-a-merge-request-thread)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
+Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
 
 ## `update_and_collapse_pull_request_comment`
 
@@ -702,7 +702,7 @@ GitLab:
 - [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id/notes/:note_id](https://docs.gitlab.com/api/discussions/#update-a-merge-request-thread-note)
 - [PUT /projects/:id/merge_requests/:merge_request_iid/discussions/:discussion_id](https://docs.gitlab.com/api/discussions/#resolve-a-merge-request-thread)
 
-Bitbucket: @todo Use:
+Bitbucket:
 - [PUT /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-put)
 - [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments/{comment_id}/resolve](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-comment-id-resolve-post)
 

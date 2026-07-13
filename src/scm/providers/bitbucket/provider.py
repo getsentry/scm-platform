@@ -670,6 +670,49 @@ class BitbucketProvider:
             f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{comment_id}",
         )
 
+    def get_thread_id_from_review_comment_unique_id(
+        self, pull_request_id: str, review_comment_unique_id: str
+    ) -> str | None:
+        # A Bitbucket comment roots its own thread (``map_review_comment`` sets
+        # ``thread_id`` == the comment id), so the unique id already is the thread id.
+        return review_comment_unique_id or None
+
+    def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
+        # The thread is identified by its root comment's id.
+        self.post(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{thread_id}/resolve",
+            data={},
+        )
+
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        # Bitbucket has no minimize-with-reason concept, so ``reason`` and the
+        # GitHub-only ``comment_node_id`` are ignored.
+        self.resolve_review_thread(pull_request_id, thread_id)
+
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]:
+        # Bitbucket has no atomic edit-and-resolve; update the comment, then resolve.
+        response = self.put(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{comment_id}",
+            data={"content": {"raw": body}},
+        )
+        result = make_result(map_review_comment, response.json())
+        self.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
+        return result
+
     def get_pull_request_files(
         self,
         pull_request_id: str,

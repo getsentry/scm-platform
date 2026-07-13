@@ -23,6 +23,7 @@ from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import API_VERSION, GitLabProvider
 from scm.rpc.client import NoOpRateLimiter
 from scm.types import (
+    CollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
@@ -71,6 +72,8 @@ from scm.types import (
     Provider,
     Repository,
     RepositoryId,
+    ResolveReviewThreadProtocol,
+    UpdateAndCollapsePullRequestCommentProtocol,
     UpdateBranchProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
@@ -1354,6 +1357,53 @@ def test_review_comments(service: str, switch: Switch, now: datetime, client: So
         )
         assert isinstance(reply_comment["data"]["id"], str)
         assert reply_comment["data"]["body"] == body
+
+    # A third top-level comment, so each resolve action below gets its own thread:
+    # Bitbucket rejects re-resolving an already-resolved thread (409), so no thread
+    # may be resolved twice.
+    body = f"A review comment to collapse, made by the API on {now}."
+    comment_to_collapse = client.create_review_comment_file(
+        pull_request_id=pull_request_id,
+        commit_id="7497e018d01503b6abc3053b7896266115e631f6",
+        body=body,
+        path="BLAH.md",
+        side="head",
+    )
+
+    # Map each comment to its thread id: Bitbucket/GitLab derive it locally from the
+    # comment id, GitHub looks it up -- all behind one method.
+    assert isinstance(client, ResolveReviewThreadProtocol)
+    file_thread_id = client.get_thread_id_from_review_comment_unique_id(
+        pull_request_id, comment_on_file["data"]["unique_id"] or ""
+    )
+    collapse_thread_id = client.get_thread_id_from_review_comment_unique_id(
+        pull_request_id, comment_to_collapse["data"]["unique_id"] or ""
+    )
+    line_thread_id = client.get_thread_id_from_review_comment_unique_id(
+        pull_request_id, comment_on_line["data"]["unique_id"] or ""
+    )
+    assert file_thread_id is not None and collapse_thread_id is not None and line_thread_id is not None
+
+    # Resolve one thread directly...
+    client.resolve_review_thread(pull_request_id, file_thread_id)
+
+    # ...collapse another via the higher-level entry point...
+    assert isinstance(client, CollapsePullRequestCommentProtocol)
+    client.collapse_pull_request_comment(
+        pull_request_id, collapse_thread_id, comment_to_collapse["data"]["unique_id"] or ""
+    )
+
+    # ...and edit-and-collapse the last one.
+    assert isinstance(client, UpdateAndCollapsePullRequestCommentProtocol)
+    edited_body = f"An edited, then collapsed, review comment, made by the API on {now}."
+    edited = client.update_and_collapse_pull_request_comment(
+        pull_request_id=pull_request_id,
+        thread_id=line_thread_id,
+        comment_id=comment_on_line["data"]["id"],
+        comment_node_id=comment_on_line["data"]["unique_id"] or "",
+        body=edited_body,
+    )
+    assert edited["data"]["body"] == edited_body
 
 
 def test_create_review(switch: Switch, now: datetime, client: SourceCodeManager) -> None:

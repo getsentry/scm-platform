@@ -18,7 +18,7 @@ interactions:
     uri: https://api.github.com/app/installations/_/access_tokens
   response:
     body:
-      string: '{"token": "SCRUBBED", "expires_at": "2026-07-08T15:13:17Z", "permissions":
+      string: '{"token": "SCRUBBED", "expires_at": "2026-07-13T13:20:49Z", "permissions":
         {"administration": "read", "checks": "write", "contents": "write", "issues":
         "write", "metadata": "read", "pull_requests": "write", "repository_hooks":
         "write", "statuses": "write", "workflows": "write"}, "repository_selection":
@@ -40,9 +40,9 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:17 GMT
+      - Mon, 13 Jul 2026 12:20:49 GMT
       ETag:
-      - '"d2534d41497a54bbbc62359aa2f9a1046f7ad7365e3a703df6fbd05ec355656c"'
+      - '"212622261e099c0313fd758f6ad56bcc3930214305f58367e6a969aec1b69792"'
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -58,7 +58,7 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3D4:E493E:F0CA3B:E4FEEF:6A4E5AFD
+      - CA06:1818B8:7E0CF58:77FD0ED:6A54D821
       X-XSS-Protection:
       - '0'
       x-github-api-version-selected:
@@ -89,8 +89,8 @@ interactions:
     uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
   response:
     body:
-      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226","pull_request_review_id":4654961615,"id":3544675226,"node_id":"PRRC_kwDORRhd7M7TR3Oa","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
-        review comment, on a file, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:18Z","updated_at":"2026-07-08T14:13:18Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675226","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675226"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565448","pull_request_review_id":4684626406,"id":3570565448,"node_id":"PRRC_kwDORRhd7M7U0oFI","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        review comment, on a file, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:50Z","updated_at":"2026-07-13T12:20:50Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565448","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565448"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565448"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565448/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
     headers:
       Access-Control-Allow-Origin:
       - '*'
@@ -108,11 +108,11 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:18 GMT
+      - Mon, 13 Jul 2026 12:20:50 GMT
       ETag:
-      - '"3a9bdeb82f28336918be5885645a76191f203db7d69d0852861781540c2d2196"'
+      - '"2c5980f1e5e6319f482b26a2f2a1dec63fa10bbc378302ebad1dc4d953275a49"'
       Location:
-      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675226
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565448
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -128,17 +128,17 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3D5:E493E:F0CD9F:E50251:6A4E5AFE
+      - CA07:3A68AC:7EFD236:78DFA66:6A54D821
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4965'
+      - '4993'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783948438'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '35'
+      - '7'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
@@ -150,7 +150,7 @@ interactions:
       message: Created
 - request:
     body: '{"body": "A reply to the previous comment, made by the API on 2026-07-08
-      12:00:00.", "in_reply_to": 3544675226}'
+      12:00:00.", "in_reply_to": 3570565448}'
     headers:
       Accept:
       - '*/*'
@@ -170,8 +170,8 @@ interactions:
     uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
   response:
     body:
-      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357","pull_request_review_id":4654961777,"id":3544675357,"node_id":"PRRC_kwDORRhd7M7TR3Qd","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
-        reply to the previous comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:19Z","updated_at":"2026-07-08T14:13:19Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675357","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675357"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","in_reply_to_id":3544675226,"author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565524","pull_request_review_id":4684626508,"id":3570565524,"node_id":"PRRC_kwDORRhd7M7U0oGU","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        reply to the previous comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:51Z","updated_at":"2026-07-13T12:20:51Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565524","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565524"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565524"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565524/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","in_reply_to_id":3570565448,"author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
     headers:
       Access-Control-Allow-Origin:
       - '*'
@@ -189,11 +189,11 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:20 GMT
+      - Mon, 13 Jul 2026 12:20:51 GMT
       ETag:
-      - '"83b2148755f579163864c7d6ccc0e77ccc0c4ea39830325422494cd1230e426d"'
+      - '"b706b37aab7ca71cf1190ca09944140fcb8af45707b92a38f5cf72aa650b48c1"'
       Location:
-      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675357
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565524
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -209,17 +209,17 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3D6:399664:F06C90:E5089A:6A4E5AFE
+      - CA08:1A39C:885A13A:8230819:6A54D822
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4964'
+      - '4992'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783948438'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '36'
+      - '8'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
@@ -252,9 +252,9 @@ interactions:
     uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
   response:
     body:
-      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495","pull_request_review_id":4654961932,"id":3544675495,"node_id":"PRRC_kwDORRhd7M7TR3Sn","diff_hunk":"@@
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565648","pull_request_review_id":4684626614,"id":3570565648,"node_id":"PRRC_kwDORRhd7M7U0oIQ","diff_hunk":"@@
         -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
-        review comment, on a line, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:20Z","updated_at":"2026-07-08T14:13:20Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675495","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675495"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":5,"original_line":5,"side":"RIGHT","author_association":"NONE","original_position":5,"position":5,"subject_type":"line"}'
+        review comment, on a line, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:52Z","updated_at":"2026-07-13T12:20:52Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565648","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565648"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565648"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565648/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":5,"original_line":5,"side":"RIGHT","author_association":"NONE","original_position":5,"position":5,"subject_type":"line"}'
     headers:
       Access-Control-Allow-Origin:
       - '*'
@@ -272,11 +272,11 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:20 GMT
+      - Mon, 13 Jul 2026 12:20:52 GMT
       ETag:
-      - '"e9f5a9df88d5f601cabfb7779f9d01be7a1d7c31b6f847f2d105acfd67c02061"'
+      - '"0a2fbb8db485c0c80547020e39f5c75018a81e00b64742aafc045093b7404094"'
       Location:
-      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675495
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565648
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -292,17 +292,17 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3D7:2EC612:F8BEB6:ECE1B4:6A4E5B00
+      - CA09:340F7:7E84AA6:78496CD:6A54D823
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4963'
+      - '4991'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783948438'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '37'
+      - '9'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
@@ -314,7 +314,7 @@ interactions:
       message: Created
 - request:
     body: '{"body": "A reply to the previous line comment, made by the API on 2026-07-08
-      12:00:00.", "in_reply_to": 3544675495}'
+      12:00:00.", "in_reply_to": 3570565648}'
     headers:
       Accept:
       - '*/*'
@@ -334,9 +334,9 @@ interactions:
     uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
   response:
     body:
-      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609","pull_request_review_id":4654962050,"id":3544675609,"node_id":"PRRC_kwDORRhd7M7TR3UZ","diff_hunk":"@@
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565715","pull_request_review_id":4684626689,"id":3570565715,"node_id":"PRRC_kwDORRhd7M7U0oJT","diff_hunk":"@@
         -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
-        reply to the previous line comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:21Z","updated_at":"2026-07-08T14:13:21Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675609","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675609"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":5,"original_line":5,"side":"RIGHT","in_reply_to_id":3544675495,"author_association":"NONE","original_position":5,"position":5,"subject_type":"line"}'
+        reply to the previous line comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:52Z","updated_at":"2026-07-13T12:20:52Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565715","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565715"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565715"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565715/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":5,"original_line":5,"side":"RIGHT","in_reply_to_id":3570565648,"author_association":"NONE","original_position":5,"position":5,"subject_type":"line"}'
     headers:
       Access-Control-Allow-Origin:
       - '*'
@@ -354,11 +354,11 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:22 GMT
+      - Mon, 13 Jul 2026 12:20:53 GMT
       ETag:
-      - '"89f1c15b64f8f21a2e5dedad450ea1745f01e98c7099cf0d3d811f91d80032e3"'
+      - '"599cd75681d28712dddc03c66f3cbfc22980ffc4649e505e8698b222b12dc811"'
       Location:
-      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675609
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565715
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -374,17 +374,17 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3D8:A52AE:F19B57:E5F66F:6A4E5B01
+      - CA0A:207646:7C6ECA0:7663504:6A54D824
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4962'
+      - '4990'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783948438'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '38'
+      - '10'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
@@ -417,9 +417,9 @@ interactions:
     uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
   response:
     body:
-      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745","pull_request_review_id":4654962195,"id":3544675745,"node_id":"PRRC_kwDORRhd7M7TR3Wh","diff_hunk":"@@
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565813","pull_request_review_id":4684626814,"id":3570565813,"node_id":"PRRC_kwDORRhd7M7U0oK1","diff_hunk":"@@
         -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5\n+6\n+7","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
-        review comment, on multiple lines, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:22Z","updated_at":"2026-07-08T14:13:22Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675745","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675745"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":5,"original_start_line":5,"start_side":"RIGHT","line":7,"original_line":7,"side":"RIGHT","author_association":"NONE","original_position":7,"position":7,"subject_type":"line"}'
+        review comment, on multiple lines, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:53Z","updated_at":"2026-07-13T12:20:54Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565813","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565813"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565813"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565813/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":5,"original_start_line":5,"start_side":"RIGHT","line":7,"original_line":7,"side":"RIGHT","author_association":"NONE","original_position":7,"position":7,"subject_type":"line"}'
     headers:
       Access-Control-Allow-Origin:
       - '*'
@@ -437,11 +437,11 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:22 GMT
+      - Mon, 13 Jul 2026 12:20:54 GMT
       ETag:
-      - '"a835054d74ba3d1aaad8fa91c09dd25072afebf91cfa0b6d1eae0af4e6e00c0a"'
+      - '"b7bf89727af60adaddb97ca72afb7f52d669caac82bdee5032c4a693e3513b16"'
       Location:
-      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675745
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565813
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -457,17 +457,17 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3DA:126C04:EFD28E:E43B38:6A4E5B02
+      - CA0B:C45D3:7D38C13:771F591:6A54D825
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4961'
+      - '4989'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783948438'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '39'
+      - '11'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
@@ -479,7 +479,7 @@ interactions:
       message: Created
 - request:
     body: '{"body": "A reply to the previous multiline comment, made by the API on
-      2026-07-08 12:00:00.", "in_reply_to": 3544675745}'
+      2026-07-08 12:00:00.", "in_reply_to": 3570565813}'
     headers:
       Accept:
       - '*/*'
@@ -499,9 +499,9 @@ interactions:
     uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
   response:
     body:
-      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839","pull_request_review_id":4654962309,"id":3544675839,"node_id":"PRRC_kwDORRhd7M7TR3X_","diff_hunk":"@@
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565934","pull_request_review_id":4684626919,"id":3570565934,"node_id":"PRRC_kwDORRhd7M7U0oMu","diff_hunk":"@@
         -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5\n+6\n+7","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
-        reply to the previous multiline comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-08T14:13:23Z","updated_at":"2026-07-08T14:13:23Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675839","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3544675839"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":5,"original_start_line":5,"start_side":"RIGHT","line":7,"original_line":7,"side":"RIGHT","in_reply_to_id":3544675745,"author_association":"NONE","original_position":7,"position":7,"subject_type":"line"}'
+        reply to the previous multiline comment, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:54Z","updated_at":"2026-07-13T12:20:54Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565934","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565934"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570565934"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565934/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":5,"original_start_line":5,"start_side":"RIGHT","line":7,"original_line":7,"side":"RIGHT","in_reply_to_id":3570565813,"author_association":"NONE","original_position":7,"position":7,"subject_type":"line"}'
     headers:
       Access-Control-Allow-Origin:
       - '*'
@@ -519,11 +519,11 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 08 Jul 2026 14:13:23 GMT
+      - Mon, 13 Jul 2026 12:20:55 GMT
       ETag:
-      - '"8a0f437f39ee8d983fe3cdcbd7f27624c29a9586e9c2122f2bfb614773866da7"'
+      - '"e97c44d13a6e1f75bd1ec2608fe66b045dc6edaac40d73f7ce1f891754872032"'
       Location:
-      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3544675839
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570565934
       Referrer-Policy:
       - origin-when-cross-origin, strict-origin-when-cross-origin
       Server:
@@ -539,17 +539,17 @@ interactions:
       X-GitHub-Media-Type:
       - github.v3; format=json
       X-GitHub-Request-Id:
-      - C3DB:126C04:EFDD1F:E4456D:6A4E5B03
+      - CA0C:3C125D:7E5EA0A:784B3D5:6A54D826
       X-RateLimit-Limit:
       - '5000'
       X-RateLimit-Remaining:
-      - '4960'
+      - '4988'
       X-RateLimit-Reset:
-      - '1783523568'
+      - '1783948438'
       X-RateLimit-Resource:
       - core
       X-RateLimit-Used:
-      - '40'
+      - '12'
       X-XSS-Protection:
       - '0'
       x-accepted-github-permissions:
@@ -559,4 +559,606 @@ interactions:
     status:
       code: 201
       message: Created
+- request:
+    body: '{"body": "A review comment to collapse, made by the API on 2026-07-08 12:00:00.",
+      "commit_id": "7497e018d01503b6abc3053b7896266115e631f6", "path": "BLAH.md",
+      "side": "RIGHT", "subject_type": "file"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '198'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2/comments
+  response:
+    body:
+      string: '{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570566064","pull_request_review_id":4684627049,"id":3570566064,"node_id":"PRRC_kwDORRhd7M7U0oOw","diff_hunk":"","path":"BLAH.md","commit_id":"7497e018d01503b6abc3053b7896266115e631f6","original_commit_id":"7497e018d01503b6abc3053b7896266115e631f6","user":{"login":"sentry-integration-dev-jacquev6[bot]","id":261902604,"node_id":"BOT_kgDOD5xRDA","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D","html_url":"https://github.com/apps/sentry-integration-dev-jacquev6","followers_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/followers","following_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/following{/other_user}","gists_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/gists{/gist_id}","starred_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/subscriptions","organizations_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/orgs","repos_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/repos","events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/events{/privacy}","received_events_url":"https://api.github.com/users/sentry-integration-dev-jacquev6%5Bbot%5D/received_events","type":"Bot","user_view_type":"public","site_admin":false},"body":"A
+        review comment to collapse, made by the API on 2026-07-08 12:00:00.","created_at":"2026-07-13T12:20:55Z","updated_at":"2026-07-13T12:20:56Z","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570566064","pull_request_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2","_links":{"self":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570566064"},"html":{"href":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/pull/2#discussion_r3570566064"},"pull_request":{"href":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/2"}},"reactions":{"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570566064/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"start_line":null,"original_start_line":null,"start_side":null,"line":1,"original_line":1,"side":"RIGHT","author_association":"NONE","original_position":1,"position":1,"subject_type":"file"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '2788'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:56 GMT
+      ETag:
+      - '"2a183e49c3a67277ba63871ef766eb2cac9e68da2082204c219df455f05bfeee"'
+      Location:
+      - https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/pulls/comments/3570566064
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - CA0D:CD2C0:7C266A8:763122A:6A54D827
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4987'
+      X-RateLimit-Reset:
+      - '1783948438'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '13'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - pull_requests=write
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: '{"query": "\nquery ReviewThreadByComment($owner: String!, $name: String!,
+      $number: Int!, $cursor: String) {\n    repository(owner: $owner, name: $name)
+      {\n        pullRequest(number: $number) {\n            reviewThreads(first:
+      100, after: $cursor) {\n                pageInfo { hasNextPage endCursor }\n                nodes
+      {\n                    id\n                    comments(first: 100) {\n                        pageInfo
+      { hasNextPage endCursor }\n                        nodes { id }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+      "variables": {"owner": "jacquev6", "name": "test-Sentry-Integration-Dev-jacquev6",
+      "number": 2, "cursor": null}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '688'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/graphql
+  response:
+    body:
+      string: '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NVrOkGKriA=="},"nodes":[{"id":"PRRT_kwDORRhd7M5yS87c","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDozNTowMlrOrDTMJA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNMwk"}]}},{"id":"PRRT_kwDORRhd7M5yS9MB","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDozNToxOVrOrDTRxw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNNHH"}]}},{"id":"PRRT_kwDORRhd7M5yTIm2","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo0NzozOVrOrDXLmg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNcua"}]}},{"id":"PRRT_kwDORRhd7M5yTM2v","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo1MjoxNVrOrDYoeg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNih6"}]}},{"id":"PRRT_kwDORRhd7M5yTPEl","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo1NDo0N1rOrDZXYw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNldj"}]}},{"id":"PRRT_kwDORRhd7M5yTUbP","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTowMDo1OFrOrDbJAQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNskB"}]}},{"id":"PRRT_kwDORRhd7M5yTUpI","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTowMToxMlrOrDbNWg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNs1a"}]}},{"id":"PRRT_kwDORRhd7M5yTgv3","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMToxNDoyNVrOrDfPdw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sN88s"},{"id":"PRRC_kwDORRhd7M6sN893"}]}},{"id":"PRRT_kwDORRhd7M5yTtNQ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMToyOToyNVrOrDjUzA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sONTM"}]}},{"id":"PRRT_kwDORRhd7M5yTvNr","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTozMTo1NFrOrDj-yA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sOP7I"}]}},{"id":"PRRT_kwDORRhd7M5yWvcV","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNDo1MToyNlrOrEkUGQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSRQZ"}]}},{"id":"PRRT_kwDORRhd7M5yWvdR","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNDo1MToyOVrOrEkVKw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSRRs"},{"id":"PRRC_kwDORRhd7M6sSRS7"},{"id":"PRRC_kwDORRhd7M6sSRUr"}]}},{"id":"PRRT_kwDORRhd7M5yXI5S","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNToxMzo0OFrOrEs5KQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSzkp"}]}},{"id":"PRRT_kwDORRhd7M5yXI6h","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNToxMzo1MVrOrEs61g=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSzmZ"},{"id":"PRRC_kwDORRhd7M6sSzoa"},{"id":"PRRC_kwDORRhd7M6sSzrW"}]}},{"id":"PRRT_kwDORRhd7M5zPv1Q","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTozODozOFrOrXrIOg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tesfq"},{"id":"PRRC_kwDORRhd7M6tesg6"}]}},{"id":"PRRT_kwDORRhd7M5zP1it","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo0NDoyN1rOrXtCrw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6te0Jb"},{"id":"PRRC_kwDORRhd7M6te0Kv"}]}},{"id":"PRRT_kwDORRhd7M5zP56S","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo0ODo0NFrOrXudjQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6te51I"},{"id":"PRRC_kwDORRhd7M6te52N"}]}},{"id":"PRRT_kwDORRhd7M5zQCSS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo1Njo1MlrOrXxOZg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tfE4I"},{"id":"PRRC_kwDORRhd7M6tfE5m"}]}},{"id":"PRRT_kwDORRhd7M5zQRFi","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMDoxMDo0MVrOrX2Cwg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tfYJw"},{"id":"PRRC_kwDORRhd7M6tfYLC"}]}},{"id":"PRRT_kwDORRhd7M5zQ4k0","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMDo0OTo1OVrOrYDIng=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tgMhc"},{"id":"PRRC_kwDORRhd7M6tgMie"}]}},{"id":"PRRT_kwDORRhd7M5zRPqu","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMToxNDoyOFrOrYKn8Q=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tgqeR"},{"id":"PRRC_kwDORRhd7M6tgqfx"}]}},{"id":"PRRT_kwDORRhd7M5zUwyQ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxNDozODoxOFrOrZVEtA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tlUS0"}]}},{"id":"PRRT_kwDORRhd7M5zU0cS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxNDo0MDoyMVrOrZWNEg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tlY0S"}]}},{"id":"PRRT_kwDORRhd7M57dPgC","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0MjoxOFrOuGt7yA=="},"nodes":[{"id":"PRRC_kwDORRhd7M64a3sW"},{"id":"PRRC_kwDORRhd7M64a3vI"}]}},{"id":"PRRT_kwDORRhd7M57dPmW","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0MjoyMVrOuGt9cQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M64a31x"}]}},{"id":"PRRT_kwDORRhd7M57dYoK","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0OTowMFrOuGxNrQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M64bE1B"},{"id":"PRRC_kwDORRhd7M64bE2t"}]}},{"id":"PRRT_kwDORRhd7M57dYtX","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0OTowM1rOuGxO-w=="},"nodes":[{"id":"PRRC_kwDORRhd7M64bE77"}]}},{"id":"PRRT_kwDORRhd7M6O4It7","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMDozMzozOVrO0r3nbA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Svebp"},{"id":"PRRC_kwDORRhd7M7Sveds"}]}},{"id":"PRRT_kwDORRhd7M6O5enP","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMTo1MDozMVrO0sVXww=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxVfD"}]}},{"id":"PRRT_kwDORRhd7M6O5ifT","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMTo1Mzo0MFrO0sWuEg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxa4S"}]}},{"id":"PRRT_kwDORRhd7M6O5tAS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMToyOFrO0sabJw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxprB"},{"id":"PRRC_kwDORRhd7M7Sxpsn"}]}},{"id":"PRRT_kwDORRhd7M6O5tCc","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTozMFrO0sab_Q=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxpuR"},{"id":"PRRC_kwDORRhd7M7Sxpv9"}]}},{"id":"PRRT_kwDORRhd7M6O5tl9","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTo1NFrO0saohg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxqgB"},{"id":"PRRC_kwDORRhd7M7SxqiG"}]}},{"id":"PRRT_kwDORRhd7M6O5to5","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTo1NlrO0sapig=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxqkX"},{"id":"PRRC_kwDORRhd7M7SxqmK"}]}},{"id":"PRRT_kwDORRhd7M6O5uQ4","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyM1rO0sa4CA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxreh"},{"id":"PRRC_kwDORRhd7M7SxrgI"}]}},{"id":"PRRT_kwDORRhd7M6O5uTZ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyNVrO0sa5Fg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxriG"},{"id":"PRRC_kwDORRhd7M7SxrkW"}]}},{"id":"PRRT_kwDORRhd7M6O5uWo","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyN1rO0sa6Gw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxrmb"},{"id":"PRRC_kwDORRhd7M7Sxrob"}]}},{"id":"PRRT_kwDORRhd7M6O6EXo","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMToyOFrO0siaQA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyJpA"}]}},{"id":"PRRT_kwDORRhd7M6O6FJv","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMjoxMVrO0sirkQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyKuR"}]}},{"id":"PRRT_kwDORRhd7M6O6G5c","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMzo0MlrO0sjRiQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyNGJ"}]}},{"id":"PRRT_kwDORRhd7M6O6P36","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozMTo0NlrO0smTyw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyZPL"}]}},{"id":"PRRT_kwDORRhd7M6O6P_1","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozMTo1NFrO0smWfQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyZZ9"}]}},{"id":"PRRT_kwDORRhd7M6O6U0A","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozNjoyOVrO0sn_mw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Syf-b"}]}},{"id":"PRRT_kwDORRhd7M6PPpAt","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowMVrO0z-Frw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4U5"},{"id":"PRRC_kwDORRhd7M7TP4Wv"}]}},{"id":"PRRT_kwDORRhd7M6PPpDb","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowM1rO0z-Ghg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4Yf"},{"id":"PRRC_kwDORRhd7M7TP4aG"}]}},{"id":"PRRT_kwDORRhd7M6PPpGL","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowNVrO0z-HWQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4b8"},{"id":"PRRC_kwDORRhd7M7TP4dZ"}]}},{"id":"PRRT_kwDORRhd7M6PPpWp","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDoxNVrO0z-MRA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4xE"}]}},{"id":"PRRT_kwDORRhd7M6PRGgX","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoxOVrO00d0HQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Oa"},{"id":"PRRC_kwDORRhd7M7TR3Qd"}]}},{"id":"PRRT_kwDORRhd7M6PRGjf","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyMVrO00d1GQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Sn"},{"id":"PRRC_kwDORRhd7M7TR3UZ"}]}},{"id":"PRRT_kwDORRhd7M6PRGmJ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyM1rO00d1_w=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Wh"},{"id":"PRRC_kwDORRhd7M7TR3X_"}]}},{"id":"PRRT_kwDORRhd7M6PRGo4","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyNFrO00d2mg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3aa"}]}},{"id":"PRRT_kwDORRhd7M6QYjHW","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxMzo1OVrO1NHg8g=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eC0"},{"id":"PRRC_kwDORRhd7M7U0eDy"}]}},{"id":"PRRT_kwDORRhd7M6QYjI1","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxNDowMVrO1NHhqQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eFF"},{"id":"PRRC_kwDORRhd7M7U0eGp"}]}},{"id":"PRRT_kwDORRhd7M6QYjLg","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxNDowM1rO1NHibQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eIf"},{"id":"PRRC_kwDORRhd7M7U0eJt"}]}},{"id":"PRRT_kwDORRhd7M6QYqmh","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1MVrO1NKBlA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oFI"},{"id":"PRRC_kwDORRhd7M7U0oGU"}]}},{"id":"PRRT_kwDORRhd7M6QYqpA","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1MlrO1NKCUw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oIQ"},{"id":"PRRC_kwDORRhd7M7U0oJT"}]}},{"id":"PRRT_kwDORRhd7M6QYqrH","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NFrO1NKDLg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oK1"},{"id":"PRRC_kwDORRhd7M7U0oMu"}]}},{"id":"PRRT_kwDORRhd7M6QYquI","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NVrO1NKDsA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oOw"}]}}]}}}}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:56 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v4; format=json
+      X-GitHub-Request-Id:
+      - CA0E:C45D3:7D3AE0E:77215DD:6A54D828
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4994'
+      X-RateLimit-Reset:
+      - '1783948444'
+      X-RateLimit-Resource:
+      - graphql
+      X-RateLimit-Used:
+      - '6'
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "\nquery ReviewThreadByComment($owner: String!, $name: String!,
+      $number: Int!, $cursor: String) {\n    repository(owner: $owner, name: $name)
+      {\n        pullRequest(number: $number) {\n            reviewThreads(first:
+      100, after: $cursor) {\n                pageInfo { hasNextPage endCursor }\n                nodes
+      {\n                    id\n                    comments(first: 100) {\n                        pageInfo
+      { hasNextPage endCursor }\n                        nodes { id }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+      "variables": {"owner": "jacquev6", "name": "test-Sentry-Integration-Dev-jacquev6",
+      "number": 2, "cursor": null}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '688'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/graphql
+  response:
+    body:
+      string: '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NVrOkGKriA=="},"nodes":[{"id":"PRRT_kwDORRhd7M5yS87c","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDozNTowMlrOrDTMJA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNMwk"}]}},{"id":"PRRT_kwDORRhd7M5yS9MB","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDozNToxOVrOrDTRxw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNNHH"}]}},{"id":"PRRT_kwDORRhd7M5yTIm2","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo0NzozOVrOrDXLmg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNcua"}]}},{"id":"PRRT_kwDORRhd7M5yTM2v","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo1MjoxNVrOrDYoeg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNih6"}]}},{"id":"PRRT_kwDORRhd7M5yTPEl","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo1NDo0N1rOrDZXYw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNldj"}]}},{"id":"PRRT_kwDORRhd7M5yTUbP","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTowMDo1OFrOrDbJAQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNskB"}]}},{"id":"PRRT_kwDORRhd7M5yTUpI","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTowMToxMlrOrDbNWg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNs1a"}]}},{"id":"PRRT_kwDORRhd7M5yTgv3","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMToxNDoyNVrOrDfPdw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sN88s"},{"id":"PRRC_kwDORRhd7M6sN893"}]}},{"id":"PRRT_kwDORRhd7M5yTtNQ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMToyOToyNVrOrDjUzA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sONTM"}]}},{"id":"PRRT_kwDORRhd7M5yTvNr","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTozMTo1NFrOrDj-yA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sOP7I"}]}},{"id":"PRRT_kwDORRhd7M5yWvcV","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNDo1MToyNlrOrEkUGQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSRQZ"}]}},{"id":"PRRT_kwDORRhd7M5yWvdR","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNDo1MToyOVrOrEkVKw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSRRs"},{"id":"PRRC_kwDORRhd7M6sSRS7"},{"id":"PRRC_kwDORRhd7M6sSRUr"}]}},{"id":"PRRT_kwDORRhd7M5yXI5S","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNToxMzo0OFrOrEs5KQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSzkp"}]}},{"id":"PRRT_kwDORRhd7M5yXI6h","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNToxMzo1MVrOrEs61g=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSzmZ"},{"id":"PRRC_kwDORRhd7M6sSzoa"},{"id":"PRRC_kwDORRhd7M6sSzrW"}]}},{"id":"PRRT_kwDORRhd7M5zPv1Q","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTozODozOFrOrXrIOg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tesfq"},{"id":"PRRC_kwDORRhd7M6tesg6"}]}},{"id":"PRRT_kwDORRhd7M5zP1it","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo0NDoyN1rOrXtCrw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6te0Jb"},{"id":"PRRC_kwDORRhd7M6te0Kv"}]}},{"id":"PRRT_kwDORRhd7M5zP56S","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo0ODo0NFrOrXudjQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6te51I"},{"id":"PRRC_kwDORRhd7M6te52N"}]}},{"id":"PRRT_kwDORRhd7M5zQCSS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo1Njo1MlrOrXxOZg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tfE4I"},{"id":"PRRC_kwDORRhd7M6tfE5m"}]}},{"id":"PRRT_kwDORRhd7M5zQRFi","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMDoxMDo0MVrOrX2Cwg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tfYJw"},{"id":"PRRC_kwDORRhd7M6tfYLC"}]}},{"id":"PRRT_kwDORRhd7M5zQ4k0","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMDo0OTo1OVrOrYDIng=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tgMhc"},{"id":"PRRC_kwDORRhd7M6tgMie"}]}},{"id":"PRRT_kwDORRhd7M5zRPqu","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMToxNDoyOFrOrYKn8Q=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tgqeR"},{"id":"PRRC_kwDORRhd7M6tgqfx"}]}},{"id":"PRRT_kwDORRhd7M5zUwyQ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxNDozODoxOFrOrZVEtA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tlUS0"}]}},{"id":"PRRT_kwDORRhd7M5zU0cS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxNDo0MDoyMVrOrZWNEg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tlY0S"}]}},{"id":"PRRT_kwDORRhd7M57dPgC","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0MjoxOFrOuGt7yA=="},"nodes":[{"id":"PRRC_kwDORRhd7M64a3sW"},{"id":"PRRC_kwDORRhd7M64a3vI"}]}},{"id":"PRRT_kwDORRhd7M57dPmW","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0MjoyMVrOuGt9cQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M64a31x"}]}},{"id":"PRRT_kwDORRhd7M57dYoK","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0OTowMFrOuGxNrQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M64bE1B"},{"id":"PRRC_kwDORRhd7M64bE2t"}]}},{"id":"PRRT_kwDORRhd7M57dYtX","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0OTowM1rOuGxO-w=="},"nodes":[{"id":"PRRC_kwDORRhd7M64bE77"}]}},{"id":"PRRT_kwDORRhd7M6O4It7","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMDozMzozOVrO0r3nbA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Svebp"},{"id":"PRRC_kwDORRhd7M7Sveds"}]}},{"id":"PRRT_kwDORRhd7M6O5enP","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMTo1MDozMVrO0sVXww=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxVfD"}]}},{"id":"PRRT_kwDORRhd7M6O5ifT","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMTo1Mzo0MFrO0sWuEg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxa4S"}]}},{"id":"PRRT_kwDORRhd7M6O5tAS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMToyOFrO0sabJw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxprB"},{"id":"PRRC_kwDORRhd7M7Sxpsn"}]}},{"id":"PRRT_kwDORRhd7M6O5tCc","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTozMFrO0sab_Q=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxpuR"},{"id":"PRRC_kwDORRhd7M7Sxpv9"}]}},{"id":"PRRT_kwDORRhd7M6O5tl9","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTo1NFrO0saohg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxqgB"},{"id":"PRRC_kwDORRhd7M7SxqiG"}]}},{"id":"PRRT_kwDORRhd7M6O5to5","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTo1NlrO0sapig=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxqkX"},{"id":"PRRC_kwDORRhd7M7SxqmK"}]}},{"id":"PRRT_kwDORRhd7M6O5uQ4","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyM1rO0sa4CA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxreh"},{"id":"PRRC_kwDORRhd7M7SxrgI"}]}},{"id":"PRRT_kwDORRhd7M6O5uTZ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyNVrO0sa5Fg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxriG"},{"id":"PRRC_kwDORRhd7M7SxrkW"}]}},{"id":"PRRT_kwDORRhd7M6O5uWo","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyN1rO0sa6Gw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxrmb"},{"id":"PRRC_kwDORRhd7M7Sxrob"}]}},{"id":"PRRT_kwDORRhd7M6O6EXo","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMToyOFrO0siaQA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyJpA"}]}},{"id":"PRRT_kwDORRhd7M6O6FJv","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMjoxMVrO0sirkQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyKuR"}]}},{"id":"PRRT_kwDORRhd7M6O6G5c","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMzo0MlrO0sjRiQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyNGJ"}]}},{"id":"PRRT_kwDORRhd7M6O6P36","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozMTo0NlrO0smTyw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyZPL"}]}},{"id":"PRRT_kwDORRhd7M6O6P_1","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozMTo1NFrO0smWfQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyZZ9"}]}},{"id":"PRRT_kwDORRhd7M6O6U0A","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozNjoyOVrO0sn_mw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Syf-b"}]}},{"id":"PRRT_kwDORRhd7M6PPpAt","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowMVrO0z-Frw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4U5"},{"id":"PRRC_kwDORRhd7M7TP4Wv"}]}},{"id":"PRRT_kwDORRhd7M6PPpDb","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowM1rO0z-Ghg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4Yf"},{"id":"PRRC_kwDORRhd7M7TP4aG"}]}},{"id":"PRRT_kwDORRhd7M6PPpGL","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowNVrO0z-HWQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4b8"},{"id":"PRRC_kwDORRhd7M7TP4dZ"}]}},{"id":"PRRT_kwDORRhd7M6PPpWp","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDoxNVrO0z-MRA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4xE"}]}},{"id":"PRRT_kwDORRhd7M6PRGgX","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoxOVrO00d0HQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Oa"},{"id":"PRRC_kwDORRhd7M7TR3Qd"}]}},{"id":"PRRT_kwDORRhd7M6PRGjf","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyMVrO00d1GQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Sn"},{"id":"PRRC_kwDORRhd7M7TR3UZ"}]}},{"id":"PRRT_kwDORRhd7M6PRGmJ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyM1rO00d1_w=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Wh"},{"id":"PRRC_kwDORRhd7M7TR3X_"}]}},{"id":"PRRT_kwDORRhd7M6PRGo4","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyNFrO00d2mg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3aa"}]}},{"id":"PRRT_kwDORRhd7M6QYjHW","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxMzo1OVrO1NHg8g=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eC0"},{"id":"PRRC_kwDORRhd7M7U0eDy"}]}},{"id":"PRRT_kwDORRhd7M6QYjI1","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxNDowMVrO1NHhqQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eFF"},{"id":"PRRC_kwDORRhd7M7U0eGp"}]}},{"id":"PRRT_kwDORRhd7M6QYjLg","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxNDowM1rO1NHibQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eIf"},{"id":"PRRC_kwDORRhd7M7U0eJt"}]}},{"id":"PRRT_kwDORRhd7M6QYqmh","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1MVrO1NKBlA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oFI"},{"id":"PRRC_kwDORRhd7M7U0oGU"}]}},{"id":"PRRT_kwDORRhd7M6QYqpA","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1MlrO1NKCUw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oIQ"},{"id":"PRRC_kwDORRhd7M7U0oJT"}]}},{"id":"PRRT_kwDORRhd7M6QYqrH","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NFrO1NKDLg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oK1"},{"id":"PRRC_kwDORRhd7M7U0oMu"}]}},{"id":"PRRT_kwDORRhd7M6QYquI","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NVrO1NKDsA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oOw"}]}}]}}}}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:57 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v4; format=json
+      X-GitHub-Request-Id:
+      - CA0F:1EB8DC:806F9B6:7A2EDDA:6A54D829
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4993'
+      X-RateLimit-Reset:
+      - '1783948444'
+      X-RateLimit-Resource:
+      - graphql
+      X-RateLimit-Used:
+      - '7'
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '11953'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "\nquery ReviewThreadByComment($owner: String!, $name: String!,
+      $number: Int!, $cursor: String) {\n    repository(owner: $owner, name: $name)
+      {\n        pullRequest(number: $number) {\n            reviewThreads(first:
+      100, after: $cursor) {\n                pageInfo { hasNextPage endCursor }\n                nodes
+      {\n                    id\n                    comments(first: 100) {\n                        pageInfo
+      { hasNextPage endCursor }\n                        nodes { id }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+      "variables": {"owner": "jacquev6", "name": "test-Sentry-Integration-Dev-jacquev6",
+      "number": 2, "cursor": null}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '688'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/graphql
+  response:
+    body:
+      string: '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NVrOkGKriA=="},"nodes":[{"id":"PRRT_kwDORRhd7M5yS87c","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDozNTowMlrOrDTMJA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNMwk"}]}},{"id":"PRRT_kwDORRhd7M5yS9MB","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDozNToxOVrOrDTRxw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNNHH"}]}},{"id":"PRRT_kwDORRhd7M5yTIm2","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo0NzozOVrOrDXLmg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNcua"}]}},{"id":"PRRT_kwDORRhd7M5yTM2v","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo1MjoxNVrOrDYoeg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNih6"}]}},{"id":"PRRT_kwDORRhd7M5yTPEl","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMDo1NDo0N1rOrDZXYw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNldj"}]}},{"id":"PRRT_kwDORRhd7M5yTUbP","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTowMDo1OFrOrDbJAQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNskB"}]}},{"id":"PRRT_kwDORRhd7M5yTUpI","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTowMToxMlrOrDbNWg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sNs1a"}]}},{"id":"PRRT_kwDORRhd7M5yTgv3","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMToxNDoyNVrOrDfPdw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sN88s"},{"id":"PRRC_kwDORRhd7M6sN893"}]}},{"id":"PRRT_kwDORRhd7M5yTtNQ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMToyOToyNVrOrDjUzA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sONTM"}]}},{"id":"PRRT_kwDORRhd7M5yTvNr","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxMTozMTo1NFrOrDj-yA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sOP7I"}]}},{"id":"PRRT_kwDORRhd7M5yWvcV","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNDo1MToyNlrOrEkUGQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSRQZ"}]}},{"id":"PRRT_kwDORRhd7M5yWvdR","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNDo1MToyOVrOrEkVKw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSRRs"},{"id":"PRRC_kwDORRhd7M6sSRS7"},{"id":"PRRC_kwDORRhd7M6sSRUr"}]}},{"id":"PRRT_kwDORRhd7M5yXI5S","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNToxMzo0OFrOrEs5KQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSzkp"}]}},{"id":"PRRT_kwDORRhd7M5yXI6h","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0wNVQxNToxMzo1MVrOrEs61g=="},"nodes":[{"id":"PRRC_kwDORRhd7M6sSzmZ"},{"id":"PRRC_kwDORRhd7M6sSzoa"},{"id":"PRRC_kwDORRhd7M6sSzrW"}]}},{"id":"PRRT_kwDORRhd7M5zPv1Q","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTozODozOFrOrXrIOg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tesfq"},{"id":"PRRC_kwDORRhd7M6tesg6"}]}},{"id":"PRRT_kwDORRhd7M5zP1it","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo0NDoyN1rOrXtCrw=="},"nodes":[{"id":"PRRC_kwDORRhd7M6te0Jb"},{"id":"PRRC_kwDORRhd7M6te0Kv"}]}},{"id":"PRRT_kwDORRhd7M5zP56S","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo0ODo0NFrOrXudjQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M6te51I"},{"id":"PRRC_kwDORRhd7M6te52N"}]}},{"id":"PRRT_kwDORRhd7M5zQCSS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQwOTo1Njo1MlrOrXxOZg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tfE4I"},{"id":"PRRC_kwDORRhd7M6tfE5m"}]}},{"id":"PRRT_kwDORRhd7M5zQRFi","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMDoxMDo0MVrOrX2Cwg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tfYJw"},{"id":"PRRC_kwDORRhd7M6tfYLC"}]}},{"id":"PRRT_kwDORRhd7M5zQ4k0","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMDo0OTo1OVrOrYDIng=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tgMhc"},{"id":"PRRC_kwDORRhd7M6tgMie"}]}},{"id":"PRRT_kwDORRhd7M5zRPqu","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxMToxNDoyOFrOrYKn8Q=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tgqeR"},{"id":"PRRC_kwDORRhd7M6tgqfx"}]}},{"id":"PRRT_kwDORRhd7M5zUwyQ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxNDozODoxOFrOrZVEtA=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tlUS0"}]}},{"id":"PRRT_kwDORRhd7M5zU0cS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wMy0xMFQxNDo0MDoyMVrOrZWNEg=="},"nodes":[{"id":"PRRC_kwDORRhd7M6tlY0S"}]}},{"id":"PRRT_kwDORRhd7M57dPgC","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0MjoxOFrOuGt7yA=="},"nodes":[{"id":"PRRC_kwDORRhd7M64a3sW"},{"id":"PRRC_kwDORRhd7M64a3vI"}]}},{"id":"PRRT_kwDORRhd7M57dPmW","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0MjoyMVrOuGt9cQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M64a31x"}]}},{"id":"PRRT_kwDORRhd7M57dYoK","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0OTowMFrOuGxNrQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M64bE1B"},{"id":"PRRC_kwDORRhd7M64bE2t"}]}},{"id":"PRRT_kwDORRhd7M57dYtX","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNC0xNlQxNDo0OTowM1rOuGxO-w=="},"nodes":[{"id":"PRRC_kwDORRhd7M64bE77"}]}},{"id":"PRRT_kwDORRhd7M6O4It7","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMDozMzozOVrO0r3nbA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Svebp"},{"id":"PRRC_kwDORRhd7M7Sveds"}]}},{"id":"PRRT_kwDORRhd7M6O5enP","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMTo1MDozMVrO0sVXww=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxVfD"}]}},{"id":"PRRT_kwDORRhd7M6O5ifT","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMTo1Mzo0MFrO0sWuEg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxa4S"}]}},{"id":"PRRT_kwDORRhd7M6O5tAS","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMToyOFrO0sabJw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxprB"},{"id":"PRRC_kwDORRhd7M7Sxpsn"}]}},{"id":"PRRT_kwDORRhd7M6O5tCc","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTozMFrO0sab_Q=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxpuR"},{"id":"PRRC_kwDORRhd7M7Sxpv9"}]}},{"id":"PRRT_kwDORRhd7M6O5tl9","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTo1NFrO0saohg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxqgB"},{"id":"PRRC_kwDORRhd7M7SxqiG"}]}},{"id":"PRRT_kwDORRhd7M6O5to5","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMTo1NlrO0sapig=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxqkX"},{"id":"PRRC_kwDORRhd7M7SxqmK"}]}},{"id":"PRRT_kwDORRhd7M6O5uQ4","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyM1rO0sa4CA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxreh"},{"id":"PRRC_kwDORRhd7M7SxrgI"}]}},{"id":"PRRT_kwDORRhd7M6O5uTZ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyNVrO0sa5Fg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SxriG"},{"id":"PRRC_kwDORRhd7M7SxrkW"}]}},{"id":"PRRT_kwDORRhd7M6O5uWo","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjowMjoyN1rO0sa6Gw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Sxrmb"},{"id":"PRRC_kwDORRhd7M7Sxrob"}]}},{"id":"PRRT_kwDORRhd7M6O6EXo","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMToyOFrO0siaQA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyJpA"}]}},{"id":"PRRT_kwDORRhd7M6O6FJv","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMjoxMVrO0sirkQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyKuR"}]}},{"id":"PRRT_kwDORRhd7M6O6G5c","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjoyMzo0MlrO0sjRiQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyNGJ"}]}},{"id":"PRRT_kwDORRhd7M6O6P36","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozMTo0NlrO0smTyw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyZPL"}]}},{"id":"PRRT_kwDORRhd7M6O6P_1","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozMTo1NFrO0smWfQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7SyZZ9"}]}},{"id":"PRRT_kwDORRhd7M6O6U0A","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wN1QxMjozNjoyOVrO0sn_mw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7Syf-b"}]}},{"id":"PRRT_kwDORRhd7M6PPpAt","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowMVrO0z-Frw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4U5"},{"id":"PRRC_kwDORRhd7M7TP4Wv"}]}},{"id":"PRRT_kwDORRhd7M6PPpDb","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowM1rO0z-Ghg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4Yf"},{"id":"PRRC_kwDORRhd7M7TP4aG"}]}},{"id":"PRRT_kwDORRhd7M6PPpGL","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDowNVrO0z-HWQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4b8"},{"id":"PRRC_kwDORRhd7M7TP4dZ"}]}},{"id":"PRRT_kwDORRhd7M6PPpWp","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxMzowNDoxNVrO0z-MRA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TP4xE"}]}},{"id":"PRRT_kwDORRhd7M6PRGgX","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoxOVrO00d0HQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Oa"},{"id":"PRRC_kwDORRhd7M7TR3Qd"}]}},{"id":"PRRT_kwDORRhd7M6PRGjf","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyMVrO00d1GQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Sn"},{"id":"PRRC_kwDORRhd7M7TR3UZ"}]}},{"id":"PRRT_kwDORRhd7M6PRGmJ","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyM1rO00d1_w=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3Wh"},{"id":"PRRC_kwDORRhd7M7TR3X_"}]}},{"id":"PRRT_kwDORRhd7M6PRGo4","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0wOFQxNDoxMzoyNFrO00d2mg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7TR3aa"}]}},{"id":"PRRT_kwDORRhd7M6QYjHW","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxMzo1OVrO1NHg8g=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eC0"},{"id":"PRRC_kwDORRhd7M7U0eDy"}]}},{"id":"PRRT_kwDORRhd7M6QYjI1","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxNDowMVrO1NHhqQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eFF"},{"id":"PRRC_kwDORRhd7M7U0eGp"}]}},{"id":"PRRT_kwDORRhd7M6QYjLg","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoxNDowM1rO1NHibQ=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0eIf"},{"id":"PRRC_kwDORRhd7M7U0eJt"}]}},{"id":"PRRT_kwDORRhd7M6QYqmh","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1MVrO1NKBlA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oFI"},{"id":"PRRC_kwDORRhd7M7U0oGU"}]}},{"id":"PRRT_kwDORRhd7M6QYqpA","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1MlrO1NKCUw=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oIQ"},{"id":"PRRC_kwDORRhd7M7U0oJT"}]}},{"id":"PRRT_kwDORRhd7M6QYqrH","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NFrO1NKDLg=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oK1"},{"id":"PRRC_kwDORRhd7M7U0oMu"}]}},{"id":"PRRT_kwDORRhd7M6QYquI","comments":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0wNy0xM1QxMjoyMDo1NVrO1NKDsA=="},"nodes":[{"id":"PRRC_kwDORRhd7M7U0oOw"}]}}]}}}}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:58 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v4; format=json
+      X-GitHub-Request-Id:
+      - CA10:C45D3:7D3BDAA:7722493:6A54D829
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4992'
+      X-RateLimit-Reset:
+      - '1783948444'
+      X-RateLimit-Resource:
+      - graphql
+      X-RateLimit-Used:
+      - '8'
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '11953'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "\nmutation ResolveReviewThread($threadId: ID!) {\n    resolveReviewThread(input:
+      {threadId: $threadId}) {\n        thread { isResolved }\n    }\n}\n", "variables":
+      {"threadId": "PRRT_kwDORRhd7M6QYqmh"}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '213'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/graphql
+  response:
+    body:
+      string: '{"data":{"resolveReviewThread":{"thread":{"isResolved":true}}}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:58 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v4; format=json
+      X-GitHub-Request-Id:
+      - CA11:310393:7FC6AD0:798B1B5:6A54D82A
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4991'
+      X-RateLimit-Reset:
+      - '1783948444'
+      X-RateLimit-Resource:
+      - graphql
+      X-RateLimit-Used:
+      - '9'
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/installation
+  response:
+    body:
+      string: '{"id":120833184,"client_id":"Iv23liMNboKqr6ZJTtvn","account":{"login":"jacquev6","id":327146,"node_id":"MDQ6VXNlcjMyNzE0Ng==","avatar_url":"https://avatars.githubusercontent.com/u/327146?v=4","gravatar_id":"","url":"https://api.github.com/users/jacquev6","html_url":"https://github.com/jacquev6","followers_url":"https://api.github.com/users/jacquev6/followers","following_url":"https://api.github.com/users/jacquev6/following{/other_user}","gists_url":"https://api.github.com/users/jacquev6/gists{/gist_id}","starred_url":"https://api.github.com/users/jacquev6/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/jacquev6/subscriptions","organizations_url":"https://api.github.com/users/jacquev6/orgs","repos_url":"https://api.github.com/users/jacquev6/repos","events_url":"https://api.github.com/users/jacquev6/events{/privacy}","received_events_url":"https://api.github.com/users/jacquev6/received_events","type":"User","user_view_type":"public","site_admin":false},"repository_selection":"selected","access_tokens_url":"https://api.github.com/app/installations/120833184/access_tokens","repositories_url":"https://api.github.com/installation/repositories","html_url":"https://github.com/settings/installations/120833184","app_id":2876513,"app_slug":"sentry-integration-dev-jacquev6","target_id":327146,"target_type":"User","permissions":{"checks":"write","issues":"write","contents":"write","metadata":"read","statuses":"write","workflows":"write","pull_requests":"write","administration":"read","repository_hooks":"write"},"events":["pull_request","push"],"created_at":"2026-04-02T08:31:48.000Z","updated_at":"2026-04-02T08:31:49.000Z","single_file_name":null,"has_multiple_single_files":false,"single_file_paths":[],"suspended_by":null,"suspended_at":null}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - public, max-age=60, s-maxage=60
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:58 GMT
+      ETag:
+      - W/"0b4bb40e2aa39f96110dabef0e09a94d01e133ea80e09eafc32ef42eea6a2ddb"
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - CA12:394F2D:805A594:7A34F75:6A54D82A
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1784'
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "\nmutation ResolveReviewThread($threadId: ID!) {\n    resolveReviewThread(input:
+      {threadId: $threadId}) {\n        thread { isResolved }\n    }\n}\n", "variables":
+      {"threadId": "PRRT_kwDORRhd7M6QYquI"}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '213'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/graphql
+  response:
+    body:
+      string: '{"data":{"resolveReviewThread":{"thread":{"isResolved":true}}}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:20:59 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v4; format=json
+      X-GitHub-Request-Id:
+      - CA13:1A39C:8860D03:8236E61:6A54D82B
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4990'
+      X-RateLimit-Reset:
+      - '1783948444'
+      X-RateLimit-Resource:
+      - graphql
+      X-RateLimit-Used:
+      - '10'
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '63'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "\nmutation UpdateAndResolvePullRequestReviewComment(\n    $commentId:
+      ID!,\n    $body: String!,\n    $threadId: ID!\n) {\n    updatePullRequestReviewComment(\n        input:
+      {pullRequestReviewCommentId: $commentId, body: $body}\n    ) {\n        pullRequestReviewComment
+      {\n\n        id\n        fullDatabaseId\n        body\n        createdAt\n        updatedAt\n        author
+      {\n            __typename\n            ... on User { databaseId login }\n            ...
+      on Bot { login }\n            ... on Mannequin { login }\n        }\n        pullRequestReview
+      { databaseId }\n\n        }\n    }\n    resolveReviewThread(input: {threadId:
+      $threadId}) {\n        thread { isResolved }\n    }\n}\n", "variables": {"commentId":
+      "PRRC_kwDORRhd7M7U0oIQ", "body": "An edited, then collapsed, review comment,
+      made by the API on 2026-07-08 12:00:00.", "threadId": "PRRT_kwDORRhd7M6QYqpA"}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '894'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/graphql
+  response:
+    body:
+      string: '{"data":{"updatePullRequestReviewComment":{"pullRequestReviewComment":{"id":"PRRC_kwDORRhd7M7U0oIQ","fullDatabaseId":"3570565648","body":"An
+        edited, then collapsed, review comment, made by the API on 2026-07-08 12:00:00.","createdAt":"2026-07-13T12:20:52Z","updatedAt":"2026-07-13T12:20:59Z","author":{"__typename":"Bot","login":"sentry-integration-dev-jacquev6"},"pullRequestReview":{"databaseId":4684626614}}},"resolveReviewThread":{"thread":{"isResolved":true}}}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:21:00 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v4; format=json
+      X-GitHub-Request-Id:
+      - CA14:340F7:7E8A6A7:784ED82:6A54D82B
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4989'
+      X-RateLimit-Reset:
+      - '1783948444'
+      X-RateLimit-Resource:
+      - graphql
+      X-RateLimit-Used:
+      - '11'
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '466'
+    status:
+      code: 200
+      message: OK
 version: 1

@@ -26,6 +26,8 @@ Commands:
     get-pull-request-comments <pr_id>
     create-pull-request-comment <pr_id> <body>
     delete-pull-request-comment <pr_id> <comment_id>
+    collapse-pull-request-comment <pr_id> <thread_id> <comment_node_id> [--reason OUTDATED]
+    update-and-collapse-pull-request-comment <pr_id> <thread_id> <comment_id> <comment_node_id> <body>
     get-branch <name>
     create-branch <name> <sha>
     delete-branch <name>
@@ -66,6 +68,7 @@ import sys
 from scm.manager import SourceCodeManager
 from scm.types import (
     CheckRunOutput,
+    CollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
@@ -94,6 +97,7 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     ReviewCommentInput,
+    UpdateAndCollapsePullRequestCommentProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
 )
@@ -209,6 +213,20 @@ def main():
     p = sub.add_parser("delete-pull-request-comment")
     p.add_argument("pr_id")
     p.add_argument("comment_id")
+
+    p = sub.add_parser("collapse-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("thread_id", help="root comment id")
+    p.add_argument("comment_node_id", help="unused on Bitbucket; pass any placeholder")
+    p.add_argument("--reason", default="OUTDATED", help="unused on Bitbucket")
+
+    p = sub.add_parser("update-and-collapse-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("thread_id", help="root comment id")
+    p.add_argument("comment_id", help="comment id to edit")
+    p.add_argument("comment_node_id", help="unused on Bitbucket; pass any placeholder")
+    p.add_argument("body")
+    p.add_argument("--reason", default="OUTDATED", help="unused on Bitbucket")
 
     p = sub.add_parser("get-branch")
     p.add_argument("name")
@@ -346,6 +364,23 @@ def main():
     elif args.command == "delete-pull-request-comment":
         assert isinstance(scm, DeletePullRequestCommentProtocol)
         scm.delete_pull_request_comment(args.pr_id, args.comment_id)
+
+    elif args.command == "collapse-pull-request-comment":
+        assert isinstance(scm, CollapsePullRequestCommentProtocol)
+        scm.collapse_pull_request_comment(args.pr_id, args.thread_id, args.comment_node_id, args.reason)
+
+    elif args.command == "update-and-collapse-pull-request-comment":
+        assert isinstance(scm, UpdateAndCollapsePullRequestCommentProtocol)
+        dump(
+            scm.update_and_collapse_pull_request_comment(
+                args.pr_id,
+                args.thread_id,
+                args.comment_id,
+                args.comment_node_id,
+                args.body,
+                args.reason,
+            )
+        )
 
     elif args.command == "get-branch":
         assert isinstance(scm, GetBranchProtocol)

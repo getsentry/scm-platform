@@ -8,6 +8,16 @@ These are behaviors that diverge from GitHub/GitLab or from what the generic act
 - **Returns the human account, not a bot.** Unlike GitHub (which resolves the app's bot user), `GET /user` returns the Atlassian account tied to the credentials, so it requires user-level auth (email + API token, or OAuth with the `account` scope) and 403s for repository/project access tokens.
 - **`username` is the nickname.** Bitbucket dropped real usernames for privacy, so `Author.username` is `nickname` (falling back to `display_name`) and `Author.id` is the opaque, brace-wrapped account `uuid`.
 
+## `get_thread_id_from_review_comment_unique_id`
+
+- **Local, no API call.** Like GitLab, this needs no request: a Bitbucket comment roots its own thread (`map_review_comment` sets `thread_id` == the comment id), so the review comment's `unique_id` already *is* the thread id and is returned unchanged.
+
+## `resolve_review_thread` / `collapse_pull_request_comment` / `update_and_collapse_pull_request_comment`
+
+- **Resolves the thread, ignores `reason` and `comment_node_id`.** Bitbucket resolves a comment *thread* via `POST .../comments/{comment_id}/resolve`, where the comment is the thread root (so `thread_id` is the root comment's id). `resolve_review_thread` is the primitive; `collapse_pull_request_comment` delegates to it. Bitbucket has no minimize-with-reason concept, so `reason` and the GitHub-only `comment_node_id` are ignored.
+- **Resolving is not idempotent.** Re-resolving an already-resolved thread returns `409 Conflict` (`"Comment has already been resolved."`), unlike GitLab (`PUT resolved=true`) and GitHub (`resolveReviewThread`), which are safe to repeat.
+- **`update_and_collapse` is not atomic.** Bitbucket has no combined edit-and-resolve endpoint (unlike GitHub's single GraphQL mutation). We `PUT` the comment body and then `POST` the resolve as two separate requests, so the edit can succeed while the resolve fails.
+
 ## `get_repository_assignees`
 
 - **No assignee concept; returns users with repo permission.** Bitbucket has no assignable-users list, so we return every user with an explicit permission on the repository (`GET /workspaces/{workspace}/permissions/repositories/{repo_slug}`), mapping each entry's `user` to an `Author`. Permissions are effective (highest of direct/group), and the list is not filtered by permission level.
