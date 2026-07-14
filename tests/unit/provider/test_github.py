@@ -67,6 +67,7 @@ from scm.types import (
     ChmodCommitAction,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     MoveCommitAction,
     Referrer,
     Repository,
@@ -1140,15 +1141,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
     },
     {
-        "name": "create_review_comment_line",
+        "name": "create_review_comment",
         "operation": "post",
         "kwargs": {
             "pull_request_id": "42",
             "commit_id": "abc123",
             "body": "Looks good",
             "path": "src/main.py",
-            "side": "head",
-            "line": 3,
+            "line": DiffLine(head=3),
         },
         "path": "/repos/test-org/test-repo/pulls/42/comments",
         "data": {
@@ -1162,17 +1162,38 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
     },
     {
-        "name": "create_review_comment_multiline",
+        # A removed line (base only) anchors LEFT.
+        "name": "create_review_comment",
         "operation": "post",
         "kwargs": {
             "pull_request_id": "42",
             "commit_id": "abc123",
             "body": "Looks good",
             "path": "src/main.py",
-            "side": "head",
-            "start_side": "base",
-            "start_line": 1,
-            "end_line": 5,
+            "line": DiffLine(base=7),
+        },
+        "path": "/repos/test-org/test-repo/pulls/42/comments",
+        "data": {
+            "body": "Looks good",
+            "commit_id": "abc123",
+            "path": "src/main.py",
+            "line": 7,
+            "side": "LEFT",
+        },
+        "raw": REVIEW_COMMENT_RAW,
+        "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
+    },
+    {
+        # Multiline range: end on head line 5, start on base line 1.
+        "name": "create_review_comment",
+        "operation": "post",
+        "kwargs": {
+            "pull_request_id": "42",
+            "commit_id": "abc123",
+            "body": "Looks good",
+            "path": "src/main.py",
+            "line": DiffLine(head=5),
+            "start_line": DiffLine(base=1),
         },
         "path": "/repos/test-org/test-repo/pulls/42/comments",
         "data": {
@@ -1212,14 +1233,14 @@ ACTION_CASES: list[dict[str, Any]] = [
             "pull_request_id": "42",
             "commit_sha": "abc123",
             "event": "approve",
-            "comments": [{"path": "f.py", "body": "fix"}],
+            "comments": [{"path": "f.py", "body": "fix", "line": DiffLine(head=3)}],
             "body": "overall",
         },
         "path": "/repos/test-org/test-repo/pulls/42/reviews",
         "data": {
             "commit_id": "abc123",
             "event": "APPROVE",
-            "comments": [{"path": "f.py", "body": "fix"}],
+            "comments": [{"path": "f.py", "body": "fix", "line": 3, "side": "RIGHT"}],
             "body": "overall",
         },
         "raw": REVIEW_RAW,
@@ -2026,9 +2047,7 @@ def test_get_commits_url_builds_commits_list_url() -> None:
         == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15&until=2026-03-20"
     )
     assert (
-        provider.get_commits_url(
-            "abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20)
-        )
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20))
         == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py?since=2026-01-15&until=2026-03-20"
     )
 
@@ -2495,9 +2514,7 @@ def _make_thread_comment_node(
         "authorAssociation": author_association,
         "commit": {"oid": commit_oid} if commit_oid is not None else None,
         "originalCommit": {"oid": original_commit_oid} if original_commit_oid is not None else None,
-        "pullRequestReview": (
-            {"databaseId": review_database_id} if review_database_id is not None else None
-        ),
+        "pullRequestReview": ({"databaseId": review_database_id} if review_database_id is not None else None),
         "author": {
             "login": author_login,
             "__typename": author_typename,

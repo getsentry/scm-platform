@@ -21,6 +21,7 @@ from scm.types import (
     CommitWithChanges,
     CoPilotChatExtension,
     DeleteCommitAction,
+    DiffLine,
     FileContent,
     GitBlob,
     GitCommitObject,
@@ -1678,14 +1679,14 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
-    def create_review_comment_line(
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: str,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
         raw = make_github_review_comment(body=body, path=path)
         return ActionResult(
@@ -1694,8 +1695,6 @@ class BaseTestProvider(Provider):
             raw={"headers": None, "data": raw},
             meta={},
         )
-
-    def create_review_comment_multiline(self): ...
 
     def get_archive_link(self): ...
 

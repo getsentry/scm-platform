@@ -27,8 +27,10 @@ Commands:
     get-pull-request-comments <pr_id>
     create-issue-comment <issue_id> <body>
     create-pull-request-comment <pr_id> <body>
-    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
-    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
+    create-review-comment <pr_id> <commit_id> <body> <path> (--head <n> | --base <n>)
+        [--start-head <n>] [--start-base <n>]
+        (a diff line is identified by its number on the head and/or base side;
+         pass --start-* for a multiline range)
     update-review-comment <pr_id> <comment_id> <body>
     get-review-comment-reactions <pr_id> <comment_id> [--cursor <n>] [--per-page <n>]
     create-review-comment-reaction <pr_id> <comment_id> <reaction>
@@ -96,12 +98,12 @@ from scm.types import (
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
-    CreateReviewCommentLineProtocol,
-    CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
     DeleteReviewCommentReactionProtocol,
+    DiffLine,
     DownloadArchiveProtocol,
     DownloadWorkflowJobLogProtocol,
     GetAppInstallationProtocol,
@@ -188,6 +190,16 @@ logger = logging.getLogger(__name__)
 
 def dump(obj: object) -> None:
     logger.info(json.dumps(obj, indent=2, default=str))
+
+
+def _diff_line(base: int | None, head: int | None) -> DiffLine | None:
+    """Build a DiffLine from optional base/head args, omitting unset sides."""
+    line: DiffLine = {}
+    if base is not None:
+        line["base"] = base
+    if head is not None:
+        line["head"] = head
+    return line or None
 
 
 def load_credentials() -> dict[str, str]:
@@ -284,23 +296,15 @@ def main() -> None:
     p.add_argument("pr_id")
     p.add_argument("body")
 
-    p = sub.add_parser("create-review-comment-line")
+    p = sub.add_parser("create-review-comment")
     p.add_argument("pr_id")
     p.add_argument("commit_id")
     p.add_argument("body")
     p.add_argument("path")
-    p.add_argument("side", choices=["base", "head"])
-    p.add_argument("line", type=int)
-
-    p = sub.add_parser("create-review-comment-multiline")
-    p.add_argument("pr_id")
-    p.add_argument("commit_id")
-    p.add_argument("body")
-    p.add_argument("path")
-    p.add_argument("side", choices=["base", "head"])
-    p.add_argument("start_side", choices=["base", "head"])
-    p.add_argument("start_line", type=int)
-    p.add_argument("end_line", type=int)
+    p.add_argument("--head", dest="head", type=int, default=None, help="line number on the head side")
+    p.add_argument("--base", dest="base", type=int, default=None, help="line number on the base side")
+    p.add_argument("--start-head", dest="start_head", type=int, default=None)
+    p.add_argument("--start-base", dest="start_base", type=int, default=None)
 
     p = sub.add_parser("update-review-comment")
     p.add_argument("pr_id")
@@ -551,22 +555,18 @@ def main() -> None:
         assert isinstance(scm, CreatePullRequestCommentProtocol)
         dump(scm.create_pull_request_comment(args.pr_id, args.body))
 
-    elif args.command == "create-review-comment-line":
-        assert isinstance(scm, CreateReviewCommentLineProtocol)
-        dump(scm.create_review_comment_line(args.pr_id, args.commit_id, args.body, args.path, args.side, args.line))
-
-    elif args.command == "create-review-comment-multiline":
-        assert isinstance(scm, CreateReviewCommentMultilineProtocol)
+    elif args.command == "create-review-comment":
+        assert isinstance(scm, CreateReviewCommentProtocol)
+        line = _diff_line(args.base, args.head)
+        assert line is not None, "pass --base and/or --head for the commented line"
         dump(
-            scm.create_review_comment_multiline(
+            scm.create_review_comment(
                 args.pr_id,
                 args.commit_id,
                 args.body,
                 args.path,
-                args.side,
-                args.start_side,
-                args.start_line,
-                args.end_line,
+                line,
+                _diff_line(args.start_base, args.start_head),
             )
         )
 

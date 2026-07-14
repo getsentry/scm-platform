@@ -40,7 +40,7 @@ from scm.test_fixtures import (
     make_github_workflow_job,
     make_github_workflow_run,
 )
-from scm.types import Repository, WriteCommitAction
+from scm.types import DiffLine, Repository, WriteCommitAction
 
 SIGNING_SECRET = "test-secret"
 BASE_URL = "http://rpc-server"
@@ -660,16 +660,18 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
-        "create_review_comment_line",
-        lambda scm: actions.create_review_comment_line(scm, "1", "abc123", "Line comment", "file.py", "head", 3),
+        "create_review_comment",
+        lambda scm: actions.create_review_comment(scm, "1", "abc123", "Line comment", "file.py", DiffLine(head=3)),
         make_github_review_comment(),
         201,
         None,
     ),
     (
-        "create_review_comment_multiline",
-        lambda scm: actions.create_review_comment_multiline(
-            scm, "1", "abc123", "Span comment", "file.py", "head", "base", 1, 5
+        # Multiline range through the same action (distinct label so the
+        # coverage set still resolves to the create_review_comment function).
+        "create_review_comment",
+        lambda scm: actions.create_review_comment(
+            scm, "1", "abc123", "Span comment", "file.py", DiffLine(head=5), DiffLine(head=1)
         ),
         make_github_review_comment(),
         201,

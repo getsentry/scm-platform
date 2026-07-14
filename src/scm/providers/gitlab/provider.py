@@ -39,6 +39,7 @@ from scm.types import (
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     Encoding,
     FileContent,
     FileContentType,
@@ -224,6 +225,7 @@ GITLAB_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
 # Note that GitLab has 7,200 req/h, 3,600 req/s limit per user
 # https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
 GITLAB_MAX_INCLUDE_REACTIONS_FETCHES = 10
+
 
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
@@ -1184,10 +1186,8 @@ class GitLabProvider:
         versions: list[dict[str, Any]],
         *,
         position_type: str = "text",
-        line: int | None = None,
-        side: ReviewSide = "head",
-        start_line: int | None = None,
-        start_side: ReviewSide = "head",
+        line: DiffLine | None = None,
+        start_line: DiffLine | None = None,
     ) -> dict[str, Any]:
         position: dict[str, Any] = {
             "position_type": position_type,
@@ -1197,14 +1197,41 @@ class GitLabProvider:
             "new_path": path,
             "old_path": path,
         }
+
+        # GitLab derives a diff note's line_code from the position's line
+        # numbers, using the GitLab-native keys old_line (base) / new_line
+        # (head). An added line carries only new_line, a removed line only
+        # old_line, and an unchanged/context line carries BOTH — otherwise the
+        # API rejects the note with "line_code can't be blank". A DiffLine
+        # already encodes exactly which sides are present, so we emit whichever
+        # of base/head are set.
+        def _position_lines(diff_line: DiffLine) -> dict[str, Any]:
+            pos: dict[str, Any] = {}
+            base = diff_line.get("base")
+            head = diff_line.get("head")
+            if base is not None:
+                pos["old_line"] = base
+            if head is not None:
+                pos["new_line"] = head
+            return pos
+
         if line is not None:
-            position["new_line" if side == "head" else "old_line"] = line
-        if start_line is not None:
-            line_key = "new_line" if start_side == "head" else "old_line"
-            range_type = "new" if start_side == "head" else "old"
+            position.update(_position_lines(line))
+
+        if start_line is not None and line is not None:
+
+            def _endpoint(diff_line: DiffLine) -> dict[str, Any]:
+                endpoint = _position_lines(diff_line)
+                # A context line (both sides set) is not "added by this commit",
+                # so its range endpoint is typed "old"; a head-only (added) line
+                # is "new".
+                is_context = diff_line.get("base") is not None and diff_line.get("head") is not None
+                endpoint["type"] = "new" if (diff_line.get("head") is not None and not is_context) else "old"
+                return endpoint
+
             position["line_range"] = {
-                "start": {line_key: start_line, "type": range_type},
-                "end": {line_key: line, "type": range_type},
+                "start": _endpoint(start_line),
+                "end": _endpoint(line),
             }
         return self.post(
             GitLab.merge_request_discussions.format(project_id=self.project_id, pr_key=pull_request_id),
@@ -1242,51 +1269,23 @@ class GitLabProvider:
             raw_item=raw["notes"][0],
         )
 
-    def create_review_comment_line(
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: SHA,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
-        """Leave a review comment on a single line of a merge request diff."""
+        """Leave an inline review comment on a diff line (or span of lines)."""
         raw = self._post_review_discussion(
             pull_request_id,
             body,
             path,
             self._fetch_mr_versions(pull_request_id),
             line=line,
-            side=side,
-        )
-        return make_result(
-            map_review_comment(raw["id"]),
-            raw,
-            raw_item=raw["notes"][0],
-        )
-
-    def create_review_comment_multiline(
-        self,
-        pull_request_id: str,
-        commit_id: SHA,
-        body: str,
-        path: str,
-        side: ReviewSide,
-        start_side: ReviewSide,
-        start_line: int,
-        end_line: int,
-    ) -> ActionResult[ReviewComment]:
-        """Leave a review comment on a span of lines of a merge request diff."""
-        raw = self._post_review_discussion(
-            pull_request_id,
-            body,
-            path,
-            self._fetch_mr_versions(pull_request_id),
-            line=end_line,
-            side=side,
             start_line=start_line,
-            start_side=start_side,
         )
         return make_result(
             map_review_comment(raw["id"]),
@@ -1359,14 +1358,14 @@ class GitLabProvider:
         versions = self._fetch_mr_versions(pull_request_id)
 
         def _create_review_comment(comment: ReviewCommentInput) -> str:
-            kwargs: dict[str, Any] = {}
-            if "line" in comment:
-                kwargs["line"] = comment["line"]
-                kwargs["side"] = comment.get("side", "head")
-            if "start_line" in comment:
-                kwargs["start_line"] = comment["start_line"]
-                kwargs["start_side"] = comment.get("start_side", "head")
-            raw = self._post_review_discussion(pull_request_id, comment["body"], comment["path"], versions, **kwargs)
+            raw = self._post_review_discussion(
+                pull_request_id,
+                comment["body"],
+                comment["path"],
+                versions,
+                line=comment.get("line"),
+                start_line=comment.get("start_line"),
+            )
             return raw["id"]
 
         def _create_review_body() -> None:
@@ -2142,9 +2141,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
         file_path=position.get("new_path") or position.get("old_path"),
         line=line,
         start_line=start_line,
-        comments=[
-            map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes
-        ],
+        comments=[map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes],
     )
 
 
