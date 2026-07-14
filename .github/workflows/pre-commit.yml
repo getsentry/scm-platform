@@ -9,8 +9,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Secrets cannot be referenced directly in `if` expressions.
-  SECRET_ACCESS: ${{ toJSON(secrets.SENTRY_INTERNAL_APP_PRIVATE_KEY != null) }}
+  # Secrets cannot be referenced directly in `if` expressions. An unset secret
+  # is an empty string (not null), so compare against '' to detect its absence.
+  SECRET_ACCESS: ${{ toJSON(secrets.SENTRY_INTERNAL_APP_PRIVATE_KEY != '') }}
 
 jobs:
   lint:
@@ -45,7 +46,9 @@ jobs:
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/prek
-          key: cache-epoch-1|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+          # setup-uv doesn't set env.pythonLocation, so key on the pinned
+          # Python version file instead to avoid reusing hooks across upgrades.
+          key: cache-epoch-1|${{ hashFiles('.python-version') }}|${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Setup prek
         run: uv run prek prepare-hooks
@@ -57,7 +60,7 @@ jobs:
           ALL_FILES: ${{ steps.changes.outputs.all_files }}
         run: |
           jq '.[]' --raw-output <<< "$ALL_FILES" |
-            xargs uv run prek run -q --files
+            xargs -r uv run prek run -q --files
 
       - name: Get auth token
         id: token
