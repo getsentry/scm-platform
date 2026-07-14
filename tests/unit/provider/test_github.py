@@ -2518,7 +2518,7 @@ def _make_thread_comment_node(
     created_at: str = "2026-02-04T10:00:00Z",
     updated_at: str = "2026-02-04T10:00:00Z",
     is_minimized: bool = False,
-    reactions: list[dict[str, Any]] | None = None,
+    reactions: list[dict[str, Any] | None] | None = None,
     url: str | None = "https://github.com/test-org/test-repo/pull/42#r1001",
     diff_hunk: str | None = "@@ -1 +1 @@",
     author_association: str | None = "MEMBER",
