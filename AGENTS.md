@@ -21,3 +21,12 @@ symmetric across providers and tools:
 
 Run `uv run pytest tests/`, `uv run ruff check src tests`, and
 `uv run mypy src` before committing.
+
+## Linting and formatting
+
+Linting and formatting are enforced with [prek](https://github.com/j178/prek)
+(a drop-in `pre-commit` runner) via `.pre-commit-config.yaml`. Running `uv sync`
+installs `prek`, and `direnv`/`.envrc` installs the git pre-commit hook
+automatically. Run the hooks manually with `uv run prek run --all-files`. CI
+runs the same hooks on every pull request and pushes any autofixes back to the
+branch.
