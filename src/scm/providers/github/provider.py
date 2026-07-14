@@ -40,6 +40,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
@@ -326,11 +327,7 @@ query {query_name}($owner: String!, $name: String!, $number: Int!, $cursor: Stri
 
 
 def _graphql_review_thread_full_comments_query(*, include_reactions: bool) -> str:
-    query_name = (
-        "ReviewThreadFullCommentsWithReactions"
-        if include_reactions
-        else "ReviewThreadFullComments"
-    )
+    query_name = "ReviewThreadFullCommentsWithReactions" if include_reactions else "ReviewThreadFullComments"
     comment_fields = _review_thread_comment_fields(include_reactions=include_reactions)
     return f"""
 query {query_name}($threadId: ID!, $cursor: String) {{
@@ -345,6 +342,7 @@ query {query_name}($threadId: ID!, $cursor: String) {{
     }}
 }}
 """
+
 
 # Default page size for the reviewThreads connection. GitHub caps `first` at 100.
 GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
@@ -1150,6 +1148,7 @@ class GitHubProvider:
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]:
         tree_entries: list[InputTreeEntry] = []
         for action in actions:
@@ -1213,7 +1212,12 @@ class GitHubProvider:
 
         parent_commit = self.get_git_commit(parent_sha)["data"]
         new_tree = self.create_git_tree(tree_entries, base_tree=parent_commit["tree"]["sha"])["data"]
-        new_commit = self.create_git_commit(message, new_tree["sha"], [parent_sha])
+        new_commit = self.create_git_commit(
+            message,
+            new_tree["sha"],
+            [parent_sha],
+            author=author,
+        )
         if create_branch:
             self.create_branch(branch, new_commit["data"]["sha"])
         else:
@@ -1316,14 +1320,18 @@ class GitHubProvider:
         message: str,
         tree_sha: SHA,
         parent_shas: list[SHA],
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[GitCommitObject]:
+        data: dict[str, Any] = {
+            "message": message,
+            "tree": tree_sha,
+            "parents": parent_shas,
+        }
+        if author is not None:
+            data["author"] = {"name": author["name"], "email": author["email"]}
         response = self.post(
             f"/repos/{self.repository['name']}/git/commits",
-            data={
-                "message": message,
-                "tree": tree_sha,
-                "parents": parent_shas,
-            },
+            data=data,
         )
         return map_action(response, map_git_commit_object)
 
@@ -1888,9 +1896,7 @@ class GitHubProvider:
         review_threads = pull_request["reviewThreads"]
         threads: list[ReviewThread] = []
         for raw_thread in review_threads["nodes"]:
-            comments = list(
-                self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions)
-            )
+            comments = list(self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions))
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
@@ -2436,9 +2442,7 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
     )
 
 
-def map_graphql_review_thread_comment(
-    raw: dict[str, Any], *, include_reactions: bool = False
-) -> ReviewThreadComment:
+def map_graphql_review_thread_comment(raw: dict[str, Any], *, include_reactions: bool = False) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
     review = raw.get("pullRequestReview") or {}
@@ -2453,11 +2457,7 @@ def map_graphql_review_thread_comment(
         created_at=raw.get("createdAt"),
         updated_at=raw.get("updatedAt"),
         is_minimized=bool(raw.get("isMinimized")),
-        commit_sha=str(
-            (raw.get("originalCommit") or {}).get("oid")
-            or (raw.get("commit") or {}).get("oid")
-            or ""
-        ),
+        commit_sha=str((raw.get("originalCommit") or {}).get("oid") or (raw.get("commit") or {}).get("oid") or ""),
         url=raw.get("url"),
         diff_hunk=raw.get("diffHunk"),
         author_association=raw.get("authorAssociation"),

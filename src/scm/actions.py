@@ -20,6 +20,7 @@ from scm.types import (
     CollapsePullRequestCommentProtocol,
     Comment,
     Commit,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
@@ -638,8 +639,9 @@ def create_commit(
     actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
     force: bool = False,
     create_branch: bool = False,
+    author: CommitAuthorParam | None = None,
 ) -> ActionResult[Commit]:
-    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch)
+    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch, author=author)
 
 
 def get_tree(
@@ -689,9 +691,13 @@ def create_git_tree(
 
 
 def create_git_commit(
-    scm: CreateGitCommitProtocol, message: str, tree_sha: SHA, parent_shas: list[SHA]
+    scm: CreateGitCommitProtocol,
+    message: str,
+    tree_sha: SHA,
+    parent_shas: list[SHA],
+    author: CommitAuthorParam | None = None,
 ) -> ActionResult[GitCommitObject]:
-    return scm.create_git_commit(message, tree_sha, parent_shas)
+    return scm.create_git_commit(message, tree_sha, parent_shas, author=author)
 
 
 def get_pull_request_files(
