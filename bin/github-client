@@ -67,6 +67,7 @@ Commands:
         [--chmod <filename>:<0|1> ...]
         [--force]
         [--create-branch]
+        [--author-name <name> --author-email <email>]
     get-repository
     list-repositories
     get-repository-assignees
@@ -90,6 +91,7 @@ from scm.types import (
     CheckRunOutput,
     ChmodCommitAction,
     CollapsePullRequestCommentProtocol,
+    CommitAuthorParam,
     CompareCommitsProtocol,
     CreateCheckRunProtocol,
     CreateCommitProtocol,
@@ -457,6 +459,8 @@ def main() -> None:
     p.add_argument("--chmod", action="append", dest="chmods", default=None, metavar="FILENAME:0|1")
     p.add_argument("--force", action="store_true")
     p.add_argument("--create-branch", action="store_true", dest="create_branch")
+    p.add_argument("--author-name", dest="author_name", default=None)
+    p.add_argument("--author-email", dest="author_email", default=None)
 
     sub.add_parser("get-repository")
     sub.add_parser("list-repositories")
@@ -792,6 +796,11 @@ def main() -> None:
         for spec in args.chmods or []:
             filename, _, flag = spec.rpartition(":")
             actions.append(ChmodCommitAction(filename=filename, executable=flag == "1"))
+        author = None
+        if args.author_name or args.author_email:
+            if not (args.author_name and args.author_email):
+                parser.error("--author-name and --author-email must be used together")
+            author = CommitAuthorParam(name=args.author_name, email=args.author_email)
         dump(
             scm.create_commit(
                 args.branch,
@@ -800,6 +809,7 @@ def main() -> None:
                 actions,
                 force=args.force,
                 create_branch=args.create_branch,
+                author=author,
             )
         )
 
