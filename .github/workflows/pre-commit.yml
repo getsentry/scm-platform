@@ -1,0 +1,92 @@
+name: pre-commit
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# Cancel in-progress runs on new pushes to the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  # Secrets cannot be referenced directly in `if` expressions.
+  SECRET_ACCESS: ${{ toJSON(secrets.SENTRY_INTERNAL_APP_PRIVATE_KEY != null) }}
+
+jobs:
+  lint:
+    name: prek lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get changed files
+        id: changes
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          # Paths to files will be available in the `${FILTER_NAME}_files` output.
+          list-files: json
+          # It doesn't make sense to lint deleted files.
+          filters: |
+            all:
+              - added|modified: '**/*'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/prek
+          key: cache-epoch-1|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Setup prek
+        run: uv run prek prepare-hooks
+
+      - name: Run prek on changed files
+        id: prek
+        continue-on-error: true
+        env:
+          ALL_FILES: ${{ steps.changes.outputs.all_files }}
+        run: |
+          jq '.[]' --raw-output <<< "$ALL_FILES" |
+            xargs uv run prek run -q --files
+
+      - name: Get auth token
+        id: token
+        # Only push autofixes for trusted same-repo PRs; fork PRs run untrusted config.
+        if: >-
+          ${{
+            steps.prek.outcome == 'failure' &&
+            env.SECRET_ACCESS == 'true' &&
+            github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.full_name == github.repository &&
+            !github.event.pull_request.draft
+          }}
+        uses: getsentry/action-github-app-token@d4b5da6c5e37703f8c3b3e43abb5705b46e159cc # v3.0.0
+        with:
+          app_id: ${{ vars.SENTRY_INTERNAL_APP_ID }}
+          private_key: ${{ secrets.SENTRY_INTERNAL_APP_PRIVATE_KEY }}
+
+      - name: Apply any prek fixes
+        if: ${{ steps.token.outcome == 'success' }}
+        uses: getsentry/action-github-commit@5972d5f578ad77306063449e718c0c2a6fbc4ae1 # v2.1.0
+        with:
+          github-token: ${{ steps.token.outputs.token }}
+          message: ':hammer_and_wrench: apply prek fixes'
+
+      - name: Fail job if prek failed
+        if: ${{ steps.prek.outcome == 'failure' }}
+        run: |
+          echo "prek checks failed. Please fix the issues and try again."
+          exit 1

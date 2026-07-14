@@ -9,6 +9,10 @@ repos:
     rev: v1.20.0
     hooks:
       - id: mypy
+        # Match CI's `mypy .`, which only type-checks `.py` files. The `bin/`
+        # CLI scripts are shebang'd Python that mypy's hook would otherwise
+        # pick up and flag on preexisting untyped code.
+        exclude: ^bin/
         additional_dependencies:
           - msgspec>=0.19.0
           - requests>=2.32.4
