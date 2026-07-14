@@ -1247,6 +1247,24 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_review(REVIEW_RAW),
     },
     {
+        "name": "create_review",
+        "operation": "post",
+        "kwargs": {
+            "pull_request_id": "42",
+            "commit_sha": "abc123",
+            "event": "comment",
+            "comments": [{"path": "f.py", "body": "file-level note"}],
+        },
+        "path": "/repos/test-org/test-repo/pulls/42/reviews",
+        "data": {
+            "commit_id": "abc123",
+            "event": "COMMENT",
+            "comments": [{"path": "f.py", "body": "file-level note"}],
+        },
+        "raw": REVIEW_RAW,
+        "expected_data": expected_review(REVIEW_RAW),
+    },
+    {
         "name": "create_check_run",
         "operation": "post",
         "kwargs": {

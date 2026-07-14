@@ -1575,13 +1575,13 @@ class GitHubProvider:
     ) -> ActionResult[Review]:
         translated_comments: list[dict[str, Any]] = []
         for comment in comments:
-            line, side = _github_line_side(comment["line"])
             translated: dict[str, Any] = {
                 "path": comment["path"],
                 "body": comment["body"],
-                "line": line,
-                "side": side,
             }
+            diff_line = comment.get("line")
+            if diff_line is not None:
+                translated["line"], translated["side"] = _github_line_side(diff_line)
             start = comment.get("start_line")
             if start is not None:
                 translated["start_line"], translated["start_side"] = _github_line_side(start)
