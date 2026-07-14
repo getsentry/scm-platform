@@ -2026,9 +2026,7 @@ def test_get_commits_url_builds_commits_list_url() -> None:
         == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15&until=2026-03-20"
     )
     assert (
-        provider.get_commits_url(
-            "abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20)
-        )
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20))
         == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py?since=2026-01-15&until=2026-03-20"
     )
 
@@ -2495,9 +2493,7 @@ def _make_thread_comment_node(
         "authorAssociation": author_association,
         "commit": {"oid": commit_oid} if commit_oid is not None else None,
         "originalCommit": {"oid": original_commit_oid} if original_commit_oid is not None else None,
-        "pullRequestReview": (
-            {"databaseId": review_database_id} if review_database_id is not None else None
-        ),
+        "pullRequestReview": ({"databaseId": review_database_id} if review_database_id is not None else None),
         "author": {
             "login": author_login,
             "__typename": author_typename,

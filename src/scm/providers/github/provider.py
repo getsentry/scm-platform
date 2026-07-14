@@ -326,11 +326,7 @@ query {query_name}($owner: String!, $name: String!, $number: Int!, $cursor: Stri
 
 
 def _graphql_review_thread_full_comments_query(*, include_reactions: bool) -> str:
-    query_name = (
-        "ReviewThreadFullCommentsWithReactions"
-        if include_reactions
-        else "ReviewThreadFullComments"
-    )
+    query_name = "ReviewThreadFullCommentsWithReactions" if include_reactions else "ReviewThreadFullComments"
     comment_fields = _review_thread_comment_fields(include_reactions=include_reactions)
     return f"""
 query {query_name}($threadId: ID!, $cursor: String) {{
@@ -345,6 +341,7 @@ query {query_name}($threadId: ID!, $cursor: String) {{
     }}
 }}
 """
+
 
 # Default page size for the reviewThreads connection. GitHub caps `first` at 100.
 GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
@@ -1888,9 +1885,7 @@ class GitHubProvider:
         review_threads = pull_request["reviewThreads"]
         threads: list[ReviewThread] = []
         for raw_thread in review_threads["nodes"]:
-            comments = list(
-                self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions)
-            )
+            comments = list(self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions))
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
@@ -2436,9 +2431,7 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
     )
 
 
-def map_graphql_review_thread_comment(
-    raw: dict[str, Any], *, include_reactions: bool = False
-) -> ReviewThreadComment:
+def map_graphql_review_thread_comment(raw: dict[str, Any], *, include_reactions: bool = False) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
     review = raw.get("pullRequestReview") or {}
@@ -2453,11 +2446,7 @@ def map_graphql_review_thread_comment(
         created_at=raw.get("createdAt"),
         updated_at=raw.get("updatedAt"),
         is_minimized=bool(raw.get("isMinimized")),
-        commit_sha=str(
-            (raw.get("originalCommit") or {}).get("oid")
-            or (raw.get("commit") or {}).get("oid")
-            or ""
-        ),
+        commit_sha=str((raw.get("originalCommit") or {}).get("oid") or (raw.get("commit") or {}).get("oid") or ""),
         url=raw.get("url"),
         diff_hunk=raw.get("diffHunk"),
         author_association=raw.get("authorAssociation"),

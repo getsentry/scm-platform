@@ -225,6 +225,7 @@ GITLAB_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
 # https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
 GITLAB_MAX_INCLUDE_REACTIONS_FETCHES = 10
 
+
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
         self.client = client
@@ -2142,9 +2143,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
         file_path=position.get("new_path") or position.get("old_path"),
         line=line,
         start_line=start_line,
-        comments=[
-            map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes
-        ],
+        comments=[map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes],
     )
 
 
