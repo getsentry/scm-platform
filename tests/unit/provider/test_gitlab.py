@@ -35,6 +35,7 @@ from scm.providers.gitlab.provider import (
 from scm.types import (
     ChmodCommitAction,
     DeleteCommitAction,
+    DiffLine,
     MoveCommitAction,
     Repository,
     WriteCommitAction,
@@ -11688,14 +11689,13 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
-            provider_method=GitLabProvider.create_review_comment_line,
+            provider_method=GitLabProvider.create_review_comment,
             provider_args={
                 "pull_request_id": "1",
                 "commit_id": "7497e018d01503b6abc3053b7896266115e631f6",
                 "body": "A review comment, on a line, made by the API on 2026-03-11 11:06:19.945026.",
                 "path": "BLAH.md",
-                "side": "head",
-                "line": 3,
+                "line": DiffLine(head=3),
             },
             client_calls=[
                 ClientForwardedCall(
@@ -11852,16 +11852,14 @@ def _make_mock_response(json_data):
             },
         ),
         ForwardToClientTest(
-            provider_method=GitLabProvider.create_review_comment_multiline,
+            provider_method=GitLabProvider.create_review_comment,
             provider_args={
                 "pull_request_id": "1",
                 "commit_id": "7497e018d01503b6abc3053b7896266115e631f6",
                 "body": "A multiline review comment, made by the API on 2026-03-11 11:06:19.945026.",
                 "path": "BLAH.md",
-                "side": "head",
-                "start_side": "head",
-                "start_line": 2,
-                "end_line": 5,
+                "line": DiffLine(head=5),
+                "start_line": DiffLine(head=2),
             },
             client_calls=[
                 ClientForwardedCall(
@@ -13893,7 +13891,7 @@ def test_create_review_with_comments_body_and_approve(client, provider: GitLabPr
         pull_request_id="1",
         commit_sha="7497e018d01503b6abc3053b7896266115e631f6",
         event="approve",
-        comments=[{"path": "BLAH.md", "body": "Inline comment on line 5.", "line": 5, "side": "head"}],
+        comments=[{"path": "BLAH.md", "body": "Inline comment on line 5.", "line": DiffLine(head=5)}],
         body="Looks good overall.",
     )
 
@@ -13961,7 +13959,7 @@ def test_create_review_comment_only(client, provider: GitLabProvider):
         pull_request_id="1",
         commit_sha="head111",
         event="comment",
-        comments=[{"path": "README.md", "body": "nit", "line": 1}],
+        comments=[{"path": "README.md", "body": "nit", "line": DiffLine(head=1)}],
     )
 
     assert result["data"]["id"] == "unset"
@@ -14700,3 +14698,168 @@ def test_request_maps_status_code_to_error(
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.detail == '{"message":"upstream said no"}'
+
+
+# --- Diff-note position: context/unchanged lines need both old_line and new_line ---
+#
+# GitLab derives a diff note's line_code from the position. An added line needs
+# only new_line, a removed line only old_line, but an *unchanged/context* line
+# needs BOTH — otherwise GitLab rejects it with "line_code can't be blank".
+
+_VERSIONS_ROUTE = {
+    "/projects/79787061/merge_requests/1/versions": [
+        {
+            "id": 1,
+            "head_commit_sha": "head111",
+            "base_commit_sha": "base111",
+            "start_commit_sha": "start111",
+        },
+    ],
+}
+
+_DISCUSSION_RESPONSE = {
+    "id": "disc1",
+    "individual_note": False,
+    "notes": [{"id": 1, "type": "DiffNote", "body": "nit"}],
+}
+
+
+def _discussion_data(client) -> dict:
+    """Return the `data` payload of the single discussions POST call."""
+    calls = [
+        c
+        for c in client.request.call_args_list
+        if c.kwargs["path"] == "/projects/79787061/merge_requests/1/discussions"
+    ]
+    assert len(calls) == 1
+    return calls[0].kwargs["data"]
+
+
+def test_review_comment_context_line_sends_both_old_and_new(client, provider: GitLabProvider):
+    routes = {
+        **_VERSIONS_ROUTE,
+        "/projects/79787061/merge_requests/1/discussions": _DISCUSSION_RESPONSE,
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    provider.create_review_comment(
+        pull_request_id="1",
+        commit_id="head111",
+        body="nit",
+        path="README.md",
+        line=DiffLine(base=5, head=7),
+    )
+
+    position = _discussion_data(client)["position"]
+    assert position["old_line"] == 5
+    assert position["new_line"] == 7
+    assert "line_range" not in position
+
+
+def test_review_comment_added_line_sends_only_new(client, provider: GitLabProvider):
+    routes = {
+        **_VERSIONS_ROUTE,
+        "/projects/79787061/merge_requests/1/discussions": _DISCUSSION_RESPONSE,
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    provider.create_review_comment(
+        pull_request_id="1",
+        commit_id="head111",
+        body="nit",
+        path="README.md",
+        line=DiffLine(head=7),
+    )
+
+    position = _discussion_data(client)["position"]
+    assert position["new_line"] == 7
+    assert "old_line" not in position
+
+
+def test_review_comment_removed_line_sends_only_old(client, provider: GitLabProvider):
+    routes = {
+        **_VERSIONS_ROUTE,
+        "/projects/79787061/merge_requests/1/discussions": _DISCUSSION_RESPONSE,
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    provider.create_review_comment(
+        pull_request_id="1",
+        commit_id="head111",
+        body="nit",
+        path="README.md",
+        line=DiffLine(base=4),
+    )
+
+    position = _discussion_data(client)["position"]
+    assert position["old_line"] == 4
+    assert "new_line" not in position
+
+
+def test_review_comment_context_span_sends_both_on_each_endpoint(client, provider: GitLabProvider):
+    routes = {
+        **_VERSIONS_ROUTE,
+        "/projects/79787061/merge_requests/1/discussions": _DISCUSSION_RESPONSE,
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    provider.create_review_comment(
+        pull_request_id="1",
+        commit_id="head111",
+        body="nit",
+        path="README.md",
+        line=DiffLine(base=5, head=7),
+        start_line=DiffLine(base=3, head=5),
+    )
+
+    position = _discussion_data(client)["position"]
+    line_range = position["line_range"]
+    # Context endpoints carry both old_line and new_line, typed "old".
+    assert line_range["start"] == {"old_line": 3, "new_line": 5, "type": "old"}
+    assert line_range["end"] == {"old_line": 5, "new_line": 7, "type": "old"}
+
+
+def test_review_comment_added_span_keeps_single_key(client, provider: GitLabProvider):
+    routes = {
+        **_VERSIONS_ROUTE,
+        "/projects/79787061/merge_requests/1/discussions": _DISCUSSION_RESPONSE,
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    provider.create_review_comment(
+        pull_request_id="1",
+        commit_id="head111",
+        body="nit",
+        path="README.md",
+        line=DiffLine(head=5),
+        start_line=DiffLine(head=2),
+    )
+
+    line_range = _discussion_data(client)["position"]["line_range"]
+    assert line_range["start"] == {"new_line": 2, "type": "new"}
+    assert line_range["end"] == {"new_line": 5, "type": "new"}
+
+
+def test_create_review_batch_forwards_context_line_numbers(client, provider: GitLabProvider):
+    routes = {
+        **_VERSIONS_ROUTE,
+        "/projects/79787061/merge_requests/1/discussions": _DISCUSSION_RESPONSE,
+    }
+    client.request.side_effect = lambda **kwargs: _route_request(routes, **kwargs)
+
+    provider.create_review(
+        pull_request_id="1",
+        commit_sha="head111",
+        event="comment",
+        comments=[
+            {
+                "path": "README.md",
+                "body": "nit",
+                "line": DiffLine(base=5, head=7),
+            }
+        ],
+    )
+
+    position = _discussion_data(client)["position"]
+    assert position["old_line"] == 5
+    assert position["new_line"] == 7

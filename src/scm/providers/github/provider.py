@@ -47,6 +47,7 @@ from scm.types import (
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     FileContent,
     FileContentType,
     FileStatus,
@@ -153,6 +154,23 @@ GITHUB_REVIEW_SIDE_MAP: dict[ReviewSide, str] = {
     "base": "LEFT",
     "head": "RIGHT",
 }
+
+
+def _github_line_side(line: DiffLine) -> tuple[int, str]:
+    """Map a ``DiffLine`` to GitHub's ``(line, side)`` pair.
+
+    GitHub anchors a comment with one line number and a LEFT/RIGHT side. A line
+    present on the head (post-image) side anchors RIGHT; otherwise it anchors
+    LEFT on the base (pre-image) side. For a context line (both sides set) we
+    prefer the head number, matching GitHub's own default gutter.
+    """
+    head = line.get("head")
+    if head is not None:
+        return head, "RIGHT"
+    base = line.get("base")
+    assert base is not None  # a DiffLine always has at least one side set
+    return base, "LEFT"
+
 
 # GitHub returns review states in upper-case; normalize to our literals.
 GITHUB_REVIEW_STATE_MAP: dict[str, PullRequestReviewState] = {
@@ -1499,51 +1517,34 @@ class GitHubProvider:
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
-    def create_review_comment_line(
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: SHA,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
-        """Leave a review comment on a line."""
-        response = self.post(
-            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/comments",
-            data={
-                "body": body,
-                "commit_id": commit_id,
-                "path": path,
-                "line": line,
-                "side": GITHUB_REVIEW_SIDE_MAP[side],
-            },
-        )
-        return deserialize_action(response, deserialize_pull_request_review_comment)
+        """Leave an inline review comment on a diff line (or span of lines).
 
-    def create_review_comment_multiline(
-        self,
-        pull_request_id: str,
-        commit_id: SHA,
-        body: str,
-        path: str,
-        side: ReviewSide,
-        start_side: ReviewSide,
-        start_line: int,
-        end_line: int,
-    ) -> ActionResult[ReviewComment]:
-        """Leave a review comment on a line span."""
+        GitHub locates a line by a single ``line`` number plus a ``side``
+        (LEFT/RIGHT). We derive both from the :class:`DiffLine`: prefer the head
+        (post-image) number when present, otherwise the base (pre-image) one.
+        """
+        end_line, end_side = _github_line_side(line)
+        data: dict[str, Any] = {
+            "body": body,
+            "commit_id": commit_id,
+            "path": path,
+            "line": end_line,
+            "side": end_side,
+        }
+        if start_line is not None:
+            data["start_line"], data["start_side"] = _github_line_side(start_line)
         response = self.post(
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}/comments",
-            data={
-                "body": body,
-                "commit_id": commit_id,
-                "path": path,
-                "line": end_line,
-                "side": GITHUB_REVIEW_SIDE_MAP[side],
-                "start_line": start_line,
-                "start_side": GITHUB_REVIEW_SIDE_MAP[start_side],
-            },
+            data=data,
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
@@ -1585,11 +1586,16 @@ class GitHubProvider:
     ) -> ActionResult[Review]:
         translated_comments: list[dict[str, Any]] = []
         for comment in comments:
-            translated: dict[str, Any] = dict(comment)
-            if "side" in translated:
-                translated["side"] = GITHUB_REVIEW_SIDE_MAP[translated["side"]]
-            if "start_side" in translated:
-                translated["start_side"] = GITHUB_REVIEW_SIDE_MAP[translated["start_side"]]
+            translated: dict[str, Any] = {
+                "path": comment["path"],
+                "body": comment["body"],
+            }
+            diff_line = comment.get("line")
+            if diff_line is not None:
+                translated["line"], translated["side"] = _github_line_side(diff_line)
+            start = comment.get("start_line")
+            if start is not None:
+                translated["start_line"], translated["start_side"] = _github_line_side(start)
             translated_comments.append(translated)
 
         data: dict[str, Any] = {

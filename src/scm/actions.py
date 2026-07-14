@@ -42,8 +42,7 @@ from scm.types import (
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
     CreateReviewCommentFileProtocol,
-    CreateReviewCommentLineProtocol,
-    CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
@@ -56,6 +55,7 @@ from scm.types import (
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
     DeleteReviewCommentReactionProtocol,
+    DiffLine,
     DownloadArchiveProtocol,
     DownloadWorkflowJobLogProtocol,
     FileContent,
@@ -816,34 +816,22 @@ def create_review_comment_file(
     return scm.create_review_comment_file(pull_request_id, commit_id, body, path, side)
 
 
-def create_review_comment_line(
-    scm: CreateReviewCommentLineProtocol,
+def create_review_comment(
+    scm: CreateReviewCommentProtocol,
     pull_request_id: str,
     commit_id: SHA,
     body: str,
     path: str,
-    side: ReviewSide,
-    line: int,
+    line: DiffLine,
+    start_line: DiffLine | None = None,
 ) -> ActionResult[ReviewComment]:
-    """Leave a review comment on a line."""
-    return scm.create_review_comment_line(pull_request_id, commit_id, body, path, side, line)
+    """Leave an inline review comment on a diff line (or a span of lines).
 
-
-def create_review_comment_multiline(
-    scm: CreateReviewCommentMultilineProtocol,
-    pull_request_id: str,
-    commit_id: SHA,
-    body: str,
-    path: str,
-    side: ReviewSide,
-    start_side: ReviewSide,
-    start_line: int,
-    end_line: int,
-) -> ActionResult[ReviewComment]:
-    """Leave a review comment on a line span."""
-    return scm.create_review_comment_multiline(
-        pull_request_id, commit_id, body, path, side, start_side, start_line, end_line
-    )
+    Pass ``start_line`` to comment on a multiline range; omit it for a single
+    line. See :class:`~scm.types.DiffLine` for how a line's diff position is
+    described.
+    """
+    return scm.create_review_comment(pull_request_id, commit_id, body, path, line, start_line)
 
 
 def create_review_comment_reply(
@@ -1081,8 +1069,8 @@ __all__ = (
     "create_pull_request_draft",
     "create_pull_request_reaction",
     "create_pull_request",
+    "create_review_comment",
     "create_review_comment_file",
-    "create_review_comment_line",
     "create_review_comment_reply",
     "create_review",
     "delete_branch",

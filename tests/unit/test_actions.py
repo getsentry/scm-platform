@@ -23,8 +23,8 @@ from scm.actions import (
     create_pull_request_draft,
     create_pull_request_reaction,
     create_review,
+    create_review_comment,
     create_review_comment_file,
-    create_review_comment_line,
     create_review_comment_reaction,
     create_review_comment_reply,
     delete_branch,
@@ -85,7 +85,14 @@ from scm.actions import (
 )
 from scm.errors import SCMCodedError
 from scm.test_fixtures import BaseTestProvider, SourceCodeManager
-from scm.types import CreatePullRequestCommentProtocol, GetBranchProtocol, Referrer, Repository, WriteCommitAction
+from scm.types import (
+    CreatePullRequestCommentProtocol,
+    DiffLine,
+    GetBranchProtocol,
+    Referrer,
+    Repository,
+    WriteCommitAction,
+)
 
 
 @contextmanager
@@ -222,14 +229,13 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
         },
     ),
     (
-        create_review_comment_line,
+        create_review_comment,
         {
             "pull_request_id": "1",
             "commit_id": "abc",
             "body": "comment",
             "path": "f.py",
-            "side": "head",
-            "line": 3,
+            "line": DiffLine(head=3),
         },
     ),
     (
@@ -891,14 +897,13 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         _check_review_comment,
     ),
     (
-        create_review_comment_line,
+        create_review_comment,
         {
             "pull_request_id": "1",
             "commit_id": "abc",
             "body": "comment",
             "path": "f.py",
-            "side": "head",
-            "line": 3,
+            "line": DiffLine(head=3),
         },
         _check_review_comment,
     ),
