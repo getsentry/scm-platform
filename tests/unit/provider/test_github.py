@@ -2184,6 +2184,51 @@ def test_create_commit_calls_create_branch_when_create_branch_true() -> None:
     assert final_call["data"] == {"ref": "refs/heads/topic", "sha": "new_commit_sha"}
 
 
+def test_create_commit_passes_author_when_provided() -> None:
+    provider, client = make_provider()
+
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8")],
+        author={"name": "Alice", "email": "alice@example.com"},
+    )
+
+    commit_call = [c for c in client.calls if c["path"].endswith("/git/commits") and c["operation"] == "post"][0]
+    assert commit_call["data"]["author"] == {"name": "Alice", "email": "alice@example.com"}
+
+
+def test_create_commit_omits_author_when_not_provided() -> None:
+    provider, client = make_provider()
+
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8")],
+    )
+
+    commit_call = [c for c in client.calls if c["path"].endswith("/git/commits") and c["operation"] == "post"][0]
+    assert "author" not in commit_call["data"]
+
+
 def test_create_pull_request_draft_raises_coded_error_when_drafts_not_supported() -> None:
     provider, client = make_provider()
     provider.post = MagicMock(  # type: ignore[assignment]

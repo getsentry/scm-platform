@@ -13527,6 +13527,71 @@ def test_create_commit_includes_start_sha_when_create_branch_true(client, provid
     assert call.kwargs["data"]["start_sha"] == "parent"
 
 
+def test_create_commit_passes_author_when_provided(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": "newsha",
+            "short_id": "newsha",
+            "created_at": "2026-03-05T12:15:50.000+01:00",
+            "parent_ids": ["parent"],
+            "title": "msg",
+            "message": "msg",
+            "author_name": "Alice",
+            "author_email": "alice@example.com",
+            "authored_date": "2026-03-05T12:15:50.000+01:00",
+            "committer_name": "Alice",
+            "committer_email": "alice@example.com",
+            "committed_date": "2026-03-05T12:15:50.000+01:00",
+            "web_url": "https://gitlab.com/test/-/commit/newsha",
+            "stats": {"additions": 0, "deletions": 0, "total": 0},
+        }
+    )
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent",
+        message="msg",
+        actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        author={"name": "Alice", "email": "alice@example.com"},
+    )
+
+    call = client.request.call_args
+    assert call.kwargs["data"]["author_name"] == "Alice"
+    assert call.kwargs["data"]["author_email"] == "alice@example.com"
+
+
+def test_create_commit_omits_author_when_not_provided(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(
+        {
+            "id": "newsha",
+            "short_id": "newsha",
+            "created_at": "2026-03-05T12:15:50.000+01:00",
+            "parent_ids": ["parent"],
+            "title": "msg",
+            "message": "msg",
+            "author_name": "u",
+            "author_email": "u@example.com",
+            "authored_date": "2026-03-05T12:15:50.000+01:00",
+            "committer_name": "u",
+            "committer_email": "u@example.com",
+            "committed_date": "2026-03-05T12:15:50.000+01:00",
+            "web_url": "https://gitlab.com/test/-/commit/newsha",
+            "stats": {"additions": 0, "deletions": 0, "total": 0},
+        }
+    )
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent",
+        message="msg",
+        actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+    )
+
+    call = client.request.call_args
+    assert "author_name" not in call.kwargs["data"]
+    assert "author_email" not in call.kwargs["data"]
+
+
 @pytest.mark.parametrize(
     "head, expected",
     [

@@ -33,6 +33,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
@@ -224,6 +225,7 @@ GITLAB_BUILD_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
 # Note that GitLab has 7,200 req/h, 3,600 req/s limit per user
 # https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/#enable-authenticated-api-request-rate-limit
 GITLAB_MAX_INCLUDE_REACTIONS_FETCHES = 10
+
 
 class GitLabProvider:
     def __init__(self, client: ApiClient, organization_id: int, repository: Repository) -> None:
@@ -1025,6 +1027,7 @@ class GitLabProvider:
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]:
         data: dict[str, Any] = {
             "branch": branch,
@@ -1034,6 +1037,9 @@ class GitLabProvider:
         }
         if create_branch:
             data["start_sha"] = parent_sha
+        if author is not None:
+            data["author_name"] = author["name"]
+            data["author_email"] = author["email"]
         response = self.post(
             GitLab.commits.format(project=self.project_id),
             data=data,
@@ -2142,9 +2148,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
         file_path=position.get("new_path") or position.get("old_path"),
         line=line,
         start_line=start_line,
-        comments=[
-            map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes
-        ],
+        comments=[map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes],
     )
 
 

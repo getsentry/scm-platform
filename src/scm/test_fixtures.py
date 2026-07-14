@@ -16,6 +16,7 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
@@ -1347,6 +1348,7 @@ class BaseTestProvider(Provider):
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]:
         return ActionResult(
             data=Commit(
@@ -1439,6 +1441,7 @@ class BaseTestProvider(Provider):
         message: str,
         tree_sha: str,
         parent_shas: list[str],
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[GitCommitObject]:
         return ActionResult(
             data=GitCommitObject(

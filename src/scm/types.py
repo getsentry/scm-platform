@@ -377,6 +377,11 @@ class FileContent(TypedDict):
     type: FileContentType
 
 
+class CommitAuthorParam(TypedDict):
+    name: str
+    email: str
+
+
 class CommitAuthor(TypedDict):
     name: str
     email: str
@@ -1079,6 +1084,7 @@ class CreateCommitProtocol(Protocol):
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]: ...
 
 
@@ -1218,7 +1224,11 @@ class CreateGitTreeProtocol(Protocol):
 @runtime_checkable
 class CreateGitCommitProtocol(Protocol):
     def create_git_commit(
-        self, message: str, tree_sha: SHA, parent_shas: list[SHA]
+        self,
+        message: str,
+        tree_sha: SHA,
+        parent_shas: list[SHA],
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[GitCommitObject]: ...
 
 
