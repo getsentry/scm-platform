@@ -14196,9 +14196,7 @@ def test_get_pull_request_review_threads_filters_non_positioned_discussions(clie
     ]
 
 
-def test_get_pull_request_review_threads_include_reactions_caps_note_fetches(
-    client, provider: GitLabProvider
-) -> None:
+def test_get_pull_request_review_threads_include_reactions_caps_note_fetches(client, provider: GitLabProvider) -> None:
     position = {
         "base_sha": "base",
         "head_sha": "head",
@@ -14235,9 +14233,7 @@ def test_get_pull_request_review_threads_include_reactions_caps_note_fetches(
             return _make_mock_response(discussions)
         if "/award_emoji" in path:
             award_paths.append(path)
-            return _make_mock_response(
-                [{"id": 1, "name": "thumbsup", "user": {"id": 1, "username": "alice"}}]
-            )
+            return _make_mock_response([{"id": 1, "name": "thumbsup", "user": {"id": 1, "username": "alice"}}])
         raise AssertionError(f"unexpected path: {path}")
 
     client.request.side_effect = side_effect

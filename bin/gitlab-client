@@ -591,9 +591,7 @@ def main():
 
     elif args.command == "collapse-pull-request-comment":
         assert isinstance(scm, CollapsePullRequestCommentProtocol)
-        scm.collapse_pull_request_comment(
-            args.pr_id, args.thread_id, args.comment_node_id, args.reason
-        )
+        scm.collapse_pull_request_comment(args.pr_id, args.thread_id, args.comment_node_id, args.reason)
 
     elif args.command == "update-and-collapse-pull-request-comment":
         assert isinstance(scm, UpdateAndCollapsePullRequestCommentProtocol)
