@@ -2405,6 +2405,8 @@ def _map_graphql_review_comment_reactions(raw: dict[str, Any]) -> list[ReactionR
     reaction_nodes = (raw.get("reactions") or {}).get("nodes") or []
     results: list[ReactionResult] = []
     for node in reaction_nodes:
+        if node is None:
+            continue
         content = _GRAPHQL_REACTION_CONTENT_TO_REACTION.get(node.get("content"))
         if content is None:
             continue
