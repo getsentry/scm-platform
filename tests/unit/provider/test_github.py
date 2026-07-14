@@ -117,8 +117,8 @@ class FakeResponse:
 
 def _concrete_path(path: "FormattedRoute | str") -> str:
     """The path that would actually be sent. Providers pass a ``FormattedRoute`` (path + template);
-    the real ``request()`` unwraps it to ``.path`` before the wire, so the fake records the same."""
-    return path.path if isinstance(path, FormattedRoute) else path
+    the real ``request()`` unwraps it to ``["path"]`` before the wire, so the fake records the same."""
+    return path if isinstance(path, str) else path["path"]
 
 
 class RecordingClient:
@@ -253,9 +253,7 @@ def test_request_attaches_scm_route_template_on_error() -> None:
     error_response.request.method = "GET"
     client.request.return_value = error_response
 
-    provider = GitHubProvider(
-        client, organization_id=1, repository=make_repository(), rate_limiter=NoOpRateLimiter()
-    )
+    provider = GitHubProvider(client, organization_id=1, repository=make_repository(), rate_limiter=NoOpRateLimiter())
 
     with pytest.raises(ResourceNotFound) as exc_info:
         provider.request("GET", GitHub.repo(repo="o/r"))
@@ -1910,7 +1908,9 @@ class TestGitHubProviderApiClientGraphql:
 
         assert result == {"viewer": {"login": "octocat"}}
         api_client.post.assert_called_once_with(
-            FormattedRoute("/graphql", "/graphql"), data={"query": "{ viewer { login } }"}, headers={}
+            FormattedRoute(path="/graphql", template="/graphql"),
+            data={"query": "{ viewer { login } }"},
+            headers={},
         )
 
     def test_includes_variables_when_provided(self) -> None:

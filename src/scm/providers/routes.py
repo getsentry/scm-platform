@@ -1,8 +1,8 @@
 from dataclasses import dataclass
+from typing import TypedDict
 
 
-@dataclass(frozen=True)
-class FormattedRoute:
+class FormattedRoute(TypedDict):
     """A concrete request path paired with the low-cardinality route template it came from.
 
     ``path`` is what is sent to the service-provider (e.g. ``/repos/getsentry/sentry/issues/5``).

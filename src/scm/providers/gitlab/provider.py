@@ -270,8 +270,8 @@ class GitLabProvider:
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
-        route_template = path.template if isinstance(path, FormattedRoute) else path
-        path = path.path if isinstance(path, FormattedRoute) else path
+        route_template = path if isinstance(path, str) else path["template"]
+        path = path if isinstance(path, str) else path["path"]
         response = self.client.request(
             method=method,
             path=path,

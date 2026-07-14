@@ -17,8 +17,8 @@ class TestRoute:
         # verbatim in ``path`` while ``template`` remains low-cardinality — the case that makes
         # reverse-parsing an already-interpolated path ambiguous.
         result = Route("/repos/{repo}/contents/{path}")(repo="o/r", path="src/app/main.py")
-        assert result.path == "/repos/o/r/contents/src/app/main.py"
-        assert result.template == "/repos/{repo}/contents/{path}"
+        assert result["path"] == "/repos/o/r/contents/src/app/main.py"
+        assert result["template"] == "/repos/{repo}/contents/{path}"
 
     def test_formatted_routes_are_equal_by_value(self):
         route = Route("/projects/{project_id}/merge_requests/{pr_key}")
