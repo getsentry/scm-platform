@@ -691,9 +691,13 @@ def create_git_tree(
 
 
 def create_git_commit(
-    scm: CreateGitCommitProtocol, message: str, tree_sha: SHA, parent_shas: list[SHA]
+    scm: CreateGitCommitProtocol,
+    message: str,
+    tree_sha: SHA,
+    parent_shas: list[SHA],
+    author: CommitAuthorParam | None = None,
 ) -> ActionResult[GitCommitObject]:
-    return scm.create_git_commit(message, tree_sha, parent_shas)
+    return scm.create_git_commit(message, tree_sha, parent_shas, author=author)
 
 
 def get_pull_request_files(
