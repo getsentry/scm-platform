@@ -2153,15 +2153,25 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
 def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewComment]:
     def _map_review_comment(raw: dict[str, Any]) -> ReviewComment:
         author_raw = raw.get("author")
+        position = raw.get("position") or {}
+        # Mirror the write side (_post_review_discussion): a diff note's position
+        # carries new_line (head) / old_line (base) at the top level, and a
+        # multi-line range in line_range.start / line_range.end.
+        start = (position.get("line_range") or {}).get("start") or {}
         return ReviewComment(
             id=f"{discussion_id}:{raw['id']}",
             unique_id=f"{discussion_id}:{raw['id']}",
             url=None,
-            file_path=raw.get("position", {}).get("new_path"),
+            file_path=position.get("new_path"),
             body=raw["body"],
             author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
             created_at=raw.get("created_at"),
             diff_hunk=None,
+            line=position.get("new_line") or position.get("old_line"),
+            start_line=start.get("new_line") or start.get("old_line"),
+            # GitLab has no distinct "original commit" line concept for diff notes.
+            original_line=None,
+            original_start_line=None,
             review_id=None,
             author_association=None,
             commit_sha=None,

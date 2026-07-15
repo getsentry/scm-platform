@@ -71,6 +71,10 @@ class GitHubPullRequestReviewComment(msgspec.Struct):
     user: GitHubUser | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    line: int | None = None
+    start_line: int | None = None
+    original_line: int | None = None
+    original_start_line: int | None = None
 
 
 # Remaining types in use:

@@ -505,6 +505,10 @@ class ReviewComment(TypedDict):
     author: Author | None
     created_at: str | None
     diff_hunk: str | None
+    line: int | None  # end line of the anchor in the head diff, else None
+    start_line: int | None  # start line for a multi-line anchor, else None
+    original_line: int | None  # end line at the comment's original commit, else None
+    original_start_line: int | None  # start line at the original commit, else None
     review_id: ResourceId | None
     author_association: str | None
     commit_sha: str | None

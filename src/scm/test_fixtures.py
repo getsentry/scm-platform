@@ -409,6 +409,10 @@ def make_github_review_comment(
     author_association: str = "MEMBER",
     original_commit_id: str = "orig123",
     commit_id: str = "abc123",
+    line: int | None = 5,
+    start_line: int | None = None,
+    original_line: int | None = None,
+    original_start_line: int | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub review comment API responses."""
     return {
@@ -425,6 +429,10 @@ def make_github_review_comment(
         "author_association": author_association,
         "original_commit_id": original_commit_id,
         "commit_id": commit_id,
+        "line": line,
+        "start_line": start_line,
+        "original_line": original_line,
+        "original_start_line": original_start_line,
     }
 
 
@@ -636,6 +644,10 @@ def _make_review_comment_data(raw: dict[str, Any]) -> ReviewComment:
         author=None,
         created_at=raw.get("created_at"),
         diff_hunk=raw.get("diff_hunk"),
+        line=raw.get("line"),
+        start_line=raw.get("start_line"),
+        original_line=raw.get("original_line"),
+        original_start_line=raw.get("original_start_line"),
         review_id=str(raw["pull_request_review_id"]) if raw.get("pull_request_review_id") else None,
         author_association=raw.get("author_association"),
         commit_sha=raw.get("original_commit_id"),
