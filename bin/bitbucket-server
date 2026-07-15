@@ -73,7 +73,13 @@ class BitbucketApiClient:
         if headers is not None:
             kwargs["headers"] = headers
         if data is not None:
-            kwargs["json"] = data
+            # Most Bitbucket writes are JSON, but the create-commit endpoint (POST /src)
+            # is form-encoded; the provider signals that via the Content-Type header.
+            content_type = next((v for k, v in (headers or {}).items() if k.lower() == "content-type"), "")
+            if "form-urlencoded" in content_type:
+                kwargs["data"] = data
+            else:
+                kwargs["json"] = data
         if params is not None:
             kwargs["params"] = params
         if allow_redirects is not None:
