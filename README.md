@@ -33,7 +33,7 @@ We have extensive documentation both inline in the Sentry codebase and on the [S
 
 ### Quick reference of actions
 
-Here is a [summary of SCM provider API endpoints called by actions](actions-quick-ref.md).
+Here is a [summary of SCM provider API endpoints called by actions](actions-quick-ref.md), and a [list of the known limitations](limitations.md).
 
 # Releasing a New Version
 
