@@ -2120,19 +2120,27 @@ def map_review_thread_comment(
     )
 
 
+def _position_line(p: dict[str, Any]) -> int | None:
+    return p.get("new_line") if p.get("new_line") is not None else p.get("old_line")
+
+
+def _position_line_anchor(position: dict[str, Any]) -> tuple[int | None, int | None]:
+    """Resolve (line, start_line) from a GitLab diff-note position, preferring the
+    line_range endpoints (multiline notes) and falling back to the top-level
+    new_line/old_line (single-line notes)."""
+    line_range = position.get("line_range") or {}
+    end_pos = line_range.get("end") or {}
+    start_pos = line_range.get("start") or {}
+    line = _position_line(end_pos) if end_pos else _position_line(position)
+    start_line = _position_line(start_pos) if start_pos else None
+    return line, start_line
+
+
 def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
     notes = raw.get("notes") or []
     head_note = notes[0] if notes else {}
     position = head_note.get("position") or {}
-    line_range = position.get("line_range") or {}
-    end_pos = line_range.get("end") or {}
-    start_pos = line_range.get("start") or {}
-
-    def _line(p: dict[str, Any]) -> int | None:
-        return p.get("new_line") if p.get("new_line") is not None else p.get("old_line")
-
-    line = _line(end_pos) if end_pos else (position.get("new_line") or position.get("old_line"))
-    start_line = _line(start_pos) if start_pos else None
+    line, start_line = _position_line_anchor(position)
 
     discussion_id = str(raw["id"])
     thread_head_sha = position.get("head_sha")
@@ -2154,7 +2162,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
     def _map_review_comment(raw: dict[str, Any]) -> ReviewComment:
         author_raw = raw.get("author")
         position = raw.get("position") or {}
-        start = (position.get("line_range") or {}).get("start") or {}
+        line, start_line = _position_line_anchor(position)
         return ReviewComment(
             id=f"{discussion_id}:{raw['id']}",
             unique_id=f"{discussion_id}:{raw['id']}",
@@ -2164,8 +2172,8 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
             created_at=raw.get("created_at"),
             diff_hunk=None,
-            line=position.get("new_line") or position.get("old_line"),
-            start_line=start.get("new_line") or start.get("old_line"),
+            line=line,
+            start_line=start_line,
             review_id=None,
             author_association=None,
             commit_sha=None,

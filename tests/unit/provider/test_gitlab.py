@@ -14049,6 +14049,25 @@ def test_map_review_comment_reads_multiline_range_start():
     assert result["start_line"] == 2
 
 
+def test_map_review_comment_reads_line_from_range_end_when_top_level_absent():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {
+                "new_path": "BLAH.md",
+                "line_range": {"start": {"new_line": 2, "type": "new"}, "end": {"new_line": 5, "type": "new"}},
+            },
+        }
+    )
+    assert result["line"] == 5
+    assert result["start_line"] == 2
+
+
 def test_map_review_comment_no_position_yields_none_line():
     from scm.providers.gitlab.provider import map_review_comment
 
