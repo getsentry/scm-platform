@@ -279,7 +279,7 @@ GitHub: [GET /repos/{owner}/{repo}/tarball/{ref}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/archive{format}](https://docs.gitlab.com/api/repositories/#retrieve-file-archive-from-a-repository)
 
-Bitbucket: @todo Use [GET https://bitbucket.org/<workspace-id>/<repository-slug>/get/<branch>.<zip|gz|bz2>](https://support.atlassian.com/bitbucket-cloud/kb/how-to-download-repositories-using-the-api/)
+Bitbucket: *not supported* (archives are served only from the web host `bitbucket.org/<workspace>/<repo>/get/<ref>.<ext>`, a different host than the API with no `api.bitbucket.org` equivalent; the RPC proxy's `is_safe_path` rejects absolute/other-host URLs, so it cannot be reached through a proxied client)
 
 ## `download_workflow_job_log`
 
