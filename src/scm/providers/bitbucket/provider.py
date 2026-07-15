@@ -37,6 +37,7 @@ from scm.types import (
     FileStatus,
     GitRef,
     GitRepository,
+    GitTree,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -54,10 +55,19 @@ from scm.types import (
     ReviewCommentInput,
     ReviewEvent,
     ReviewSide,
+    TreeEntry,
+    TreeEntryMode,
+    TreeEntryType,
 )
 
 # Bitbucket Cloud reads a single PR template from this path on the source branch.
 PULL_REQUEST_TEMPLATE_PATH = ".bitbucket/pull_request_template.md"
+
+# Depth passed to the /src listing's ``max_depth`` for a recursive tree. Bitbucket
+# does a breadth-first walk and returns 555 if the value is "too large" for the
+# repo, so this is a best-effort ceiling covering realistic directory nesting;
+# trees nested deeper than this are not fully descended into.
+TREE_RECURSION_MAX_DEPTH = 100
 
 # Bitbucket pull request states, grouped to match our binary open/closed model.
 # "closed" collapses every non-open terminal state Bitbucket exposes.
@@ -153,8 +163,13 @@ class BitbucketProvider:
 
         params = params or {}
         if pagination:
-            params["pagelen"] = str(pagination["per_page"])
-            params["page"] = str(pagination["cursor"])
+            if "per_page" in pagination:
+                params["pagelen"] = str(pagination["per_page"])
+            # The first page carries no cursor; only forward one when present. This
+            # also matters because /src pages by an opaque token (not a page number),
+            # so a synthetic "page=1" is rejected with "Invalid page".
+            if "cursor" in pagination:
+                params["page"] = str(pagination["cursor"])
 
         return self.request(
             "GET",
@@ -294,6 +309,88 @@ class BitbucketProvider:
             ),
             type="bitbucket",
             raw={"data": content, "headers": None},
+            meta={},
+        )
+
+    def get_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitTree]:
+        """List a single page of the repository tree at a given ref.
+
+        Bitbucket has no tree-object endpoint; we list the repository root via
+        the ``/src`` browsing endpoint, which (like GitLab) takes a ref/commit
+        rather than a tree-object SHA -- so ``tree_sha`` is treated as a ref and
+        a slash-containing one is resolved to a commit hash first (see
+        ``_ref_to_commit``). Listing the root requires a trailing slash.
+
+        ``/src`` paginates in-body (``values`` + ``next``), so this returns one
+        page and ``meta["next_cursor"]`` carries the next; ``truncated`` mirrors
+        it. When ``recursive`` we pass ``max_depth`` for a breadth-first walk;
+        Bitbucket exposes no git blob/tree object id, so every entry's ``sha`` is
+        empty (like ``get_pull_request_files``).
+        """
+        commit = self._ref_to_commit(tree_sha, request_options)
+        params: dict[str, Any] = {}
+        if recursive:
+            params["max_depth"] = str(TREE_RECURSION_MAX_DEPTH)
+        response = self.get(
+            f"/repositories/{self.repository['name']}/src/{quote(commit, safe='')}/",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        raw = response.json()
+        next_cursor = _next_cursor(raw)
+        return PaginatedActionResult(
+            data=GitTree(
+                sha=tree_sha,
+                tree=[map_git_tree_entry(e) for e in raw.get("values", [])],
+                truncated=bool(next_cursor),
+            ),
+            type="bitbucket",
+            raw={"data": raw, "headers": None},
+            meta=PaginatedResponseMeta(next_cursor=next_cursor),
+        )
+
+    def get_full_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitTree]:
+        """List the complete repository tree, walking every page.
+
+        Follows ``/src``'s in-body ``next`` cursor to exhaustion, so this can be
+        expensive on large repositories; prefer :meth:`get_tree` when manual
+        pagination is acceptable. The first page carries no cursor (``/src`` pages
+        by an opaque token), so we omit it and forward each subsequent one.
+        """
+        entries: list[TreeEntry] = []
+        raw_entries: list[dict[str, Any]] = []
+        pagination: PaginationParams = {"per_page": 100}
+        while True:
+            page = self.get_tree(
+                tree_sha,
+                recursive=recursive,
+                pagination=pagination,
+                request_options=request_options,
+            )
+            entries.extend(page["data"]["tree"])
+            raw_entries.extend(page["raw"]["data"].get("values", []))
+
+            next_cursor = page["meta"]["next_cursor"]
+            if not next_cursor:
+                break
+            pagination = {"per_page": 100, "cursor": next_cursor}
+
+        return ActionResult(
+            data=GitTree(sha=tree_sha, tree=entries, truncated=False),
+            type="bitbucket",
+            raw={"data": raw_entries, "headers": None},
             meta={},
         )
 
@@ -1200,6 +1297,29 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         description=raw["description"],
         topics=[],
     )
+
+
+def map_git_tree_entry(raw: dict[str, Any]) -> TreeEntry:
+    """Map a Bitbucket ``/src`` entry to a git tree entry.
+
+    Bitbucket reports no git blob/tree object id in listings, so ``sha`` is
+    always empty. A directory is a ``commit_directory``; a file's mode is
+    derived from its ``attributes`` (a symlink, submodule, or the executable
+    bit), defaulting to a regular file.
+    """
+    if raw["type"] == "commit_directory":
+        return TreeEntry(path=raw["path"], mode="040000", type="tree", sha="", size=None)
+    attributes = raw.get("attributes") or []
+    if "subrepository" in attributes:
+        entry_type: TreeEntryType = "commit"
+        mode: TreeEntryMode = "160000"
+    elif "link" in attributes:
+        entry_type, mode = "blob", "120000"
+    elif "executable" in attributes:
+        entry_type, mode = "blob", "100755"
+    else:
+        entry_type, mode = "blob", "100644"
+    return TreeEntry(path=raw["path"], mode=mode, type=entry_type, sha="", size=raw.get("size"))
 
 
 def make_result[T](

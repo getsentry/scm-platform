@@ -396,7 +396,7 @@ GitHub: [GET /repos/{owner}/{repo}/git/trees/{tree_sha}](https://docs.github.com
 
 GitLab: [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (recursive listing, walking every page)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (recursive listing, walking every page)
 
 ## `get_git_commit`
 
@@ -610,7 +610,7 @@ GitHub: [GET /repos/{owner}/{repo}/git/trees/{tree_sha}](https://docs.github.com
 
 GitLab: [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
 
 ## `list_check_runs_for_ref`
 

@@ -5,7 +5,7 @@ import os
 import pathlib
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from concurrent.futures import Future
 from datetime import datetime
 from typing import Any, Literal
@@ -58,6 +58,7 @@ from scm.types import (
     GetCommitUrlProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
+    GetFullTreeProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueReactionsProtocol,
@@ -73,6 +74,7 @@ from scm.types import (
     GetPullRequestUrlProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
+    GetTreeProtocol,
     Provider,
     Repository,
     RepositoryId,
@@ -1210,6 +1212,69 @@ def test_file_content(switch: Switch, client: SourceCodeManager) -> None:
         "size": 18,
         "type": "file",
     }
+
+
+def test_get_tree(switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, GetTreeProtocol)
+
+    # A commit SHA of the `topics/subdirs` branch, which nests a few directories.
+    # Commit SHAs are identical across the three repos (pushed from the same objects).
+    commit = "4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"
+
+    def entry(path: str, mode: str, type_: str, sha: str, size: int | None) -> dict[str, Any]:
+        # git object SHAs are content-addressed, so GitHub and GitLab agree; Bitbucket's
+        # /src listing exposes none, so it is empty. GitLab never reports a size.
+        return {
+            "path": path,
+            "mode": mode,
+            "type": type_,
+            "sha": switch(sha, sha, ""),
+            "size": switch(size, None, size),
+        }
+
+    # Order differs across providers (GitHub/GitLab git order vs Bitbucket breadth-first),
+    # so compare sorted by path.
+    def by_path(tree: Sequence[Any]) -> list[Any]:
+        return sorted(tree, key=lambda e: e["path"])
+
+    expected_full_tree = [
+        entry("README.md", "100644", "blob", "d96986775b6793cac0a358b35650de94752a9530", 92),
+        entry("README2.md", "100644", "blob", "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", 0),
+        entry("a", "040000", "tree", "5105eb153744b1240e9a6494aad9005c98c1c7f8", None),
+        entry("a/b", "040000", "tree", "cf8b3eaec626e780d80b482cb376893cab399509", None),
+        entry("a/b/A.md", "100644", "blob", "f70f10e4db19068f79bc43844b49f3eece45c4e8", 2),
+        entry("a/b/D.md", "100644", "blob", "178481050188cf00d7d9cd5a11e43ab8fab9294f", 2),
+        entry("a/c", "040000", "tree", "62028f2714488ab682456129c47e7656f70708b2", None),
+        entry("a/c/B.md", "100644", "blob", "223b7836fb19fdf64ba2d3cd6173c6a283141f78", 2),
+        entry("d", "040000", "tree", "2b7cb3bfc4e26e6cab55d6febac511e03da7272a", None),
+        entry("d/C.md", "100644", "blob", "3cc58df83752123644fef39faab2393af643b1d2", 2),
+        entry("d/E.md", "100644", "blob", "1c507261389e25abfe3620ddd348c73f4eb3b91e", 2),
+    ]
+
+    # get_tree returns a single page. GitHub sends the whole tree at once, but GitLab
+    # and Bitbucket paginate (Bitbucket's /src default is only 10 per page), so ask for
+    # a page large enough to hold the whole tree everywhere and get truncated=False.
+    recursive = client.get_tree(commit, pagination={"per_page": 100})["data"]
+    assert recursive["sha"] == commit
+    assert recursive["truncated"] is False
+    assert by_path(recursive["tree"]) == expected_full_tree
+
+    # get_full_tree walks every page and returns the whole tree in one (non-paginated) result.
+    assert isinstance(client, GetFullTreeProtocol)
+    full = client.get_full_tree(commit)["data"]
+    assert full["sha"] == commit
+    assert full["truncated"] is False
+    assert by_path(full["tree"]) == expected_full_tree
+
+    # Without recursion, only the direct children of the root are listed.
+    root = client.get_tree(commit, recursive=False)["data"]
+    assert root["sha"] == commit
+    assert by_path(root["tree"]) == [
+        entry("README.md", "100644", "blob", "d96986775b6793cac0a358b35650de94752a9530", 92),
+        entry("README2.md", "100644", "blob", "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", 0),
+        entry("a", "040000", "tree", "5105eb153744b1240e9a6494aad9005c98c1c7f8", None),
+        entry("d", "040000", "tree", "2b7cb3bfc4e26e6cab55d6febac511e03da7272a", None),
+    ]
 
 
 def test_compare_commits(switch: Switch, client: SourceCodeManager) -> None:
