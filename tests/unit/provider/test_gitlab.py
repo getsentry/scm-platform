@@ -14068,6 +14068,22 @@ def test_map_review_comment_reads_line_from_range_end_when_top_level_absent():
     assert result["start_line"] == 2
 
 
+def test_map_review_comment_reads_file_path_from_old_path_for_deleted_file():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {"old_path": "BLAH.md", "old_line": 7},
+        }
+    )
+    assert result["file_path"] == "BLAH.md"
+    assert result["line"] == 7
+
+
 def test_map_review_comment_no_position_yields_none_line():
     from scm.providers.gitlab.provider import map_review_comment
 

@@ -2136,6 +2136,12 @@ def _position_line_anchor(position: dict[str, Any]) -> tuple[int | None, int | N
     return line, start_line
 
 
+def _position_path(position: dict[str, Any]) -> str | None:
+    """Resolve the file path from a GitLab diff-note position, falling back to
+    old_path so comments on deleted files still resolve a path."""
+    return position.get("new_path") or position.get("old_path")
+
+
 def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
     notes = raw.get("notes") or []
     head_note = notes[0] if notes else {}
@@ -2151,7 +2157,7 @@ def map_review_thread(raw: dict[str, Any]) -> ReviewThread:
         # discussion can be inferred from position.line_range vs the latest diff
         # but the API surfaces no boolean. Report False conservatively.
         is_outdated=False,
-        file_path=position.get("new_path") or position.get("old_path"),
+        file_path=_position_path(position),
         line=line,
         start_line=start_line,
         comments=[map_review_thread_comment(n, discussion_id, thread_head_sha=thread_head_sha) for n in notes],
@@ -2167,7 +2173,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             id=f"{discussion_id}:{raw['id']}",
             unique_id=f"{discussion_id}:{raw['id']}",
             url=None,
-            file_path=position.get("new_path"),
+            file_path=_position_path(position),
             body=raw["body"],
             author=Author(id=str(author_raw["id"]), username=author_raw["username"]) if author_raw else None,
             created_at=raw.get("created_at"),
