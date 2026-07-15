@@ -189,7 +189,7 @@ GitLab:
 
 Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
 
-## `create_review_comment_line`
+## `create_review_comment`
 
 GitHub: [POST /repos/{owner}/{repo}/pulls/{pull_number}/comments](https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request)
 
@@ -198,16 +198,6 @@ GitLab:
 - [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
 
 Bitbucket: [POST /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-post) (sets `inline`)
-
-## `create_review_comment_multiline`
-
-GitHub: [POST /repos/{owner}/{repo}/pulls/{pull_number}/comments](https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request)
-
-GitLab:
-- [GET /projects/:id/merge_requests/:merge_request_iid/versions](https://docs.gitlab.com/api/merge_requests/#retrieve-merge-request-diff-versions)
-- [POST /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#create-a-merge-request-thread)
-
-Bitbucket: *not supported* (inline comments anchor to a single line per side; no line range)
 
 ## `create_review_comment_reply`
 

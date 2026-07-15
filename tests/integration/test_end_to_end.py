@@ -36,8 +36,7 @@ from scm.types import (
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
     CreateReviewCommentFileProtocol,
-    CreateReviewCommentLineProtocol,
-    CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     CredentialsSet,
@@ -1553,15 +1552,14 @@ def test_review_comments(service: str, switch: Switch, now: datetime, client: So
     assert isinstance(reply_comment["data"]["id"], str)
     assert reply_comment["data"]["body"] == body
 
-    assert isinstance(client, CreateReviewCommentLineProtocol)
+    assert isinstance(client, CreateReviewCommentProtocol)
     body = f"A review comment, on a line, made by the API on {now}."
-    comment_on_line = client.create_review_comment_line(
+    comment_on_line = client.create_review_comment(
         pull_request_id=pull_request_id,
         commit_id="7497e018d01503b6abc3053b7896266115e631f6",
         body=body,
         path="BLAH.md",
-        line=5,
-        side="head",
+        line={"head": 5},
     )
     assert isinstance(comment_on_line["data"]["id"], str)
     assert comment_on_line["data"]["body"] == body
@@ -1574,18 +1572,15 @@ def test_review_comments(service: str, switch: Switch, now: datetime, client: So
     assert isinstance(reply_comment["data"]["id"], str)
     assert reply_comment["data"]["body"] == body
 
-    assert isinstance(client, CreateReviewCommentMultilineProtocol) == (service in ["github", "gitlab"])
-    if isinstance(client, CreateReviewCommentMultilineProtocol):
+    if service in ["github", "gitlab"]:  # @todo
         body = f"A review comment, on multiple lines, made by the API on {now}."
-        comment_on_multiline = client.create_review_comment_multiline(
+        comment_on_multiline = client.create_review_comment(
             pull_request_id=pull_request_id,
             commit_id="7497e018d01503b6abc3053b7896266115e631f6",
             body=body,
             path="BLAH.md",
-            start_line=5,
-            end_line=7,
-            start_side="head",
-            side="head",
+            start_line={"head": 5},
+            line={"head": 7},
         )
         assert isinstance(comment_on_multiline["data"]["id"], str)
         assert comment_on_multiline["data"]["body"] == body
@@ -1696,8 +1691,7 @@ def test_create_review(switch: Switch, now: datetime, client: SourceCodeManager)
             {
                 "path": "BLAH.md",
                 "body": f"A review comment on a line, made by the API on {now}.",
-                "line": 5,
-                "side": "head",
+                "line": {"head": 5},
             }
         ],
         body=body,

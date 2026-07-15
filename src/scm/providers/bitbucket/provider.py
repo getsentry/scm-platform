@@ -37,6 +37,7 @@ from scm.types import (
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     Encoding,
     FileContent,
     FileContentType,
@@ -942,19 +943,19 @@ class BitbucketProvider:
         )
         return make_result(map_review_comment, response.json())
 
-    def create_review_comment_line(
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: SHA,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
         """Leave a review comment on a single line of the diff."""
         response = self.post(
             f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments",
-            data={"content": {"raw": body}, "inline": _inline_anchor(path, line, side)},
+            data={"content": {"raw": body}, "inline": _inline_anchor(path, line)},
         )
         return make_result(map_review_comment, response.json())
 
@@ -981,8 +982,7 @@ class BitbucketProvider:
 
         def _create_review_comment(comment: ReviewCommentInput) -> None:
             if "line" in comment:
-                side: ReviewSide = comment["side"] if "side" in comment else "head"
-                inline = _inline_anchor(comment["path"], comment["line"], side)
+                inline = _inline_anchor(comment["path"], comment["line"])
             else:
                 inline = {"path": comment["path"]}
             self.post(comments_path, data={"content": {"raw": comment["body"]}, "inline": inline})
@@ -1440,13 +1440,17 @@ def _make_map_check_run(provider: "BitbucketProvider", sha: SHA, key: str) -> Ca
     return _map
 
 
-def _inline_anchor(path: str, line: int, side: ReviewSide) -> dict[str, Any]:
+def _inline_anchor(path: str, line: DiffLine) -> dict[str, Any]:
     """Build a Bitbucket ``inline`` anchor for a diff line.
 
     Bitbucket keys the line by side: ``to`` is the line in the new/destination
     file, ``from`` the line in the old/source file.
     """
-    return {"path": path, "to" if side == "head" else "from": line}
+    head = line.get("head")
+    base = line.get("base")
+    key = "to" if head is not None else "from"
+    value = head if head is not None else base
+    return {"path": path, key: value}
 
 
 def map_review_comment(raw: dict[str, Any]) -> ReviewComment:

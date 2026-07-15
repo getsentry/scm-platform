@@ -1137,7 +1137,6 @@ __all__ = (
     "update_issue",
     "update_pull_request",
     "update_review_comment",
-    "create_review_comment_multiline",
     "get_directory_contents",
     "list_check_runs_in_check_suite",
 )
