@@ -53,7 +53,7 @@ Commands:
     get-pull-request-commits <id>
     create-review-comment-file <pr_id> <commit_id> <body> <path> <side>
     create-review-comment-reply <pr_id> <body> <comment_id>
-    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
+    create-review-comment <pr_id> <commit_id> <body> <path> <side> <line>
     create-review <pr_id> <commit_sha> <event>
         [--body <text>]
         [--comment <json> ...]
@@ -96,7 +96,7 @@ from scm.types import (
     CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreateReviewCommentFileProtocol,
-    CreateReviewCommentLineProtocol,
+    CreateReviewCommentProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
@@ -345,7 +345,7 @@ def main():
     p.add_argument("body")
     p.add_argument("comment_id")
 
-    p = sub.add_parser("create-review-comment-line")
+    p = sub.add_parser("create-review-comment")
     p.add_argument("pr_id")
     p.add_argument("commit_id")
     p.add_argument("body")
@@ -577,9 +577,10 @@ def main():
         assert isinstance(scm, CreateReviewCommentReplyProtocol)
         dump(scm.create_review_comment_reply(args.pr_id, args.body, args.comment_id))
 
-    elif args.command == "create-review-comment-line":
-        assert isinstance(scm, CreateReviewCommentLineProtocol)
-        dump(scm.create_review_comment_line(args.pr_id, args.commit_id, args.body, args.path, args.side, args.line))
+    elif args.command == "create-review-comment":
+        assert isinstance(scm, CreateReviewCommentProtocol)
+        key = "from" if args.side == "base" else "to"
+        dump(scm.create_review_comment(args.pr_id, args.commit_id, args.body, args.path, {key: args.line}))
 
     elif args.command == "create-review":
         assert isinstance(scm, CreateReviewProtocol)
