@@ -1,0 +1,146 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/vnd.github+json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/app/installations/_/access_tokens
+  response:
+    body:
+      string: '{"token": "SCRUBBED", "expires_at": "2026-07-15T10:09:15Z", "permissions":
+        {"administration": "read", "checks": "write", "contents": "write", "issues":
+        "write", "metadata": "read", "pull_requests": "write", "repository_hooks":
+        "write", "statuses": "write", "workflows": "write"}, "repository_selection":
+        "selected"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - public, max-age=60, s-maxage=60
+      Content-Length:
+      - '323'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 09:09:15 GMT
+      ETag:
+      - '"4def5ca78c2e3aa5debb0bb057c5536d78e81ba39021707bff88af422bdbc21b"'
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - DB6E:3F3F50:FDE9866:F0A7558:6A574E3B
+      X-XSS-Protection:
+      - '0'
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/readme?ref=main
+  response:
+    body:
+      string: '{"name":"README.md","path":"README.md","sha":"d96986775b6793cac0a358b35650de94752a9530","size":92,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/README.md?ref=main","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/main/README.md","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/d96986775b6793cac0a358b35650de94752a9530","download_url":"https://raw.githubusercontent.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/main/README.md","type":"file","content":"IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCBy\nZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFw\ncAo=\n","encoding":"base64","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/README.md?ref=main","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/d96986775b6793cac0a358b35650de94752a9530","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/main/README.md"}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 09:09:15 GMT
+      ETag:
+      - W/"d96986775b6793cac0a358b35650de94752a9530"
+      Last-Modified:
+      - Thu, 26 Feb 2026 08:01:54 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - DB6F:1E79DD:10502325:F75E1E5:6A574E3B
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4991'
+      X-RateLimit-Reset:
+      - '1784107729'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '9'
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1085'
+      x-accepted-github-permissions:
+      - contents=read
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 200
+      message: OK
+version: 1

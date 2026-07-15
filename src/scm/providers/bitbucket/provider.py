@@ -10,6 +10,8 @@ from urllib.parse import parse_qs, quote, urlparse
 import requests
 
 from scm.errors import (
+    PathIsNotDirectory,
+    ReadmeNotFound,
     ResourceBadRequest,
     SCMCodedError,
     error_class_for_status,
@@ -34,6 +36,7 @@ from scm.types import (
     CoPilotChatExtension,
     CredentialsSet,
     FileContent,
+    FileContentType,
     FileStatus,
     GitRef,
     GitRepository,
@@ -62,6 +65,11 @@ from scm.types import (
 
 # Bitbucket Cloud reads a single PR template from this path on the source branch.
 PULL_REQUEST_TEMPLATE_PATH = ".bitbucket/pull_request_template.md"
+
+# Bitbucket has no dedicated README endpoint, so (like GitLab) we scan the repo root
+# for a file whose lowercased name is in this set. Bitbucket's web UI is more lenient,
+# but this keeps README resolution consistent across providers.
+VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
 
 # Depth passed to the /src listing's ``max_depth`` for a recursive tree. Bitbucket
 # does a breadth-first walk and returns 555 if the value is "too large" for the
@@ -311,6 +319,65 @@ class BitbucketProvider:
             raw={"data": content, "headers": None},
             meta={},
         )
+
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[FileContent]]:
+        """List the direct children of a directory at a ref.
+
+        Backed by the same ``/src`` endpoint as ``get_file_content``/``get_tree``
+        but non-recursive (no ``max_depth``). Bitbucket returns the file's raw
+        bytes -- not a paginated listing -- when ``path`` points to a file, which
+        we surface as ``PathIsNotDirectory``. Entries are metadata only: there is
+        no content (this is a listing) and no git object id (``sha`` is empty,
+        like ``get_tree``). When ``ref`` is omitted we resolve the default branch;
+        a slash-containing ref is resolved to a commit hash first (see
+        ``_ref_to_commit``).
+        """
+        commit = self._ref_to_commit(ref or self.get_repository()["data"]["default_branch"], request_options)
+        response = self.get(
+            f"/repositories/{self.repository['name']}/src/{quote(commit, safe='')}/{quote(path, safe='/')}",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        try:
+            raw = response.json()
+        except ValueError:
+            raise PathIsNotDirectory(detail=path) from None
+        if not isinstance(raw, dict) or "values" not in raw:
+            raise PathIsNotDirectory(detail=path)
+        return make_paginated_result(map_directory_entry, raw)
+
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        """Fetch the repository's README at a ref.
+
+        Bitbucket has no dedicated README endpoint (unlike GitHub's ``/readme``),
+        so -- like GitLab -- we list the repo root and return the first file whose
+        lowercased name is in ``VALID_README_FILES``, then fetch its content. The
+        root listing is walked page by page (starting without a cursor, since
+        ``/src`` pages by an opaque token). Raises ``ReadmeNotFound`` if none.
+        """
+        per_page = pagination.get("per_page", 100) if pagination else 100
+        page_pagination: PaginationParams = {"per_page": per_page}
+        while True:
+            page = self.get_directory_contents("", ref=ref, pagination=page_pagination, request_options=request_options)
+            for entry in page["data"]:
+                if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
+                    return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
+            next_cursor = page["meta"]["next_cursor"]
+            if not next_cursor:
+                break
+            page_pagination = {"per_page": per_page, "cursor": next_cursor}
+        raise ReadmeNotFound()
 
     def get_tree(
         self,
@@ -1296,6 +1363,34 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         size=raw["size"] // 1000,
         description=raw["description"],
         topics=[],
+    )
+
+
+def map_directory_entry(raw: dict[str, Any]) -> FileContent:
+    """Map a Bitbucket ``/src`` listing entry to a (content-less) ``FileContent``.
+
+    Directory listings carry no file content and no git object id, so ``content``,
+    ``encoding`` and ``sha`` are empty; ``size`` comes from the entry for files and
+    is 0 for directories. The type is derived from the entry kind and, for files,
+    its ``attributes`` (symlink or submodule).
+    """
+    if raw["type"] == "commit_directory":
+        content_type: FileContentType = "directory"
+    else:
+        attributes = raw.get("attributes") or []
+        if "subrepository" in attributes:
+            content_type = "submodule"
+        elif "link" in attributes:
+            content_type = "symlink"
+        else:
+            content_type = "file"
+    return FileContent(
+        path=raw["path"],
+        sha="",
+        content="",
+        encoding="",
+        size=raw.get("size", 0),
+        type=content_type,
     )
 
 

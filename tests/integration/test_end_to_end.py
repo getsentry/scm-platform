@@ -15,7 +15,7 @@ import pytest
 import requests
 import requests.auth
 
-from scm.errors import SCMError
+from scm.errors import PathIsNotDirectory, SCMError
 from scm.manager import SourceCodeManager
 from scm.providers.bitbucket.provider import BitbucketProvider
 from scm.providers.github.provider import GitHubProvider
@@ -56,6 +56,7 @@ from scm.types import (
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
     GetCommitUrlProtocol,
+    GetDirectoryContentsProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetFullTreeProtocol,
@@ -72,6 +73,7 @@ from scm.types import (
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
+    GetReadmeProtocol,
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     GetTreeProtocol,
@@ -1275,6 +1277,62 @@ def test_get_tree(switch: Switch, client: SourceCodeManager) -> None:
         entry("a", "040000", "tree", "5105eb153744b1240e9a6494aad9005c98c1c7f8", None),
         entry("d", "040000", "tree", "2b7cb3bfc4e26e6cab55d6febac511e03da7272a", None),
     ]
+
+
+def test_get_directory_contents(switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, GetDirectoryContentsProtocol)
+
+    ref = "topics/subdirs"
+
+    def entry(path: str, type_: str, sha: str, size: int) -> dict[str, Any]:
+        # A listing carries no content; sha is a git object id on GitHub/GitLab but empty
+        # on Bitbucket (/src exposes none), and GitLab reports size 0 for every entry.
+        return {
+            "path": path,
+            "type": type_,
+            "sha": switch(sha, sha, ""),
+            "content": "",
+            "encoding": "",
+            "size": switch(size, 0, size),
+        }
+
+    def by_path(entries: Sequence[Any]) -> list[Any]:
+        return sorted(entries, key=lambda e: e["path"])
+
+    # A directory of subdirectories.
+    assert by_path(client.get_directory_contents("a", ref=ref)["data"]) == [
+        entry("a/b", "directory", "cf8b3eaec626e780d80b482cb376893cab399509", 0),
+        entry("a/c", "directory", "62028f2714488ab682456129c47e7656f70708b2", 0),
+    ]
+
+    # A directory of files.
+    assert by_path(client.get_directory_contents("d", ref=ref)["data"]) == [
+        entry("d/C.md", "file", "3cc58df83752123644fef39faab2393af643b1d2", 2),
+        entry("d/E.md", "file", "1c507261389e25abfe3620ddd348c73f4eb3b91e", 2),
+    ]
+
+    # Pointing at a file (not a directory) is an error on all three providers.
+    with pytest.raises(PathIsNotDirectory):
+        client.get_directory_contents("README.md", ref=ref)
+
+
+def test_get_readme(switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, GetReadmeProtocol)
+
+    # Same README.md as test_file_content: GitHub's base64 is newline-wrapped, the others aren't.
+    github_content = (
+        "IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCBy\n"
+        + "ZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFw\ncAo=\n"
+    )
+    gitlab_content = github_content.replace("\n", "")
+    assert client.get_readme(ref="main")["data"] == {
+        "content": switch(github_content, gitlab_content, gitlab_content),
+        "encoding": "base64",
+        "path": "README.md",
+        "sha": "d96986775b6793cac0a358b35650de94752a9530",
+        "size": 92,
+        "type": "file",
+    }
 
 
 def test_compare_commits(switch: Switch, client: SourceCodeManager) -> None:

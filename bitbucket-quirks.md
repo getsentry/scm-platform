@@ -66,6 +66,17 @@ Closing works via the separate `POST .../pullrequests/{id}/decline` endpoint (th
 - **Blob SHA computed locally.** Bitbucket's `/src` endpoint returns raw bytes with no git blob id, so we recompute it as `sha1("blob <len>\0" + content)` to match the blob SHA GitHub/GitLab report. Content is base64-encoded and `size` is derived from the response's byte length.
 - **Refs containing `/` need resolving.** `/src/{commit}/{path}` parses the commit only up to the first `/`, so a branch/tag name like `topics/templates` is truncated to `topics` ("Commit not found") -- even when the slash is URL-encoded as `%2F`. We resolve a slash-containing ref to its commit hash (via `/refs/branches/{ref}`, falling back to `/refs/tags/{ref}`) before calling `/src`, at the cost of one extra request. Slash-free refs pass through unchanged.
 
+## `get_directory_contents`
+
+- **Same `/src` endpoint, non-recursive.** Lists a directory's direct children via `/src/{commit}/{path}` (no `max_depth`), reusing `get_tree`'s ref handling: `ref` defaults to the repository's default branch, and a slash-containing ref is resolved to a commit hash first (see `_ref_to_commit`).
+- **Metadata only, no git object id.** A listing carries no file content, so `content`/`encoding` are empty; `sha` is empty too (`/src` exposes no blob/tree id, like `get_tree`). `size` is the file's byte size, or 0 for directories. `type` is `directory`, `submodule` (`subrepository` attribute), `symlink` (`link` attribute), or `file`.
+- **File path raises `PathIsNotDirectory`.** When `path` points to a file, `/src` returns the raw file bytes rather than a paginated listing; we detect the absence of a `values` collection and raise `PathIsNotDirectory` (matching GitHub, which returns a non-list, and GitLab, which 404s "not treeish").
+
+## `get_readme`
+
+- **No dedicated README endpoint.** Unlike GitHub's `/readme` (which detects the README server-side), Bitbucket offers nothing equivalent, so -- like GitLab -- we list the repo root with `get_directory_contents` and return the first file whose lowercased name is in a fixed set (`readme`, `readme.md`, `readme.txt`, `readme.rst`), then fetch its content with `get_file_content`. This is stricter than Bitbucket's own web UI, which recognizes more README variants.
+- **Two-plus requests.** Resolving the README costs at least a root listing plus a content fetch (each of which resolves the ref -- an extra call for a slash-containing ref, per `_ref_to_commit`). The root listing is walked page by page starting without a cursor (`/src` pages by an opaque token). Raises `ReadmeNotFound` when no matching file is found.
+
 ## `get_tree`
 
 - **No tree-object endpoint; lists via `/src`.** Bitbucket has nothing like GitHub's `git/trees/{sha}`. We list the repository root through the `/src/{commit}/` browsing endpoint (trailing slash required for the root), which -- like GitLab -- takes a ref/commit rather than a tree-object SHA. So `tree_sha` is treated as a ref, and a slash-containing one is resolved to a commit hash via `_ref_to_commit` first (the `{commit}` segment is parsed only up to the first `/`, same as `get_file_content`).

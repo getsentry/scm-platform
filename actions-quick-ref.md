@@ -372,7 +372,7 @@ GitHub: [GET /repos/{owner}/{repo}/contents/{path}](https://docs.github.com/en/r
 
 GitLab: [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get)
 
 ## `get_file_content`
 
@@ -544,7 +544,7 @@ GitLab:
 - [GET /projects/:id/repository/tree](https://docs.gitlab.com/api/repositories/#list-all-repository-trees-in-a-project)
 - [GET /projects/:id/repository/files/:file_path](https://docs.gitlab.com/api/repository_files/#retrieve-a-file-from-a-repository)
 
-Bitbucket: @todo Use:
+Bitbucket:
 - [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (lists the repo root)
 - [GET /repositories/{workspace}/{repo_slug}/src/{commit}/{path}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get) (fetches the README)
 
