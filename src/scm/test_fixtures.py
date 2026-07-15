@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -16,11 +16,13 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
     CoPilotChatExtension,
     DeleteCommitAction,
+    DiffLine,
     FileContent,
     GitBlob,
     GitCommitObject,
@@ -945,6 +947,38 @@ class BaseTestProvider(Provider):
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         return None
 
+    # Review comment reactions
+
+    def get_review_comment_reactions(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReactionResult]]:
+        return PaginatedActionResult(
+            data=[
+                ReactionResult(id="3", content="rocket", author={"id": "1", "username": "testuser"}),
+                ReactionResult(id="4", content="hooray", author={"id": "2", "username": "otheruser"}),
+            ],
+            type="github",
+            raw={"headers": None, "data": None},
+            meta=_DEFAULT_PAGINATED_META,
+        )
+
+    def create_review_comment_reaction(
+        self, pull_request_id: str, comment_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]:
+        return ActionResult(
+            data=ReactionResult(id="1", content=reaction, author=None),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
+    def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
+        return None
+
     # Issue reactions
 
     def get_issue_reactions(
@@ -1070,6 +1104,26 @@ class BaseTestProvider(Provider):
 
     def get_commit_url(self, commit_sha: str) -> str:
         return f"https://github.com/test-org/test-repo/commit/{commit_sha}"
+
+    def get_commits_url(
+        self,
+        commit_sha: str,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str:
+        url = f"https://github.com/test-org/test-repo/commits/{commit_sha}"
+        if file_path is not None:
+            url += f"/{file_path}"
+        params: list[str] = []
+        if since is not None:
+            params.append(f"since={since.strftime('%Y-%m-%d')}")
+        if until is not None:
+            params.append(f"until={until.strftime('%Y-%m-%d')}")
+        if params:
+            url += f"?{'&'.join(params)}"
+        return url
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"https://github.com/test-org/test-repo/pull/{pull_request_id}"
@@ -1295,6 +1349,7 @@ class BaseTestProvider(Provider):
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]:
         return ActionResult(
             data=Commit(
@@ -1387,6 +1442,7 @@ class BaseTestProvider(Provider):
         message: str,
         tree_sha: str,
         parent_shas: list[str],
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[GitCommitObject]:
         return ActionResult(
             data=GitCommitObject(
@@ -1626,14 +1682,14 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
-    def create_review_comment_line(
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: str,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
         raw = make_github_review_comment(body=body, path=path)
         return ActionResult(
@@ -1642,8 +1698,6 @@ class BaseTestProvider(Provider):
             raw={"headers": None, "data": raw},
             meta={},
         )
-
-    def create_review_comment_multiline(self): ...
 
     def get_archive_link(self): ...
 

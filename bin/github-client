@@ -27,9 +27,14 @@ Commands:
     get-pull-request-comments <pr_id>
     create-issue-comment <issue_id> <body>
     create-pull-request-comment <pr_id> <body>
-    create-review-comment-line <pr_id> <commit_id> <body> <path> <side> <line>
-    create-review-comment-multiline <pr_id> <commit_id> <body> <path> <side> <start_side> <start_line> <end_line>
+    create-review-comment <pr_id> <commit_id> <body> <path> (--head <n> | --base <n>)
+        [--start-head <n>] [--start-base <n>]
+        (a diff line is identified by its number on the head and/or base side;
+         pass --start-* for a multiline range)
     update-review-comment <pr_id> <comment_id> <body>
+    get-review-comment-reactions <pr_id> <comment_id> [--cursor <n>] [--per-page <n>]
+    create-review-comment-reaction <pr_id> <comment_id> <reaction>
+    delete-review-comment-reaction <pr_id> <comment_id> <reaction_id>
     collapse-pull-request-comment <pr_id> <thread_id> <comment_node_id> [--reason OUTDATED]
     update-and-collapse-pull-request-comment <pr_id> <thread_id> <comment_id> <comment_node_id> <body>
         [--reason OUTDATED]
@@ -49,6 +54,7 @@ Commands:
     get-commit <sha>
     get-commit-changes <sha> [--cursor <cursor>] [--per-page <n>]
     get-commit-url <sha>
+    get-commits-url <sha> [--file-path <path>] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
     get-directory-contents <path> [--ref <ref>]
     get-file-content <path> --ref <ref>
     get-readme --ref <ref>
@@ -63,6 +69,7 @@ Commands:
         [--chmod <filename>:<0|1> ...]
         [--force]
         [--create-branch]
+        [--author-name <name> --author-email <email>]
     get-repository
     list-repositories
     get-repository-assignees
@@ -79,22 +86,26 @@ import json
 import logging
 import pathlib
 import sys
+from datetime import date
 
 from scm.manager import SourceCodeManager
 from scm.types import (
     CheckRunOutput,
     ChmodCommitAction,
     CollapsePullRequestCommentProtocol,
+    CommitAuthorParam,
     CompareCommitsProtocol,
     CreateCheckRunProtocol,
     CreateCommitProtocol,
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
-    CreateReviewCommentLineProtocol,
-    CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentProtocol,
+    CreateReviewCommentReactionProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
+    DeleteReviewCommentReactionProtocol,
+    DiffLine,
     DownloadArchiveProtocol,
     DownloadWorkflowJobLogProtocol,
     GetAppInstallationProtocol,
@@ -104,6 +115,7 @@ from scm.types import (
     GetCheckRunProtocol,
     GetCommitChangesProtocol,
     GetCommitProtocol,
+    GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
@@ -126,6 +138,7 @@ from scm.types import (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetRepositoryUserPermissionProtocol,
+    GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,
     ListCheckRunsForRefProtocol,
     ListCheckRunsInCheckSuiteProtocol,
@@ -154,6 +167,7 @@ BUILD_CONCLUSION_CHOICES = [
     "action_required",
     "unknown",
 ]
+REACTION_CHOICES = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"]
 
 
 def build_check_run_output(args: argparse.Namespace) -> CheckRunOutput | None:
@@ -178,6 +192,16 @@ logger = logging.getLogger(__name__)
 
 def dump(obj: object) -> None:
     logger.info(json.dumps(obj, indent=2, default=str))
+
+
+def _diff_line(base: int | None, head: int | None) -> DiffLine | None:
+    """Build a DiffLine from optional base/head args, omitting unset sides."""
+    line: DiffLine = {}
+    if base is not None:
+        line["base"] = base
+    if head is not None:
+        line["head"] = head
+    return line or None
 
 
 def load_credentials() -> dict[str, str]:
@@ -274,28 +298,36 @@ def main() -> None:
     p.add_argument("pr_id")
     p.add_argument("body")
 
-    p = sub.add_parser("create-review-comment-line")
+    p = sub.add_parser("create-review-comment")
     p.add_argument("pr_id")
     p.add_argument("commit_id")
     p.add_argument("body")
     p.add_argument("path")
-    p.add_argument("side", choices=["base", "head"])
-    p.add_argument("line", type=int)
-
-    p = sub.add_parser("create-review-comment-multiline")
-    p.add_argument("pr_id")
-    p.add_argument("commit_id")
-    p.add_argument("body")
-    p.add_argument("path")
-    p.add_argument("side", choices=["base", "head"])
-    p.add_argument("start_side", choices=["base", "head"])
-    p.add_argument("start_line", type=int)
-    p.add_argument("end_line", type=int)
+    p.add_argument("--head", dest="head", type=int, default=None, help="line number on the head side")
+    p.add_argument("--base", dest="base", type=int, default=None, help="line number on the base side")
+    p.add_argument("--start-head", dest="start_head", type=int, default=None)
+    p.add_argument("--start-base", dest="start_base", type=int, default=None)
 
     p = sub.add_parser("update-review-comment")
     p.add_argument("pr_id")
     p.add_argument("comment_id")
     p.add_argument("body")
+
+    p = sub.add_parser("get-review-comment-reactions")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("--cursor", type=int, default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("create-review-comment-reaction")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("reaction", choices=REACTION_CHOICES)
+
+    p = sub.add_parser("delete-review-comment-reaction")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+    p.add_argument("reaction_id")
 
     p = sub.add_parser("collapse-pull-request-comment")
     p.add_argument("pr_id")
@@ -390,6 +422,12 @@ def main() -> None:
     p = sub.add_parser("get-commit-url")
     p.add_argument("sha")
 
+    p = sub.add_parser("get-commits-url")
+    p.add_argument("sha")
+    p.add_argument("--file-path", default=None)
+    p.add_argument("--since", type=date.fromisoformat, default=None)
+    p.add_argument("--until", type=date.fromisoformat, default=None)
+
     p = sub.add_parser("get-file-content")
     p.add_argument("path")
     p.add_argument("--ref", required=True)
@@ -425,6 +463,8 @@ def main() -> None:
     p.add_argument("--chmod", action="append", dest="chmods", default=None, metavar="FILENAME:0|1")
     p.add_argument("--force", action="store_true")
     p.add_argument("--create-branch", action="store_true", dest="create_branch")
+    p.add_argument("--author-name", dest="author_name", default=None)
+    p.add_argument("--author-email", dest="author_email", default=None)
 
     sub.add_parser("get-repository")
     sub.add_parser("list-repositories")
@@ -519,28 +559,41 @@ def main() -> None:
         assert isinstance(scm, CreatePullRequestCommentProtocol)
         dump(scm.create_pull_request_comment(args.pr_id, args.body))
 
-    elif args.command == "create-review-comment-line":
-        assert isinstance(scm, CreateReviewCommentLineProtocol)
-        dump(scm.create_review_comment_line(args.pr_id, args.commit_id, args.body, args.path, args.side, args.line))
-
-    elif args.command == "create-review-comment-multiline":
-        assert isinstance(scm, CreateReviewCommentMultilineProtocol)
+    elif args.command == "create-review-comment":
+        assert isinstance(scm, CreateReviewCommentProtocol)
+        line = _diff_line(args.base, args.head)
+        assert line is not None, "pass --base and/or --head for the commented line"
         dump(
-            scm.create_review_comment_multiline(
+            scm.create_review_comment(
                 args.pr_id,
                 args.commit_id,
                 args.body,
                 args.path,
-                args.side,
-                args.start_side,
-                args.start_line,
-                args.end_line,
+                line,
+                _diff_line(args.start_base, args.start_head),
             )
         )
 
     elif args.command == "update-review-comment":
         assert isinstance(scm, UpdateReviewCommentProtocol)
         dump(scm.update_review_comment(args.pr_id, args.comment_id, args.body))
+
+    elif args.command == "get-review-comment-reactions":
+        assert isinstance(scm, GetReviewCommentReactionsProtocol)
+        pagination = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(scm.get_review_comment_reactions(args.pr_id, args.comment_id, pagination=pagination or None))
+
+    elif args.command == "create-review-comment-reaction":
+        assert isinstance(scm, CreateReviewCommentReactionProtocol)
+        dump(scm.create_review_comment_reaction(args.pr_id, args.comment_id, args.reaction))
+
+    elif args.command == "delete-review-comment-reaction":
+        assert isinstance(scm, DeleteReviewCommentReactionProtocol)
+        scm.delete_review_comment_reaction(args.pr_id, args.comment_id, args.reaction_id)
 
     elif args.command == "collapse-pull-request-comment":
         assert isinstance(scm, CollapsePullRequestCommentProtocol)
@@ -698,6 +751,10 @@ def main() -> None:
         assert isinstance(scm, GetCommitUrlProtocol)
         dump(scm.get_commit_url(args.sha))
 
+    elif args.command == "get-commits-url":
+        assert isinstance(scm, GetCommitsUrlProtocol)
+        dump(scm.get_commits_url(args.sha, file_path=args.file_path, since=args.since, until=args.until))
+
     elif args.command == "get-file-content":
         assert isinstance(scm, GetFileContentProtocol)
         dump(scm.get_file_content(args.path, ref=args.ref))
@@ -739,6 +796,11 @@ def main() -> None:
         for spec in args.chmods or []:
             filename, _, flag = spec.rpartition(":")
             actions.append(ChmodCommitAction(filename=filename, executable=flag == "1"))
+        author = None
+        if args.author_name or args.author_email:
+            if not (args.author_name and args.author_email):
+                parser.error("--author-name and --author-email must be used together")
+            author = CommitAuthorParam(name=args.author_name, email=args.author_email)
         dump(
             scm.create_commit(
                 args.branch,
@@ -747,6 +809,7 @@ def main() -> None:
                 actions,
                 force=args.force,
                 create_branch=args.create_branch,
+                author=author,
             )
         )
 

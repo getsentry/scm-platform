@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import date, datetime
 from email.utils import format_datetime, parsedate_to_datetime
 from typing import Any, Literal, cast
 
@@ -40,12 +40,14 @@ from scm.types import (
     Comment,
     Commit,
     CommitAuthor,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     FileContent,
     FileContentType,
     FileStatus,
@@ -108,6 +110,7 @@ GITHUB_STATUS_MAP: dict[str, BuildStatus] = {
 GITHUB_CONCLUSION_MAP: dict[str, BuildConclusion] = {
     "success": "success",
     "failure": "failure",
+    "startup_failure": "failure",
     "neutral": "neutral",
     "cancelled": "cancelled",
     "skipped": "skipped",
@@ -151,6 +154,23 @@ GITHUB_REVIEW_SIDE_MAP: dict[ReviewSide, str] = {
     "base": "LEFT",
     "head": "RIGHT",
 }
+
+
+def _github_line_side(line: DiffLine) -> tuple[int, str]:
+    """Map a ``DiffLine`` to GitHub's ``(line, side)`` pair.
+
+    GitHub anchors a comment with one line number and a LEFT/RIGHT side. A line
+    present on the head (post-image) side anchors RIGHT; otherwise it anchors
+    LEFT on the base (pre-image) side. For a context line (both sides set) we
+    prefer the head number, matching GitHub's own default gutter.
+    """
+    head = line.get("head")
+    if head is not None:
+        return head, "RIGHT"
+    base = line.get("base")
+    assert base is not None  # a DiffLine always has at least one side set
+    return base, "LEFT"
+
 
 # GitHub returns review states in upper-case; normalize to our literals.
 GITHUB_REVIEW_STATE_MAP: dict[str, PullRequestReviewState] = {
@@ -325,11 +345,7 @@ query {query_name}($owner: String!, $name: String!, $number: Int!, $cursor: Stri
 
 
 def _graphql_review_thread_full_comments_query(*, include_reactions: bool) -> str:
-    query_name = (
-        "ReviewThreadFullCommentsWithReactions"
-        if include_reactions
-        else "ReviewThreadFullComments"
-    )
+    query_name = "ReviewThreadFullCommentsWithReactions" if include_reactions else "ReviewThreadFullComments"
     comment_fields = _review_thread_comment_fields(include_reactions=include_reactions)
     return f"""
 query {query_name}($threadId: ID!, $cursor: String) {{
@@ -344,6 +360,7 @@ query {query_name}($threadId: ID!, $cursor: String) {{
     }}
 }}
 """
+
 
 # Default page size for the reviewThreads connection. GitHub caps `first` at 100.
 GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
@@ -783,6 +800,32 @@ class GitHubProvider:
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         return self.delete_issue_comment_reaction(pull_request_id, comment_id, reaction_id)
 
+    def get_review_comment_reactions(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReactionResult]]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(pagination, response, lambda r: [map_reaction(c) for c in r])
+
+    def create_review_comment_reaction(
+        self, pull_request_id: str, comment_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]:
+        response = self.post(
+            f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions",
+            data={"content": reaction},
+        )
+        return map_action(response, map_reaction)
+
+    def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
+        self.delete(f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions/{reaction_id}")
+
     def get_issue_reactions(
         self,
         issue_id: str,
@@ -884,6 +927,26 @@ class GitHubProvider:
 
     def get_commit_url(self, commit_sha: SHA) -> str:
         return f"{self._web_base_url}/{self.repository['name']}/commit/{commit_sha}"
+
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str:
+        url = f"{self._web_base_url}/{self.repository['name']}/commits/{commit_sha}"
+        if file_path is not None:
+            url += f"/{file_path}"
+        params: list[str] = []
+        if since is not None:
+            params.append(f"since={since.strftime('%Y-%m-%d')}")
+        if until is not None:
+            params.append(f"until={until.strftime('%Y-%m-%d')}")
+        if params:
+            url += f"?{'&'.join(params)}"
+        return url
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self._web_base_url}/{self.repository['name']}/pull/{pull_request_id}"
@@ -1103,6 +1166,7 @@ class GitHubProvider:
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]:
         tree_entries: list[InputTreeEntry] = []
         for action in actions:
@@ -1166,7 +1230,12 @@ class GitHubProvider:
 
         parent_commit = self.get_git_commit(parent_sha)["data"]
         new_tree = self.create_git_tree(tree_entries, base_tree=parent_commit["tree"]["sha"])["data"]
-        new_commit = self.create_git_commit(message, new_tree["sha"], [parent_sha])
+        new_commit = self.create_git_commit(
+            message,
+            new_tree["sha"],
+            [parent_sha],
+            author=author,
+        )
         if create_branch:
             self.create_branch(branch, new_commit["data"]["sha"])
         else:
@@ -1269,14 +1338,18 @@ class GitHubProvider:
         message: str,
         tree_sha: SHA,
         parent_shas: list[SHA],
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[GitCommitObject]:
+        data: dict[str, Any] = {
+            "message": message,
+            "tree": tree_sha,
+            "parents": parent_shas,
+        }
+        if author is not None:
+            data["author"] = {"name": author["name"], "email": author["email"]}
         response = self.post(
             f"/repos/{self.repository['name']}/git/commits",
-            data={
-                "message": message,
-                "tree": tree_sha,
-                "parents": parent_shas,
-            },
+            data=data,
         )
         return map_action(response, map_git_commit_object)
 
@@ -1444,51 +1517,34 @@ class GitHubProvider:
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
-    def create_review_comment_line(
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: SHA,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
-        """Leave a review comment on a line."""
-        response = self.post(
-            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/comments",
-            data={
-                "body": body,
-                "commit_id": commit_id,
-                "path": path,
-                "line": line,
-                "side": GITHUB_REVIEW_SIDE_MAP[side],
-            },
-        )
-        return deserialize_action(response, deserialize_pull_request_review_comment)
+        """Leave an inline review comment on a diff line (or span of lines).
 
-    def create_review_comment_multiline(
-        self,
-        pull_request_id: str,
-        commit_id: SHA,
-        body: str,
-        path: str,
-        side: ReviewSide,
-        start_side: ReviewSide,
-        start_line: int,
-        end_line: int,
-    ) -> ActionResult[ReviewComment]:
-        """Leave a review comment on a line span."""
+        GitHub locates a line by a single ``line`` number plus a ``side``
+        (LEFT/RIGHT). We derive both from the :class:`DiffLine`: prefer the head
+        (post-image) number when present, otherwise the base (pre-image) one.
+        """
+        end_line, end_side = _github_line_side(line)
+        data: dict[str, Any] = {
+            "body": body,
+            "commit_id": commit_id,
+            "path": path,
+            "line": end_line,
+            "side": end_side,
+        }
+        if start_line is not None:
+            data["start_line"], data["start_side"] = _github_line_side(start_line)
         response = self.post(
             f"/repos/{self.repository['name']}/pulls/{pull_request_id}/comments",
-            data={
-                "body": body,
-                "commit_id": commit_id,
-                "path": path,
-                "line": end_line,
-                "side": GITHUB_REVIEW_SIDE_MAP[side],
-                "start_line": start_line,
-                "start_side": GITHUB_REVIEW_SIDE_MAP[start_side],
-            },
+            data=data,
         )
         return deserialize_action(response, deserialize_pull_request_review_comment)
 
@@ -1530,11 +1586,16 @@ class GitHubProvider:
     ) -> ActionResult[Review]:
         translated_comments: list[dict[str, Any]] = []
         for comment in comments:
-            translated: dict[str, Any] = dict(comment)
-            if "side" in translated:
-                translated["side"] = GITHUB_REVIEW_SIDE_MAP[translated["side"]]
-            if "start_side" in translated:
-                translated["start_side"] = GITHUB_REVIEW_SIDE_MAP[translated["start_side"]]
+            translated: dict[str, Any] = {
+                "path": comment["path"],
+                "body": comment["body"],
+            }
+            diff_line = comment.get("line")
+            if diff_line is not None:
+                translated["line"], translated["side"] = _github_line_side(diff_line)
+            start = comment.get("start_line")
+            if start is not None:
+                translated["start_line"], translated["start_side"] = _github_line_side(start)
             translated_comments.append(translated)
 
         data: dict[str, Any] = {
@@ -1841,9 +1902,7 @@ class GitHubProvider:
         review_threads = pull_request["reviewThreads"]
         threads: list[ReviewThread] = []
         for raw_thread in review_threads["nodes"]:
-            comments = list(
-                self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions)
-            )
+            comments = list(self._iter_review_thread_comments(raw_thread, include_reactions=include_reactions))
             threads.append(
                 ReviewThread(
                     id=raw_thread["id"],
@@ -2352,6 +2411,8 @@ def _map_graphql_review_comment_reactions(raw: dict[str, Any]) -> list[ReactionR
     reaction_nodes = (raw.get("reactions") or {}).get("nodes") or []
     results: list[ReactionResult] = []
     for node in reaction_nodes:
+        if node is None:
+            continue
         content = _GRAPHQL_REACTION_CONTENT_TO_REACTION.get(node.get("content"))
         if content is None:
             continue
@@ -2389,9 +2450,7 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
     )
 
 
-def map_graphql_review_thread_comment(
-    raw: dict[str, Any], *, include_reactions: bool = False
-) -> ReviewThreadComment:
+def map_graphql_review_thread_comment(raw: dict[str, Any], *, include_reactions: bool = False) -> ReviewThreadComment:
     author, is_bot = map_graphql_author(raw.get("author"))
     full_database_id = raw.get("fullDatabaseId")
     review = raw.get("pullRequestReview") or {}
@@ -2406,11 +2465,7 @@ def map_graphql_review_thread_comment(
         created_at=raw.get("createdAt"),
         updated_at=raw.get("updatedAt"),
         is_minimized=bool(raw.get("isMinimized")),
-        commit_sha=str(
-            (raw.get("originalCommit") or {}).get("oid")
-            or (raw.get("commit") or {}).get("oid")
-            or ""
-        ),
+        commit_sha=str((raw.get("originalCommit") or {}).get("oid") or (raw.get("commit") or {}).get("oid") or ""),
         url=raw.get("url"),
         diff_hunk=raw.get("diffHunk"),
         author_association=raw.get("authorAssociation"),

@@ -1,6 +1,6 @@
 import dataclasses
 from collections.abc import Iterator, MutableMapping
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict, runtime_checkable
 
 import requests
@@ -377,6 +377,11 @@ class FileContent(TypedDict):
     type: FileContentType
 
 
+class CommitAuthorParam(TypedDict):
+    name: str
+    email: str
+
+
 class CommitAuthor(TypedDict):
     name: str
     email: str
@@ -458,15 +463,35 @@ class PullRequestCommit(TypedDict):
     author: CommitAuthor | None
 
 
+class DiffLine(TypedDict, total=False):
+    """A single line within a diff, identified by its number on each side.
+
+    A line exists on the base (pre-image) side, the head (post-image) side, or
+    both:
+
+    - ``{"head": 42}`` — an added line (only on the head side)
+    - ``{"base": 17}`` — a removed line (only on the base side)
+    - ``{"base": 17, "head": 42}`` — an unchanged/context line (both sides)
+
+    This is the sole way review comments describe *where* they attach. Which
+    "side" of the diff a comment lands on is derived from which number(s) are
+    set, so callers never pass a separate ``side`` — GitLab needs both numbers
+    for a context line's ``line_code``, and GitHub selects whichever side is
+    present. At least one of ``base``/``head`` must be set; a diff line with
+    both is a context (unchanged) line.
+    """
+
+    base: int
+    head: int
+
+
 class ReviewCommentInput(TypedDict, total=False):
     """Input for an inline comment within a batch review."""
 
     path: Required[str]
     body: Required[str]
-    line: int
-    side: ReviewSide
-    start_line: int
-    start_side: ReviewSide
+    line: DiffLine  # the commented line, or the END of a multiline range
+    start_line: DiffLine  # the START of a multiline range; omit for a single line
 
 
 class ReviewComment(TypedDict):
@@ -634,6 +659,7 @@ type PullRequestAction = Literal[
     "reopened",
     "review_request_removed",
     "review_requested",
+    "stacked",
     "synchronize",  # Commits were pushed.
     "unassigned",
     "unlabeled",
@@ -861,6 +887,32 @@ class DeletePullRequestCommentReactionProtocol(Protocol):
     def delete_pull_request_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None: ...
 
 
+# Review Comment Reaction Protocols
+
+
+@runtime_checkable
+class GetReviewCommentReactionsProtocol(Protocol):
+    def get_review_comment_reactions(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[ReactionResult]]: ...
+
+
+@runtime_checkable
+class CreateReviewCommentReactionProtocol(Protocol):
+    def create_review_comment_reaction(
+        self, pull_request_id: str, comment_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]: ...
+
+
+@runtime_checkable
+class DeleteReviewCommentReactionProtocol(Protocol):
+    def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None: ...
+
+
 # Issue Reaction Protocols
 
 
@@ -968,6 +1020,18 @@ class GetCommitUrlProtocol(Protocol):
 
 
 @runtime_checkable
+class GetCommitsUrlProtocol(Protocol):
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str: ...
+
+
+@runtime_checkable
 class GetPullRequestUrlProtocol(Protocol):
     def get_pull_request_url(self, pull_request_id: str) -> str: ...
 
@@ -1040,6 +1104,7 @@ class CreateCommitProtocol(Protocol):
         actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
         force: bool = False,
         create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[Commit]: ...
 
 
@@ -1179,7 +1244,11 @@ class CreateGitTreeProtocol(Protocol):
 @runtime_checkable
 class CreateGitCommitProtocol(Protocol):
     def create_git_commit(
-        self, message: str, tree_sha: SHA, parent_shas: list[SHA]
+        self,
+        message: str,
+        tree_sha: SHA,
+        parent_shas: list[SHA],
+        author: CommitAuthorParam | None = None,
     ) -> ActionResult[GitCommitObject]: ...
 
 
@@ -1354,30 +1423,15 @@ class CreateReviewCommentFileProtocol(Protocol):
 
 
 @runtime_checkable
-class CreateReviewCommentLineProtocol(Protocol):
-    def create_review_comment_line(
+class CreateReviewCommentProtocol(Protocol):
+    def create_review_comment(
         self,
         pull_request_id: str,
         commit_id: SHA,
         body: str,
         path: str,
-        side: ReviewSide,
-        line: int,
-    ) -> ActionResult[ReviewComment]: ...
-
-
-@runtime_checkable
-class CreateReviewCommentMultilineProtocol(Protocol):
-    def create_review_comment_multiline(
-        self,
-        pull_request_id: str,
-        commit_id: SHA,
-        body: str,
-        path: str,
-        side: ReviewSide,
-        start_side: ReviewSide,
-        start_line: int,
-        end_line: int,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]: ...
 
 
@@ -1505,8 +1559,8 @@ ALL_PROTOCOLS = (
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
     CreateReviewCommentFileProtocol,
-    CreateReviewCommentLineProtocol,
-    CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentProtocol,
+    CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
@@ -1516,6 +1570,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DeleteReviewCommentReactionProtocol,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
     GetAuthenticatedActorProtocol,
@@ -1526,6 +1581,7 @@ ALL_PROTOCOLS = (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
@@ -1544,6 +1600,7 @@ ALL_PROTOCOLS = (
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
     GetPullRequestReviewThreadsProtocol,
+    GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,

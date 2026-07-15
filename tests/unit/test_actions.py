@@ -23,8 +23,9 @@ from scm.actions import (
     create_pull_request_draft,
     create_pull_request_reaction,
     create_review,
+    create_review_comment,
     create_review_comment_file,
-    create_review_comment_line,
+    create_review_comment_reaction,
     create_review_comment_reply,
     delete_branch,
     delete_issue_comment,
@@ -33,6 +34,7 @@ from scm.actions import (
     delete_pull_request_comment,
     delete_pull_request_comment_reaction,
     delete_pull_request_reaction,
+    delete_review_comment_reaction,
     download_archive,
     get_authenticated_actor,
     get_branch,
@@ -42,6 +44,7 @@ from scm.actions import (
     get_commit_url,
     get_commits,
     get_commits_by_path,
+    get_commits_url,
     get_directory_contents,
     get_file_content,
     get_file_url,
@@ -67,6 +70,7 @@ from scm.actions import (
     get_repository_assignees,
     get_repository_labels,
     get_repository_topics,
+    get_review_comment_reactions,
     get_review_comments,
     get_thread_id_from_review_comment_unique_id,
     get_tree,
@@ -81,7 +85,14 @@ from scm.actions import (
 )
 from scm.errors import SCMCodedError
 from scm.test_fixtures import BaseTestProvider, SourceCodeManager
-from scm.types import CreatePullRequestCommentProtocol, GetBranchProtocol, Referrer, Repository, WriteCommitAction
+from scm.types import (
+    CreatePullRequestCommentProtocol,
+    DiffLine,
+    GetBranchProtocol,
+    Referrer,
+    Repository,
+    WriteCommitAction,
+)
 
 
 @contextmanager
@@ -137,6 +148,16 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
         delete_pull_request_comment_reaction,
         {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
     ),
+    # Review comment reactions
+    (get_review_comment_reactions, {"pull_request_id": "1", "comment_id": "1"}),
+    (
+        create_review_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction": "eyes"},
+    ),
+    (
+        delete_review_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
+    ),
     # Issue reactions
     (get_issue_reactions, {"issue_id": "1"}),
     (create_issue_reaction, {"issue_id": "1", "reaction": "eyes"}),
@@ -155,6 +176,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # URL builders
     (get_file_url, {"file_path": "src/main.py", "sha": "abc123"}),
     (get_commit_url, {"commit_sha": "abc123"}),
+    (get_commits_url, {"commit_sha": "abc123"}),
     (get_pull_request_url, {"pull_request_id": "1"}),
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
@@ -207,14 +229,13 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
         },
     ),
     (
-        create_review_comment_line,
+        create_review_comment,
         {
             "pull_request_id": "1",
             "commit_id": "abc",
             "body": "comment",
             "path": "f.py",
-            "side": "head",
-            "line": 3,
+            "line": DiffLine(head=3),
         },
     ),
     (
@@ -437,6 +458,10 @@ def _check_get_file_url(result: Any) -> None:
 
 def _check_get_commit_url(result: Any) -> None:
     assert result == "https://github.com/test-org/test-repo/commit/abc123"
+
+
+def _check_get_commits_url(result: Any) -> None:
+    assert result == "https://github.com/test-org/test-repo/commits/abc123"
 
 
 def _check_get_pull_request_url(result: Any) -> None:
@@ -743,6 +768,21 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
         _check_none,
     ),
+    (
+        get_review_comment_reactions,
+        {"pull_request_id": "1", "comment_id": "1"},
+        _check_pr_comment_reactions,
+    ),
+    (
+        create_review_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction": "eyes"},
+        _check_created_reaction,
+    ),
+    (
+        delete_review_comment_reaction,
+        {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
+        _check_none,
+    ),
     (get_issue_reactions, {"issue_id": "1"}, _check_issue_reactions),
     (
         create_issue_reaction,
@@ -772,6 +812,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_git_ref, {"ref": "heads/main"}, _check_get_git_ref),
     (get_file_url, {"file_path": "src/main.py", "sha": "abc123"}, _check_get_file_url),
     (get_commit_url, {"commit_sha": "abc123"}, _check_get_commit_url),
+    (get_commits_url, {"commit_sha": "abc123"}, _check_get_commits_url),
     (get_pull_request_url, {"pull_request_id": "1"}, _check_get_pull_request_url),
     (
         create_git_blob,
@@ -856,14 +897,13 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         _check_review_comment,
     ),
     (
-        create_review_comment_line,
+        create_review_comment,
         {
             "pull_request_id": "1",
             "commit_id": "abc",
             "body": "comment",
             "path": "f.py",
-            "side": "head",
-            "line": 3,
+            "line": DiffLine(head=3),
         },
         _check_review_comment,
     ),

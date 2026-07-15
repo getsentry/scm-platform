@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 import requests
@@ -20,6 +20,7 @@ from scm.types import (
     CollapsePullRequestCommentProtocol,
     Comment,
     Commit,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
@@ -41,8 +42,8 @@ from scm.types import (
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
     CreateReviewCommentFileProtocol,
-    CreateReviewCommentLineProtocol,
-    CreateReviewCommentMultilineProtocol,
+    CreateReviewCommentProtocol,
+    CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
@@ -53,6 +54,8 @@ from scm.types import (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DeleteReviewCommentReactionProtocol,
+    DiffLine,
     DownloadArchiveProtocol,
     DownloadWorkflowJobLogProtocol,
     FileContent,
@@ -65,6 +68,7 @@ from scm.types import (
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
+    GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
@@ -93,6 +97,7 @@ from scm.types import (
     GetRepositoryProtocol,
     GetRepositoryTopicsProtocol,
     GetRepositoryUserPermissionProtocol,
+    GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,
     GetTreeProtocol,
     GitBlob,
@@ -352,6 +357,37 @@ def delete_pull_request_comment_reaction(
     return scm.delete_pull_request_comment_reaction(pull_request_id, comment_id, reaction_id)
 
 
+def get_review_comment_reactions(
+    scm: GetReviewCommentReactionsProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    pagination: PaginationParams | None = None,
+    request_options: RequestOptions | None = None,
+) -> PaginatedActionResult[list[ReactionResult]]:
+    """Get reactions on a pull request review comment."""
+    return scm.get_review_comment_reactions(pull_request_id, comment_id, pagination, request_options)
+
+
+def create_review_comment_reaction(
+    scm: CreateReviewCommentReactionProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    reaction: Reaction,
+) -> ActionResult[ReactionResult]:
+    """Create a reaction on a pull request review comment."""
+    return scm.create_review_comment_reaction(pull_request_id, comment_id, reaction)
+
+
+def delete_review_comment_reaction(
+    scm: DeleteReviewCommentReactionProtocol,
+    pull_request_id: str,
+    comment_id: str,
+    reaction_id: str,
+) -> None:
+    """Delete a reaction on a pull request review comment."""
+    return scm.delete_review_comment_reaction(pull_request_id, comment_id, reaction_id)
+
+
 def get_issue_reactions(
     scm: GetIssueReactionsProtocol,
     issue_id: str,
@@ -445,6 +481,22 @@ def get_file_url(
 def get_commit_url(scm: GetCommitUrlProtocol, commit_sha: SHA) -> str:
     """Build a web URL pointing at a commit."""
     return scm.get_commit_url(commit_sha)
+
+
+def get_commits_url(
+    scm: GetCommitsUrlProtocol,
+    commit_sha: SHA,
+    *,
+    file_path: str | None = None,
+    since: date | None = None,
+    until: date | None = None,
+) -> str:
+    """Build a web URL pointing at the commits-list view for a ref.
+
+    Optionally scoped to a file path and/or a date range. Each provider maps
+    the arguments onto its own web-UI URL shape.
+    """
+    return scm.get_commits_url(commit_sha, file_path=file_path, since=since, until=until)
 
 
 def get_pull_request_url(scm: GetPullRequestUrlProtocol, pull_request_id: str) -> str:
@@ -587,8 +639,9 @@ def create_commit(
     actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
     force: bool = False,
     create_branch: bool = False,
+    author: CommitAuthorParam | None = None,
 ) -> ActionResult[Commit]:
-    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch)
+    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch, author=author)
 
 
 def get_tree(
@@ -638,9 +691,13 @@ def create_git_tree(
 
 
 def create_git_commit(
-    scm: CreateGitCommitProtocol, message: str, tree_sha: SHA, parent_shas: list[SHA]
+    scm: CreateGitCommitProtocol,
+    message: str,
+    tree_sha: SHA,
+    parent_shas: list[SHA],
+    author: CommitAuthorParam | None = None,
 ) -> ActionResult[GitCommitObject]:
-    return scm.create_git_commit(message, tree_sha, parent_shas)
+    return scm.create_git_commit(message, tree_sha, parent_shas, author=author)
 
 
 def get_pull_request_files(
@@ -759,34 +816,22 @@ def create_review_comment_file(
     return scm.create_review_comment_file(pull_request_id, commit_id, body, path, side)
 
 
-def create_review_comment_line(
-    scm: CreateReviewCommentLineProtocol,
+def create_review_comment(
+    scm: CreateReviewCommentProtocol,
     pull_request_id: str,
     commit_id: SHA,
     body: str,
     path: str,
-    side: ReviewSide,
-    line: int,
+    line: DiffLine,
+    start_line: DiffLine | None = None,
 ) -> ActionResult[ReviewComment]:
-    """Leave a review comment on a line."""
-    return scm.create_review_comment_line(pull_request_id, commit_id, body, path, side, line)
+    """Leave an inline review comment on a diff line (or a span of lines).
 
-
-def create_review_comment_multiline(
-    scm: CreateReviewCommentMultilineProtocol,
-    pull_request_id: str,
-    commit_id: SHA,
-    body: str,
-    path: str,
-    side: ReviewSide,
-    start_side: ReviewSide,
-    start_line: int,
-    end_line: int,
-) -> ActionResult[ReviewComment]:
-    """Leave a review comment on a line span."""
-    return scm.create_review_comment_multiline(
-        pull_request_id, commit_id, body, path, side, start_side, start_line, end_line
-    )
+    Pass ``start_line`` to comment on a multiline range; omit it for a single
+    line. See :class:`~scm.types.DiffLine` for how a line's diff position is
+    described.
+    """
+    return scm.create_review_comment(pull_request_id, commit_id, body, path, line, start_line)
 
 
 def create_review_comment_reply(
@@ -1024,8 +1069,8 @@ __all__ = (
     "create_pull_request_draft",
     "create_pull_request_reaction",
     "create_pull_request",
+    "create_review_comment",
     "create_review_comment_file",
-    "create_review_comment_line",
     "create_review_comment_reply",
     "create_review",
     "delete_branch",
@@ -1042,6 +1087,7 @@ __all__ = (
     "get_branch",
     "get_check_run",
     "get_commit_url",
+    "get_commits_url",
     "get_commit",
     "get_commit_changes",
     "get_commits_by_path",

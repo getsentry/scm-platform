@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -21,6 +21,7 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.github.provider import (
+    GITHUB_CONCLUSION_MAP,
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
@@ -31,6 +32,7 @@ from scm.providers.github.provider import (
     _graphql_review_thread_full_comments_query,
     _graphql_review_threads_query,
     map_app_installation,
+    map_check_run,
     map_collaborator_permission_level,
     map_comment,
     map_github_repository_permission,
@@ -65,6 +67,7 @@ from scm.types import (
     ChmodCommitAction,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     MoveCommitAction,
     Referrer,
     Repository,
@@ -613,6 +616,16 @@ PAGINATED_CASES: list[dict[str, Any]] = [
         "next_cursor": "2",
     },
     {
+        "name": "get_review_comment_reactions",
+        "kwargs": {"pull_request_id": "42", "comment_id": "99"},
+        "path": "/repos/test-org/test-repo/pulls/comments/99/reactions",
+        "params": None,
+        "pagination": None,
+        "raw": [REACTION_RAW],
+        "expected_data": [expected_reaction(REACTION_RAW)],
+        "next_cursor": "2",
+    },
+    {
         "name": "get_commits",
         "kwargs": {"ref": "main", "pagination": {"cursor": "3", "per_page": 10}},
         "path": "/repos/test-org/test-repo/commits",
@@ -961,6 +974,15 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_reaction(REACTION_RAW),
     },
     {
+        "name": "create_review_comment_reaction",
+        "operation": "post",
+        "kwargs": {"pull_request_id": "42", "comment_id": "99", "reaction": "heart"},
+        "path": "/repos/test-org/test-repo/pulls/comments/99/reactions",
+        "data": {"content": "heart"},
+        "raw": REACTION_RAW,
+        "expected_data": expected_reaction(REACTION_RAW),
+    },
+    {
         "name": "get_branch",
         "operation": "get",
         "kwargs": {"branch": "main"},
@@ -1119,15 +1141,14 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
     },
     {
-        "name": "create_review_comment_line",
+        "name": "create_review_comment",
         "operation": "post",
         "kwargs": {
             "pull_request_id": "42",
             "commit_id": "abc123",
             "body": "Looks good",
             "path": "src/main.py",
-            "side": "head",
-            "line": 3,
+            "line": DiffLine(head=3),
         },
         "path": "/repos/test-org/test-repo/pulls/42/comments",
         "data": {
@@ -1141,17 +1162,38 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
     },
     {
-        "name": "create_review_comment_multiline",
+        # A removed line (base only) anchors LEFT.
+        "name": "create_review_comment",
         "operation": "post",
         "kwargs": {
             "pull_request_id": "42",
             "commit_id": "abc123",
             "body": "Looks good",
             "path": "src/main.py",
-            "side": "head",
-            "start_side": "base",
-            "start_line": 1,
-            "end_line": 5,
+            "line": DiffLine(base=7),
+        },
+        "path": "/repos/test-org/test-repo/pulls/42/comments",
+        "data": {
+            "body": "Looks good",
+            "commit_id": "abc123",
+            "path": "src/main.py",
+            "line": 7,
+            "side": "LEFT",
+        },
+        "raw": REVIEW_COMMENT_RAW,
+        "expected_data": expected_review_comment(REVIEW_COMMENT_RAW),
+    },
+    {
+        # Multiline range: end on head line 5, start on base line 1.
+        "name": "create_review_comment",
+        "operation": "post",
+        "kwargs": {
+            "pull_request_id": "42",
+            "commit_id": "abc123",
+            "body": "Looks good",
+            "path": "src/main.py",
+            "line": DiffLine(head=5),
+            "start_line": DiffLine(base=1),
         },
         "path": "/repos/test-org/test-repo/pulls/42/comments",
         "data": {
@@ -1191,15 +1233,33 @@ ACTION_CASES: list[dict[str, Any]] = [
             "pull_request_id": "42",
             "commit_sha": "abc123",
             "event": "approve",
-            "comments": [{"path": "f.py", "body": "fix"}],
+            "comments": [{"path": "f.py", "body": "fix", "line": DiffLine(head=3)}],
             "body": "overall",
         },
         "path": "/repos/test-org/test-repo/pulls/42/reviews",
         "data": {
             "commit_id": "abc123",
             "event": "APPROVE",
-            "comments": [{"path": "f.py", "body": "fix"}],
+            "comments": [{"path": "f.py", "body": "fix", "line": 3, "side": "RIGHT"}],
             "body": "overall",
+        },
+        "raw": REVIEW_RAW,
+        "expected_data": expected_review(REVIEW_RAW),
+    },
+    {
+        "name": "create_review",
+        "operation": "post",
+        "kwargs": {
+            "pull_request_id": "42",
+            "commit_sha": "abc123",
+            "event": "comment",
+            "comments": [{"path": "f.py", "body": "file-level note"}],
+        },
+        "path": "/repos/test-org/test-repo/pulls/42/reviews",
+        "data": {
+            "commit_id": "abc123",
+            "event": "COMMENT",
+            "comments": [{"path": "f.py", "body": "file-level note"}],
         },
         "raw": REVIEW_RAW,
         "expected_data": expected_review(REVIEW_RAW),
@@ -1318,6 +1378,12 @@ VOID_CASES: list[dict[str, Any]] = [
         "operation": "delete",
         "kwargs": {"issue_id": "42", "reaction_id": "5"},
         "path": "/repos/test-org/test-repo/issues/42/reactions/5",
+    },
+    {
+        "name": "delete_review_comment_reaction",
+        "operation": "delete",
+        "kwargs": {"pull_request_id": "42", "comment_id": "99", "reaction_id": "5"},
+        "path": "/repos/test-org/test-repo/pulls/comments/99/reactions/5",
     },
     {
         "name": "request_review",
@@ -1978,6 +2044,32 @@ def test_get_commit_url_builds_commit_url() -> None:
     assert provider.get_commit_url("abc123") == "https://github.com/test-org/test-repo/commit/abc123"
 
 
+def test_get_commits_url_builds_commits_list_url() -> None:
+    provider, _ = make_provider()
+
+    assert provider.get_commits_url("abc123") == "https://github.com/test-org/test-repo/commits/abc123"
+    assert (
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py")
+        == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py"
+    )
+    assert (
+        provider.get_commits_url("abc123", since=date(2026, 1, 15))
+        == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15"
+    )
+    assert (
+        provider.get_commits_url("abc123", until=date(2026, 3, 20))
+        == "https://github.com/test-org/test-repo/commits/abc123?until=2026-03-20"
+    )
+    assert (
+        provider.get_commits_url("abc123", since=date(2026, 1, 15), until=date(2026, 3, 20))
+        == "https://github.com/test-org/test-repo/commits/abc123?since=2026-01-15&until=2026-03-20"
+    )
+    assert (
+        provider.get_commits_url("abc123", file_path="src/foo/bar.py", since=date(2026, 1, 15), until=date(2026, 3, 20))
+        == "https://github.com/test-org/test-repo/commits/abc123/src/foo/bar.py?since=2026-01-15&until=2026-03-20"
+    )
+
+
 def test_get_pull_request_url_builds_pr_url() -> None:
     provider, _ = make_provider()
 
@@ -1997,6 +2089,9 @@ def test_ghe_web_base_url_used_in_url_methods() -> None:
         "https://github.example.com/test-org/test-repo/blob/abc123/src/main.py"
     )
     assert provider.get_commit_url("abc123") == ("https://github.example.com/test-org/test-repo/commit/abc123")
+    assert provider.get_commits_url("abc123", since=date(2026, 1, 15)) == (
+        "https://github.example.com/test-org/test-repo/commits/abc123?since=2026-01-15"
+    )
     assert provider.get_pull_request_url("42") == ("https://github.example.com/test-org/test-repo/pull/42")
 
 
@@ -2124,6 +2219,51 @@ def test_create_commit_calls_create_branch_when_create_branch_true() -> None:
     assert final_call["operation"] == "post"
     assert final_call["path"] == "/repos/test-org/test-repo/git/refs"
     assert final_call["data"] == {"ref": "refs/heads/topic", "sha": "new_commit_sha"}
+
+
+def test_create_commit_passes_author_when_provided() -> None:
+    provider, client = make_provider()
+
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8")],
+        author={"name": "Alice", "email": "alice@example.com"},
+    )
+
+    commit_call = [c for c in client.calls if c["path"].endswith("/git/commits") and c["operation"] == "post"][0]
+    assert commit_call["data"]["author"] == {"name": "Alice", "email": "alice@example.com"}
+
+
+def test_create_commit_omits_author_when_not_provided() -> None:
+    provider, client = make_provider()
+
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+    provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8")],
+    )
+
+    commit_call = [c for c in client.calls if c["path"].endswith("/git/commits") and c["operation"] == "post"][0]
+    assert "author" not in commit_call["data"]
 
 
 def test_create_pull_request_draft_raises_coded_error_when_drafts_not_supported() -> None:
@@ -2417,7 +2557,7 @@ def _make_thread_comment_node(
     created_at: str = "2026-02-04T10:00:00Z",
     updated_at: str = "2026-02-04T10:00:00Z",
     is_minimized: bool = False,
-    reactions: list[dict[str, Any]] | None = None,
+    reactions: list[dict[str, Any] | None] | None = None,
     url: str | None = "https://github.com/test-org/test-repo/pull/42#r1001",
     diff_hunk: str | None = "@@ -1 +1 @@",
     author_association: str | None = "MEMBER",
@@ -2437,9 +2577,7 @@ def _make_thread_comment_node(
         "authorAssociation": author_association,
         "commit": {"oid": commit_oid} if commit_oid is not None else None,
         "originalCommit": {"oid": original_commit_oid} if original_commit_oid is not None else None,
-        "pullRequestReview": (
-            {"databaseId": review_database_id} if review_database_id is not None else None
-        ),
+        "pullRequestReview": ({"databaseId": review_database_id} if review_database_id is not None else None),
         "author": {
             "login": author_login,
             "__typename": author_typename,
@@ -2875,6 +3013,45 @@ def test_get_pull_request_review_threads_handles_null_author() -> None:
     assert thread["comments"][0]["is_bot"] is False
 
 
+def test_get_pull_request_review_threads_skips_null_reaction_nodes() -> None:
+    """Regression: GitHub GraphQL may return null entries in reactions.nodes; these should be skipped."""
+    provider, client = make_provider()
+    client.queue(
+        "graphql",
+        _review_threads_graphql_payload(
+            [
+                _review_thread_node(
+                    "PRRT_1",
+                    [
+                        _make_thread_comment_node(
+                            reactions=[
+                                None,
+                                {
+                                    "databaseId": 10,
+                                    "content": "THUMBS_UP",
+                                    "user": {
+                                        "login": "alice",
+                                        "__typename": "User",
+                                        "databaseId": 100,
+                                    },
+                                },
+                                None,
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        ),
+    )
+
+    result = provider.get_pull_request_review_threads("42", include_reactions=True)
+
+    comment = result["data"][0]["comments"][0]
+    assert comment["reactions"] == [
+        {"id": "10", "content": "+1", "author": {"id": "100", "username": "alice"}},
+    ]
+
+
 @pytest.mark.parametrize(
     ("permissions", "expected"),
     [
@@ -2894,6 +3071,13 @@ def test_get_pull_request_review_threads_handles_null_author() -> None:
 )
 def test_map_app_installation_checks_permission(permissions: dict[str, str], expected: dict[str, bool]) -> None:
     assert map_app_installation({"permissions": permissions}) == expected
+
+
+def test_map_check_run_normalizes_startup_failure() -> None:
+    raw = make_github_check_run(conclusion="startup_failure")
+
+    assert GITHUB_CONCLUSION_MAP["startup_failure"] == "failure"
+    assert map_check_run(raw)["conclusion"] == "failure"
 
 
 @pytest.mark.parametrize(
@@ -3025,6 +3209,7 @@ def test_public_methods_are_accounted_for() -> None:
         "download_workflow_job_log",
         "get_file_url",
         "get_commit_url",
+        "get_commits_url",
         "get_pull_request_url",
         "create_commit",
         "update_issue",
