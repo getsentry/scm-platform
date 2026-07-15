@@ -2325,7 +2325,6 @@ def test_deserialize_review_comment_populates_line_anchor() -> None:
 
 
 def test_deserialize_review_comment_keeps_original_line_separate_when_outdated() -> None:
-    # An outdated comment reports only original_* (head-diff line/start_line null).
     raw = make_github_review_comment(
         user={"id": 42, "login": "testuser"},
         line=None,
@@ -2341,7 +2340,6 @@ def test_deserialize_review_comment_keeps_original_line_separate_when_outdated()
 
 
 def test_deserialize_review_comment_file_level_has_no_line() -> None:
-    # A file-level comment carries no line info at all.
     raw = make_github_review_comment(user={"id": 42, "login": "testuser"}, line=None, start_line=None)
     comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
     assert comment["line"] is None
