@@ -37,6 +37,14 @@ Commands:
     get-tree <tree_sha> [--no-recursive]   (tree_sha is a commit SHA, branch, or tag)
     compare-commits <start_sha> <end_sha>
     get-commit <sha>
+    get-commit-changes <sha> [--cursor <cursor>] [--per-page <n>]
+    create-commit <branch> <parent_sha> <message>
+        [--create <filename>=<content> ...]
+        [--update <filename>=<content> ...]
+        [--delete <filename> ...]
+        [--move <old_filename>:<new_filename> ...]
+        [--chmod <filename>:<0|1> ...] (unsupported on Bitbucket)
+        [--force] [--create-branch]
     get-pull-request-diff <id>
     get-pull-request-files <id>
     get-pull-request-template --ref <ref>
@@ -77,10 +85,12 @@ import sys
 from scm.manager import SourceCodeManager
 from scm.types import (
     CheckRunOutput,
+    ChmodCommitAction,
     CollapsePullRequestCommentProtocol,
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
+    CreateCommitProtocol,
     CreatePullRequestCommentProtocol,
     CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
@@ -89,11 +99,13 @@ from scm.types import (
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
     DeleteBranchProtocol,
+    DeleteCommitAction,
     DeletePullRequestCommentProtocol,
     GetAppInstallationProtocol,
     GetAuthenticatedActorProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
+    GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
@@ -113,11 +125,14 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     GetTreeProtocol,
+    MoveCommitAction,
+    PaginationParams,
     ReviewCommentInput,
     UpdateAndCollapsePullRequestCommentProtocol,
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
+    WriteCommitAction,
 )
 
 BUILD_STATUS_CHOICES = ["pending", "running", "completed"]
@@ -279,6 +294,23 @@ def main():
 
     p = sub.add_parser("get-commit")
     p.add_argument("sha")
+
+    p = sub.add_parser("get-commit-changes")
+    p.add_argument("sha")
+    p.add_argument("--cursor", default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("create-commit")
+    p.add_argument("branch")
+    p.add_argument("parent_sha")
+    p.add_argument("message")
+    p.add_argument("--create", action="append", dest="creates", default=None, metavar="FILENAME=CONTENT")
+    p.add_argument("--update", action="append", dest="updates", default=None, metavar="FILENAME=CONTENT")
+    p.add_argument("--delete", action="append", dest="deletes", default=None, metavar="FILENAME")
+    p.add_argument("--move", action="append", dest="moves", default=None, metavar="OLD:NEW")
+    p.add_argument("--chmod", action="append", dest="chmods", default=None, metavar="FILENAME:0|1")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--create-branch", action="store_true", dest="create_branch")
 
     p = sub.add_parser("get-pull-request-diff")
     p.add_argument("id")
@@ -469,6 +501,43 @@ def main():
     elif args.command == "get-commit":
         assert isinstance(scm, GetCommitProtocol)
         dump(scm.get_commit(args.sha))
+
+    elif args.command == "get-commit-changes":
+        assert isinstance(scm, GetCommitChangesProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(scm.get_commit_changes(args.sha, pagination=pagination or None))
+
+    elif args.command == "create-commit":
+        assert isinstance(scm, CreateCommitProtocol)
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction] = []
+        for spec in args.creates or []:
+            filename, _, content = spec.partition("=")
+            actions.append(WriteCommitAction(action="create", filename=filename, content=content, encoding="utf-8"))
+        for spec in args.updates or []:
+            filename, _, content = spec.partition("=")
+            actions.append(WriteCommitAction(action="update", filename=filename, content=content, encoding="utf-8"))
+        for filename in args.deletes or []:
+            actions.append(DeleteCommitAction(filename=filename))
+        for spec in args.moves or []:
+            old, _, new = spec.partition(":")
+            actions.append(MoveCommitAction(old_filename=old, new_filename=new))
+        for spec in args.chmods or []:
+            filename, _, flag = spec.rpartition(":")
+            actions.append(ChmodCommitAction(filename=filename, executable=flag == "1"))
+        dump(
+            scm.create_commit(
+                args.branch,
+                args.parent_sha,
+                args.message,
+                actions,
+                force=args.force,
+                create_branch=args.create_branch,
+            )
+        )
 
     elif args.command == "get-pull-request-diff":
         assert isinstance(scm, GetPullRequestDiffProtocol)

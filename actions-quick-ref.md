@@ -64,7 +64,10 @@ GitHub:
 
 GitLab: [POST /projects/:id/repository/commits](https://docs.gitlab.com/api/commits/#create-a-commit)
 
-Bitbucket: @todo Use [POST /repositories/{workspace}/{repo_slug}/src](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-post)
+Bitbucket:
+- [POST /repositories/{workspace}/{repo_slug}/src](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-post) (form-encoded; creates the commit)
+- [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get) (reads back the new commit, named by the POST's `Location` header)
+- [DELETE /repositories/{workspace}/{repo_slug}/refs/branches/{name}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/#api-repositories-workspace-repo-slug-refs-branches-name-delete) (only for `force`: drop the branch so `/src` recreates it)
 
 ## `create_git_blob`
 
@@ -340,7 +343,7 @@ GitHub: [GET /repos/{owner}/{repo}/commits/{sha}](https://docs.github.com/en/res
 
 GitLab: [GET /projects/:id/repository/commits/:sha/diff](https://docs.gitlab.com/api/commits/#retrieve-commit-diff)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/diffstat/{spec}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get)
 
 ## `get_commit_url`
 
@@ -404,7 +407,7 @@ GitHub: [GET /repos/{owner}/{repo}/git/commits/{sha}](https://docs.github.com/en
 
 GitLab: [GET /projects/:id/repository/commits/:sha](https://docs.gitlab.com/api/commits/#retrieve-a-commit)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/commit/{commit}](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-commit-commit-get)
 
 ## `get_git_ref`
 

@@ -51,6 +51,23 @@ Closing works via the separate `POST .../pullrequests/{id}/decline` endpoint (th
 
 - **No patch text.** Backed by Bitbucket's diffstat endpoint, which reports per-file line counts but no diff hunks, so `patch` is always `None` (GitHub/GitLab populate it) and `sha` is empty.
 
+## `get_commit_changes`
+
+- **Diffstat against the first parent; no patch.** Uses `GET /diffstat/{sha}` (same backing as `compare_commits`/`get_pull_request_files`), which compares the commit to its first parent and reports per-file line counts, so `patch` is always `None`.
+
+## `get_git_commit`
+
+- **No tree-object SHA.** Bitbucket's commit endpoint exposes no git tree id, so (like GitLab) `GitCommitObject.tree.sha` is set to the commit SHA -- which callers can still hand to `get_tree` (it accepts any ref).
+
+## `create_commit`
+
+- **Form-encoded, not JSON.** Bitbucket's `POST /src` takes a `application/x-www-form-urlencoded` body (each written file is a form field keyed by its path; deletions are repeated `files` fields), unlike GitHub's git-data API and GitLab's JSON actions array. The provider sets a form `Content-Type`, so the `ApiClient` must send `data` as a form body (not JSON) for this one call.
+- **Text content only.** Because the RPC layer JSON-encodes request bodies, file content is sent as a `str`; base64 content is decoded and must be valid UTF-8, so binary content is rejected (`ResourceBadRequest`).
+- **`parents` must be the branch head → `force` emulated by delete+recreate.** `/src` rejects a non-fast-forward commit ("The parent commit specified is not the head of branch"), and a `force` field is ignored. So `force=True` first deletes the branch, then lets `/src` recreate it from `parent_sha` (a force-push). A missing branch is created automatically, so `create_branch` needs no special handling.
+- **No native rename.** `MoveCommitAction` reads the old file (`get_file_content`), writes it at the new path, and deletes the old; Bitbucket then reports the change as a rename.
+- **`ChmodCommitAction` unsupported.** `/src` has no way to set the executable bit, so a chmod action raises `ResourceBadRequest`.
+- **New SHA from the `Location` header.** The `201` response has an empty body, so the created commit is identified by the `Location` header and then read back via `GET /commit/{sha}` to build the returned `Commit`.
+
 ## `create_check_run` / `get_check_run` / `update_check_run`
 
 - **Mapped to commit build statuses.** Check runs are Bitbucket commit build statuses, keyed per commit. The `check_run_id` is `"{sha}:{key}"`, where `key` is the caller's `external_id` (falling back to `name`).

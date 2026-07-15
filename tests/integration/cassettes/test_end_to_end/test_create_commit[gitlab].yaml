@@ -1,0 +1,270 @@
+interactions:
+- request:
+    body: '{"branch": "topics/create-commit-test", "commit_message": "e2e: create
+      two files", "force": true, "actions": [{"action": "create", "file_path": "e2e/one.txt",
+      "content": "one\n", "encoding": "text"}, {"action": "create", "file_path": "e2e/two.txt",
+      "content": "two\n", "encoding": "text"}]}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '290'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/commits
+  response:
+    body:
+      string: '{"id":"8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5","short_id":"8b4eb0da","created_at":"2026-07-15T09:42:12.000+00:00","parent_ids":["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],"title":"e2e:
+        create two files","message":"e2e: create two files","author_name":"Vincent
+        Jacques","author_email":"gitlab.com@vincent-jacques.net","authored_date":"2026-07-15T09:42:12.000+00:00","committer_name":"Vincent
+        Jacques","committer_email":"gitlab.com@vincent-jacques.net","committed_date":"2026-07-15T09:42:12.000+00:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5","stats":{"additions":2,"deletions":0,"total":2},"status":null,"project_id":79787061,"last_pipeline":null}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a1b7d0d2b89bd113-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '779'
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 15 Jul 2026 09:42:12 GMT
+      ETag:
+      - W/"58a018ab7c94d70097468db4c4a3038e"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-56-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '2'
+      ratelimit-remaining:
+      - '1998'
+      ratelimit-reset:
+      - '1784108580'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1b7d0d2b89bd113-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '16'
+      x-request-id:
+      - a1b7d0d2b89bd113-CDG
+      x-runtime:
+      - '0.953723'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/commits/8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5
+  response:
+    body:
+      string: '{"id":"8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5","short_id":"8b4eb0da","created_at":"2026-07-15T09:42:12.000+00:00","parent_ids":["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],"title":"e2e:
+        create two files","message":"e2e: create two files","author_name":"Vincent
+        Jacques","author_email":"gitlab.com@vincent-jacques.net","authored_date":"2026-07-15T09:42:12.000+00:00","committer_name":"Vincent
+        Jacques","committer_email":"gitlab.com@vincent-jacques.net","committed_date":"2026-07-15T09:42:12.000+00:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5","stats":{"additions":2,"deletions":0,"total":2},"status":null,"project_id":79787061,"last_pipeline":null}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1b7d0da7f3f7a62-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 15 Jul 2026 09:42:13 GMT
+      ETag:
+      - W/"58a018ab7c94d70097468db4c4a3038e"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '779'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-47-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '3'
+      ratelimit-remaining:
+      - '1997'
+      ratelimit-reset:
+      - '1784108580'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1b7d0da7f3f7a62-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '2'
+      x-request-id:
+      - a1b7d0da7f3f7a62-CDG
+      x-runtime:
+      - '0.107562'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/commits/8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5/diff
+  response:
+    body:
+      string: '[{"diff":"@@ -0,0 +1 @@\n+one\n","collapsed":false,"too_large":false,"new_path":"e2e/one.txt","old_path":"e2e/one.txt","a_mode":"0","b_mode":"100644","new_file":true,"renamed_file":false,"deleted_file":false,"generated_file":null},{"diff":"@@
+        -0,0 +1 @@\n+two\n","collapsed":false,"too_large":false,"new_path":"e2e/two.txt","old_path":"e2e/two.txt","a_mode":"0","b_mode":"100644","new_file":true,"renamed_file":false,"deleted_file":false,"generated_file":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1b7d0dcac98d110-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 15 Jul 2026 09:42:13 GMT
+      ETag:
+      - W/"82304db690ee736ab83ffb1dbbd31294"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/repository/commits/8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5/diff?id=79787061&page=1&per_page=20&sha=8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5&unidiff=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/repository/commits/8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5/diff?id=79787061&page=1&per_page=20&sha=8b4eb0dab8b3e4a927c95feea86b12ddf7cc7aa5&unidiff=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '461'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-18-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '4'
+      ratelimit-remaining:
+      - '1996'
+      ratelimit-reset:
+      - '1784108580'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1b7d0dcac98d110-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '11'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a1b7d0dcac98d110-CDG
+      x-runtime:
+      - '0.084065'
+      x-total:
+      - '2'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1

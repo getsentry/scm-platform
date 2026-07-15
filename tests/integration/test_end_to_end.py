@@ -26,6 +26,7 @@ from scm.types import (
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCheckRunProtocol,
+    CreateCommitProtocol,
     CreateIssueCommentProtocol,
     CreateIssueCommentReactionProtocol,
     CreateIssueReactionProtocol,
@@ -52,6 +53,7 @@ from scm.types import (
     GetAuthenticatedActorProtocol,
     GetBranchProtocol,
     GetCheckRunProtocol,
+    GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
     GetCommitsProtocol,
@@ -60,6 +62,7 @@ from scm.types import (
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetFullTreeProtocol,
+    GetGitCommitProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueReactionsProtocol,
@@ -86,6 +89,7 @@ from scm.types import (
     UpdateCheckRunProtocol,
     UpdatePullRequestProtocol,
     UpdateReviewCommentProtocol,
+    WriteCommitAction,
 )
 
 # GitHub client
@@ -307,7 +311,13 @@ class BitbucketApiClient:
         if headers is not None:
             kwargs["headers"] = headers
         if data is not None:
-            kwargs["json"] = data
+            # Most Bitbucket writes are JSON, but the create-commit endpoint (POST /src)
+            # is form-encoded; the provider signals that via the Content-Type header.
+            content_type = next((v for k, v in (headers or {}).items() if k.lower() == "content-type"), "")
+            if "form-urlencoded" in content_type:
+                kwargs["data"] = data
+            else:
+                kwargs["json"] = data
         if params is not None:
             kwargs["params"] = params
         if allow_redirects is not None:
@@ -1333,6 +1343,49 @@ def test_get_readme(switch: Switch, client: SourceCodeManager) -> None:
         "size": 92,
         "type": "file",
     }
+
+
+def test_create_commit(service: str, switch: Switch, client: SourceCodeManager) -> None:
+    assert isinstance(client, CreateCommitProtocol)
+    assert isinstance(client, GetGitCommitProtocol)
+    assert isinstance(client, GetCommitChangesProtocol)
+
+    # Force-push a pre-existing throwaway branch so the test is repeatable across
+    # re-recordings; parent_sha is the base commit shared by all three repos.
+    base = "0941ee0a9eac9914cfddf5adec7a9558a2f1c447"
+    branch = "topics/create-commit-test"
+    message = "e2e: create two files"
+    created = client.create_commit(
+        branch,
+        base,
+        message,
+        [
+            WriteCommitAction(action="create", filename="e2e/one.txt", content="one\n", encoding="utf-8"),
+            WriteCommitAction(action="create", filename="e2e/two.txt", content="two\n", encoding="utf-8"),
+        ],
+        force=True,
+    )["data"]
+    sha = created["id"]
+    # Bitbucket echoes the commit message with a trailing newline; GitHub/GitLab don't.
+    expected_message = switch(message, message, message + "\n")
+    assert created["message"] == expected_message
+
+    # get_git_commit reads the same commit back as a git object.
+    git_commit = client.get_git_commit(sha)["data"]
+    assert git_commit["sha"] == sha
+    assert git_commit["message"] == expected_message
+    # GitHub returns the real tree-object SHA; GitLab and Bitbucket echo the commit SHA.
+    if service == "github":
+        assert git_commit["tree"]["sha"]
+    else:
+        assert git_commit["tree"]["sha"] == sha
+
+    # get_commit_changes reports the files the commit added (against its parent).
+    changes = client.get_commit_changes(sha)["data"]
+    assert sorted((f["filename"], f["status"], f["additions"], f["deletions"]) for f in changes) == [
+        ("e2e/one.txt", "added", 1, 0),
+        ("e2e/two.txt", "added", 1, 0),
+    ]
 
 
 def test_compare_commits(switch: Switch, client: SourceCodeManager) -> None:

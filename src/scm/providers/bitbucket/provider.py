@@ -27,6 +27,7 @@ from scm.types import (
     BuildStatus,
     CheckRun,
     CheckRunOutput,
+    ChmodCommitAction,
     Comment,
     Commit,
     CommitAuthor,
@@ -35,12 +36,17 @@ from scm.types import (
     CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
+    DeleteCommitAction,
+    Encoding,
     FileContent,
     FileContentType,
     FileStatus,
+    GitCommitObject,
+    GitCommitTree,
     GitRef,
     GitRepository,
     GitTree,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginatedResponseMeta,
     PaginationParams,
@@ -61,6 +67,7 @@ from scm.types import (
     TreeEntry,
     TreeEntryMode,
     TreeEntryType,
+    WriteCommitAction,
 )
 
 # Bitbucket Cloud reads a single PR template from this path on the source branch.
@@ -587,6 +594,104 @@ class BitbucketProvider:
             request_options=request_options,
         )
         return make_result(map_commit_with_changes, response.json())
+
+    def get_git_commit(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitCommitObject]:
+        """Get a commit as a git object.
+
+        Bitbucket's commit endpoint exposes no tree-object SHA, so (like GitLab)
+        we set ``tree.sha`` to the commit SHA -- which callers can still pass to
+        ``get_tree`` (it accepts any ref).
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/commit/{sha}",
+            request_options=request_options,
+        )
+        return make_result(map_git_commit_object, response.json())
+
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CommitFile]]:
+        """List the files a commit changed (against its first parent).
+
+        Backed by Bitbucket's diffstat endpoint (same as ``compare_commits`` and
+        ``get_pull_request_files``), so ``patch`` is always ``None`` -- diffstat
+        reports per-file line counts, not hunks.
+        """
+        response = self.get(
+            f"/repositories/{self.repository['name']}/diffstat/{sha}",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return make_paginated_result(map_diffstat, response.json())
+
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+        create_branch: bool = False,
+    ) -> ActionResult[Commit]:
+        """Create a commit on ``branch`` via Bitbucket's ``POST /src`` endpoint.
+
+        Unlike GitHub (git-data API) and GitLab (a JSON actions array), Bitbucket
+        takes a *form-encoded* commit: each written file is a form field keyed by
+        its path, deletions go in repeated ``files`` fields, and ``parents`` must
+        equal the branch's current head. Notable divergences (see bitbucket-quirks):
+
+        - No non-fast-forward: ``parents`` must be the branch head, so ``force`` is
+          emulated by deleting the branch first (``/src`` then recreates it from
+          ``parent_sha``). A missing branch is created automatically, so
+          ``create_branch`` needs no special handling.
+        - Moves are not native: we read the old file and write it at the new path
+          plus delete the old (Bitbucket then reports a rename).
+        - ``ChmodCommitAction`` is unsupported (no way to set the executable bit).
+        - File content is sent as text; binary (non-UTF-8) content is rejected.
+        - The POST returns an empty body; the new commit SHA comes from the
+          ``Location`` response header.
+        """
+        form: dict[str, Any] = {"message": message, "branch": branch, "parents": parent_sha}
+        deletes: list[str] = []
+        for action in actions:
+            if isinstance(action, WriteCommitAction):
+                form[action.filename] = _decode_commit_content(action.content, action.encoding)
+            elif isinstance(action, DeleteCommitAction):
+                deletes.append(action.filename)
+            elif isinstance(action, MoveCommitAction):
+                existing = self.get_file_content(action.old_filename, ref=parent_sha)
+                form[action.new_filename] = _decode_commit_content(existing["data"]["content"], "base64")
+                deletes.append(action.old_filename)
+            elif isinstance(action, ChmodCommitAction):
+                raise ResourceBadRequest(
+                    detail="Bitbucket's create-commit API cannot change a file's mode (executable bit).",
+                )
+        if deletes:
+            form["files"] = deletes
+        if force:
+            # /src rejects a non-fast-forward commit, so drop the branch first and let
+            # /src recreate it from parent_sha -- the effect of a force-push.
+            try:
+                self.delete_branch(branch)
+            except SCMCodedError as e:
+                if e.code != "resource_not_found":
+                    raise
+        response = self.post(
+            f"/repositories/{self.repository['name']}/src",
+            data=form,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        # The 201 has no body; the created commit is named by the Location header.
+        sha = response.headers["Location"].rstrip("/").rsplit("/", 1)[-1]
+        commit = self.get(f"/repositories/{self.repository['name']}/commit/{sha}")
+        return make_result(map_commit, commit.json())
 
     def get_commits(
         self,
@@ -1151,6 +1256,34 @@ def map_commit(raw: dict[str, Any]) -> Commit:
         additions=None,
         deletions=None,
     )
+
+
+def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
+    return GitCommitObject(
+        sha=raw["hash"],
+        # Bitbucket exposes no tree-object SHA; use the commit SHA so callers can
+        # still pass it to get_tree (which accepts any ref).
+        tree=GitCommitTree(sha=raw["hash"]),
+        message=raw["message"],
+    )
+
+
+def _decode_commit_content(content: str, encoding: Encoding) -> str:
+    """Return a written file's content as text for Bitbucket's form-encoded /src.
+
+    Bitbucket takes raw file content as a form field value, but the RPC layer
+    JSON-encodes request bodies, so it must be a ``str``. base64 content is
+    decoded and must be valid UTF-8 -- Bitbucket create_commit here cannot carry
+    binary content.
+    """
+    if encoding == "base64":
+        try:
+            return base64.b64decode(content).decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise ResourceBadRequest(
+                detail="Bitbucket create_commit cannot send binary (non-UTF-8) file content.",
+            ) from e
+    return content
 
 
 def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
