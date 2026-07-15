@@ -507,8 +507,6 @@ class ReviewComment(TypedDict):
     diff_hunk: str | None
     line: int | None
     start_line: int | None
-    original_line: int | None
-    original_start_line: int | None
     review_id: ResourceId | None
     author_association: str | None
     commit_sha: str | None

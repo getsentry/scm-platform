@@ -2166,8 +2166,6 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
             diff_hunk=None,
             line=position.get("new_line") or position.get("old_line"),
             start_line=start.get("new_line") or start.get("old_line"),
-            original_line=None,
-            original_start_line=None,
             review_id=None,
             author_association=None,
             commit_sha=None,

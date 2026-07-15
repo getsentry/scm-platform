@@ -443,10 +443,8 @@ def expected_review_comment(raw: dict[str, Any]) -> dict[str, Any]:
         "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]} if raw.get("user") else None,
         "created_at": "2025-01-01T00:00:00+00:00",
         "diff_hunk": raw["diff_hunk"],
-        "line": raw.get("line"),
-        "start_line": raw.get("start_line"),
-        "original_line": raw.get("original_line"),
-        "original_start_line": raw.get("original_start_line"),
+        "line": raw["line"] if raw.get("line") is not None else raw.get("original_line"),
+        "start_line": (raw["start_line"] if raw.get("start_line") is not None else raw.get("original_start_line")),
         "review_id": str(raw["pull_request_review_id"]),
         "author_association": raw["author_association"],
         "commit_sha": raw["original_commit_id"],
@@ -2320,11 +2318,9 @@ def test_deserialize_review_comment_populates_line_anchor() -> None:
     comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
     assert comment["line"] == 12
     assert comment["start_line"] == 9
-    assert comment["original_line"] is None
-    assert comment["original_start_line"] is None
 
 
-def test_deserialize_review_comment_keeps_original_line_separate_when_outdated() -> None:
+def test_deserialize_review_comment_falls_back_to_original_line_when_outdated() -> None:
     raw = make_github_review_comment(
         user={"id": 42, "login": "testuser"},
         line=None,
@@ -2333,10 +2329,8 @@ def test_deserialize_review_comment_keeps_original_line_separate_when_outdated()
         original_start_line=4,
     )
     comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
-    assert comment["line"] is None
-    assert comment["start_line"] is None
-    assert comment["original_line"] == 7
-    assert comment["original_start_line"] == 4
+    assert comment["line"] == 7
+    assert comment["start_line"] == 4
 
 
 def test_deserialize_review_comment_file_level_has_no_line() -> None:
@@ -2344,8 +2338,6 @@ def test_deserialize_review_comment_file_level_has_no_line() -> None:
     comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
     assert comment["line"] is None
     assert comment["start_line"] is None
-    assert comment["original_line"] is None
-    assert comment["original_start_line"] is None
 
 
 def test_get_thread_id_from_review_comment_unique_id_returns_match_in_first_page() -> None:
