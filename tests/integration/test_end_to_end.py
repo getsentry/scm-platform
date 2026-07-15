@@ -73,6 +73,7 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
+    GetPullRequestReviewThreadsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
@@ -80,6 +81,7 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryProtocol,
     GetTreeProtocol,
+    PaginationParams,
     Provider,
     Repository,
     RepositoryId,
@@ -1648,6 +1650,37 @@ def test_review_comments(service: str, switch: Switch, now: datetime, client: So
         body=edited_body,
     )
     assert edited["data"]["body"] == edited_body
+
+    # Read the threads back. The PR accumulates comments across recordings, so we look up
+    # the specific threads created above by id rather than asserting the whole set; and since
+    # each provider returns a single page, walk every page to collect them all.
+    assert isinstance(client, GetPullRequestReviewThreadsProtocol)
+    threads: dict[str, Any] = {}
+    pagination: PaginationParams = {"per_page": 100}
+    while True:
+        page = client.get_pull_request_review_threads(pull_request_id, pagination=pagination)
+        threads.update({t["id"]: t for t in page["data"]})
+        next_cursor = page["meta"]["next_cursor"]
+        if not next_cursor:
+            break
+        pagination = {"per_page": 100, "cursor": next_cursor}
+
+    # The line-level thread: resolved (edit-and-collapse), anchored to line 5.
+    line_thread = threads[line_thread_id]
+    assert line_thread["is_resolved"] is True
+    assert line_thread["file_path"] == "BLAH.md"
+    assert line_thread["line"] == 5
+    assert len(line_thread["comments"]) >= 2
+    assert edited_body in [c["body"] for c in line_thread["comments"]]
+
+    # The file-level thread: resolved, on BLAH.md, holding the edited comment and its reply.
+    # GitLab only surfaces line-anchored discussions as review threads, so it omits this one.
+    if service != "gitlab":
+        file_thread = threads[file_thread_id]
+        assert file_thread["is_resolved"] is True
+        assert file_thread["file_path"] == "BLAH.md"
+        assert len(file_thread["comments"]) >= 2
+        assert updated_body in [c["body"] for c in file_thread["comments"]]
 
 
 def test_create_review(switch: Switch, now: datetime, client: SourceCodeManager) -> None:

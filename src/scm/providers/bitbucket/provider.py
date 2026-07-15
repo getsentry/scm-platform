@@ -64,6 +64,8 @@ from scm.types import (
     ReviewCommentInput,
     ReviewEvent,
     ReviewSide,
+    ReviewThread,
+    ReviewThreadComment,
     TreeEntry,
     TreeEntryMode,
     TreeEntryType,
@@ -848,6 +850,61 @@ class BitbucketProvider:
             raw_items=(c for c in raw.get("values", []) if "inline" not in c),
         )
 
+    def get_pull_request_review_threads(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
+    ) -> PaginatedActionResult[list[ReviewThread]]:
+        """List a pull request's inline review threads.
+
+        Bitbucket returns a *flat* comment list (inline + general + replies), not
+        grouped threads like GitHub (GraphQL ``reviewThreads``) or GitLab
+        (discussions). A reply can live on a different page from its root, so we
+        page through *all* comments and assemble threads locally: each non-deleted
+        inline comment with no ``parent`` roots a thread, and replies join it via
+        ``parent``. General (non-inline) comments are not review threads.
+
+        Consequences (see bitbucket-quirks): all threads are returned in one result
+        (``next_cursor`` is always ``None``); ``pagination`` only sizes the internal
+        comment fetch; and ``include_reactions`` is ignored -- Bitbucket has no
+        reactions on comments.
+        """
+        per_page = pagination.get("per_page", 100) if pagination else 100
+        raw_comments = self._fetch_all_pull_request_comments(pull_request_id, per_page, request_options)
+        return PaginatedActionResult(
+            data=_group_review_threads(raw_comments),
+            type="bitbucket",
+            raw={"data": raw_comments, "headers": None},
+            meta=PaginatedResponseMeta(next_cursor=None),
+        )
+
+    def _fetch_all_pull_request_comments(
+        self,
+        pull_request_id: str,
+        per_page: int,
+        request_options: RequestOptions | None,
+    ) -> list[dict[str, Any]]:
+        """Walk every page of a pull request's comments (including deleted ones, so
+        parent chains resolve) and return the raw comment dicts."""
+        comments: list[dict[str, Any]] = []
+        pagination: PaginationParams = {"per_page": per_page}
+        while True:
+            response = self.get(
+                f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments",
+                pagination=pagination,
+                request_options=request_options,
+            )
+            raw = response.json()
+            comments.extend(raw.get("values", []))
+            cursor = _next_cursor(raw)
+            if not cursor:
+                break
+            pagination = {"per_page": per_page, "cursor": cursor}
+        return comments
+
     def create_review_comment_file(
         self,
         pull_request_id: str,
@@ -1415,6 +1472,85 @@ def map_review_comment(raw: dict[str, Any]) -> ReviewComment:
         # A top-level comment roots its own thread; replies point back via parent.
         thread_id=comment_id,
     )
+
+
+def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+    user = raw.get("user")
+    comment_id = str(raw["id"])
+    links = raw.get("links") or {}
+    return ReviewThreadComment(
+        id=comment_id,
+        # Bitbucket has a single comment id; replies reference it via `parent`.
+        unique_id=comment_id,
+        body=(raw.get("content") or {}).get("raw", ""),
+        author=map_author(user) if user else None,
+        # Bitbucket accounts carry no bot flag.
+        is_bot=False,
+        created_at=raw.get("created_on"),
+        updated_at=raw.get("updated_on"),
+        # Bitbucket resolves whole threads, not individual comments.
+        is_minimized=False,
+        # Inline comments anchor to the PR, not a commit.
+        commit_sha="",
+        url=(links.get("html") or {}).get("href"),
+        diff_hunk=None,
+        author_association=None,
+        review_id=None,
+    )
+
+
+def map_review_thread(root: dict[str, Any], comments: list[dict[str, Any]]) -> ReviewThread:
+    inline = root.get("inline") or {}
+    to_line, from_line = inline.get("to"), inline.get("from")
+    start_to, start_from = inline.get("start_to"), inline.get("start_from")
+    return ReviewThread(
+        # A top-level comment roots its own thread (matches map_review_comment's thread_id).
+        id=str(root["id"]),
+        # `resolution` is null until the thread is resolved.
+        is_resolved=root.get("resolution") is not None,
+        is_outdated=bool(inline.get("outdated")),
+        file_path=inline.get("path"),
+        # `to` is the new-side line, `from` the old-side; `start_*` mark a multi-line range.
+        line=to_line if to_line is not None else from_line,
+        start_line=start_to if start_to is not None else start_from,
+        comments=[map_review_thread_comment(c) for c in comments],
+    )
+
+
+def _group_review_threads(raw_comments: list[dict[str, Any]]) -> list[ReviewThread]:
+    """Assemble Bitbucket's flat comment list into inline review threads.
+
+    Comments (including deleted ones) index by id so parent chains resolve; each
+    non-deleted, non-pending comment is attached to its thread root (walked up via
+    ``parent``). Only inline-rooted threads are review threads.
+    """
+    by_id = {c["id"]: c for c in raw_comments}
+
+    def root_of(comment: dict[str, Any]) -> dict[str, Any]:
+        seen: set[Any] = set()
+        parent = comment.get("parent")
+        while parent and parent["id"] in by_id and comment["id"] not in seen:
+            seen.add(comment["id"])
+            comment = by_id[parent["id"]]
+            parent = comment.get("parent")
+        return comment
+
+    grouped: dict[Any, list[dict[str, Any]]] = {}
+    roots: dict[Any, dict[str, Any]] = {}
+    for comment in raw_comments:
+        if comment.get("deleted") or comment.get("pending"):
+            continue
+        root = root_of(comment)
+        if not root.get("inline"):
+            continue
+        grouped.setdefault(root["id"], []).append(comment)
+        roots[root["id"]] = root
+
+    threads: list[ReviewThread] = []
+    for root_id in sorted(grouped):
+        comments = sorted(grouped[root_id], key=lambda c: c["id"])
+        threads.append(map_review_thread(roots[root_id], comments))
+    return threads
 
 
 def map_git_ref(raw: dict[str, Any]) -> GitRef:

@@ -48,6 +48,7 @@ Commands:
     get-pull-request-diff <id>
     get-pull-request-files <id>
     get-pull-request-template --ref <ref>
+    get-pull-request-review-threads <id> [--include-reactions] (--include-reactions is a no-op on Bitbucket)
     get-readme --ref <ref>
     get-pull-request-commits <id>
     create-review-comment-file <pr_id> <commit_id> <body> <path> <side>
@@ -118,6 +119,7 @@ from scm.types import (
     GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
+    GetPullRequestReviewThreadsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
@@ -320,6 +322,10 @@ def main():
 
     p = sub.add_parser("get-pull-request-template")
     p.add_argument("--ref", required=True)
+
+    p = sub.add_parser("get-pull-request-review-threads")
+    p.add_argument("id")
+    p.add_argument("--include-reactions", action="store_true", dest="include_reactions")
 
     p = sub.add_parser("get-readme")
     p.add_argument("--ref", required=True)
@@ -550,6 +556,10 @@ def main():
     elif args.command == "get-pull-request-template":
         assert isinstance(scm, GetPullRequestTemplateProtocol)
         dump(list(scm.get_pull_request_template(ref=args.ref)))
+
+    elif args.command == "get-pull-request-review-threads":
+        assert isinstance(scm, GetPullRequestReviewThreadsProtocol)
+        dump(scm.get_pull_request_review_threads(args.id, include_reactions=args.include_reactions))
 
     elif args.command == "get-readme":
         assert isinstance(scm, GetReadmeProtocol)

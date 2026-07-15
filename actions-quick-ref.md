@@ -511,7 +511,7 @@ GitHub: [`pullRequest.reviewThreads`](https://docs.github.com/en/graphql/referen
 
 GitLab: [GET /projects/:id/merge_requests/:merge_request_iid/discussions](https://docs.gitlab.com/api/discussions/#list-all-merge-request-discussion-items)
 
-Bitbucket: @todo Use [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get) (inline comments)
+Bitbucket: [GET /repositories/{workspace}/{repo_slug}/pullrequests/{pull_request_id}/comments](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-pull-request-id-comments-get) (all comments, grouped into inline threads locally)
 
 ## `get_pull_request_template`
 
