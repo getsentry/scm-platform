@@ -11,7 +11,6 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "msgspec>=0.19.0",
-    "pytest-recording>=0.13.4",
     "requests>=2.32.4",
 ]
 
@@ -49,6 +48,7 @@ dev = [
     "pyjwt[crypto]>=2.9.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
+    "pytest-recording>=0.13.4",
     "ruff>=0.15.10",
     "types-requests>=2.33.0.20260408",
 ]

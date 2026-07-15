@@ -594,7 +594,6 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "msgspec" },
-    { name = "pytest-recording" },
     { name = "requests" },
 ]
 
@@ -605,6 +604,7 @@ dev = [
     { name = "pyjwt", extra = ["crypto"] },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-recording" },
     { name = "ruff" },
     { name = "types-requests" },
 ]
@@ -612,7 +612,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "msgspec", specifier = ">=0.19.0" },
-    { name = "pytest-recording", specifier = ">=0.13.4" },
     { name = "requests", specifier = ">=2.32.4" },
 ]
 
@@ -623,6 +622,7 @@ dev = [
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.9.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-recording", specifier = ">=0.13.4" },
     { name = "ruff", specifier = ">=0.15.10" },
     { name = "types-requests", specifier = ">=2.33.0.20260408" },
 ]
