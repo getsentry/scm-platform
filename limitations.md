@@ -68,7 +68,7 @@ These are behaviors that diverge from GitHub/GitLab or from what the generic act
 
 ## `get_thread_id_from_review_comment_unique_id`
 
-- **Local, no API call.** Like GitLab, this needs no request: a Bitbucket comment roots its own thread (`map_review_comment` sets `thread_id` == the comment id), so the review comment's `unique_id` already *is* the thread id and is returned unchanged.
+- **One API call to find the thread root.** The `unique_id` is a bare comment id with no embedded parent (unlike GitLab's `{discussion_id}:{note_id}`), so we `GET` the comment and return its `parent` id when it is a reply, or its own id when it is top-level. This matters because Bitbucket's resolve endpoint only accepts the root comment id -- resolving via a reply id returns `403 "Comment is not a top-level comment"`. (`map_review_comment` derives the same `thread_id` locally from `parent`, since it already has the raw comment.)
 
 ## `resolve_review_thread` / `collapse_pull_request_comment` / `update_and_collapse_pull_request_comment`
 

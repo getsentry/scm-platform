@@ -1032,9 +1032,18 @@ class BitbucketProvider:
     def get_thread_id_from_review_comment_unique_id(
         self, pull_request_id: str, review_comment_unique_id: str
     ) -> str | None:
-        # A Bitbucket comment roots its own thread (``map_review_comment`` sets
-        # ``thread_id`` == the comment id), so the unique id already is the thread id.
-        return review_comment_unique_id or None
+        # The unique id is a bare comment id with no embedded parent, so -- unlike
+        # GitLab (which encodes the discussion id) -- we must fetch the comment to
+        # find its thread root: a reply's thread is its ``parent``, and Bitbucket's
+        # resolve endpoint only accepts that root id (a reply id 403s). A top-level
+        # comment has no parent and roots its own thread.
+        if not review_comment_unique_id:
+            return None
+        response = self.get(
+            f"/repositories/{self.repository['name']}/pullrequests/{pull_request_id}/comments/{review_comment_unique_id}"
+        )
+        raw = response.json()
+        return str((raw.get("parent") or {}).get("id") or raw["id"])
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         # The thread is identified by its root comment's id.
@@ -1473,8 +1482,10 @@ def map_review_comment(raw: dict[str, Any]) -> ReviewComment:
         author_association=None,
         commit_sha=None,
         head=None,
-        # A top-level comment roots its own thread; replies point back via parent.
-        thread_id=comment_id,
+        # The thread is rooted at the top-level comment: a reply's thread is its
+        # `parent`, and a top-level comment roots its own thread. Bitbucket's
+        # resolve endpoint only accepts this root id (a reply id 403s).
+        thread_id=str((raw.get("parent") or {}).get("id") or raw["id"]),
     )
 
 

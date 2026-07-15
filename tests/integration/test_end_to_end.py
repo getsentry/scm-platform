@@ -1646,6 +1646,36 @@ def test_review_comments(service: str, switch: Switch, now: datetime, client: So
     )
     assert edited["data"]["body"] == edited_body
 
+    # Regression: a thread id derived from a REPLY must be its root, so resolve targets the
+    # top-level comment. Bitbucket 403s on resolving a reply directly, and previously rooted
+    # a reply at itself, so resolving a reply-derived thread hit the wrong (reply) comment.
+    reply_root = client.create_review_comment_file(
+        pull_request_id=pull_request_id,
+        commit_id="7497e018d01503b6abc3053b7896266115e631f6",
+        body=f"A comment whose reply-derived thread gets resolved, made by the API on {now}.",
+        path="BLAH.md",
+        side="head",
+    )
+    reply_to_resolve = client.create_review_comment_reply(
+        pull_request_id=pull_request_id,
+        body=f"A reply used to resolve its thread, made by the API on {now}.",
+        comment_id=reply_root["data"]["id"],
+    )
+    root_thread_id = client.get_thread_id_from_review_comment_unique_id(
+        pull_request_id, reply_root["data"]["unique_id"] or ""
+    )
+    reply_thread_id = client.get_thread_id_from_review_comment_unique_id(
+        pull_request_id, reply_to_resolve["data"]["unique_id"] or ""
+    )
+    # A reply and its parent resolve to the same (root) thread.
+    assert reply_thread_id is not None and reply_thread_id == root_thread_id
+    if service == "bitbucket":
+        # The reply must be rooted at its parent, not at its own id (the original bug).
+        assert reply_to_resolve["data"]["thread_id"] == root_thread_id
+        assert reply_to_resolve["data"]["thread_id"] != reply_to_resolve["data"]["id"]
+    # Resolving via the reply-derived thread id must succeed (a raw reply id would 403).
+    client.resolve_review_thread(pull_request_id, reply_thread_id)
+
     # Read the threads back. The PR accumulates comments across recordings, so we look up
     # the specific threads created above by id rather than asserting the whole set; and since
     # each provider returns a single page, walk every page to collect them all.
