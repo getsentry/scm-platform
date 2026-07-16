@@ -13,3 +13,6 @@ wheels/
 
 # Credentials
 .credentials
+
+# IDE
+.idea/

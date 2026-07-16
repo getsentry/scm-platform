@@ -11628,6 +11628,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
+                    "line": None,
+                    "start_line": None,
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -11790,6 +11792,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
+                    "line": DiffLine(head=3),
+                    "start_line": None,
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -11962,6 +11966,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
+                    "line": DiffLine(head=5),
+                    "start_line": DiffLine(head=2),
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -12092,6 +12098,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:31.033Z",
                     "diff_hunk": None,
+                    "line": None,
+                    "start_line": None,
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -12211,6 +12219,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
+                    "line": None,
+                    "start_line": None,
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -12373,6 +12383,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
+                    "line": None,
+                    "start_line": None,
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -13998,6 +14010,109 @@ def test_map_review_thread_comment_uses_discussion_note_composite_id():
     assert result["id"] == "diff_discussion_id:42"
     assert result["unique_id"] == "diff_discussion_id:42"
     assert result["commit_sha"] == ""
+
+
+def test_map_review_comment_populates_line_from_position_new_line():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {"new_path": "BLAH.md", "new_line": 7},
+        }
+    )
+    assert result["file_path"] == "BLAH.md"
+    assert result["line"] == {"head": 7}
+    assert result["start_line"] is None
+
+
+def test_map_review_comment_context_line_carries_both_sides():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {"new_path": "BLAH.md", "old_line": 4, "new_line": 7},
+        }
+    )
+    assert result["line"] == {"base": 4, "head": 7}
+
+
+def test_map_review_comment_reads_multiline_range_start():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {
+                "new_path": "BLAH.md",
+                "new_line": 5,
+                "line_range": {"start": {"new_line": 2, "type": "new"}, "end": {"new_line": 5, "type": "new"}},
+            },
+        }
+    )
+    assert result["line"] == {"head": 5}
+    assert result["start_line"] == {"head": 2}
+
+
+def test_map_review_comment_reads_line_from_range_end_when_top_level_absent():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {
+                "new_path": "BLAH.md",
+                "line_range": {"start": {"new_line": 2, "type": "new"}, "end": {"new_line": 5, "type": "new"}},
+            },
+        }
+    )
+    assert result["line"] == {"head": 5}
+    assert result["start_line"] == {"head": 2}
+
+
+def test_map_review_comment_reads_file_path_from_old_path_for_deleted_file():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {"old_path": "BLAH.md", "old_line": 7},
+        }
+    )
+    assert result["file_path"] == "BLAH.md"
+    assert result["line"] == {"base": 7}
+
+
+def test_map_review_comment_no_position_yields_none_line():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+        }
+    )
+    assert result["file_path"] is None
+    assert result["line"] is None
+    assert result["start_line"] is None
 
 
 def test_map_review_thread_comment_populates_commit_sha_from_position_head_sha():

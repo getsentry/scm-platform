@@ -505,6 +505,8 @@ class ReviewComment(TypedDict):
     author: Author | None
     created_at: str | None
     diff_hunk: str | None
+    line: DiffLine | None
+    start_line: DiffLine | None
     review_id: ResourceId | None
     author_association: str | None
     commit_sha: str | None

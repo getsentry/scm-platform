@@ -172,6 +172,17 @@ def _github_line_side(line: DiffLine) -> tuple[int, str]:
     return base, "LEFT"
 
 
+def _github_diff_line(line: int | None, side: str | None) -> DiffLine | None:
+    """Build a ``DiffLine`` from GitHub's ``(line, side)`` pair — the inverse of
+    :func:`_github_line_side`. A ``RIGHT`` side anchors the head (post-image),
+    ``LEFT`` the base (pre-image); GitHub defaults an unset side to ``RIGHT``.
+    Returns ``None`` for a file-level comment that carries no line.
+    """
+    if line is None:
+        return None
+    return DiffLine(base=line) if side == "LEFT" else DiffLine(head=line)
+
+
 # GitHub returns review states in upper-case; normalize to our literals.
 GITHUB_REVIEW_STATE_MAP: dict[str, PullRequestReviewState] = {
     "APPROVED": "approved",
@@ -2441,6 +2452,8 @@ def map_graphql_pull_request_review_comment(raw: dict[str, Any]) -> ReviewCommen
         created_at=raw.get("createdAt"),
         diff_hunk=None,
         file_path=None,
+        line=None,
+        start_line=None,
         head=None,
         id=str(full_database_id) if full_database_id is not None else raw["id"],
         review_id=str(review_database_id) if review_database_id is not None else None,
@@ -2488,6 +2501,11 @@ def deserialize_pull_request_review_comment(content: bytes) -> ReviewComment:
         "created_at": comment.created_at.isoformat(),
         "diff_hunk": comment.diff_hunk,
         "file_path": comment.path,
+        "line": _github_diff_line(comment.line if comment.line is not None else comment.original_line, comment.side),
+        "start_line": _github_diff_line(
+            comment.start_line if comment.start_line is not None else comment.original_start_line,
+            comment.start_side,
+        ),
         "head": comment.commit_id,
         "id": str(comment.id),
         "review_id": str(comment.pull_request_review_id),
