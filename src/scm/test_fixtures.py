@@ -647,6 +647,15 @@ def _github_diff_line(line: int | None, side: str | None) -> DiffLine | None:
     return DiffLine(base=line) if side == "LEFT" else DiffLine(head=line)
 
 
+def _diff_line_to_github(line: DiffLine) -> tuple[int, str]:
+    """Inverse of ``_github_diff_line``: map a ``DiffLine`` to GitHub's
+    ``(line, side)`` pair, preferring the head (post-image) side."""
+    head = line.get("head")
+    if head is not None:
+        return head, "RIGHT"
+    return line["base"], "LEFT"
+
+
 def _make_review_comment_data(raw: dict[str, Any]) -> ReviewComment:
     return ReviewComment(
         id=str(raw["id"]),
@@ -1702,7 +1711,7 @@ class BaseTestProvider(Provider):
         path: str,
         side: ReviewSide,
     ) -> ActionResult[ReviewComment]:
-        raw = make_github_review_comment(body=body, path=path)
+        raw = make_github_review_comment(body=body, path=path, line=None, start_line=None, side=None)
         return ActionResult(
             data=_make_review_comment_data(raw),
             type="github",
@@ -1719,7 +1728,11 @@ class BaseTestProvider(Provider):
         line: DiffLine,
         start_line: DiffLine | None = None,
     ) -> ActionResult[ReviewComment]:
-        raw = make_github_review_comment(body=body, path=path)
+        end_line, end_side = _diff_line_to_github(line)
+        start = _diff_line_to_github(start_line) if start_line is not None else (None, None)
+        raw = make_github_review_comment(
+            body=body, path=path, line=end_line, side=end_side, start_line=start[0], start_side=start[1]
+        )
         return ActionResult(
             data=_make_review_comment_data(raw),
             type="github",

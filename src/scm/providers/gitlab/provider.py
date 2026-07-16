@@ -2120,22 +2120,6 @@ def map_review_thread_comment(
     )
 
 
-def _position_line(p: dict[str, Any]) -> int | None:
-    return p.get("new_line") if p.get("new_line") is not None else p.get("old_line")
-
-
-def _position_line_anchor(position: dict[str, Any]) -> tuple[int | None, int | None]:
-    """Resolve (line, start_line) from a GitLab diff-note position, preferring the
-    line_range endpoints (multiline notes) and falling back to the top-level
-    new_line/old_line (single-line notes)."""
-    line_range = position.get("line_range") or {}
-    end_pos = line_range.get("end") or {}
-    start_pos = line_range.get("start") or {}
-    line = _position_line(end_pos) if end_pos else _position_line(position)
-    start_line = _position_line(start_pos) if start_pos else None
-    return line, start_line
-
-
 def _position_diff_line(p: dict[str, Any]) -> DiffLine | None:
     """Build a ``DiffLine`` from a GitLab position (or line_range endpoint).
 
@@ -2162,6 +2146,21 @@ def _position_diff_line_anchor(position: dict[str, Any]) -> tuple[DiffLine | Non
     line = _position_diff_line(end_pos) if end_pos else _position_diff_line(position)
     start_line = _position_diff_line(start_pos) if start_pos else None
     return line, start_line
+
+
+def _diff_line_to_int(diff_line: DiffLine | None) -> int | None:
+    """Collapse a ``DiffLine`` to a single line number, preferring the head
+    (post-image) side, for the int-typed ``ReviewThread`` anchor."""
+    if diff_line is None:
+        return None
+    return diff_line.get("head") or diff_line.get("base")
+
+
+def _position_line_anchor(position: dict[str, Any]) -> tuple[int | None, int | None]:
+    """Resolve (line, start_line) as ints from a GitLab diff-note position,
+    reusing the ``DiffLine`` anchor resolution and collapsing to a single side."""
+    line, start_line = _position_diff_line_anchor(position)
+    return _diff_line_to_int(line), _diff_line_to_int(start_line)
 
 
 def _position_path(position: dict[str, Any]) -> str | None:
