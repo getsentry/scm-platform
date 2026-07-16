@@ -2136,6 +2136,34 @@ def _position_line_anchor(position: dict[str, Any]) -> tuple[int | None, int | N
     return line, start_line
 
 
+def _position_diff_line(p: dict[str, Any]) -> DiffLine | None:
+    """Build a ``DiffLine`` from a GitLab position (or line_range endpoint).
+
+    GitLab names its sides ``old_line`` (base/pre-image) and ``new_line``
+    (head/post-image); a context line carries both. Returns ``None`` when
+    neither side is set (e.g. a file-level note)."""
+    base = p.get("old_line")
+    head = p.get("new_line")
+    diff_line: DiffLine = {}
+    if base is not None:
+        diff_line["base"] = base
+    if head is not None:
+        diff_line["head"] = head
+    return diff_line or None
+
+
+def _position_diff_line_anchor(position: dict[str, Any]) -> tuple[DiffLine | None, DiffLine | None]:
+    """Resolve (line, start_line) as ``DiffLine``s from a GitLab diff-note
+    position, preferring the line_range endpoints (multiline notes) and falling
+    back to the top-level position (single-line notes)."""
+    line_range = position.get("line_range") or {}
+    end_pos = line_range.get("end") or {}
+    start_pos = line_range.get("start") or {}
+    line = _position_diff_line(end_pos) if end_pos else _position_diff_line(position)
+    start_line = _position_diff_line(start_pos) if start_pos else None
+    return line, start_line
+
+
 def _position_path(position: dict[str, Any]) -> str | None:
     """Resolve the file path from a GitLab diff-note position, falling back to
     old_path so comments on deleted files still resolve a path."""
@@ -2168,7 +2196,7 @@ def map_review_comment(discussion_id: str) -> Callable[[dict[str, Any]], ReviewC
     def _map_review_comment(raw: dict[str, Any]) -> ReviewComment:
         author_raw = raw.get("author")
         position = raw.get("position") or {}
-        line, start_line = _position_line_anchor(position)
+        line, start_line = _position_diff_line_anchor(position)
         return ReviewComment(
             id=f"{discussion_id}:{raw['id']}",
             unique_id=f"{discussion_id}:{raw['id']}",

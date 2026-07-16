@@ -11792,7 +11792,7 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
-                    "line": 3,
+                    "line": DiffLine(head=3),
                     "start_line": None,
                     "review_id": None,
                     "author_association": None,
@@ -11966,8 +11966,8 @@ def _make_mock_response(json_data):
                     "author": {"id": "150871", "username": "jacquev6"},
                     "created_at": "2026-03-11T11:06:21.007Z",
                     "diff_hunk": None,
-                    "line": 5,
-                    "start_line": 2,
+                    "line": DiffLine(head=5),
+                    "start_line": DiffLine(head=2),
                     "review_id": None,
                     "author_association": None,
                     "commit_sha": None,
@@ -14025,8 +14025,23 @@ def test_map_review_comment_populates_line_from_position_new_line():
         }
     )
     assert result["file_path"] == "BLAH.md"
-    assert result["line"] == 7
+    assert result["line"] == {"head": 7}
     assert result["start_line"] is None
+
+
+def test_map_review_comment_context_line_carries_both_sides():
+    from scm.providers.gitlab.provider import map_review_comment
+
+    result = map_review_comment("disc1")(
+        {
+            "id": 42,
+            "body": "nit",
+            "author": {"id": 2, "username": "reviewer"},
+            "created_at": "2026-03-11T11:01:00.000Z",
+            "position": {"new_path": "BLAH.md", "old_line": 4, "new_line": 7},
+        }
+    )
+    assert result["line"] == {"base": 4, "head": 7}
 
 
 def test_map_review_comment_reads_multiline_range_start():
@@ -14045,8 +14060,8 @@ def test_map_review_comment_reads_multiline_range_start():
             },
         }
     )
-    assert result["line"] == 5
-    assert result["start_line"] == 2
+    assert result["line"] == {"head": 5}
+    assert result["start_line"] == {"head": 2}
 
 
 def test_map_review_comment_reads_line_from_range_end_when_top_level_absent():
@@ -14064,8 +14079,8 @@ def test_map_review_comment_reads_line_from_range_end_when_top_level_absent():
             },
         }
     )
-    assert result["line"] == 5
-    assert result["start_line"] == 2
+    assert result["line"] == {"head": 5}
+    assert result["start_line"] == {"head": 2}
 
 
 def test_map_review_comment_reads_file_path_from_old_path_for_deleted_file():
@@ -14081,7 +14096,7 @@ def test_map_review_comment_reads_file_path_from_old_path_for_deleted_file():
         }
     )
     assert result["file_path"] == "BLAH.md"
-    assert result["line"] == 7
+    assert result["line"] == {"base": 7}
 
 
 def test_map_review_comment_no_position_yields_none_line():

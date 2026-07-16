@@ -75,6 +75,8 @@ class GitHubPullRequestReviewComment(msgspec.Struct):
     start_line: int | None = None
     original_line: int | None = None
     original_start_line: int | None = None
+    side: str | None = None
+    start_side: str | None = None
 
 
 # Remaining types in use:

@@ -413,6 +413,8 @@ def make_github_review_comment(
     start_line: int | None = None,
     original_line: int | None = None,
     original_start_line: int | None = None,
+    side: str | None = "RIGHT",
+    start_side: str | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub review comment API responses."""
     return {
@@ -433,6 +435,8 @@ def make_github_review_comment(
         "start_line": start_line,
         "original_line": original_line,
         "original_start_line": original_start_line,
+        "side": side,
+        "start_side": start_side,
     }
 
 
@@ -634,6 +638,15 @@ def make_github_graphql_pr_comments_response(
 _DEFAULT_PAGINATED_META: PaginatedResponseMeta = PaginatedResponseMeta(next_cursor=None)
 
 
+def _github_diff_line(line: int | None, side: str | None) -> DiffLine | None:
+    """Build a ``DiffLine`` from GitHub's ``(line, side)`` pair. Mirrors the
+    provider's own read-side mapping: ``LEFT`` anchors the base, everything
+    else (including an unset side) the head."""
+    if line is None:
+        return None
+    return DiffLine(base=line) if side == "LEFT" else DiffLine(head=line)
+
+
 def _make_review_comment_data(raw: dict[str, Any]) -> ReviewComment:
     return ReviewComment(
         id=str(raw["id"]),
@@ -644,8 +657,13 @@ def _make_review_comment_data(raw: dict[str, Any]) -> ReviewComment:
         author=None,
         created_at=raw.get("created_at"),
         diff_hunk=raw.get("diff_hunk"),
-        line=raw["line"] if raw.get("line") is not None else raw.get("original_line"),
-        start_line=(raw["start_line"] if raw.get("start_line") is not None else raw.get("original_start_line")),
+        line=_github_diff_line(
+            raw["line"] if raw.get("line") is not None else raw.get("original_line"), raw.get("side")
+        ),
+        start_line=_github_diff_line(
+            raw["start_line"] if raw.get("start_line") is not None else raw.get("original_start_line"),
+            raw.get("start_side"),
+        ),
         review_id=str(raw["pull_request_review_id"]) if raw.get("pull_request_review_id") else None,
         author_association=raw.get("author_association"),
         commit_sha=raw.get("original_commit_id"),

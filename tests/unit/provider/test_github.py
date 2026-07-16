@@ -433,6 +433,12 @@ def expected_pull_request_commit(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _expected_diff_line(line: int | None, side: str | None) -> dict[str, int] | None:
+    if line is None:
+        return None
+    return {"base": line} if side == "LEFT" else {"head": line}
+
+
 def expected_review_comment(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(raw["id"]),
@@ -443,8 +449,13 @@ def expected_review_comment(raw: dict[str, Any]) -> dict[str, Any]:
         "author": {"id": str(raw["user"]["id"]), "username": raw["user"]["login"]} if raw.get("user") else None,
         "created_at": "2025-01-01T00:00:00+00:00",
         "diff_hunk": raw["diff_hunk"],
-        "line": raw["line"] if raw.get("line") is not None else raw.get("original_line"),
-        "start_line": (raw["start_line"] if raw.get("start_line") is not None else raw.get("original_start_line")),
+        "line": _expected_diff_line(
+            raw["line"] if raw.get("line") is not None else raw.get("original_line"), raw.get("side")
+        ),
+        "start_line": _expected_diff_line(
+            raw["start_line"] if raw.get("start_line") is not None else raw.get("original_start_line"),
+            raw.get("start_side"),
+        ),
         "review_id": str(raw["pull_request_review_id"]),
         "author_association": raw["author_association"],
         "commit_sha": raw["original_commit_id"],
@@ -2314,10 +2325,18 @@ def _thread_node(
 
 
 def test_deserialize_review_comment_populates_line_anchor() -> None:
-    raw = make_github_review_comment(user={"id": 42, "login": "testuser"}, line=12, start_line=9)
+    raw = make_github_review_comment(
+        user={"id": 42, "login": "testuser"}, line=12, start_line=9, side="RIGHT", start_side="RIGHT"
+    )
     comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
-    assert comment["line"] == 12
-    assert comment["start_line"] == 9
+    assert comment["line"] == {"head": 12}
+    assert comment["start_line"] == {"head": 9}
+
+
+def test_deserialize_review_comment_anchors_left_side_on_base() -> None:
+    raw = make_github_review_comment(user={"id": 42, "login": "testuser"}, line=12, side="LEFT")
+    comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
+    assert comment["line"] == {"base": 12}
 
 
 def test_deserialize_review_comment_falls_back_to_original_line_when_outdated() -> None:
@@ -2327,10 +2346,12 @@ def test_deserialize_review_comment_falls_back_to_original_line_when_outdated() 
         start_line=None,
         original_line=7,
         original_start_line=4,
+        side="RIGHT",
+        start_side="RIGHT",
     )
     comment = deserialize_pull_request_review_comment(json.dumps(raw).encode())
-    assert comment["line"] == 7
-    assert comment["start_line"] == 4
+    assert comment["line"] == {"head": 7}
+    assert comment["start_line"] == {"head": 4}
 
 
 def test_deserialize_review_comment_file_level_has_no_line() -> None:
