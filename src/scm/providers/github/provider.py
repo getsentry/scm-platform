@@ -1635,6 +1635,18 @@ class GitHubProvider:
         )
         return map_paginated_action(pagination, response, lambda r: [map_review(f) for f in r])
 
+    def get_pull_request_review(
+        self,
+        pull_request_id: str,
+        review_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Review]:
+        response = self.get(
+            f"/repos/{self.repository['name']}/pulls/{pull_request_id}/reviews/{review_id}",
+            request_options=request_options,
+        )
+        return map_action(response, map_review)
+
     def create_check_run(
         self,
         name: str,

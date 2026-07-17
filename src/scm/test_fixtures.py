@@ -1800,6 +1800,20 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
+    def get_pull_request_review(
+        self,
+        pull_request_id: str,
+        review_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Review]:
+        raw = make_github_review()
+        return ActionResult(
+            data=Review(id=str(raw["id"]), html_url=raw["html_url"]),
+            type="github",
+            raw={"headers": None, "data": raw},
+            meta={},
+        )
+
     # Check run operations
 
     def create_check_run(

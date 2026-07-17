@@ -62,6 +62,7 @@ from scm.actions import (
     get_pull_request_diff,
     get_pull_request_files,
     get_pull_request_reactions,
+    get_pull_request_review,
     get_pull_request_review_threads,
     get_pull_request_template,
     get_pull_request_url,
@@ -212,6 +213,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_pull_request_diff, {"pull_request_id": "1"}),
     (get_pull_request_review_threads, {"pull_request_id": "1"}),
     (get_review_comments, {"pull_request_id": "1", "review_id": "80"}),
+    (get_pull_request_review, {"pull_request_id": "1", "review_id": "80"}),
     (get_pull_requests, {}),
     (create_pull_request, {"title": "T", "body": "B", "head": "h", "base": "b"}),
     (create_pull_request_draft, {"title": "T", "body": "B", "head": "h", "base": "b"}),
@@ -924,6 +926,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
             "event": "comment",
             "comments": [],
         },
+        _check_review,
+    ),
+    (
+        get_pull_request_review,
+        {"pull_request_id": "1", "review_id": "80"},
         _check_review,
     ),
     (
