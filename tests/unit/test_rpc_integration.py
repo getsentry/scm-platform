@@ -698,6 +698,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         201,
         None,
     ),
+    (
+        "get_pull_request_review",
+        lambda scm: actions.get_pull_request_review(scm, "1", "80"),
+        make_github_review(),
+        200,
+        None,
+    ),
     # Check run operations
     (
         "create_check_run",

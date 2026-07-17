@@ -1481,6 +1481,16 @@ class GetReviewCommentsProtocol(Protocol):
 
 
 @runtime_checkable
+class GetPullRequestReviewProtocol(Protocol):
+    def get_pull_request_review(
+        self,
+        pull_request_id: str,
+        review_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[Review]: ...
+
+
+@runtime_checkable
 class GetPullRequestReviewThreadsProtocol(Protocol):
     def get_pull_request_review_threads(
         self,
@@ -1601,6 +1611,7 @@ ALL_PROTOCOLS = (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
+    GetPullRequestReviewProtocol,
     GetPullRequestReviewThreadsProtocol,
     GetReviewCommentReactionsProtocol,
     GetReviewCommentsProtocol,

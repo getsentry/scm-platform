@@ -87,6 +87,7 @@ from scm.types import (
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestReactionsProtocol,
+    GetPullRequestReviewProtocol,
     GetPullRequestReviewThreadsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
@@ -991,6 +992,16 @@ def list_pull_request_reviews(
     )
 
 
+def get_pull_request_review(
+    scm: GetPullRequestReviewProtocol,
+    pull_request_id: str,
+    review_id: str,
+    request_options: RequestOptions | None = None,
+) -> ActionResult[Review]:
+    """Get a single submitted review on a pull request by its id."""
+    return scm.get_pull_request_review(pull_request_id, review_id, request_options)
+
+
 def minimize_comment(scm: MinimizeCommentProtocol, comment_node_id: str, reason: str) -> None:
     return scm.minimize_comment(comment_node_id, reason)
 
@@ -1106,6 +1117,7 @@ __all__ = (
     "get_pull_request_diff",
     "get_pull_request_files",
     "get_pull_request_reactions",
+    "get_pull_request_review",
     "get_pull_request_review_threads",
     "get_review_comments",
     "get_pull_request_template",
