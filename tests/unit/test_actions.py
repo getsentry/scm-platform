@@ -76,6 +76,7 @@ from scm.actions import (
     get_thread_id_from_review_comment_unique_id,
     get_tree,
     list_check_runs_in_check_suite,
+    mark_pull_request_ready_for_review,
     minimize_comment,
     request_review,
     resolve_review_thread,
@@ -217,6 +218,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_pull_requests, {}),
     (create_pull_request, {"title": "T", "body": "B", "head": "h", "base": "b"}),
     (create_pull_request_draft, {"title": "T", "body": "B", "head": "h", "base": "b"}),
+    (mark_pull_request_ready_for_review, {"pull_request_id": "1"}),
     (update_pull_request, {"pull_request_id": "1"}),
     (request_review, {"pull_request_id": "1", "reviewers": ["user1"]}),
     # Review operations
@@ -880,6 +882,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
         create_pull_request_draft,
         {"title": "T", "body": "B", "head": "h", "base": "b"},
         _check_create_pull_request,
+    ),
+    (
+        mark_pull_request_ready_for_review,
+        {"pull_request_id": "1"},
+        _check_update_pull_request,
     ),
     (update_pull_request, {"pull_request_id": "1"}, _check_update_pull_request),
     (

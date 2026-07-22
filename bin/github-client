@@ -21,6 +21,7 @@ Commands:
     get-pull-request-review <pull_request_id> <review_id>
     get-review-comments <pull_request_id> <review_id> [--cursor <n>] [--per-page <n>]
     get-pull-request-url <id>
+    mark-pull-request-ready-for-review <id>
     get-issue <id>
     create-issue <title> <body> [--assignee <user> ...] [--label <name> ...]
     update-issue <issue_id> [--state open|closed] [--assignee <user> ...] [--label <name> ...]
@@ -149,6 +150,7 @@ from scm.types import (
     ListRepositoryUserPermissionsProtocol,
     ListWorkflowJobsProtocol,
     ListWorkflowRunsProtocol,
+    MarkPullRequestReadyForReviewProtocol,
     MoveCommitAction,
     PaginationParams,
     UpdateAndCollapsePullRequestCommentProtocol,
@@ -273,6 +275,9 @@ def main() -> None:
     p.add_argument("--per-page", type=int, default=None)
 
     p = sub.add_parser("get-pull-request-url")
+    p.add_argument("id")
+
+    p = sub.add_parser("mark-pull-request-ready-for-review")
     p.add_argument("id")
 
     p = sub.add_parser("get-issue")
@@ -540,6 +545,10 @@ def main() -> None:
     elif args.command == "get-pull-request-url":
         assert isinstance(scm, GetPullRequestUrlProtocol)
         dump(scm.get_pull_request_url(args.id))
+
+    elif args.command == "mark-pull-request-ready-for-review":
+        assert isinstance(scm, MarkPullRequestReadyForReviewProtocol)
+        dump(scm.mark_pull_request_ready_for_review(args.id))
 
     elif args.command == "get-issue":
         assert isinstance(scm, GetIssueProtocol)

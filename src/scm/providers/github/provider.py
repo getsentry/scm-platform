@@ -201,6 +201,14 @@ mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) 
 }
 """
 
+MARK_PULL_REQUEST_READY_FOR_REVIEW_MUTATION = """
+mutation MarkPullRequestReadyForReview($id: ID!) {
+    markPullRequestReadyForReview(input: {pullRequestId: $id}) {
+        pullRequest { number }
+    }
+}
+"""
+
 RESOLVE_REVIEW_THREAD_MUTATION = """
 mutation ResolveReviewThread($threadId: ID!) {
     resolveReviewThread(input: {threadId: $threadId}) {
@@ -1483,6 +1491,19 @@ class GitHubProvider:
                 raise
 
         return map_action(response, map_pull_request)
+
+    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> ActionResult[PullRequest]:
+        response = self.get(f"/repos/{self.repository['name']}/pulls/{pull_request_id}")
+        raw = response.json()
+        if not raw.get("draft"):
+            return map_action(response, map_pull_request)
+
+        node_id = raw.get("node_id")
+        if not node_id:
+            raise UnexpectedResponseFormat(detail="Pull request response missing node_id")
+
+        self.graphql(MARK_PULL_REQUEST_READY_FOR_REVIEW_MUTATION, {"id": node_id})
+        return self.get_pull_request(pull_request_id)
 
     def update_pull_request(
         self,
