@@ -778,10 +778,10 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
-    # Create review body reaction (GraphQL)
+    # Create reaction on any reactable node (GraphQL)
     (
-        "create_review_reaction",
-        lambda scm: actions.create_review_reaction(scm, "PRR_abc123", "hooray"),
+        "create_reaction",
+        lambda scm: actions.create_reaction(scm, "PRR_abc123", "hooray"),
         {"data": {"addReaction": {"reaction": {"content": "HOORAY"}}}},
         200,
         None,

@@ -1862,10 +1862,10 @@ class GitHubProvider:
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
-    def create_review_reaction(self, review_node_id: str, reaction: Reaction) -> None:
+    def create_reaction(self, node_id: str, reaction: Reaction) -> None:
         self.graphql(
             ADD_REACTION_MUTATION,
-            {"subjectId": review_node_id, "content": GITHUB_GRAPHQL_REACTION_MAP[reaction]},
+            {"subjectId": node_id, "content": GITHUB_GRAPHQL_REACTION_MAP[reaction]},
         )
 
     @functools.cached_property

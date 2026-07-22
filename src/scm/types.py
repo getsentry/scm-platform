@@ -965,8 +965,8 @@ class DeletePullRequestReactionProtocol(Protocol):
 
 
 @runtime_checkable
-class CreateReviewReactionProtocol(Protocol):
-    def create_review_reaction(self, review_node_id: str, reaction: Reaction) -> None: ...
+class CreateReactionProtocol(Protocol):
+    def create_reaction(self, node_id: str, reaction: Reaction) -> None: ...
 
 
 # Branch Protocols
@@ -1576,12 +1576,12 @@ ALL_PROTOCOLS = (
     CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
+    CreateReactionProtocol,
     CreateReviewCommentFileProtocol,
     CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
-    CreateReviewReactionProtocol,
     DeleteBranchProtocol,
     DeleteIssueCommentProtocol,
     DeleteIssueCommentReactionProtocol,

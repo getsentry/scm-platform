@@ -41,12 +41,12 @@ from scm.types import (
     CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
+    CreateReactionProtocol,
     CreateReviewCommentFileProtocol,
     CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
-    CreateReviewReactionProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
     DeleteIssueCommentProtocol,
@@ -1011,9 +1011,9 @@ def resolve_review_thread(scm: ResolveReviewThreadProtocol, pull_request_id: str
     return scm.resolve_review_thread(pull_request_id, thread_id)
 
 
-def create_review_reaction(scm: CreateReviewReactionProtocol, review_node_id: str, reaction: Reaction) -> None:
-    """Create a reaction on a pull request review body (GraphQL addReaction)."""
-    return scm.create_review_reaction(review_node_id, reaction)
+def create_reaction(scm: CreateReactionProtocol, node_id: str, reaction: Reaction) -> None:
+    """Create a reaction on any reactable node via GraphQL addReaction (e.g. a review body)."""
+    return scm.create_reaction(node_id, reaction)
 
 
 def collapse_pull_request_comment(
@@ -1086,10 +1086,10 @@ __all__ = (
     "create_pull_request_draft",
     "create_pull_request_reaction",
     "create_pull_request",
+    "create_reaction",
     "create_review_comment",
     "create_review_comment_file",
     "create_review_comment_reply",
-    "create_review_reaction",
     "create_review",
     "delete_branch",
     "delete_issue_comment_reaction",

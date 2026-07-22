@@ -1434,9 +1434,9 @@ VOID_CASES: list[dict[str, Any]] = [
         "variables": {"threadId": "PRRT_456"},
     },
     {
-        "name": "create_review_reaction",
+        "name": "create_reaction",
         "operation": "graphql",
-        "kwargs": {"review_node_id": "PRR_789", "reaction": "hooray"},
+        "kwargs": {"node_id": "PRR_789", "reaction": "hooray"},
         "query": ADD_REACTION_MUTATION,
         "variables": {"subjectId": "PRR_789", "content": "HOORAY"},
     },
@@ -1996,11 +1996,11 @@ class TestGitHubProviderApiClientGraphql:
         assert result == {}
 
 
-def test_create_review_reaction_maps_enum_and_posts_graphql() -> None:
+def test_create_reaction_maps_enum_and_posts_graphql() -> None:
     provider, client = make_provider()
     client.queue("graphql", {"addReaction": {"reaction": {"content": "HOORAY"}}})
 
-    provider.create_review_reaction("PRR_789", "hooray")
+    provider.create_reaction("PRR_789", "hooray")
 
     assert client.calls == [
         {
@@ -2011,14 +2011,14 @@ def test_create_review_reaction_maps_enum_and_posts_graphql() -> None:
     ]
 
 
-def test_create_review_reaction_propagates_graphql_error() -> None:
+def test_create_reaction_propagates_graphql_error() -> None:
     provider = _make_api_client()
     provider.post = MagicMock(  # type: ignore[method-assign]
         return_value=FakeResponse({"errors": [{"message": "Could not resolve to a node"}]})
     )
 
     with pytest.raises(ResourceBadRequest):
-        provider.create_review_reaction("PRR_789", "hooray")
+        provider.create_reaction("PRR_789", "hooray")
 
 
 def test_map_review_maps_node_id_when_present() -> None:
