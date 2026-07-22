@@ -13871,6 +13871,8 @@ def test_create_pull_request_draft_does_not_double_prefix(client, provider: GitL
         ("[Draft] bracketed", "bracketed"),
         ("(Draft) parenthesized", "parenthesized"),
         ("  Draft: with leading whitespace", "with leading whitespace"),
+        ("Draft: Draft: duplicated", "duplicated"),
+        ("[Draft] Draft: mixed", "mixed"),
     ],
 )
 def test_mark_pull_request_ready_for_review_strips_draft_prefix(

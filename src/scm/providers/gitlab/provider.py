@@ -1829,12 +1829,17 @@ def _with_draft_prefix(title: str) -> str:
 
 
 def _without_draft_prefix(title: str) -> str:
-    stripped = title.lstrip()
-    lower = stripped.lower()
-    for prefix in _DRAFT_TITLE_PREFIXES:
-        if lower.startswith(prefix):
-            return stripped[len(prefix) :].lstrip()
-    return title
+    # GitLab can accumulate repeated draft prefixes (e.g. "Draft: Draft: …");
+    # strip until none remain so ready-for-review actually clears draft state.
+    while True:
+        stripped = title.lstrip()
+        lower = stripped.lower()
+        for prefix in _DRAFT_TITLE_PREFIXES:
+            if lower.startswith(prefix):
+                title = stripped[len(prefix) :].lstrip()
+                break
+        else:
+            return title
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:
