@@ -778,6 +778,14 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         200,
         None,
     ),
+    # Create reaction on any reactable node (GraphQL)
+    (
+        "create_reaction",
+        lambda scm: actions.create_reaction(scm, "PRR_abc123", "hooray"),
+        {"data": {"addReaction": {"reaction": {"content": "HOORAY"}}}},
+        200,
+        None,
+    ),
     # Look up thread id by review comment unique id (GraphQL)
     (
         "get_thread_id_from_review_comment_unique_id",

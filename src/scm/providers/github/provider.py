@@ -192,6 +192,18 @@ GITHUB_REVIEW_STATE_MAP: dict[str, PullRequestReviewState] = {
     "PENDING": "pending",
 }
 
+# REST reaction literals map to GraphQL's ReactionContent enum for addReaction.
+GITHUB_GRAPHQL_REACTION_MAP: dict[Reaction, str] = {
+    "+1": "THUMBS_UP",
+    "-1": "THUMBS_DOWN",
+    "laugh": "LAUGH",
+    "confused": "CONFUSED",
+    "heart": "HEART",
+    "hooray": "HOORAY",
+    "rocket": "ROCKET",
+    "eyes": "EYES",
+}
+
 
 MINIMIZE_COMMENT_MUTATION = """
 mutation MinimizeComment($commentId: ID!, $reason: ReportedContentClassifiers!) {
@@ -205,6 +217,14 @@ RESOLVE_REVIEW_THREAD_MUTATION = """
 mutation ResolveReviewThread($threadId: ID!) {
     resolveReviewThread(input: {threadId: $threadId}) {
         thread { isResolved }
+    }
+}
+"""
+
+ADD_REACTION_MUTATION = """
+mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
+    addReaction(input: {subjectId: $subjectId, content: $content}) {
+        reaction { content }
     }
 }
 """
@@ -1842,6 +1862,12 @@ class GitHubProvider:
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
         self.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread_id})
 
+    def create_reaction(self, node_id: str, reaction: Reaction) -> None:
+        self.graphql(
+            ADD_REACTION_MUTATION,
+            {"subjectId": node_id, "content": GITHUB_GRAPHQL_REACTION_MAP[reaction]},
+        )
+
     @functools.cached_property
     def _has_contents_write_permission(self) -> bool:
         installation = self.get_app_installation()
@@ -2268,6 +2294,7 @@ def map_review(raw: dict[str, Any]) -> Review:
         body=raw.get("body") or None,
         submitted_at=raw.get("submitted_at"),
         commit_id=raw.get("commit_id"),
+        node_id=raw.get("node_id"),
     )
 
 

@@ -448,6 +448,7 @@ def make_github_review(
     body: str | None = "Looks good to me",
     submitted_at: str | None = "2025-01-01T00:00:00Z",
     commit_id: str | None = "abc123",
+    node_id: str | None = "PRR_abc123",
 ) -> dict[str, Any]:
     """Factory for GitHub review API responses."""
     return {
@@ -458,6 +459,7 @@ def make_github_review(
         "body": body,
         "submitted_at": submitted_at,
         "commit_id": commit_id,
+        "node_id": node_id,
     }
 
 
@@ -1748,6 +1750,9 @@ class BaseTestProvider(Provider):
         return b"archive-bytes"
 
     def resolve_review_thread(self, pull_request_id: str, thread_id: str) -> None:
+        return None
+
+    def create_reaction(self, node_id: str, reaction: Reaction) -> None:
         return None
 
     def get_thread_id_from_review_comment_unique_id(
