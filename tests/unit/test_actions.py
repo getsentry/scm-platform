@@ -27,6 +27,7 @@ from scm.actions import (
     create_review_comment_file,
     create_review_comment_reaction,
     create_review_comment_reply,
+    create_review_reaction,
     delete_branch,
     delete_issue_comment,
     delete_issue_comment_reaction,
@@ -265,6 +266,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # GraphQL mutation operations
     (minimize_comment, {"comment_node_id": "IC_abc", "reason": "OUTDATED"}),
     (resolve_review_thread, {"pull_request_id": "1", "thread_id": "PRRT_abc"}),
+    (create_review_reaction, {"review_node_id": "PRR_abc", "reaction": "hooray"}),
     (
         collapse_pull_request_comment,
         {
@@ -961,6 +963,11 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (
         resolve_review_thread,
         {"pull_request_id": "1", "thread_id": "PRRT_abc"},
+        _check_none,
+    ),
+    (
+        create_review_reaction,
+        {"review_node_id": "PRR_abc", "reaction": "hooray"},
         _check_none,
     ),
     (

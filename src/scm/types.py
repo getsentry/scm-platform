@@ -524,6 +524,7 @@ class Review(TypedDict):
     body: NotRequired[str | None]
     submitted_at: NotRequired[str | None]
     commit_id: NotRequired[SHA | None]
+    node_id: NotRequired[str | None]
 
 
 class ReviewThreadComment(TypedDict):
@@ -961,6 +962,11 @@ class CreatePullRequestReactionProtocol(Protocol):
 @runtime_checkable
 class DeletePullRequestReactionProtocol(Protocol):
     def delete_pull_request_reaction(self, pull_request_id: str, reaction_id: str) -> None: ...
+
+
+@runtime_checkable
+class CreateReviewReactionProtocol(Protocol):
+    def create_review_reaction(self, review_node_id: str, reaction: Reaction) -> None: ...
 
 
 # Branch Protocols
@@ -1575,6 +1581,7 @@ ALL_PROTOCOLS = (
     CreateReviewCommentReactionProtocol,
     CreateReviewCommentReplyProtocol,
     CreateReviewProtocol,
+    CreateReviewReactionProtocol,
     DeleteBranchProtocol,
     DeleteIssueCommentProtocol,
     DeleteIssueCommentReactionProtocol,

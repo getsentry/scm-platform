@@ -1,6 +1,6 @@
 import json
 from datetime import date, datetime
-from typing import Any
+from typing import Any, get_args
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,7 +21,9 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.github.provider import (
+    ADD_REACTION_MUTATION,
     GITHUB_CONCLUSION_MAP,
+    GITHUB_GRAPHQL_REACTION_MAP,
     MINIMIZE_COMMENT_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
@@ -38,6 +40,7 @@ from scm.providers.github.provider import (
     map_comment,
     map_github_repository_permission,
     map_reaction_rollup,
+    map_review,
 )
 from scm.test_fixtures import (
     make_github_assignee,
@@ -70,6 +73,7 @@ from scm.types import (
     DeleteCommitAction,
     DiffLine,
     MoveCommitAction,
+    Reaction,
     Referrer,
     Repository,
     WriteCommitAction,
@@ -473,6 +477,7 @@ def expected_review(raw: dict[str, Any]) -> dict[str, Any]:
         "body": raw["body"] or None,
         "submitted_at": raw["submitted_at"],
         "commit_id": raw["commit_id"],
+        "node_id": raw.get("node_id"),
     }
 
 
@@ -1428,6 +1433,13 @@ VOID_CASES: list[dict[str, Any]] = [
         "query": RESOLVE_REVIEW_THREAD_MUTATION,
         "variables": {"threadId": "PRRT_456"},
     },
+    {
+        "name": "create_review_reaction",
+        "operation": "graphql",
+        "kwargs": {"review_node_id": "PRR_789", "reaction": "hooray"},
+        "query": ADD_REACTION_MUTATION,
+        "variables": {"subjectId": "PRR_789", "content": "HOORAY"},
+    },
 ]
 
 
@@ -1982,6 +1994,48 @@ class TestGitHubProviderApiClientGraphql:
         result = api_client.graphql("{ viewer { login } }", {})
 
         assert result == {}
+
+
+def test_create_review_reaction_maps_enum_and_posts_graphql() -> None:
+    provider, client = make_provider()
+    client.queue("graphql", {"addReaction": {"reaction": {"content": "HOORAY"}}})
+
+    provider.create_review_reaction("PRR_789", "hooray")
+
+    assert client.calls == [
+        {
+            "operation": "graphql",
+            "query": ADD_REACTION_MUTATION,
+            "variables": {"subjectId": "PRR_789", "content": "HOORAY"},
+        }
+    ]
+
+
+def test_create_review_reaction_propagates_graphql_error() -> None:
+    provider = _make_api_client()
+    provider.post = MagicMock(  # type: ignore[method-assign]
+        return_value=FakeResponse({"errors": [{"message": "Could not resolve to a node"}]})
+    )
+
+    with pytest.raises(ResourceBadRequest):
+        provider.create_review_reaction("PRR_789", "hooray")
+
+
+def test_map_review_maps_node_id_when_present() -> None:
+    raw = make_github_review(node_id="PRR_abc123")
+
+    assert map_review(raw)["node_id"] == "PRR_abc123"
+
+
+def test_map_review_tolerates_missing_node_id() -> None:
+    raw = make_github_review()
+    del raw["node_id"]
+
+    assert map_review(raw)["node_id"] is None
+
+
+def test_every_reaction_has_graphql_mapping() -> None:
+    assert set(get_args(Reaction.__value__)) == set(GITHUB_GRAPHQL_REACTION_MAP)
 
 
 def _queue_raw_bytes(client: RecordingClient, content: bytes) -> None:
