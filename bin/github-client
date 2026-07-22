@@ -552,11 +552,11 @@ def main() -> None:
 
     elif args.command == "mark-pull-request-ready-for-review":
         assert isinstance(scm, MarkPullRequestDraftStateProtocol)
-        dump(scm.mark_pull_request_ready_for_review(args.id))
+        scm.mark_pull_request_ready_for_review(args.id)
 
     elif args.command == "mark-pull-request-as-draft":
         assert isinstance(scm, MarkPullRequestDraftStateProtocol)
-        dump(scm.mark_pull_request_as_draft(args.id))
+        scm.mark_pull_request_as_draft(args.id)
 
     elif args.command == "get-issue":
         assert isinstance(scm, GetIssueProtocol)
