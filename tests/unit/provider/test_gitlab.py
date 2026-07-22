@@ -13863,69 +13863,6 @@ def test_create_pull_request_draft_does_not_double_prefix(client, provider: GitL
     assert client.request.call_args.kwargs["data"]["title"] == title
 
 
-@pytest.mark.parametrize(
-    ("title", "expected"),
-    [
-        ("Draft: My change", "My change"),
-        ("draft: lowercase", "lowercase"),
-        ("[Draft] bracketed", "bracketed"),
-        ("(Draft) parenthesized", "parenthesized"),
-        ("  Draft: with leading whitespace", "with leading whitespace"),
-        ("Draft: Draft: duplicated", "duplicated"),
-        ("[Draft] Draft: mixed", "mixed"),
-    ],
-)
-def test_mark_pull_request_ready_for_review_strips_draft_prefix(
-    client, provider: GitLabProvider, title: str, expected: str
-):
-    client.request.side_effect = [
-        _make_mock_response(_minimal_mr_response(title=title)),
-        _make_mock_response(_minimal_mr_response(title=expected)),
-    ]
-
-    provider.mark_pull_request_ready_for_review("1")
-
-    assert client.request.call_count == 2
-    get_call, put_call = client.request.call_args_list
-    assert get_call.kwargs["method"] == "GET"
-    assert get_call.kwargs["path"] == "/projects/79787061/merge_requests/1"
-    assert put_call.kwargs["method"] == "PUT"
-    assert put_call.kwargs["path"] == "/projects/79787061/merge_requests/1"
-    assert put_call.kwargs["data"] == {"title": expected}
-
-
-def test_mark_pull_request_ready_for_review_noop_when_not_draft(client, provider: GitLabProvider):
-    client.request.return_value = _make_mock_response(_minimal_mr_response(title="My change"))
-
-    provider.mark_pull_request_ready_for_review("1")
-
-    assert client.request.call_count == 1
-    assert client.request.call_args.kwargs["method"] == "GET"
-
-
-def test_mark_pull_request_as_draft_adds_prefix(client, provider: GitLabProvider):
-    client.request.side_effect = [
-        _make_mock_response(_minimal_mr_response(title="My change")),
-        _make_mock_response(_minimal_mr_response(title="Draft: My change")),
-    ]
-
-    provider.mark_pull_request_as_draft("1")
-
-    assert client.request.call_count == 2
-    put_call = client.request.call_args_list[1]
-    assert put_call.kwargs["method"] == "PUT"
-    assert put_call.kwargs["data"] == {"title": "Draft: My change"}
-
-
-def test_mark_pull_request_as_draft_noop_when_already_draft(client, provider: GitLabProvider):
-    client.request.return_value = _make_mock_response(_minimal_mr_response(title="Draft: My change"))
-
-    provider.mark_pull_request_as_draft("1")
-
-    assert client.request.call_count == 1
-    assert client.request.call_args.kwargs["method"] == "GET"
-
-
 def _route_request(routes: dict[str, Any], **kwargs) -> Any:
     """Return a mock response whose json_response is selected by request path."""
     path = kwargs["path"]

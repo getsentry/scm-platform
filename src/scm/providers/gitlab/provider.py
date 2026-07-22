@@ -1158,20 +1158,6 @@ class GitLabProvider:
             base=base,
         )
 
-    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> None:
-        title = self.get_pull_request(pull_request_id)["data"]["title"]
-        ready_title = _without_draft_prefix(title)
-        if ready_title == title:
-            return
-        self.update_pull_request(pull_request_id, title=ready_title)
-
-    def mark_pull_request_as_draft(self, pull_request_id: str) -> None:
-        title = self.get_pull_request(pull_request_id)["data"]["title"]
-        draft_title = _with_draft_prefix(title)
-        if draft_title == title:
-            return
-        self.update_pull_request(pull_request_id, title=draft_title)
-
     def update_pull_request(
         self,
         pull_request_id: str,
@@ -1826,20 +1812,6 @@ def _with_draft_prefix(title: str) -> str:
     if title.lstrip().lower().startswith(_DRAFT_TITLE_PREFIXES):
         return title
     return f"Draft: {title}"
-
-
-def _without_draft_prefix(title: str) -> str:
-    # GitLab can accumulate repeated draft prefixes (e.g. "Draft: Draft: …");
-    # strip until none remain so ready-for-review actually clears draft state.
-    while True:
-        stripped = title.lstrip()
-        lower = stripped.lower()
-        for prefix in _DRAFT_TITLE_PREFIXES:
-            if lower.startswith(prefix):
-                title = stripped[len(prefix) :].lstrip()
-                break
-        else:
-            return title
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:

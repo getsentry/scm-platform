@@ -23,8 +23,6 @@ Commands:
     get-pull-request-diff <id>
     get-pull-request-review-threads <id> [--include-reactions]
     get-pull-request-url <id>
-    mark-pull-request-ready-for-review <id>
-    mark-pull-request-as-draft <id>
     get-issue <id>
     create-issue <title> <body> [--assignee <user_id> ...] [--label <name> ...]
     update-issue <issue_id> [--state open|closed] [--assignee <user_id> ...] [--label <name> ...]
@@ -133,7 +131,6 @@ from scm.types import (
     GetRepositoryAssigneesProtocol,
     GetRepositoryLabelsProtocol,
     GetRepositoryProtocol,
-    MarkPullRequestDraftStateProtocol,
     MoveCommitAction,
     PaginationParams,
     ReviewCommentInput,
@@ -248,12 +245,6 @@ def main():
     )
 
     p = sub.add_parser("get-pull-request-url")
-    p.add_argument("id")
-
-    p = sub.add_parser("mark-pull-request-ready-for-review")
-    p.add_argument("id")
-
-    p = sub.add_parser("mark-pull-request-as-draft")
     p.add_argument("id")
 
     p = sub.add_parser("get-issue")
@@ -458,14 +449,6 @@ def main():
     elif args.command == "get-pull-request-url":
         assert isinstance(scm, GetPullRequestUrlProtocol)
         dump(scm.get_pull_request_url(args.id))
-
-    elif args.command == "mark-pull-request-ready-for-review":
-        assert isinstance(scm, MarkPullRequestDraftStateProtocol)
-        scm.mark_pull_request_ready_for_review(args.id)
-
-    elif args.command == "mark-pull-request-as-draft":
-        assert isinstance(scm, MarkPullRequestDraftStateProtocol)
-        scm.mark_pull_request_as_draft(args.id)
 
     elif args.command == "get-issue":
         assert isinstance(scm, GetIssueProtocol)
