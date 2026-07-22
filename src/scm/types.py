@@ -1185,10 +1185,10 @@ class CreatePullRequestDraftProtocol(Protocol):
 
 
 @runtime_checkable
-class MarkPullRequestReadyForReviewProtocol(Protocol):
-    def mark_pull_request_ready_for_review(
-        self, pull_request_id: str
-    ) -> ActionResult[PullRequest]: ...
+class MarkPullRequestDraftStateProtocol(Protocol):
+    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> None: ...
+
+    def mark_pull_request_as_draft(self, pull_request_id: str) -> None: ...
 
 
 @runtime_checkable
@@ -1641,7 +1641,7 @@ ALL_PROTOCOLS = (
     ListWorkflowJobsProtocol,
     DownloadWorkflowJobLogProtocol,
     ListPullRequestReviewsProtocol,
-    MarkPullRequestReadyForReviewProtocol,
+    MarkPullRequestDraftStateProtocol,
     MinimizeCommentProtocol,
     RequestReviewProtocol,
     ResolveReviewThreadProtocol,

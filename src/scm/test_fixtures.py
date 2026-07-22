@@ -1672,25 +1672,11 @@ class BaseTestProvider(Provider):
             meta={},
         )
 
-    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> ActionResult[PullRequest]:
-        raw = make_github_pull_request(number=int(pull_request_id) if pull_request_id.isdigit() else 1)
-        return ActionResult(
-            data=PullRequest(
-                internal_id=str(raw["id"]),
-                id=str(raw["number"]),
-                title=raw["title"],
-                body=raw["body"],
-                state=raw["state"],
-                merged=raw["merged"],
-                html_url=raw["html_url"],
-                head=PullRequestBranch(sha=raw["head"]["sha"], ref=raw["head"]["ref"]),
-                base=PullRequestBranch(sha=raw["base"]["sha"], ref=raw["base"]["ref"]),
-                author=Author(id=str(raw["user"]["id"]), username=raw["user"]["login"]),
-            ),
-            type="github",
-            raw={"headers": None, "data": raw},
-            meta={},
-        )
+    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> None:
+        return None
+
+    def mark_pull_request_as_draft(self, pull_request_id: str) -> None:
+        return None
 
     def update_pull_request(
         self,

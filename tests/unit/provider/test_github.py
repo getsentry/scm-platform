@@ -21,6 +21,7 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.github.provider import (
+    CONVERT_PULL_REQUEST_TO_DRAFT_MUTATION,
     GITHUB_CONCLUSION_MAP,
     MARK_PULL_REQUEST_READY_FOR_REVIEW_MUTATION,
     MINIMIZE_COMMENT_MUTATION,
@@ -2324,12 +2325,10 @@ def test_create_pull_request_draft_reraises_unrelated_unprocessable_content_erro
 def test_mark_pull_request_ready_for_review_undrafts_via_graphql() -> None:
     provider, client = make_provider()
     draft_pr = make_github_pull_request(draft=True, node_id="PR_kwDOReady")
-    ready_pr = make_github_pull_request(draft=False, node_id="PR_kwDOReady")
     client.queue("get", FakeResponse(draft_pr))
     client.queue("graphql", {"markPullRequestReadyForReview": {"pullRequest": {"number": 1}}})
-    client.queue("get", FakeResponse(ready_pr))
 
-    result = provider.mark_pull_request_ready_for_review("1")
+    assert provider.mark_pull_request_ready_for_review("1") is None
 
     assert client.calls == [
         {
@@ -2347,18 +2346,7 @@ def test_mark_pull_request_ready_for_review_undrafts_via_graphql() -> None:
             "query": MARK_PULL_REQUEST_READY_FOR_REVIEW_MUTATION,
             "variables": {"id": "PR_kwDOReady"},
         },
-        {
-            "operation": "get",
-            "path": "/repos/test-org/test-repo/pulls/1",
-            "params": None,
-            "pagination": None,
-            "request_options": None,
-            "extra_headers": None,
-            "credentials_set": "installation",
-            "timeout": None,
-        },
     ]
-    assert result["data"] == expected_pull_request(ready_pr)
 
 
 def test_mark_pull_request_ready_for_review_noop_when_already_ready() -> None:
@@ -2366,11 +2354,10 @@ def test_mark_pull_request_ready_for_review_noop_when_already_ready() -> None:
     ready_pr = make_github_pull_request(draft=False)
     client.queue("get", FakeResponse(ready_pr))
 
-    result = provider.mark_pull_request_ready_for_review("1")
+    assert provider.mark_pull_request_ready_for_review("1") is None
 
     assert len(client.calls) == 1
     assert client.calls[0]["operation"] == "get"
-    assert result["data"] == expected_pull_request(ready_pr)
 
 
 def test_mark_pull_request_ready_for_review_raises_when_node_id_missing() -> None:
@@ -2395,6 +2382,56 @@ def test_mark_pull_request_ready_for_review_raises_when_node_id_missing() -> Non
             "timeout": None,
         },
     ]
+
+
+def test_mark_pull_request_as_draft_via_graphql() -> None:
+    provider, client = make_provider()
+    ready_pr = make_github_pull_request(draft=False, node_id="PR_kwDODraft")
+    client.queue("get", FakeResponse(ready_pr))
+    client.queue("graphql", {"convertPullRequestToDraft": {"pullRequest": {"number": 1}}})
+
+    assert provider.mark_pull_request_as_draft("1") is None
+
+    assert client.calls == [
+        {
+            "operation": "get",
+            "path": "/repos/test-org/test-repo/pulls/1",
+            "params": None,
+            "pagination": None,
+            "request_options": None,
+            "extra_headers": None,
+            "credentials_set": "installation",
+            "timeout": None,
+        },
+        {
+            "operation": "graphql",
+            "query": CONVERT_PULL_REQUEST_TO_DRAFT_MUTATION,
+            "variables": {"id": "PR_kwDODraft"},
+        },
+    ]
+
+
+def test_mark_pull_request_as_draft_noop_when_already_draft() -> None:
+    provider, client = make_provider()
+    draft_pr = make_github_pull_request(draft=True)
+    client.queue("get", FakeResponse(draft_pr))
+
+    assert provider.mark_pull_request_as_draft("1") is None
+
+    assert len(client.calls) == 1
+    assert client.calls[0]["operation"] == "get"
+
+
+def test_mark_pull_request_as_draft_raises_when_node_id_missing() -> None:
+    provider, client = make_provider()
+    ready_pr = make_github_pull_request(draft=False)
+    del ready_pr["node_id"]
+    client.queue("get", FakeResponse(ready_pr))
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.mark_pull_request_as_draft("1")
+
+    assert exc_info.value.code == "unexpected_response_format"
 
 
 def _thread_node(

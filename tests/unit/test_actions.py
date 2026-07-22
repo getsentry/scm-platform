@@ -76,6 +76,7 @@ from scm.actions import (
     get_thread_id_from_review_comment_unique_id,
     get_tree,
     list_check_runs_in_check_suite,
+    mark_pull_request_as_draft,
     mark_pull_request_ready_for_review,
     minimize_comment,
     request_review,
@@ -219,6 +220,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (create_pull_request, {"title": "T", "body": "B", "head": "h", "base": "b"}),
     (create_pull_request_draft, {"title": "T", "body": "B", "head": "h", "base": "b"}),
     (mark_pull_request_ready_for_review, {"pull_request_id": "1"}),
+    (mark_pull_request_as_draft, {"pull_request_id": "1"}),
     (update_pull_request, {"pull_request_id": "1"}),
     (request_review, {"pull_request_id": "1", "reviewers": ["user1"]}),
     # Review operations
@@ -886,7 +888,12 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (
         mark_pull_request_ready_for_review,
         {"pull_request_id": "1"},
-        _check_update_pull_request,
+        _check_none,
+    ),
+    (
+        mark_pull_request_as_draft,
+        {"pull_request_id": "1"},
+        _check_none,
     ),
     (update_pull_request, {"pull_request_id": "1"}, _check_update_pull_request),
     (

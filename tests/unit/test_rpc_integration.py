@@ -252,6 +252,13 @@ ACTION_TEST_CASES: list[tuple[str, Callable, dict | list | str, int, dict[str, s
         None,
     ),
     (
+        "mark_pull_request_as_draft",
+        lambda scm: actions.mark_pull_request_as_draft(scm, "1"),
+        make_github_pull_request(draft=True),
+        200,
+        None,
+    ),
+    (
         "update_pull_request",
         lambda scm: actions.update_pull_request(scm, "1", title="Updated"),
         make_github_pull_request(title="Updated"),
