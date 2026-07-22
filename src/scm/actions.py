@@ -117,6 +117,7 @@ from scm.types import (
     ListRepositoryUserPermissionsProtocol,
     ListWorkflowJobsProtocol,
     ListWorkflowRunsProtocol,
+    MarkPullRequestDraftStateProtocol,
     MinimizeCommentProtocol,
     MoveCommitAction,
     PaginatedActionResult,
@@ -791,6 +792,20 @@ def create_pull_request_draft(
     return scm.create_pull_request_draft(title, body, head, base)
 
 
+def mark_pull_request_ready_for_review(
+    scm: MarkPullRequestDraftStateProtocol,
+    pull_request_id: str,
+) -> None:
+    return scm.mark_pull_request_ready_for_review(pull_request_id)
+
+
+def mark_pull_request_as_draft(
+    scm: MarkPullRequestDraftStateProtocol,
+    pull_request_id: str,
+) -> None:
+    return scm.mark_pull_request_as_draft(pull_request_id)
+
+
 def update_pull_request(
     scm: UpdatePullRequestProtocol,
     pull_request_id: str,
@@ -1140,6 +1155,8 @@ __all__ = (
     "list_pull_request_reviews",
     "list_repository_user_permissions",
     "list_repositories",
+    "mark_pull_request_as_draft",
+    "mark_pull_request_ready_for_review",
     "minimize_comment",
     "resolve_review_thread",
     "request_review",

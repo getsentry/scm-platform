@@ -102,6 +102,8 @@ def make_github_pull_request(
     body: str | None = "PR description",
     state: str = "open",
     merged: bool = False,
+    draft: bool = False,
+    node_id: str = "PR_kwDOABCD",
     url: str = "https://api.github.com/repos/test-org/test-repo/pulls/1",
     html_url: str = "https://github.com/test-org/test-repo/pull/1",
     head_sha: str = "abc123",
@@ -119,6 +121,8 @@ def make_github_pull_request(
         "body": body,
         "state": state,
         "merged": merged,
+        "draft": draft,
+        "node_id": node_id,
         "url": url,
         "html_url": html_url,
         "head": {"ref": head_ref, "sha": head_sha},
@@ -1667,6 +1671,12 @@ class BaseTestProvider(Provider):
             raw={"headers": None, "data": raw},
             meta={},
         )
+
+    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> None:
+        return None
+
+    def mark_pull_request_as_draft(self, pull_request_id: str) -> None:
+        return None
 
     def update_pull_request(
         self,
