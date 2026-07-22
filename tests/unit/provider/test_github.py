@@ -3390,6 +3390,8 @@ def test_public_methods_are_accounted_for() -> None:
         "collapse_pull_request_comment",
         "update_and_collapse_pull_request_comment",
         "get_authenticated_actor",
+        "mark_pull_request_ready_for_review",
+        "mark_pull_request_as_draft",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},
