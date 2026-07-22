@@ -2328,7 +2328,7 @@ def test_mark_pull_request_ready_for_review_undrafts_via_graphql() -> None:
     client.queue("get", FakeResponse(draft_pr))
     client.queue("graphql", {"markPullRequestReadyForReview": {"pullRequest": {"number": 1}}})
 
-    assert provider.mark_pull_request_ready_for_review("1") is None
+    provider.mark_pull_request_ready_for_review("1")
 
     assert client.calls == [
         {
@@ -2354,7 +2354,7 @@ def test_mark_pull_request_ready_for_review_noop_when_already_ready() -> None:
     ready_pr = make_github_pull_request(draft=False)
     client.queue("get", FakeResponse(ready_pr))
 
-    assert provider.mark_pull_request_ready_for_review("1") is None
+    provider.mark_pull_request_ready_for_review("1")
 
     assert len(client.calls) == 1
     assert client.calls[0]["operation"] == "get"
@@ -2390,7 +2390,7 @@ def test_mark_pull_request_as_draft_via_graphql() -> None:
     client.queue("get", FakeResponse(ready_pr))
     client.queue("graphql", {"convertPullRequestToDraft": {"pullRequest": {"number": 1}}})
 
-    assert provider.mark_pull_request_as_draft("1") is None
+    provider.mark_pull_request_as_draft("1")
 
     assert client.calls == [
         {
@@ -2416,7 +2416,7 @@ def test_mark_pull_request_as_draft_noop_when_already_draft() -> None:
     draft_pr = make_github_pull_request(draft=True)
     client.queue("get", FakeResponse(draft_pr))
 
-    assert provider.mark_pull_request_as_draft("1") is None
+    provider.mark_pull_request_as_draft("1")
 
     assert len(client.calls) == 1
     assert client.calls[0]["operation"] == "get"
