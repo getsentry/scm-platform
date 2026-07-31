@@ -383,9 +383,16 @@ class CommitAuthorParam(TypedDict):
 
 
 class CommitAuthor(TypedDict):
+    """Git commit author metadata, optionally linked to an SCM user.
+
+    ``name``, ``email``, and ``date`` come from the git commit object.
+    ``scm_author`` is the provider user tied to the commit when the API exposes one.
+    """
+
     name: str
     email: str
     date: datetime | None
+    scm_author: Author | None
 
 
 class CommitFile(TypedDict):

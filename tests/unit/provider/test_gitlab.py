@@ -1666,6 +1666,7 @@ def _make_mock_response(json_data):
                         "author": {
                             "name": "Vincent Jacques",
                             "email": "vincent@vincent-jacques.net",
+                            "scm_author": None,
                             "date": datetime.datetime(
                                 2026,
                                 2,
@@ -1754,6 +1755,7 @@ def _make_mock_response(json_data):
                         "author": {
                             "name": "Vincent Jacques",
                             "email": "vincent@vincent-jacques.net",
+                            "scm_author": None,
                             "date": datetime.datetime(
                                 2026,
                                 2,
@@ -10997,6 +10999,7 @@ def _make_mock_response(json_data):
                             "author": {
                                 "name": "Vincent Jacques",
                                 "email": "vincent@vincent-jacques.net",
+                                "scm_author": None,
                                 "date": datetime.datetime(
                                     2026,
                                     2,
@@ -11160,6 +11163,7 @@ def _make_mock_response(json_data):
                     "author": {
                         "name": "Vincent Jacques",
                         "email": "vincent@vincent-jacques.net",
+                        "scm_author": None,
                         "date": datetime.datetime(
                             2026,
                             3,
@@ -11236,6 +11240,7 @@ def _make_mock_response(json_data):
                     "author": {
                         "name": "Vincent Jacques",
                         "email": "vincent@vincent-jacques.net",
+                        "scm_author": None,
                         "date": datetime.datetime(
                             2026,
                             2,
@@ -11445,6 +11450,7 @@ def _make_mock_response(json_data):
                         "author": {
                             "name": "Vincent Jacques",
                             "email": "vincent@vincent-jacques.net",
+                            "scm_author": None,
                             "date": datetime.datetime(
                                 2026,
                                 2,
@@ -11462,6 +11468,7 @@ def _make_mock_response(json_data):
                         "author": {
                             "name": "Vincent Jacques",
                             "email": "vincent@vincent-jacques.net",
+                            "scm_author": None,
                             "date": datetime.datetime(
                                 2026,
                                 3,

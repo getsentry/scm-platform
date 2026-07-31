@@ -379,6 +379,7 @@ def make_github_pull_request_commit(
     author_email: str = "test@example.com",
     author_date: str = "2026-02-04T10:00:00Z",
     author_login: str | None = "testuser",
+    author_id: int = 1,
 ) -> dict[str, Any]:
     """Factory for GitHub pull request commit API responses."""
     result: dict[str, Any] = {
@@ -393,7 +394,7 @@ def make_github_pull_request_commit(
         },
     }
     if author_login is not None:
-        result["author"] = {"login": author_login}
+        result["author"] = {"id": author_id, "login": author_login}
     else:
         result["author"] = None
     return result
@@ -1301,6 +1302,7 @@ class BaseTestProvider(Provider):
                     name="Test User",
                     email="test@example.com",
                     date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
+                    scm_author=None,
                 ),
                 files=[
                     CommitFile(
@@ -1400,6 +1402,7 @@ class BaseTestProvider(Provider):
                     name="Test User",
                     email="test@example.com",
                     date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
+                    scm_author=None,
                 ),
                 additions=None,
                 deletions=None,
@@ -1535,6 +1538,7 @@ class BaseTestProvider(Provider):
                         name="Test User",
                         email="test@example.com",
                         date=datetime.fromisoformat("2026-02-04T10:00:00Z"),
+                        scm_author=Author(id="1", username="testuser"),
                     ),
                 ),
             ],
