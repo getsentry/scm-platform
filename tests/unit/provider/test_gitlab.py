@@ -24,6 +24,7 @@ from scm.errors import (
 from scm.providers.gitlab.provider import (
     GITLAB_MAX_INCLUDE_REACTIONS_FETCHES,
     ApiClient,
+    GitLab,
     GitLabProvider,
     _count_unified_diff_changes,
     _count_unified_diff_lines,
@@ -67,6 +68,27 @@ def _make_gitlab_provider(client: ApiClient, *, name: str = "test-repo") -> GitL
 @pytest.fixture
 def provider(client: ApiClient) -> GitLabProvider:
     return _make_gitlab_provider(client)
+
+
+def test_request_attaches_scm_route_template_on_error(client: ApiClient) -> None:
+    # request() must surface the low-cardinality route template on the raised error, so it is available
+    # at error time without emitting the concrete (high-cardinality) path.
+    error_response = unittest.mock.MagicMock()
+    error_response.status_code = 404
+    error_response.content = b'{"message":"404 Not found"}'
+    error_response.headers = {}
+    error_response.request.headers = {}
+    error_response.request.body = None
+    error_response.request.url = "https://gitlab.com/api/v4/projects/1/repository/branches/main"
+    error_response.request.method = "GET"
+    client.request.return_value = error_response  # type: ignore[attr-defined]
+
+    provider = _make_gitlab_provider(client)
+
+    with pytest.raises(ResourceNotFound) as exc_info:
+        provider.request("GET", GitLab.branch(project_id=1, branch="main"))
+
+    assert exc_info.value.scm_route == "/projects/{project_id}/repository/branches/{branch}"
 
 
 class ClientForwardedCall(NamedTuple):

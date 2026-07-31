@@ -30,6 +30,7 @@ from scm.providers.github.provider import (
     THREAD_COMMENTS_QUERY,
     UPDATE_AND_MINIMIZE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
     UPDATE_AND_RESOLVE_PULL_REQUEST_REVIEW_COMMENT_MUTATION,
+    GitHub,
     GitHubProvider,
     _graphql_review_thread_full_comments_query,
     _graphql_review_threads_query,
@@ -41,6 +42,7 @@ from scm.providers.github.provider import (
     map_github_repository_permission,
     map_reaction_rollup,
 )
+from scm.providers.routes import FormattedRoute
 from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
@@ -116,6 +118,12 @@ class FakeResponse:
         return self._payload
 
 
+def _concrete_path(path: "FormattedRoute | str") -> str:
+    """The path that would actually be sent. Providers pass a ``FormattedRoute`` (path + template);
+    the real ``request()`` unwraps it to ``["path"]`` before the wire, so the fake records the same."""
+    return path if isinstance(path, str) else path["path"]
+
+
 class RecordingClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
@@ -152,7 +160,7 @@ class RecordingClient:
         self.calls.append(
             {
                 "operation": "get",
-                "path": path,
+                "path": _concrete_path(path),
                 "params": params,
                 "pagination": pagination,
                 "request_options": request_options,
@@ -169,7 +177,7 @@ class RecordingClient:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> FakeResponse:
-        self.calls.append({"operation": "post", "path": path, "data": data, "headers": headers})
+        self.calls.append({"operation": "post", "path": _concrete_path(path), "data": data, "headers": headers})
         return self._pop("post")
 
     def patch(
@@ -178,11 +186,11 @@ class RecordingClient:
         data: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> FakeResponse:
-        self.calls.append({"operation": "patch", "path": path, "data": data, "headers": headers})
+        self.calls.append({"operation": "patch", "path": _concrete_path(path), "data": data, "headers": headers})
         return self._pop("patch")
 
     def delete(self, path: str) -> FakeResponse:
-        self.calls.append({"operation": "delete", "path": path})
+        self.calls.append({"operation": "delete", "path": _concrete_path(path)})
         return self._pop("delete")
 
     def request(
@@ -232,6 +240,28 @@ def make_provider(client: RecordingClient | None = None) -> tuple[GitHubProvider
     provider.delete = transport.delete  # type: ignore[assignment]
     provider.graphql = transport.graphql  # type: ignore[assignment]
     return provider, transport
+
+
+def test_request_attaches_scm_route_template_on_error() -> None:
+    # The real request() (not the monkeypatched get/post) must surface the low-cardinality route
+    # template on the raised error, so it is available at error time without emitting the concrete path.
+    client = MagicMock(spec=ApiClient)
+    error_response = MagicMock()
+    error_response.status_code = 404
+    error_response.content = b'{"message":"Not Found"}'
+    error_response.headers = {}
+    error_response.request.headers = {}
+    error_response.request.body = None
+    error_response.request.url = "https://api.github.com/repos/o/r"
+    error_response.request.method = "GET"
+    client.request.return_value = error_response
+
+    provider = GitHubProvider(client, organization_id=1, repository=make_repository(), rate_limiter=NoOpRateLimiter())
+
+    with pytest.raises(ResourceNotFound) as exc_info:
+        provider.request("GET", GitHub.repo(repo="o/r"))
+
+    assert exc_info.value.scm_route == "/repos/{repo}"
 
 
 def expected_repository(raw: dict[str, Any]) -> dict[str, Any]:
@@ -1901,7 +1931,11 @@ class TestGitHubProviderApiClientGraphql:
         result = api_client.graphql("{ viewer { login } }", {})
 
         assert result == {"viewer": {"login": "octocat"}}
-        api_client.post.assert_called_once_with("/graphql", data={"query": "{ viewer { login } }"}, headers={})
+        api_client.post.assert_called_once_with(
+            FormattedRoute(path="/graphql", template="/graphql"),
+            data={"query": "{ viewer { login } }"},
+            headers={},
+        )
 
     def test_includes_variables_when_provided(self) -> None:
         api_client = _make_api_client()
