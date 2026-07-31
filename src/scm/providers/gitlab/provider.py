@@ -14,6 +14,7 @@ from scm.errors import (
     ResourceBadRequest,
     ResourceNotFound,
     SCMCodedError,
+    StaleBranchHead,
     error_class_for_status,
 )
 from scm.helpers import iter_all_pages
@@ -1010,7 +1011,24 @@ class GitLabProvider:
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]:
+        """Compare two commits against their merge base.
+
+        GitLab's compare response carries no ahead/behind counts, so both are
+        derived from the length of the returned commit list. ``include_behind``
+        buys the behind count with a second, reversed compare: with GitLab's
+        default merge-base semantics, ``compare(from=end, to=start)`` returns
+        exactly the commits reachable from ``start_sha`` but not from the merge
+        base. It is opt-in because most callers only want the diff and would
+        otherwise pay double.
+
+        The reverse call is deliberately unpaginated: ``behind_by`` is a count
+        over the whole range, and slicing it to the caller's page would
+        under-report it. Note that ``ahead_by`` has that flaw already, since it
+        counts whatever page of ``commits`` GitLab returned.
+        """
         response = self.get(
             GitLab.compare.format(project=self.project_id),
             params={"from": start_sha, "to": end_sha},
@@ -1018,7 +1036,27 @@ class GitLabProvider:
             request_options=request_options,
         )
         raw = response.json()
-        return make_paginated_result_single(map_commit_comparison, response, raw)
+        behind_by = None
+        if include_behind:
+            behind_by = self._count_commits_behind(start_sha, end_sha, request_options)
+        return make_paginated_result_single(
+            lambda r: map_commit_comparison(r, behind_by=behind_by),
+            response,
+            raw,
+        )
+
+    def _count_commits_behind(
+        self,
+        start_sha: SHA,
+        end_sha: SHA,
+        request_options: RequestOptions | None,
+    ) -> int:
+        response = self.get(
+            GitLab.compare.format(project=self.project_id),
+            params={"from": end_sha, "to": start_sha},
+            request_options=request_options,
+        )
+        return len(response.json().get("commits") or [])
 
     def create_commit(
         self,
@@ -1029,7 +1067,26 @@ class GitLabProvider:
         force: bool = False,
         create_branch: bool = False,
         author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
     ) -> ActionResult[Commit]:
+        """Commit ``actions`` onto ``branch``. See :func:`scm.actions.create_commit`.
+
+        ``expected_head_sha`` is **not atomic here**: GitLab offers no
+        compare-and-swap anywhere on this path (the commits API takes no
+        expected parent, the branches API has no update endpoint, and GraphQL's
+        ``commitCreate`` matches the REST API). The strongest available check is
+        therefore check-then-act — read the head, write, then verify the created
+        commit's parents. A push landing inside that window wins, and
+        ``stale_branch_head`` is raised *after* the commit exists.
+        """
+        if expected_head_sha is not None:
+            if create_branch:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            self._assert_branch_head(branch, expected_head_sha)
+
         data: dict[str, Any] = {
             "branch": branch,
             "commit_message": message,
@@ -1045,7 +1102,26 @@ class GitLabProvider:
             GitLab.commits.format(project=self.project_id),
             data=data,
         )
-        return make_result(map_commit, response.json())
+        raw = response.json()
+        if expected_head_sha is not None:
+            # Absent parents fail closed: an unverifiable write is reported as a
+            # lost lease rather than silently accepted.
+            parent_ids = raw.get("parent_ids") or []
+            if expected_head_sha not in parent_ids:
+                raise StaleBranchHead(
+                    detail=(
+                        f"Commit {raw.get('id')} on branch '{branch}' has parents {parent_ids}, "
+                        f"expected {expected_head_sha}. The commit was created and the branch has moved."
+                    ),
+                )
+        return make_result(map_commit, raw)
+
+    def _assert_branch_head(self, branch: BranchName, expected_head_sha: SHA) -> None:
+        head_sha = self.get_branch(branch)["data"]["sha"]
+        if head_sha != expected_head_sha:
+            raise StaleBranchHead(
+                detail=f"Branch '{branch}' is at {head_sha}, expected {expected_head_sha}.",
+            )
 
     def get_pull_request_files(
         self,
@@ -1720,12 +1796,16 @@ def map_commit_action(
     }
 
 
-def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
-    return CommitComparison(
+def map_commit_comparison(raw: dict[str, Any], *, behind_by: int | None = None) -> CommitComparison:
+    """Map a GitLab compare response. ``behind_by`` comes from a separate call, so it is passed in."""
+    mapped = CommitComparison(
         ahead_by=len(raw.get("commits", [])),
         commits=[map_commit(c) for c in raw.get("commits", [])],
         diff=[map_commit_diff(d) for d in raw.get("diffs", [])],
     )
+    if behind_by is not None:
+        mapped["behind_by"] = behind_by
+    return mapped
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:

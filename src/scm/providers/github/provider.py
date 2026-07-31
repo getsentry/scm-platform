@@ -14,7 +14,9 @@ from scm.errors import (
     ReadmeNotFound,
     ResourceBadRequest,
     ResourceNotFound,
+    ResourceUnprocessableContent,
     SCMCodedError,
+    StaleBranchHead,
     UnexpectedResponseFormat,
     error_class_for_status,
 )
@@ -925,6 +927,13 @@ class GitHubProvider:
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(f"/repos/{self.repository['name']}/git/refs/heads/{branch}")
 
+    def _assert_branch_head(self, branch: BranchName, expected_head_sha: SHA) -> None:
+        head_sha = self.get_branch(branch)["data"]["sha"]
+        if head_sha != expected_head_sha:
+            raise StaleBranchHead(
+                detail=f"Branch '{branch}' is at {head_sha}, expected {expected_head_sha}.",
+            )
+
     def get_git_ref(
         self,
         ref: str,
@@ -1177,7 +1186,10 @@ class GitHubProvider:
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]:
+        """Compare two commits. ``include_behind`` is a no-op: GitHub always returns ``behind_by``."""
         response = self.get(
             f"/repos/{self.repository['name']}/compare/{start_sha}...{end_sha}",
             pagination=pagination,
@@ -1194,7 +1206,26 @@ class GitHubProvider:
         force: bool = False,
         create_branch: bool = False,
         author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
     ) -> ActionResult[Commit]:
+        """Commit ``actions`` onto ``branch``. See :func:`scm.actions.create_commit`.
+
+        ``expected_head_sha`` is enforced twice, and both checks earn their
+        keep. The pre-check runs before any write, so a lost lease leaves no
+        orphaned blobs or commit objects behind, and it is the only guard that
+        catches a branch *rewound* to an ancestor of ``expected_head_sha`` —
+        the ref update would accept that as a legitimate fast-forward. The
+        fast-forward-only ref update is then the atomic guard, closing the race
+        the pre-check cannot.
+        """
+        if expected_head_sha is not None:
+            if create_branch:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            self._assert_branch_head(branch, expected_head_sha)
+
         tree_entries: list[InputTreeEntry] = []
         for action in actions:
             if isinstance(action, WriteCommitAction):
@@ -1266,7 +1297,16 @@ class GitHubProvider:
         if create_branch:
             self.create_branch(branch, new_commit["data"]["sha"])
         else:
-            self.update_branch(branch, new_commit["data"]["sha"], force=force)
+            try:
+                self.update_branch(branch, new_commit["data"]["sha"], force=force)
+            except ResourceUnprocessableContent as e:
+                if expected_head_sha is None:
+                    raise
+                # The commit and tree are already known-valid, so GitHub rejecting
+                # the ref update means it would not have been a fast-forward.
+                raise StaleBranchHead(
+                    detail=f"Branch '{branch}' moved off {expected_head_sha} before the commit could be applied.",
+                ) from e
 
         raw = new_commit["raw"]["data"]
         return ActionResult(
@@ -2243,22 +2283,38 @@ def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
     )
 
 
+def _set_commit_logins(mapped: Commit | PullRequestCommit, raw: dict[str, Any]) -> None:
+    """Copy the account logins GitHub attributed a commit to onto ``mapped``.
+
+    The ``author``/``committer`` keys *alongside* ``commit`` hold GitHub user
+    objects, as opposed to the git identities nested *under* ``commit``. They
+    are null for commits whose email matches no GitHub account, in which case
+    the key is left off rather than set to ``None``.
+    """
+    if author_login := (raw.get("author") or {}).get("login"):
+        mapped["author_login"] = author_login
+    if committer_login := (raw.get("committer") or {}).get("login"):
+        mapped["committer_login"] = committer_login
+
+
 def map_commit(raw: dict[str, Any]) -> Commit:
     commit = raw.get("commit", {})
     stats = raw.get("stats") or {}
-    return Commit(
+    mapped = Commit(
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
+    _set_commit_logins(mapped, raw)
+    return mapped
 
 
 def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
     commit = raw.get("commit", {})
     stats = raw.get("stats") or {}
-    return CommitWithChanges(
+    mapped = CommitWithChanges(
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
@@ -2266,6 +2322,8 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
+    _set_commit_logins(mapped, raw)
+    return mapped
 
 
 def map_tree_entry(raw_entry: dict[str, Any]) -> TreeEntry:
@@ -2356,11 +2414,13 @@ def map_pull_request_file(raw_file: dict[str, Any]) -> PullRequestFile:
 
 def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
     raw_author = raw.get("commit", {}).get("author")
-    return PullRequestCommit(
+    mapped = PullRequestCommit(
         sha=raw["sha"],
         message=raw.get("commit", {}).get("message", ""),
         author=map_commit_author(raw_author),
     )
+    _set_commit_logins(mapped, raw)
+    return mapped
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:

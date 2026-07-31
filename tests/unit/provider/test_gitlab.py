@@ -13602,6 +13602,186 @@ def test_create_commit_omits_author_when_not_provided(client, provider: GitLabPr
     assert "author_email" not in call.kwargs["data"]
 
 
+def _make_gitlab_commit(sha: str, parent_ids: list[str] | None = None) -> dict[str, Any]:
+    return {
+        "id": sha,
+        "short_id": sha[:8],
+        "created_at": "2026-03-05T12:15:50.000+01:00",
+        "parent_ids": parent_ids if parent_ids is not None else [],
+        "title": "msg",
+        "message": "msg",
+        "author_name": "u",
+        "author_email": "u@example.com",
+        "authored_date": "2026-03-05T12:15:50.000+01:00",
+        "committer_name": "u",
+        "committer_email": "u@example.com",
+        "committed_date": "2026-03-05T12:15:50.000+01:00",
+        "web_url": f"https://gitlab.com/test/-/commit/{sha}",
+        "stats": {"additions": 0, "deletions": 0, "total": 0},
+    }
+
+
+def _make_gitlab_compare(commit_count: int) -> dict[str, Any]:
+    return {
+        "commits": [_make_gitlab_commit(f"c{i}") for i in range(commit_count)],
+        "diffs": [],
+        "compare_timeout": False,
+        "compare_same_ref": commit_count == 0,
+    }
+
+
+@pytest.mark.parametrize(
+    ("ahead", "behind"),
+    [(0, 0), (2, 0), (0, 3), (2, 3)],
+    ids=["identical", "ahead", "behind", "diverged"],
+)
+def test_compare_commits_include_behind_classifies_branch_movement(
+    client, provider: GitLabProvider, ahead: int, behind: int
+):
+    client.request.side_effect = [
+        _make_mock_response(_make_gitlab_compare(ahead)),
+        _make_mock_response(_make_gitlab_compare(behind)),
+    ]
+
+    result = provider.compare_commits("last_pushed_sha", "head_sha", include_behind=True)
+
+    assert result["data"]["ahead_by"] == ahead
+    assert result["data"]["behind_by"] == behind
+    forward, reverse = client.request.call_args_list
+    assert forward.kwargs["params"] == {"from": "last_pushed_sha", "to": "head_sha"}
+    assert reverse.kwargs["params"] == {"from": "head_sha", "to": "last_pushed_sha"}
+
+
+def test_compare_commits_omits_behind_by_and_the_reverse_call_by_default(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_make_gitlab_compare(2))
+
+    result = provider.compare_commits("last_pushed_sha", "head_sha")
+
+    assert result["data"]["ahead_by"] == 2
+    assert "behind_by" not in result["data"]
+    assert client.request.call_count == 1
+
+
+def test_compare_commits_reverse_call_is_not_paginated(client, provider: GitLabProvider):
+    client.request.side_effect = [
+        _make_mock_response(_make_gitlab_compare(1)),
+        _make_mock_response(_make_gitlab_compare(1)),
+    ]
+
+    provider.compare_commits("a", "b", pagination={"cursor": "2", "per_page": 10}, include_behind=True)
+
+    forward, reverse = client.request.call_args_list
+    assert forward.kwargs["params"]["page"] == "2"
+    assert "page" not in reverse.kwargs["params"]
+
+
+def test_commit_mapping_omits_account_logins(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response([_make_gitlab_commit("abc")])
+
+    result = provider.get_commits()
+
+    # GitLab's commit payloads carry git identities only, with no user object to
+    # resolve to an account.
+    assert "author_login" not in result["data"][0]
+    assert "committer_login" not in result["data"][0]
+
+
+def test_create_commit_with_expected_head_sha_commits_when_branch_head_matches(client, provider: GitLabProvider):
+    client.request.side_effect = [
+        _make_mock_response({"name": "topic", "commit": {"id": "parent"}}),
+        _make_mock_response(_make_gitlab_commit("newsha", parent_ids=["parent"])),
+    ]
+
+    result = provider.create_commit(
+        branch="topic",
+        parent_sha="parent",
+        message="msg",
+        actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        expected_head_sha="parent",
+    )
+
+    assert result["data"]["id"] == "newsha"
+    branch_read, commit_write = client.request.call_args_list
+    assert branch_read.kwargs["path"] == "/projects/79787061/repository/branches/topic"
+    assert commit_write.kwargs["method"] == "POST"
+
+
+def test_create_commit_with_expected_head_sha_raises_before_writing_when_branch_head_moved(
+    client, provider: GitLabProvider
+):
+    client.request.return_value = _make_mock_response({"name": "topic", "commit": {"id": "someone_elses_sha"}})
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit(
+            branch="topic",
+            parent_sha="parent",
+            message="msg",
+            actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+            expected_head_sha="parent",
+        )
+
+    assert exc_info.value.code == "stale_branch_head"
+    assert client.request.call_count == 1
+
+
+def test_create_commit_with_expected_head_sha_raises_after_writing_when_parent_is_unexpected(
+    client, provider: GitLabProvider
+):
+    client.request.side_effect = [
+        _make_mock_response({"name": "topic", "commit": {"id": "parent"}}),
+        _make_mock_response(_make_gitlab_commit("newsha", parent_ids=["someone_elses_sha"])),
+    ]
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit(
+            branch="topic",
+            parent_sha="parent",
+            message="msg",
+            actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+            expected_head_sha="parent",
+        )
+
+    assert exc_info.value.code == "stale_branch_head"
+    # The check is not atomic: the commit was created before the mismatch was
+    # detected, and cannot be taken back.
+    assert client.request.call_args.kwargs["method"] == "POST"
+
+
+def test_create_commit_with_expected_head_sha_raises_when_parents_are_unverifiable(client, provider: GitLabProvider):
+    created = _make_gitlab_commit("newsha")
+    del created["parent_ids"]
+    client.request.side_effect = [
+        _make_mock_response({"name": "topic", "commit": {"id": "parent"}}),
+        _make_mock_response(created),
+    ]
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit(
+            branch="topic",
+            parent_sha="parent",
+            message="msg",
+            actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+            expected_head_sha="parent",
+        )
+
+    assert exc_info.value.code == "stale_branch_head"
+
+
+def test_create_commit_rejects_expected_head_sha_combined_with_create_branch(client, provider: GitLabProvider):
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit(
+            branch="topic",
+            parent_sha="parent",
+            message="msg",
+            actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+            create_branch=True,
+            expected_head_sha="parent",
+        )
+
+    assert exc_info.value.code == "resource_bad_request"
+    assert client.request.call_count == 0
+
+
 @pytest.mark.parametrize(
     "head, expected",
     [

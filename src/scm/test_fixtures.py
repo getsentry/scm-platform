@@ -273,9 +273,16 @@ def make_github_commit(
     author_date: str = "2026-02-04T10:00:00Z",
     files: list[dict[str, Any]] | None = None,
     stats: dict[str, int] | None = None,
+    author_login: str | None = None,
+    committer_login: str | None = None,
 ) -> dict[str, Any]:
-    """Factory for GitHub commit API responses."""
-    return {
+    """Factory for GitHub commit API responses.
+
+    ``author_login``/``committer_login`` populate the top-level GitHub *user*
+    objects, which GitHub omits (sends as null) for commits it cannot attribute
+    to an account.
+    """
+    result: dict[str, Any] = {
         "sha": sha,
         "commit": {
             "message": message,
@@ -288,6 +295,9 @@ def make_github_commit(
         "files": files if files is not None else [make_github_commit_file()],
         "stats": stats if stats is not None else {"additions": 1, "deletions": 0, "total": 1},
     }
+    result["author"] = {"login": author_login} if author_login is not None else None
+    result["committer"] = {"login": committer_login} if committer_login is not None else None
+    return result
 
 
 def make_github_commit_comparison(
@@ -379,6 +389,7 @@ def make_github_pull_request_commit(
     author_email: str = "test@example.com",
     author_date: str = "2026-02-04T10:00:00Z",
     author_login: str | None = "testuser",
+    committer_login: str | None = None,
 ) -> dict[str, Any]:
     """Factory for GitHub pull request commit API responses."""
     result: dict[str, Any] = {
@@ -392,10 +403,8 @@ def make_github_pull_request_commit(
             },
         },
     }
-    if author_login is not None:
-        result["author"] = {"login": author_login}
-    else:
-        result["author"] = None
+    result["author"] = {"login": author_login} if author_login is not None else None
+    result["committer"] = {"login": committer_login} if committer_login is not None else None
     return result
 
 
@@ -1359,6 +1368,8 @@ class BaseTestProvider(Provider):
         end_sha: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]:
         inner = self.get_commit("abc123")
         return PaginatedActionResult(
@@ -1391,6 +1402,8 @@ class BaseTestProvider(Provider):
         force: bool = False,
         create_branch: bool = False,
         author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: str | None = None,
     ) -> ActionResult[Commit]:
         return ActionResult(
             data=Commit(

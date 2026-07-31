@@ -398,11 +398,27 @@ class CommitFile(TypedDict):
 
 
 class Commit(TypedDict):
+    """A commit, with the git identities that signed it and the accounts that own them.
+
+    ``author`` carries the *git* identity (``{name, email, date}``), which is
+    self-asserted and trivially spoofable. ``author_login`` / ``committer_login``
+    carry the service-provider *account* that GitHub attributed the commit to,
+    which is what to test against when a caller needs to tell a bot's commits
+    (e.g. ``"getsantry[bot]"``) from a human's.
+
+    Both login keys are absent when the provider does not attribute the commit
+    to an account: GitLab's commit and compare endpoints carry no user objects
+    at all, so they are never populated there, and GitHub omits them for
+    commits whose email matches no account.
+    """
+
     id: SHA
     message: str
     author: CommitAuthor | None
     additions: int | None
     deletions: int | None
+    author_login: NotRequired[str]
+    committer_login: NotRequired[str]
 
 
 class CommitWithChanges(Commit):
@@ -410,6 +426,20 @@ class CommitWithChanges(Commit):
 
 
 class CommitComparison(TypedDict):
+    """Two commits compared against their merge base.
+
+    ``ahead_by`` counts commits reachable from the end SHA but not from the
+    merge base; ``behind_by`` counts the reverse. Together they classify how the
+    end SHA moved relative to the start SHA: both zero is identical, only
+    ``ahead_by`` is a fast-forward, only ``behind_by`` means the end SHA is an
+    ancestor, and both non-zero means the two have diverged.
+
+    GitHub populates both. GitLab only populates ``behind_by`` when the caller
+    passes ``include_behind=True``, which costs a second request; without it the
+    key is absent and a reset-to-an-ancestor is indistinguishable from
+    identical.
+    """
+
     ahead_by: NotRequired[int]
     behind_by: NotRequired[int]
     commits: list[Commit]
@@ -458,9 +488,13 @@ class PullRequestFile(TypedDict):
 
 
 class PullRequestCommit(TypedDict):
+    """A commit listed on a pull request. See :class:`Commit` for the login fields."""
+
     sha: SHA
     message: str
     author: CommitAuthor | None
+    author_login: NotRequired[str]
+    committer_login: NotRequired[str]
 
 
 class DiffLine(TypedDict, total=False):
@@ -1093,6 +1127,8 @@ class CompareCommitsProtocol(Protocol):
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]: ...
 
 
@@ -1107,6 +1143,8 @@ class CreateCommitProtocol(Protocol):
         force: bool = False,
         create_branch: bool = False,
         author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
     ) -> ActionResult[Commit]: ...
 
 

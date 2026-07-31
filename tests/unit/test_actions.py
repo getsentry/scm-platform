@@ -89,6 +89,8 @@ from scm.actions import (
 from scm.errors import SCMCodedError
 from scm.test_fixtures import BaseTestProvider, SourceCodeManager
 from scm.types import (
+    CompareCommitsProtocol,
+    CreateCommitProtocol,
     CreatePullRequestCommentProtocol,
     DiffLine,
     GetBranchProtocol,
@@ -1190,3 +1192,51 @@ def test_exec_passes_custom_record_count() -> None:
         {"provider": "BaseTestProvider"},
     )
     assert calls[1] == ("sentry.scm.actions.success_by_referrer", 1, {"referrer": "shared"})
+
+
+def test_compare_commits_forwards_include_behind() -> None:
+    recorded: dict[str, Any] = {}
+
+    class RecordingProvider(BaseTestProvider):
+        def compare_commits(self, start_sha, end_sha, pagination=None, request_options=None, *, include_behind=False):
+            recorded["include_behind"] = include_behind
+            return super().compare_commits(start_sha, end_sha, pagination, request_options)
+
+    scm = SourceCodeManager(RecordingProvider())
+    assert isinstance(scm, CompareCommitsProtocol)
+    compare_commits(scm, "aaa", "bbb", include_behind=True)
+
+    assert recorded == {"include_behind": True}
+
+
+def test_create_commit_forwards_expected_head_sha() -> None:
+    recorded: dict[str, Any] = {}
+
+    class RecordingProvider(BaseTestProvider):
+        def create_commit(
+            self,
+            branch,
+            parent_sha,
+            message,
+            actions,
+            force=False,
+            create_branch=False,
+            author=None,
+            *,
+            expected_head_sha=None,
+        ):
+            recorded["expected_head_sha"] = expected_head_sha
+            return super().create_commit(branch, parent_sha, message, actions, force, create_branch, author)
+
+    scm = SourceCodeManager(RecordingProvider())
+    assert isinstance(scm, CreateCommitProtocol)
+    create_commit(
+        scm,
+        branch="main",
+        parent_sha="abc123",
+        message="msg",
+        actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+        expected_head_sha="abc123",
+    )
+
+    assert recorded == {"expected_head_sha": "abc123"}

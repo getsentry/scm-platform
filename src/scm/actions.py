@@ -629,8 +629,17 @@ def compare_commits(
     end_sha: SHA,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
+    *,
+    include_behind: bool = False,
 ) -> PaginatedActionResult[CommitComparison]:
-    return scm.compare_commits(start_sha, end_sha, pagination, request_options)
+    """Compare two commits against their merge base.
+
+    `include_behind` guarantees `behind_by` is populated on every provider, at
+    the cost of a second request on providers that do not return it (GitLab).
+    Pass it when the count matters — telling "the end SHA is an ancestor" from
+    "the two are identical" is impossible without it.
+    """
+    return scm.compare_commits(start_sha, end_sha, pagination, request_options, include_behind=include_behind)
 
 
 def create_commit(
@@ -642,8 +651,41 @@ def create_commit(
     force: bool = False,
     create_branch: bool = False,
     author: CommitAuthorParam | None = None,
+    *,
+    expected_head_sha: SHA | None = None,
 ) -> ActionResult[Commit]:
-    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch, author=author)
+    """Commit `actions` onto `branch`, parented on `parent_sha`.
+
+    `expected_head_sha` takes a lease on the branch: the write is rejected with
+    `stale_branch_head` unless the branch head is still that commit. It is a
+    guard on the *destination*, not a parent selector — pass `parent_sha` to
+    choose the parent. It cannot be combined with `create_branch`, which has no
+    head to lease.
+
+    Atomicity differs by provider, and callers must handle the weaker case:
+
+    - GitHub is atomic. The ref update is fast-forward-only, so a concurrent
+      push makes the whole write fail with nothing committed.
+    - GitLab has no compare-and-swap primitive, so the check is a
+      check-then-act: the head is read before the write and the created
+      commit's parents are verified after it. A push that lands in between
+      still wins, and `stale_branch_head` is then raised *after* the commit
+      exists and the branch has already moved. Treat the error as "the commit
+      landed on an unexpected parent", not as "nothing happened".
+
+    `force=True` downgrades GitHub to GitLab's check-then-act guarantee, since
+    a forced ref update no longer rejects non-fast-forwards.
+    """
+    return scm.create_commit(
+        branch,
+        parent_sha,
+        message,
+        actions,
+        force,
+        create_branch,
+        author=author,
+        expected_head_sha=expected_head_sha,
+    )
 
 
 def get_tree(

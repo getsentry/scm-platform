@@ -18,6 +18,7 @@ from scm.errors import (
     ResourceUnauthorized,
     ResourceUnprocessableContent,
     SCMCodedError,
+    StaleBranchHead,
     UnhandledException,
 )
 from scm.providers.github.provider import (
@@ -353,6 +354,14 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_commit_logins(raw: dict[str, Any]) -> dict[str, str]:
+    return {
+        f"{field}_login": (raw[field] or {})["login"]
+        for field in ("author", "committer")
+        if (raw.get(field) or {}).get("login")
+    }
+
+
 def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
     author = raw["commit"]["author"]
     stats = raw.get("stats") or {}
@@ -366,6 +375,7 @@ def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
         },
         "additions": stats.get("additions"),
         "deletions": stats.get("deletions"),
+        **expected_commit_logins(raw),
     }
 
 
@@ -432,6 +442,7 @@ def expected_pull_request_commit(raw: dict[str, Any]) -> dict[str, Any]:
             "email": author["email"],
             "date": datetime.fromisoformat(author["date"]),
         },
+        **expected_commit_logins(raw),
     }
 
 
@@ -2288,6 +2299,144 @@ def test_create_commit_omits_author_when_not_provided() -> None:
 
     commit_call = [c for c in client.calls if c["path"].endswith("/git/commits") and c["operation"] == "post"][0]
     assert "author" not in commit_call["data"]
+
+
+def _queue_create_commit_chain(client: RecordingClient) -> None:
+    """Queue the low-level git responses a single-file create_commit consumes."""
+    client.queue("get", FakeResponse(make_github_git_commit_object(sha="parent_sha", tree_sha="parent_tree")))
+    client.queue("post", FakeResponse(make_github_git_tree(sha="new_tree_sha")))
+    client.queue(
+        "post",
+        FakeResponse(make_github_git_commit_object(sha="new_commit_sha", tree_sha="new_tree_sha", message="Edits")),
+    )
+    client.queue("patch", FakeResponse(make_github_git_ref(ref="refs/heads/topic", sha="new_commit_sha")))
+
+
+def _create_commit_on_topic(provider: GitHubProvider, **kwargs: Any) -> Any:
+    return provider.create_commit(
+        branch="topic",
+        parent_sha="parent_sha",
+        message="Edits",
+        actions=[WriteCommitAction(action="create", filename="new.md", content="hello", encoding="utf-8")],
+        **kwargs,
+    )
+
+
+def test_create_commit_with_expected_head_sha_commits_when_branch_head_matches() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="parent_sha")))
+    _queue_create_commit_chain(client)
+
+    result = _create_commit_on_topic(provider, expected_head_sha="parent_sha")
+
+    assert result["data"]["id"] == "new_commit_sha"
+    assert client.calls[0]["path"] == "/repos/test-org/test-repo/branches/topic"
+    assert client.calls[-1] == {
+        "operation": "patch",
+        "path": "/repos/test-org/test-repo/git/refs/heads/topic",
+        "data": {"sha": "new_commit_sha", "force": False},
+        "headers": None,
+    }
+
+
+def test_create_commit_with_expected_head_sha_raises_before_writing_when_branch_head_moved() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="someone_elses_sha")))
+
+    with pytest.raises(StaleBranchHead) as exc_info:
+        _create_commit_on_topic(provider, expected_head_sha="parent_sha")
+
+    assert exc_info.value.code == "stale_branch_head"
+    assert "someone_elses_sha" in exc_info.value.detail
+    # The lease is checked before anything is written, so no blob, tree, or
+    # commit object is left behind.
+    assert [c["operation"] for c in client.calls] == ["get"]
+
+
+def test_create_commit_with_expected_head_sha_maps_non_fast_forward_to_stale_branch_head() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="parent_sha")))
+    _queue_create_commit_chain(client)
+    non_fast_forward = ResourceUnprocessableContent(detail="Update is not a fast forward")
+    provider.patch = MagicMock(side_effect=non_fast_forward)  # type: ignore[assignment]
+
+    with pytest.raises(StaleBranchHead) as exc_info:
+        _create_commit_on_topic(provider, expected_head_sha="parent_sha")
+
+    assert exc_info.value.code == "stale_branch_head"
+    assert exc_info.value.__cause__ is non_fast_forward
+
+
+def test_create_commit_without_expected_head_sha_propagates_non_fast_forward() -> None:
+    provider, client = make_provider()
+    _queue_create_commit_chain(client)
+    provider.patch = MagicMock(  # type: ignore[assignment]
+        side_effect=ResourceUnprocessableContent(detail="Update is not a fast forward"),
+    )
+
+    with pytest.raises(ResourceUnprocessableContent):
+        _create_commit_on_topic(provider)
+
+
+def test_create_commit_rejects_expected_head_sha_combined_with_create_branch() -> None:
+    provider, client = make_provider()
+
+    with pytest.raises(ResourceBadRequest):
+        _create_commit_on_topic(provider, create_branch=True, expected_head_sha="parent_sha")
+
+    assert client.calls == []
+
+
+def test_compare_commits_maps_account_logins_when_github_attributes_the_commits() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "get",
+        FakeResponse(
+            make_github_commit_comparison(
+                commits=[make_github_commit(author_login="getsantry[bot]", committer_login="web-flow")],
+            )
+        ),
+    )
+
+    result = provider.compare_commits("aaa", "bbb")
+
+    commit = result["data"]["commits"][0]
+    assert commit["author_login"] == "getsantry[bot]"
+    assert commit["committer_login"] == "web-flow"
+
+
+def test_compare_commits_omits_account_logins_when_github_cannot_attribute_the_commits() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_commit_comparison(commits=[make_github_commit()])))
+
+    result = provider.compare_commits("aaa", "bbb")
+
+    commit = result["data"]["commits"][0]
+    assert "author_login" not in commit
+    assert "committer_login" not in commit
+
+
+def test_get_commit_maps_account_logins() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_commit(author_login="getsantry[bot]")))
+
+    result = provider.get_commit("abc123")
+
+    assert result["data"]["author_login"] == "getsantry[bot]"
+    assert "committer_login" not in result["data"]
+
+
+def test_get_pull_request_commits_maps_account_logins() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "get",
+        FakeResponse([make_github_pull_request_commit(author_login="getsantry[bot]", committer_login="web-flow")]),
+    )
+
+    result = provider.get_pull_request_commits("42")
+
+    assert result["data"][0]["author_login"] == "getsantry[bot]"
+    assert result["data"][0]["committer_login"] == "web-flow"
 
 
 def test_create_pull_request_draft_raises_coded_error_when_drafts_not_supported() -> None:

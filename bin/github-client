@@ -63,7 +63,7 @@ Commands:
     get-readme --ref <ref>
     get-pull-request-template --ref <ref>
     get-file-url <path> <sha> [--start-line <n>] [--end-line <n>]
-    compare-commits <start_sha> <end_sha>
+    compare-commits <start_sha> <end_sha> [--include-behind]
     create-commit <branch> <parent_sha> <message>
         [--create <filename>=<content> ...]
         [--update <filename>=<content> ...]
@@ -73,6 +73,7 @@ Commands:
         [--force]
         [--create-branch]
         [--author-name <name> --author-email <email>]
+        [--expected-head-sha <sha>]
     get-repository
     list-repositories
     get-repository-assignees
@@ -466,6 +467,7 @@ def main() -> None:
     p = sub.add_parser("compare-commits")
     p.add_argument("start_sha")
     p.add_argument("end_sha")
+    p.add_argument("--include-behind", action="store_true", dest="include_behind")
 
     p = sub.add_parser("create-commit")
     p.add_argument("branch")
@@ -480,6 +482,7 @@ def main() -> None:
     p.add_argument("--create-branch", action="store_true", dest="create_branch")
     p.add_argument("--author-name", dest="author_name", default=None)
     p.add_argument("--author-email", dest="author_email", default=None)
+    p.add_argument("--expected-head-sha", dest="expected_head_sha", default=None)
 
     sub.add_parser("get-repository")
     sub.add_parser("list-repositories")
@@ -804,7 +807,7 @@ def main() -> None:
 
     elif args.command == "compare-commits":
         assert isinstance(scm, CompareCommitsProtocol)
-        dump(scm.compare_commits(args.start_sha, args.end_sha))
+        dump(scm.compare_commits(args.start_sha, args.end_sha, include_behind=args.include_behind))
 
     elif args.command == "create-commit":
         assert isinstance(scm, CreateCommitProtocol)
@@ -837,6 +840,7 @@ def main() -> None:
                 force=args.force,
                 create_branch=args.create_branch,
                 author=author,
+                expected_head_sha=args.expected_head_sha,
             )
         )
 
