@@ -14978,3 +14978,25 @@ def test_create_review_batch_forwards_context_line_numbers(client, provider: Git
     position = _discussion_data(client)["position"]
     assert position["old_line"] == 5
     assert position["new_line"] == 7
+
+
+def test_commit_mapping_omits_account_logins(client, provider: GitLabProvider):
+    # GitLab's commit payloads carry git identities only, with no user object to
+    # resolve to an account, so the login keys are never populated.
+    client.request.return_value = _make_mock_response(
+        [
+            {
+                "id": "abc",
+                "message": "msg",
+                "author_name": "u",
+                "author_email": "u@example.com",
+                "created_at": "2026-03-05T12:15:50.000+01:00",
+                "stats": {"additions": 0, "deletions": 0, "total": 0},
+            }
+        ]
+    )
+
+    result = provider.get_commits()
+
+    assert "author_login" not in result["data"][0]
+    assert "committer_login" not in result["data"][0]
