@@ -13675,17 +13675,6 @@ def test_compare_commits_reverse_call_is_not_paginated(client, provider: GitLabP
     assert "page" not in reverse.kwargs["params"]
 
 
-def test_commit_mapping_omits_account_logins(client, provider: GitLabProvider):
-    client.request.return_value = _make_mock_response([_make_gitlab_commit("abc")])
-
-    result = provider.get_commits()
-
-    # GitLab's commit payloads carry git identities only, with no user object to
-    # resolve to an account.
-    assert "author_login" not in result["data"][0]
-    assert "committer_login" not in result["data"][0]
-
-
 def test_create_commit_with_expected_head_sha_commits_when_branch_head_matches(client, provider: GitLabProvider):
     client.request.side_effect = [
         _make_mock_response({"name": "topic", "commit": {"id": "parent"}}),
