@@ -659,8 +659,9 @@ def create_commit(
     `expected_head_sha` takes a lease on the branch: the write is rejected with
     `stale_branch_head` unless the branch head is still that commit. It is a
     guard on the *destination*, not a parent selector — pass `parent_sha` to
-    choose the parent. It cannot be combined with `create_branch`, which has no
-    head to lease.
+    choose the parent. It cannot be combined with `create_branch` (no head to
+    lease) or `force` (a forced update overwrites the head unconditionally and
+    cannot honor the lease); either combination raises `resource_bad_request`.
 
     Atomicity differs by provider, and callers must handle the weaker case:
 
@@ -672,9 +673,6 @@ def create_commit(
       still wins, and `stale_branch_head` is then raised *after* the commit
       exists and the branch has already moved. Treat the error as "the commit
       landed on an unexpected parent", not as "nothing happened".
-
-    `force=True` downgrades GitHub to GitLab's check-then-act guarantee, since
-    a forced ref update no longer rejects non-fast-forwards.
     """
     return scm.create_commit(
         branch,

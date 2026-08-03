@@ -13782,6 +13782,23 @@ def test_create_commit_rejects_expected_head_sha_combined_with_create_branch(cli
     assert client.request.call_count == 0
 
 
+def test_create_commit_rejects_expected_head_sha_combined_with_force(client, provider: GitLabProvider):
+    # A forced update overwrites the head unconditionally, so it cannot honor
+    # the lease. Rejecting keeps the contract identical across providers.
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_commit(
+            branch="topic",
+            parent_sha="parent",
+            message="msg",
+            actions=[WriteCommitAction(action="create", filename="f.py", content="x", encoding="utf-8")],
+            force=True,
+            expected_head_sha="parent",
+        )
+
+    assert exc_info.value.code == "resource_bad_request"
+    assert client.request.call_count == 0
+
+
 @pytest.mark.parametrize(
     "head, expected",
     [

@@ -1212,17 +1212,24 @@ class GitHubProvider:
         """Commit ``actions`` onto ``branch``. See :func:`scm.actions.create_commit`.
 
         ``expected_head_sha`` is enforced twice, and both checks earn their
-        keep. The pre-check runs before any write, so a lost lease leaves no
-        orphaned blobs or commit objects behind, and it is the only guard that
-        catches a branch *rewound* to an ancestor of ``expected_head_sha`` —
-        the ref update would accept that as a legitimate fast-forward. The
-        fast-forward-only ref update is then the atomic guard, closing the race
-        the pre-check cannot.
+        keep. The pre-check runs before any write, so a head that has already
+        moved is rejected before a single blob, tree, or commit object is
+        created; it is also the only guard that catches a branch *rewound* to
+        an ancestor of ``expected_head_sha``, which the ref update would accept
+        as a legitimate fast-forward. The fast-forward-only ref update is then
+        the atomic guard, closing the race the pre-check cannot — a push that
+        lands in that window is still rejected, though the objects created
+        before it are left orphaned for GitHub to garbage-collect.
         """
         if expected_head_sha is not None:
             if create_branch:
                 raise ResourceBadRequest(
                     detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            if force:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'force': a forced ref update overwrites the "
+                    "head unconditionally and cannot honor the lease.",
                 )
             self._assert_branch_head(branch, expected_head_sha)
 

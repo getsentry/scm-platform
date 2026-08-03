@@ -2387,6 +2387,17 @@ def test_create_commit_rejects_expected_head_sha_combined_with_create_branch() -
     assert client.calls == []
 
 
+def test_create_commit_rejects_expected_head_sha_combined_with_force() -> None:
+    # A forced ref update overwrites the head unconditionally, so it cannot
+    # honor the lease. Rejecting keeps the contract identical across providers.
+    provider, client = make_provider()
+
+    with pytest.raises(ResourceBadRequest):
+        _create_commit_on_topic(provider, force=True, expected_head_sha="parent_sha")
+
+    assert client.calls == []
+
+
 def test_compare_commits_maps_account_logins_when_github_attributes_the_commits() -> None:
     provider, client = make_provider()
     client.queue(

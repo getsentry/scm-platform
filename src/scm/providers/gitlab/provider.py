@@ -1085,6 +1085,11 @@ class GitLabProvider:
                 raise ResourceBadRequest(
                     detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
                 )
+            if force:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'force': a forced update overwrites the "
+                    "head unconditionally and cannot honor the lease.",
+                )
             self._assert_branch_head(branch, expected_head_sha)
 
         data: dict[str, Any] = {
