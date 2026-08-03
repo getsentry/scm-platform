@@ -2347,6 +2347,8 @@ def test_create_commit_with_expected_head_sha_maps_non_fast_forward_to_stale_bra
     provider, client = make_provider()
     client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="parent_sha")))
     _queue_create_commit_chain(client)
+    # The re-read after the 422 confirms the head genuinely moved.
+    client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="someone_elses_sha")))
     non_fast_forward = ResourceUnprocessableContent(detail="Update is not a fast forward")
     provider.patch = MagicMock(side_effect=non_fast_forward)  # type: ignore[assignment]
 
@@ -2354,7 +2356,27 @@ def test_create_commit_with_expected_head_sha_maps_non_fast_forward_to_stale_bra
         _create_commit_on_topic(provider, expected_head_sha="parent_sha")
 
     assert exc_info.value.code == "stale_branch_head"
+    assert "someone_elses_sha" in exc_info.value.detail
     assert exc_info.value.__cause__ is non_fast_forward
+
+
+def test_create_commit_with_expected_head_sha_propagates_422_when_head_is_unchanged() -> None:
+    # GitHub returns 422 for more than a lost lease — a protected-branch/ruleset
+    # denial, or a parent_sha that does not descend from the head. When the head
+    # is demonstrably unchanged, the original error must surface as itself rather
+    # than as a spurious stale-head.
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="parent_sha")))
+    _queue_create_commit_chain(client)
+    # The re-read after the 422 shows the head has not moved.
+    client.queue("get", FakeResponse(make_github_branch(branch="topic", sha="parent_sha")))
+    not_a_lease = ResourceUnprocessableContent(detail="Protected branch update failed")
+    provider.patch = MagicMock(side_effect=not_a_lease)  # type: ignore[assignment]
+
+    with pytest.raises(ResourceUnprocessableContent) as exc_info:
+        _create_commit_on_topic(provider, expected_head_sha="parent_sha")
+
+    assert exc_info.value is not_a_lease
 
 
 def test_create_commit_without_expected_head_sha_propagates_non_fast_forward() -> None:

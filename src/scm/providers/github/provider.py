@@ -1309,10 +1309,16 @@ class GitHubProvider:
             except ResourceUnprocessableContent as e:
                 if expected_head_sha is None:
                     raise
-                # The commit and tree are already known-valid, so GitHub rejecting
-                # the ref update means it would not have been a fast-forward.
+                # A 422 on the fast-forward-only ref update only means a lost
+                # lease if the head actually moved. GitHub also returns 422 for a
+                # protected-branch/ruleset denial or a parent_sha that does not
+                # descend from the head; re-read so those surface as themselves
+                # rather than masquerading as a stale head.
+                current_head = self.get_branch(branch)["data"]["sha"]
+                if current_head == expected_head_sha:
+                    raise
                 raise StaleBranchHead(
-                    detail=f"Branch '{branch}' moved off {expected_head_sha} before the commit could be applied.",
+                    detail=f"Branch '{branch}' is at {current_head}, expected {expected_head_sha}.",
                 ) from e
 
         raw = new_commit["raw"]["data"]
