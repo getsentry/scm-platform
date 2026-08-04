@@ -398,11 +398,27 @@ class CommitFile(TypedDict):
 
 
 class Commit(TypedDict):
+    """A commit, with the git identities that signed it and the accounts that own them.
+
+    ``author`` carries the *git* identity (``{name, email, date}``), which is
+    self-asserted and trivially spoofable. ``author_login`` / ``committer_login``
+    carry the service-provider *account* that GitHub attributed the commit to,
+    which is what to test against when a caller needs to tell a bot's commits
+    (e.g. ``"getsantry[bot]"``) from a human's.
+
+    Both login keys are absent when the provider does not attribute the commit
+    to an account: GitLab's commit and compare endpoints carry no user objects
+    at all, so they are never populated there, and GitHub omits them for
+    commits whose email matches no account.
+    """
+
     id: SHA
     message: str
     author: CommitAuthor | None
     additions: int | None
     deletions: int | None
+    author_login: NotRequired[str]
+    committer_login: NotRequired[str]
 
 
 class CommitWithChanges(Commit):
@@ -472,9 +488,13 @@ class PullRequestFile(TypedDict):
 
 
 class PullRequestCommit(TypedDict):
+    """A commit listed on a pull request. See :class:`Commit` for the login fields."""
+
     sha: SHA
     message: str
     author: CommitAuthor | None
+    author_login: NotRequired[str]
+    committer_login: NotRequired[str]
 
 
 class DiffLine(TypedDict, total=False):
