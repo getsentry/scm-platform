@@ -2243,22 +2243,38 @@ def map_commit_comparison(raw: dict[str, Any]) -> CommitComparison:
     )
 
 
+def _set_commit_logins(mapped: Commit | PullRequestCommit, raw: dict[str, Any]) -> None:
+    """Copy the account logins GitHub attributed a commit to onto ``mapped``.
+
+    The ``author``/``committer`` keys *alongside* ``commit`` hold GitHub user
+    objects, as opposed to the git identities nested *under* ``commit``. They
+    are null for commits whose email matches no GitHub account, in which case
+    the key is left off rather than set to ``None``.
+    """
+    if author_login := (raw.get("author") or {}).get("login"):
+        mapped["author_login"] = author_login
+    if committer_login := (raw.get("committer") or {}).get("login"):
+        mapped["committer_login"] = committer_login
+
+
 def map_commit(raw: dict[str, Any]) -> Commit:
     commit = raw.get("commit", {})
     stats = raw.get("stats") or {}
-    return Commit(
+    mapped = Commit(
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
+    _set_commit_logins(mapped, raw)
+    return mapped
 
 
 def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
     commit = raw.get("commit", {})
     stats = raw.get("stats") or {}
-    return CommitWithChanges(
+    mapped = CommitWithChanges(
         id=raw["sha"],
         message=commit.get("message", ""),
         author=map_commit_author(commit.get("author")),
@@ -2266,6 +2282,8 @@ def map_commit_with_changes(raw: dict[str, Any]) -> CommitWithChanges:
         additions=stats.get("additions"),
         deletions=stats.get("deletions"),
     )
+    _set_commit_logins(mapped, raw)
+    return mapped
 
 
 def map_tree_entry(raw_entry: dict[str, Any]) -> TreeEntry:
@@ -2356,11 +2374,13 @@ def map_pull_request_file(raw_file: dict[str, Any]) -> PullRequestFile:
 
 def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
     raw_author = raw.get("commit", {}).get("author")
-    return PullRequestCommit(
+    mapped = PullRequestCommit(
         sha=raw["sha"],
         message=raw.get("commit", {}).get("message", ""),
         author=map_commit_author(raw_author),
     )
+    _set_commit_logins(mapped, raw)
+    return mapped
 
 
 def map_pull_request(raw: dict[str, Any]) -> PullRequest:

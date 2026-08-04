@@ -353,6 +353,14 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def expected_commit_logins(raw: dict[str, Any]) -> dict[str, str]:
+    return {
+        f"{field}_login": (raw[field] or {})["login"]
+        for field in ("author", "committer")
+        if (raw.get(field) or {}).get("login")
+    }
+
+
 def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
     author = raw["commit"]["author"]
     stats = raw.get("stats") or {}
@@ -366,6 +374,7 @@ def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
         },
         "additions": stats.get("additions"),
         "deletions": stats.get("deletions"),
+        **expected_commit_logins(raw),
     }
 
 
@@ -432,6 +441,7 @@ def expected_pull_request_commit(raw: dict[str, Any]) -> dict[str, Any]:
             "email": author["email"],
             "date": datetime.fromisoformat(author["date"]),
         },
+        **expected_commit_logins(raw),
     }
 
 
@@ -3369,6 +3379,58 @@ def test_request_maps_status_code_to_error(
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.detail == '{"message":"upstream said no"}'
+
+
+def test_compare_commits_maps_account_logins_when_github_attributes_the_commits() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "get",
+        FakeResponse(
+            make_github_commit_comparison(
+                commits=[make_github_commit(author_login="getsantry[bot]", committer_login="web-flow")],
+            )
+        ),
+    )
+
+    result = provider.compare_commits("aaa", "bbb")
+
+    commit = result["data"]["commits"][0]
+    assert commit["author_login"] == "getsantry[bot]"
+    assert commit["committer_login"] == "web-flow"
+
+
+def test_compare_commits_omits_account_logins_when_github_cannot_attribute_the_commits() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_commit_comparison(commits=[make_github_commit()])))
+
+    result = provider.compare_commits("aaa", "bbb")
+
+    commit = result["data"]["commits"][0]
+    assert "author_login" not in commit
+    assert "committer_login" not in commit
+
+
+def test_get_commit_maps_account_logins() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_commit(author_login="getsantry[bot]")))
+
+    result = provider.get_commit("abc123")
+
+    assert result["data"]["author_login"] == "getsantry[bot]"
+    assert "committer_login" not in result["data"]
+
+
+def test_get_pull_request_commits_maps_account_logins() -> None:
+    provider, client = make_provider()
+    client.queue(
+        "get",
+        FakeResponse([make_github_pull_request_commit(author_login="getsantry[bot]", committer_login="web-flow")]),
+    )
+
+    result = provider.get_pull_request_commits("42")
+
+    assert result["data"][0]["author_login"] == "getsantry[bot]"
+    assert result["data"][0]["committer_login"] == "web-flow"
 
 
 def test_public_methods_are_accounted_for() -> None:
