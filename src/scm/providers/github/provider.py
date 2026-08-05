@@ -1216,10 +1216,12 @@ class GitHubProvider:
         moved is rejected before a single blob, tree, or commit object is
         created; it is also the only guard that catches a branch *rewound* to
         an ancestor of ``expected_head_sha``, which the ref update would accept
-        as a legitimate fast-forward. The fast-forward-only ref update is then
-        the atomic guard, closing the race the pre-check cannot — a push that
-        lands in that window is still rejected, though the objects created
-        before it are left orphaned for GitHub to garbage-collect.
+        as a legitimate fast-forward. The fast-forward-only ref update then
+        closes most of the race the pre-check cannot: a push that *adds*
+        commits in that window is still rejected, though the objects created
+        before it are left orphaned for GitHub to garbage-collect. A rewind
+        landing in that same window stays undetectable on this path — see
+        :func:`scm.actions.create_commit` for what callers can rely on.
         """
         if expected_head_sha is not None:
             if create_branch:

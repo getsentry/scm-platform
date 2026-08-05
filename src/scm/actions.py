@@ -665,8 +665,18 @@ def create_commit(
 
     Atomicity differs by provider, and callers must handle the weaker case:
 
-    - GitHub is atomic. The ref update is fast-forward-only, so a concurrent
-      push makes the whole write fail with nothing committed.
+    - GitHub is atomic against a concurrent push that *adds* commits: the ref
+      update is fast-forward-only, so the new commit no longer descends from
+      the head and the update is rejected. Nothing lands on the branch, though
+      the blob, tree, and commit objects created beforehand are left orphaned.
+      It is *not* atomic against a branch *rewound* to an ancestor of
+      `expected_head_sha`: the new commit still descends from the rewound head,
+      so the ref update accepts it as a legitimate fast-forward and the rewind
+      is silently undone. The pre-write head check catches that case, but only
+      up to the moment it runs — a rewind landing between the check and the ref
+      update is accepted with no error. Closing that gap needs a real
+      compare-and-swap, which on GitHub means the GraphQL
+      `createCommitOnBranch` mutation and its `expectedHeadOid`.
     - GitLab has no compare-and-swap primitive, so the check is a
       check-then-act: the head is read before the write and the created
       commit's parents are verified after it. A push that lands in between
