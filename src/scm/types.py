@@ -438,6 +438,12 @@ class CommitComparison(TypedDict):
     passes ``include_behind=True``, which costs a second request; without it the
     key is absent and a reset-to-an-ancestor is indistinguishable from
     identical.
+
+    Where the counts are derived from ``commits`` rather than read off the
+    response (GitLab), they inherit that list's limits: they cannot be requested
+    alongside ``pagination``, and they saturate rather than erroring once the
+    provider caps the list. Treat a count that has hit the cap as "at least
+    this many", not as an exact answer.
     """
 
     ahead_by: NotRequired[int]

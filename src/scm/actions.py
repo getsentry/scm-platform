@@ -638,6 +638,12 @@ def compare_commits(
     the cost of a second request on providers that do not return it (GitLab).
     Pass it when the count matters — telling "the end SHA is an ancestor" from
     "the two are identical" is impossible without it.
+
+    Providers that derive the counts from the returned commit list rather than
+    reading them off the response (GitLab) cannot serve `include_behind` and
+    `pagination` together, and raise `resource_bad_request` for the pair; ask
+    for the counts or for a page, not both. GitHub reads both counts off the
+    response and is unaffected.
     """
     return scm.compare_commits(start_sha, end_sha, pagination, request_options, include_behind=include_behind)
 

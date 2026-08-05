@@ -3530,6 +3530,27 @@ def test_compare_commits_omits_account_logins_when_github_cannot_attribute_the_c
     assert "committer_login" not in commit
 
 
+def test_compare_commits_counts_survive_pagination_because_github_reports_them() -> None:
+    """GitHub reads both counts off the response, so a page of `commits` does not shrink them.
+
+    This is what lets GitHub serve `include_behind` and `pagination` together, where GitLab
+    (which derives the counts from the returned list) has to reject the pair.
+    """
+    provider, client = make_provider()
+    client.queue(
+        "get",
+        FakeResponse(
+            make_github_commit_comparison(ahead_by=200, behind_by=150, commits=[make_github_commit()]),
+        ),
+    )
+
+    result = provider.compare_commits("aaa", "bbb", pagination={"cursor": "2", "per_page": 20}, include_behind=True)
+
+    assert result["data"]["ahead_by"] == 200
+    assert result["data"]["behind_by"] == 150
+    assert len(result["data"]["commits"]) == 1
+
+
 def test_get_commit_maps_account_logins() -> None:
     provider, client = make_provider()
     client.queue("get", FakeResponse(make_github_commit(author_login="getsantry[bot]")))

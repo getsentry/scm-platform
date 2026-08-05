@@ -13668,11 +13668,26 @@ def test_compare_commits_reverse_call_is_not_paginated(client, provider: GitLabP
         _make_mock_response(_make_gitlab_compare(1)),
     ]
 
-    provider.compare_commits("a", "b", pagination={"cursor": "2", "per_page": 10}, include_behind=True)
+    provider.compare_commits("a", "b", include_behind=True)
 
-    forward, reverse = client.request.call_args_list
-    assert forward.kwargs["params"]["page"] == "2"
+    _, reverse = client.request.call_args_list
     assert "page" not in reverse.kwargs["params"]
+
+
+def test_compare_commits_rejects_include_behind_combined_with_pagination(client, provider: GitLabProvider):
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.compare_commits("a", "b", pagination={"cursor": "2", "per_page": 10}, include_behind=True)
+
+    assert exc_info.value.code == "resource_bad_request"
+    assert client.request.call_count == 0
+
+
+def test_compare_commits_paginates_the_forward_call_without_include_behind(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_make_gitlab_compare(1))
+
+    provider.compare_commits("a", "b", pagination={"cursor": "2", "per_page": 10})
+
+    assert client.request.call_args.kwargs["params"]["page"] == "2"
 
 
 def test_create_commit_with_expected_head_sha_commits_when_branch_head_matches(client, provider: GitLabProvider):

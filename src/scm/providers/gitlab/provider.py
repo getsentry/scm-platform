@@ -1026,9 +1026,24 @@ class GitLabProvider:
 
         The reverse call is deliberately unpaginated: ``behind_by`` is a count
         over the whole range, and slicing it to the caller's page would
-        under-report it. Note that ``ahead_by`` has that flaw already, since it
-        counts whatever page of ``commits`` GitLab returned.
+        under-report it. ``ahead_by`` has no such protection — it counts
+        whatever page of ``commits`` GitLab returned — so ``include_behind``
+        combined with ``pagination`` would hand back two numbers measured
+        against different bases, and a wide divergence read a page at a time
+        would look like a clean fast-forward. That combination raises
+        ``resource_bad_request`` rather than answering wrongly.
+
+        Both counts still saturate on a large divergence: GitLab's compare
+        response caps its ``commits`` array, and ``compare_timeout`` in the
+        response (currently unmapped) marks a comparison that gave up early.
+        Callers that must distinguish "not behind" from "too far behind to
+        count" cannot do so from this response alone.
         """
+        if include_behind and pagination is not None:
+            raise ResourceBadRequest(
+                detail="'include_behind' cannot be combined with 'pagination': 'ahead_by' would count one page "
+                "while 'behind_by' counts the whole range.",
+            )
         response = self.get(
             GitLab.compare.format(project=self.project_id),
             params={"from": start_sha, "to": end_sha},
