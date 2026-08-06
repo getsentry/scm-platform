@@ -1368,6 +1368,8 @@ class BaseTestProvider(Provider):
         end_sha: str,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]:
         inner = self.get_commit("abc123")
         return PaginatedActionResult(
@@ -1400,6 +1402,8 @@ class BaseTestProvider(Provider):
         force: bool = False,
         create_branch: bool = False,
         author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: str | None = None,
     ) -> ActionResult[Commit]:
         return ActionResult(
             data=Commit(

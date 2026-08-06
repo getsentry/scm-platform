@@ -14,7 +14,9 @@ from scm.errors import (
     ReadmeNotFound,
     ResourceBadRequest,
     ResourceNotFound,
+    ResourceUnprocessableContent,
     SCMCodedError,
+    StaleBranchHead,
     UnexpectedResponseFormat,
     error_class_for_status,
 )
@@ -925,6 +927,13 @@ class GitHubProvider:
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(f"/repos/{self.repository['name']}/git/refs/heads/{branch}")
 
+    def _assert_branch_head(self, branch: BranchName, expected_head_sha: SHA) -> None:
+        head_sha = self.get_branch(branch)["data"]["sha"]
+        if head_sha != expected_head_sha:
+            raise StaleBranchHead(
+                detail=f"Branch '{branch}' is at {head_sha}, expected {expected_head_sha}.",
+            )
+
     def get_git_ref(
         self,
         ref: str,
@@ -1177,7 +1186,10 @@ class GitHubProvider:
         end_sha: SHA,
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]:
+        """Compare two commits. ``include_behind`` is a no-op: GitHub always returns ``behind_by``."""
         response = self.get(
             f"/repos/{self.repository['name']}/compare/{start_sha}...{end_sha}",
             pagination=pagination,
@@ -1194,7 +1206,35 @@ class GitHubProvider:
         force: bool = False,
         create_branch: bool = False,
         author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
     ) -> ActionResult[Commit]:
+        """Commit ``actions`` onto ``branch``. See :func:`scm.actions.create_commit`.
+
+        ``expected_head_sha`` is enforced twice, and both checks earn their
+        keep. The pre-check runs before any write, so a head that has already
+        moved is rejected before a single blob, tree, or commit object is
+        created; it is also the only guard that catches a branch *rewound* to
+        an ancestor of ``expected_head_sha``, which the ref update would accept
+        as a legitimate fast-forward. The fast-forward-only ref update then
+        closes most of the race the pre-check cannot: a push that *adds*
+        commits in that window is still rejected, though the objects created
+        before it are left orphaned for GitHub to garbage-collect. A rewind
+        landing in that same window stays undetectable on this path — see
+        :func:`scm.actions.create_commit` for what callers can rely on.
+        """
+        if expected_head_sha is not None:
+            if create_branch:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            if force:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'force': a forced ref update overwrites the "
+                    "head unconditionally and cannot honor the lease.",
+                )
+            self._assert_branch_head(branch, expected_head_sha)
+
         tree_entries: list[InputTreeEntry] = []
         for action in actions:
             if isinstance(action, WriteCommitAction):
@@ -1266,7 +1306,22 @@ class GitHubProvider:
         if create_branch:
             self.create_branch(branch, new_commit["data"]["sha"])
         else:
-            self.update_branch(branch, new_commit["data"]["sha"], force=force)
+            try:
+                self.update_branch(branch, new_commit["data"]["sha"], force=force)
+            except ResourceUnprocessableContent as e:
+                if expected_head_sha is None:
+                    raise
+                # A 422 on the fast-forward-only ref update only means a lost
+                # lease if the head actually moved. GitHub also returns 422 for a
+                # protected-branch/ruleset denial or a parent_sha that does not
+                # descend from the head; re-read so those surface as themselves
+                # rather than masquerading as a stale head.
+                current_head = self.get_branch(branch)["data"]["sha"]
+                if current_head == expected_head_sha:
+                    raise
+                raise StaleBranchHead(
+                    detail=f"Branch '{branch}' is at {current_head}, expected {expected_head_sha}.",
+                ) from e
 
         raw = new_commit["raw"]["data"]
         return ActionResult(

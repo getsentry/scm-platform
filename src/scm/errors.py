@@ -31,6 +31,7 @@ type ErrorCode = Literal[
     "unhandled_exception",
     "draft_pull_request_not_supported",
     "invalid_check_run_state_transition",
+    "stale_branch_head",
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
@@ -64,6 +65,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "unhandled_exception": "An unhandled exception occurred.",
     "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
     "invalid_check_run_state_transition": "The requested check run state is not reachable from its current state.",
+    "stale_branch_head": "The branch head is not the expected commit; a concurrent update moved it.",
 }
 
 
@@ -235,6 +237,17 @@ class DraftPullRequestNotSupported(SCMCodedError):
 
 class InvalidCheckRunStateTransition(SCMCodedError):
     code = "invalid_check_run_state_transition"
+
+
+class StaleBranchHead(SCMCodedError):
+    """A compare-and-swap write lost: the branch head was not the caller's ``expected_head_sha``.
+
+    Raised by ``create_commit(expected_head_sha=...)``. On GitLab the check is
+    not atomic, so this error can be raised *after* the commit was created —
+    see :meth:`scm.actions.create_commit`.
+    """
+
+    code = "stale_branch_head"
 
 
 # Maps a service-provider HTTP error status onto a concrete error class.

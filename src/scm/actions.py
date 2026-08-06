@@ -629,8 +629,23 @@ def compare_commits(
     end_sha: SHA,
     pagination: PaginationParams | None = None,
     request_options: RequestOptions | None = None,
+    *,
+    include_behind: bool = False,
 ) -> PaginatedActionResult[CommitComparison]:
-    return scm.compare_commits(start_sha, end_sha, pagination, request_options)
+    """Compare two commits against their merge base.
+
+    `include_behind` guarantees `behind_by` is populated on every provider, at
+    the cost of a second request on providers that do not return it (GitLab).
+    Pass it when the count matters — telling "the end SHA is an ancestor" from
+    "the two are identical" is impossible without it.
+
+    Providers that derive the counts from the returned commit list rather than
+    reading them off the response (GitLab) cannot serve `include_behind` and
+    `pagination` together, and raise `resource_bad_request` for the pair; ask
+    for the counts or for a page, not both. GitHub reads both counts off the
+    response and is unaffected.
+    """
+    return scm.compare_commits(start_sha, end_sha, pagination, request_options, include_behind=include_behind)
 
 
 def create_commit(
@@ -642,8 +657,49 @@ def create_commit(
     force: bool = False,
     create_branch: bool = False,
     author: CommitAuthorParam | None = None,
+    *,
+    expected_head_sha: SHA | None = None,
 ) -> ActionResult[Commit]:
-    return scm.create_commit(branch, parent_sha, message, actions, force, create_branch, author=author)
+    """Commit `actions` onto `branch`, parented on `parent_sha`.
+
+    `expected_head_sha` takes a lease on the branch: the write is rejected with
+    `stale_branch_head` unless the branch head is still that commit. It is a
+    guard on the *destination*, not a parent selector — pass `parent_sha` to
+    choose the parent. It cannot be combined with `create_branch` (no head to
+    lease) or `force` (a forced update overwrites the head unconditionally and
+    cannot honor the lease); either combination raises `resource_bad_request`.
+
+    Atomicity differs by provider, and callers must handle the weaker case:
+
+    - GitHub is atomic against a concurrent push that *adds* commits: the ref
+      update is fast-forward-only, so the new commit no longer descends from
+      the head and the update is rejected. Nothing lands on the branch, though
+      the blob, tree, and commit objects created beforehand are left orphaned.
+      It is *not* atomic against a branch *rewound* to an ancestor of
+      `expected_head_sha`: the new commit still descends from the rewound head,
+      so the ref update accepts it as a legitimate fast-forward and the rewind
+      is silently undone. The pre-write head check catches that case, but only
+      up to the moment it runs — a rewind landing between the check and the ref
+      update is accepted with no error. Closing that gap needs a real
+      compare-and-swap, which on GitHub means the GraphQL
+      `createCommitOnBranch` mutation and its `expectedHeadOid`.
+    - GitLab has no compare-and-swap primitive, so the check is a
+      check-then-act: the head is read before the write and the created
+      commit's parents are verified after it. A push that lands in between
+      still wins, and `stale_branch_head` is then raised *after* the commit
+      exists and the branch has already moved. Treat the error as "the commit
+      landed on an unexpected parent", not as "nothing happened".
+    """
+    return scm.create_commit(
+        branch,
+        parent_sha,
+        message,
+        actions,
+        force,
+        create_branch,
+        author=author,
+        expected_head_sha=expected_head_sha,
+    )
 
 
 def get_tree(
