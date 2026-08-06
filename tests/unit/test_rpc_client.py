@@ -204,6 +204,49 @@ class TestRpcApiClient:
         headers = client.session.post.call_args.kwargs["headers"]
         assert headers["X-Repository-Id"] == '["github","ext-123"]'
 
+    def test_request_applies_stream_and_timeout_to_the_proxy_hop(self):
+        """``stream``/``timeout`` govern our own call to the proxy, not just the proxy's upstream one.
+
+        These are encoded into the request body for the proxy to use, but they must also reach
+        ``requests`` here. Without ``timeout`` a stalled proxy hangs forever; without ``stream`` a
+        large body (e.g. a repo tarball) is buffered into memory before the caller sees a byte.
+        """
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret="secret",
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+        )
+        client.session = MagicMock()
+        client.session.post.return_value = MagicMock()
+
+        client.request(method="GET", path="/test", stream=True, timeout=600.0)
+
+        kwargs = client.session.post.call_args.kwargs
+        assert kwargs["stream"] is True
+        assert kwargs["timeout"] == 600.0
+
+        # ...and still encoded in the body, so the proxy applies them to its upstream request too.
+        decoded = msgspec.json.decode(kwargs["data"])
+        assert decoded["data"]["stream"] is True
+        assert decoded["data"]["timeout"] == 600.0
+
+    def test_request_forwards_connect_read_timeout_tuple(self):
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret="secret",
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+        )
+        client.session = MagicMock()
+        client.session.post.return_value = MagicMock()
+
+        client.request(method="GET", path="/test", timeout=(3.05, 600.0))
+
+        assert client.session.post.call_args.kwargs["timeout"] == (3.05, 600.0)
+
 
 class TestRpcApiClientTransportRetry:
     """A transient blip between us and the proxy surfaces either as a transport ``ConnectionError``
@@ -275,6 +318,20 @@ class TestRpcApiClientTransportRetry:
         ]
         recovered_tags = client.record_count.call_args_list[-1].args[2]  # type: ignore[attr-defined]
         assert recovered_tags == {"method": "GET", "reason": "status_503"}
+
+    @patch("scm.rpc.client.time.sleep")
+    def test_retried_response_is_closed(self, mock_sleep):
+        # A streamed response holds its connection until the body is read or closed. Retrying without
+        # closing the discarded response leaks one connection per retry.
+        client = self._make_client()
+        unavailable = MagicMock(status_code=503)
+        ok = MagicMock(status_code=200)
+        client.session.post.side_effect = [unavailable, ok]
+
+        client.request(method="GET", path="/repos/org/repo/git/trees/abc", stream=True)
+
+        unavailable.close.assert_called_once()
+        ok.close.assert_not_called()
 
     @patch("scm.rpc.client.time.sleep")
     def test_recovered_reason_reports_last_retry_trigger(self, mock_sleep):

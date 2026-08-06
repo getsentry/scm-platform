@@ -1903,6 +1903,10 @@ class GitHubProvider:
             request_options=request_options,
             allow_redirects=False,
         )
+        # Only the redirect headers are read here, so the body is never consumed. Close it
+        # explicitly to hand the connection back rather than waiting on garbage collection.
+        response.close()
+
         if response.status_code != 302 or "Location" not in response.headers:
             raise UnexpectedResponseFormat(detail="Could not extract 'Location' header.")
 

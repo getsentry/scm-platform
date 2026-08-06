@@ -59,15 +59,36 @@ class RetryConfig(TypedDict):
 
 class Session(Protocol):
     def get(self, url: str, headers: dict[str, str]) -> requests.Response: ...
-    def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response: ...
+    def post(
+        self,
+        url: str,
+        data: bytes,
+        headers: dict[str, str],
+        stream: bool = False,
+        timeout: float | tuple[float, float] | None = None,
+    ) -> requests.Response: ...
 
 
 class RequestsSession:
     def get(self, url: str, headers: dict[str, str]) -> requests.Response:
         return requests.get(url, headers=headers)
 
-    def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response:
-        return requests.post(url, data=data, headers=headers, allow_redirects=False)
+    def post(
+        self,
+        url: str,
+        data: bytes,
+        headers: dict[str, str],
+        stream: bool = False,
+        timeout: float | tuple[float, float] | None = None,
+    ) -> requests.Response:
+        return requests.post(
+            url,
+            data=data,
+            headers=headers,
+            allow_redirects=False,
+            stream=stream,
+            timeout=timeout,
+        )
 
 
 class NoOpRateLimiter:
@@ -235,7 +256,16 @@ class RpcApiClient(ApiClient):
         last_reason = ""  # trigger of the most recent retry; tags the recovery metric on success
         while True:
             try:
-                response = self.session.post(url=self.full_url, data=body, headers=request_headers)
+                # ``stream``/``timeout`` are also encoded in the body above, where they govern the
+                # proxy's own upstream call. They must be applied here too, or this hop buffers the
+                # whole response in memory and waits forever regardless of what the caller asked for.
+                response = self.session.post(
+                    url=self.full_url,
+                    data=body,
+                    headers=request_headers,
+                    stream=stream,
+                    timeout=timeout,
+                )
             except _RETRIABLE_TRANSPORT_ERRORS as exc:
                 # Only intercept connection errors when the caller opted in, and only for reads: a
                 # write that died at the transport layer may already have landed upstream, so it is
@@ -259,6 +289,9 @@ class RpcApiClient(ApiClient):
             if idempotent and response.status_code in status_codes:
                 if attempt < max_retries:
                     last_reason = f"status_{response.status_code}"
+                    # A streamed response holds its connection until the body is read or closed;
+                    # abandoning it here would leak one connection per retry.
+                    response.close()
                     self._retry(last_reason, method, attempt, backoff_seconds)
                     attempt += 1
                     continue

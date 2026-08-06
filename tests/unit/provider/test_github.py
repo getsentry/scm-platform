@@ -112,9 +112,13 @@ class FakeResponse:
         self.status_code = status_code
         self.text = text if text is not None else ""
         self.url = url
+        self.closed = False
 
     def json(self) -> Any:
         return self._payload
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class RecordingClient:
