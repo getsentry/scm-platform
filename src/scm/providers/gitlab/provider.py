@@ -65,7 +65,6 @@ from scm.types import (
     PullRequestState,
     Reaction,
     ReactionResult,
-    Referrer,
     Repository,
     RequestOptions,
     ResourceId,
@@ -249,9 +248,6 @@ class GitLabProvider:
         --> "my-group/my-team/my-subteam/my-project") for use in web URLs.
         """
         return self.repository["name"].replace(" ", "")
-
-    def is_rate_limited(self, referrer: Referrer) -> bool:
-        return False
 
     def request(
         self,

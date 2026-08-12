@@ -94,7 +94,6 @@ from scm.types import (
     CreatePullRequestCommentProtocol,
     DiffLine,
     GetBranchProtocol,
-    Referrer,
     Repository,
     WriteCommitAction,
 )
@@ -298,18 +297,6 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     # Archive operations
     (download_archive, {"ref": "main"}),
 )
-
-
-@pytest.mark.parametrize(("action", "kwargs"), ALL_ACTIONS)
-def test_rate_limited_action(action: Callable[..., Any], kwargs: dict[str, Any]):
-    class RateLimitedProvider(BaseTestProvider):
-        def is_rate_limited(self, referrer):
-            return True
-
-    scm = SourceCodeManager(RateLimitedProvider())
-
-    with raises_with_code(SCMCodedError, "rate_limit_exceeded"):
-        action(scm, **kwargs)
 
 
 def test_scm_is_instance_of_scm() -> None:
@@ -1055,9 +1042,6 @@ class MinimalProvider:
         timeout: float | tuple[float, float] | None = None,
     ):
         raise NotImplementedError("MinimalProvider does not support request")
-
-    def is_rate_limited(self, referrer: Referrer) -> bool:
-        return False
 
 
 @pytest.mark.parametrize(("action", "kwargs"), ALL_ACTIONS)

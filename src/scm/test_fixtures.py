@@ -703,9 +703,6 @@ class BaseTestProvider(Provider):
     ):  # type: ignore[override]
         raise NotImplementedError("BaseTestProvider does not support request")
 
-    def is_rate_limited(self, referrer: Referrer) -> bool:
-        return False
-
     # Pull request
 
     def get_pull_request(

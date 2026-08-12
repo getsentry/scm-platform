@@ -73,7 +73,6 @@ from scm.types import (
     DeleteCommitAction,
     DiffLine,
     MoveCommitAction,
-    Referrer,
     Repository,
     WriteCommitAction,
 )
@@ -136,9 +135,6 @@ class RecordingClient:
         if not self.responses[operation]:
             raise AssertionError(f"No queued response for {operation}")
         return self.responses[operation].pop(0)
-
-    def is_rate_limited(self, referrer: Referrer) -> bool:
-        return False
 
     def get(
         self,
@@ -211,22 +207,9 @@ class RecordingClient:
         return self._pop("graphql")
 
 
-class NoOpRateLimiter:
-    def is_rate_limited(self, referrer: str) -> bool:
-        return False
-
-    def update_rate_limit_meta(self, capacity: int, consumed: int, next_window_start: int) -> None:
-        pass
-
-
 def make_provider(client: RecordingClient | None = None) -> tuple[GitHubProvider, RecordingClient]:
     transport = client or RecordingClient()
-    provider = GitHubProvider(
-        MagicMock(spec=ApiClient),
-        organization_id=1,
-        repository=make_repository(),
-        rate_limiter=NoOpRateLimiter(),
-    )
+    provider = GitHubProvider(MagicMock(spec=ApiClient), organization_id=1, repository=make_repository())
     provider.get = transport.get  # type: ignore[assignment]
     provider.post = transport.post  # type: ignore[assignment]
     provider.patch = transport.patch  # type: ignore[assignment]
@@ -1876,30 +1859,14 @@ def test_provider_initialization_wraps_api_client() -> None:
     raw_client = MagicMock(spec=ApiClient)
     repository = make_repository()
 
-    provider = GitHubProvider(
-        raw_client,
-        organization_id=99,
-        repository=repository,
-        rate_limiter=NoOpRateLimiter(),
-    )
+    provider = GitHubProvider(raw_client, organization_id=99, repository=repository)
 
     assert provider.organization_id == 99
     assert provider.repository == repository
 
 
-def test_is_rate_limited_returns_false() -> None:
-    provider, _ = make_provider()
-
-    assert provider.is_rate_limited("shared") is False
-
-
 def _make_api_client() -> GitHubProvider:
-    return GitHubProvider(
-        client=MagicMock(spec=ApiClient),
-        organization_id=1,
-        repository=make_repository(),
-        rate_limiter=NoOpRateLimiter(),
-    )
+    return GitHubProvider(client=MagicMock(spec=ApiClient), organization_id=1, repository=make_repository())
 
 
 class TestGitHubProviderApiClientGraphql:
@@ -2116,7 +2083,6 @@ def test_ghe_web_base_url_used_in_url_methods() -> None:
         MagicMock(spec=ApiClient),
         organization_id=1,
         repository=make_repository(),
-        rate_limiter=NoOpRateLimiter(),
         web_base_url="https://github.example.com",
     )
 
@@ -3487,12 +3453,7 @@ def test_request_maps_status_code_to_error(
 ) -> None:
     client = MagicMock(spec=ApiClient)
     client.request.return_value = _error_response(status_code, body=b'{"message":"upstream said no"}')
-    provider = GitHubProvider(
-        client,
-        organization_id=1,
-        repository=make_repository(),
-        rate_limiter=NoOpRateLimiter(),
-    )
+    provider = GitHubProvider(client, organization_id=1, repository=make_repository())
 
     with pytest.raises(expected_type) as exc_info:
         provider.request("GET", "/repos/test-org/test-repo")
@@ -3577,7 +3538,6 @@ def test_get_pull_request_commits_maps_account_logins() -> None:
 def test_public_methods_are_accounted_for() -> None:
     covered_methods = {
         "request",
-        "is_rate_limited",
         "get_pull_request_diff",
         "get_pull_request_template",
         "get_pull_request_review_threads",

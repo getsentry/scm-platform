@@ -22,9 +22,6 @@ from scm.errors import (
 )
 from scm.helpers import iter_all_pages
 from scm.providers.github.types import GitHubPullRequestReviewComment
-from scm.rate_limit import (
-    RateLimiter,
-)
 from scm.types import (
     SHA,
     ActionResult,
@@ -75,7 +72,6 @@ from scm.types import (
     PullRequestState,
     Reaction,
     ReactionResult,
-    Referrer,
     Repository,
     RepositoryPermission,
     RequestOptions,
@@ -432,18 +428,12 @@ class GitHubProvider:
         client: ApiClient,
         organization_id: int,
         repository: Repository,
-        rate_limiter: RateLimiter,
         web_base_url: str = GITHUB_WEB_BASE_URL,
     ) -> None:
         self.client = client
         self.organization_id = organization_id
         self.repository = repository
         self._web_base_url = web_base_url
-        self.rate_limiter = rate_limiter
-
-    def is_rate_limited(self, referrer: Referrer) -> bool:
-        """Return true if access to the resource has been blocked."""
-        return self.rate_limiter.is_rate_limited(referrer)
 
     def request(
         self,
@@ -470,18 +460,6 @@ class GitHubProvider:
             credentials_set=credentials_set,
             timeout=timeout,
         )
-
-        if (
-            credentials_set == "installation"
-            and GITHUB_RATE_LIMIT_CAPACITY in response.headers
-            and GITHUB_RATE_LIMIT_USED in response.headers
-            and GITHUB_RATE_LIMIT_RESET in response.headers
-        ):
-            self.rate_limiter.update_rate_limit_meta(
-                capacity=int(response.headers[GITHUB_RATE_LIMIT_CAPACITY]),
-                consumed=int(response.headers[GITHUB_RATE_LIMIT_USED]),
-                next_window_start=int(response.headers[GITHUB_RATE_LIMIT_RESET]),
-            )
 
         if response.status_code >= 400:
             error_cls = error_class_for_status(response.status_code)
