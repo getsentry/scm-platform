@@ -391,17 +391,6 @@ query {query_name}($threadId: ID!, $cursor: String) {{
 GITHUB_REVIEW_THREADS_DEFAULT_PAGE_SIZE = 100
 
 
-# Mapping of referrer, percentage pairs. For a given referrer X% of quota is reserved for that
-# identifier. Excess use of the allocated quota does not result in a rate-limit error. Once
-# reserved quota is exhausted the referrer will fall back to the shared quota pool.
-#
-# WARN: "shared" is a reserved referrer name and may not be used.
-GITHUB_RATE_LIMIT_CAPACITY = "x-ratelimit-limit"
-GITHUB_RATE_LIMIT_USED = "x-ratelimit-used"
-GITHUB_RATE_LIMIT_RESET = "x-ratelimit-reset"
-GITHUB_RATE_LIMIT_REMAINING = "x-ratelimit-remaining"
-GITHUB_RATE_LIMIT_RETRY_AFTER = "retry-after"
-
 GITHUB_WEB_BASE_URL = "https://github.com"
 
 # Directories where GitHub recognizes pull-request templates. Single-template
