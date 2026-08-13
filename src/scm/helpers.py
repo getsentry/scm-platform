@@ -2,7 +2,6 @@ from collections.abc import Callable, Iterator
 
 from scm.errors import (
     ProviderNotFound,
-    RateLimitExceeded,
     RepositoryInactive,
     RepositoryNotFound,
     RepositoryOrganizationMismatch,
@@ -65,9 +64,6 @@ def exec_provider_fn[T](
     provider_fn: Callable[[], T],
     record_count: Callable[[str, int, dict[str, str]], None],
 ) -> T:
-    if provider.is_rate_limited(referrer):
-        raise RateLimitExceeded()
-
     provider_name = provider.__class__.__name__
 
     try:

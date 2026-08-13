@@ -969,7 +969,6 @@ class TestRpcIntegration:
 
         server_provider = MagicMock()
         server_provider.repository = repo
-        server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
         server_provider.request.return_value = mock_response
 
@@ -999,7 +998,6 @@ class TestRpcIntegration:
 
         server_provider = MagicMock()
         server_provider.repository = repo
-        server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
         server_provider.request.return_value = mock_response
 
@@ -1025,7 +1023,6 @@ class TestRpcIntegration:
 
         server_provider = MagicMock()
         server_provider.repository = repo
-        server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
 
         server = make_rpc_server(repo, server_provider)
@@ -1050,7 +1047,6 @@ class TestRpcIntegration:
 
         server_provider = MagicMock()
         server_provider.repository = repo
-        server_provider.is_rate_limited.return_value = False
         server_provider.__class__.__name__ = "GitHubProvider"
         server_provider.request.side_effect = mock_responses
 

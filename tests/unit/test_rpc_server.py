@@ -225,7 +225,6 @@ class TestPost:
         repo = make_repository()
         provider = MagicMock()
         provider.repository = repo
-        provider.is_rate_limited.return_value = False
         provider.__class__.__name__ = "GitHubProvider"
 
         mock_response = MagicMock()
@@ -264,7 +263,6 @@ class TestPost:
         repo = make_repository()
         provider = MagicMock()
         provider.repository = repo
-        provider.is_rate_limited.return_value = False
         provider.__class__.__name__ = "GitHubProvider"
 
         mock_response = MagicMock()

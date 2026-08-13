@@ -156,9 +156,7 @@ class TestRpcRoundTrip:
     def test_unexpected_exception_detail_survives_the_boundary(self):
         # An unexpected (non-SCM) exception raised while processing is wrapped by exec_provider_fn.
         # The cause chain is local-only, so the type+message must reach the client via `detail`.
-        class FakeProvider:
-            def is_rate_limited(self, referrer):
-                return False
+        class FakeProvider: ...
 
         def boom():
             raise ValueError("connection reset by peer")

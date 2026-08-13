@@ -1738,8 +1738,6 @@ class Provider(ApiClient, Protocol):
     organization_id: int
     repository: Repository
 
-    def is_rate_limited(self, referrer: Referrer) -> bool: ...
-
 
 @dataclasses.dataclass(frozen=True)
 class CoPilotChatExtension:

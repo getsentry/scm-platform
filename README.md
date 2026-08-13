@@ -6,10 +6,9 @@ The SCM (Source Code Management) platform is a vendor-agnostic abstraction layer
 
 1. **Service-provider independence.** Product code should never import a service-provider's client or parse a service-provider's response format directly. All interactions should flow through a common interface. Adding new service-providers should not require changes to existing implementations.
 2. **Declarative usage.** Callers should describe _what_ they want (e.g. "create a pull request") not _how_ to accomplish it. Initialization, authentication, rate limiting, and response mapping are handled internally.
-3. **Fair access.** All use cases should be given fair access to a service-provider without any one implementation starving the rest. Referrer-based quota allocation policies prevents any single use case from exhausting the service-provider's API quota.
-4. **Centrally enforced access controls.** Access controls must be strictly and consistently enforced across all SCM service-providers to prevent unprivileged access to sensitive customer data. The security model should be implemented once and applied universally.
-5. **Observable.** Every outbound action and every inbound webhook listener automatically records success/failure metrics, emits traces, and reports errors and logs to Sentry. The health of the SCM platform should always be knowable.
-6. **Extensible.** The SCM platform should be maximally and trivially extensible. As core infrastructure it should mutate as business needs change and not ossify a particular implementation.
+3. **Centrally enforced access controls.** Access controls must be strictly and consistently enforced across all SCM service-providers to prevent unprivileged access to sensitive customer data. The security model should be implemented once and applied universally.
+4. **Observable.** Every outbound action and every inbound webhook listener automatically records success/failure metrics, emits traces, and reports errors and logs to Sentry. The health of the SCM platform should always be knowable.
+5. **Extensible.** The SCM platform should be maximally and trivially extensible. As core infrastructure it should mutate as business needs change and not ossify a particular implementation.
 
 ### Features
 
