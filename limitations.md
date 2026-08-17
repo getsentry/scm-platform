@@ -279,6 +279,12 @@ What *is* documented, in the product docs rather than the API reference: the cod
 "the `{owner}` in `https://cursor.com/codebase/{owner}/{repo}`". So the repository-level prefix the
 provider builds on is citable.
 
+`CURSOR_ORIGIN_WEB_BASE_URL` here is the **codebase root** — `https://cursor.com/codebase`, with the
+repository directly beneath it — which is the same value and meaning as the constant of that name in
+`sentry/integrations/cursor_origin/constants.py`. Keep the two in step: whatever Sentry stores on the
+repository arrives here as `web_base_url`, so a base that already ends in `/codebase` combined with a
+provider that appends its own would yield `/codebase/codebase/…`.
+
 **The per-resource suffixes are not.** `/pull/{n}`, `/commit/{sha}`, and `/blob/{sha}/{path}` are
 GitHub-shaped guesses; nothing in the docs, the spec, the changelog, or search results pins them
 down, and everything under `/codebase/` redirects to login whether the path is real or nonsense, so

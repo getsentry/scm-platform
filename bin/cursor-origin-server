@@ -22,8 +22,8 @@ Configuration:
     --port                                    Listen port (default: 8081)
     --base-url / ORIGIN_BASE_URL              API base URL
                                               (default: https://api.cursor.com/v1/origin)
-    --web-base-url / ORIGIN_WEB_BASE_URL      Web UI base used to build links
-                                              (default: https://cursor.com)
+    --web-base-url / ORIGIN_WEB_BASE_URL      Codebase root used to build web links
+                                              (default: https://cursor.com/codebase)
 
 Auth differs from the GitHub server in two ways worth knowing before you debug it:
 

@@ -91,7 +91,12 @@ PROVIDER_NAME: ProviderName = "cursor_origin"
 # payload -- so every link this provider produces is assembled locally. The repository
 # prefix `https://cursor.com/codebase/{owner}/{repo}` is documented; the per-resource
 # suffixes (`/pull/{n}` and friends) are GitHub-shaped guesses. See limitations.md.
-CURSOR_ORIGIN_WEB_BASE_URL = "https://cursor.com"
+#
+# This is the *codebase root*, so a repository sits directly beneath it. Sentry defines
+# the same value as `CURSOR_ORIGIN_WEB_BASE_URL` in
+# `sentry/integrations/cursor_origin/constants.py`; the two must agree, because whatever
+# Sentry stores on the repository is handed to this provider as `web_base_url`.
+CURSOR_ORIGIN_WEB_BASE_URL = "https://cursor.com/codebase"
 
 # Origin's page size is clamped server-side to 100.
 CURSOR_ORIGIN_MAX_PAGE_SIZE = 100
@@ -909,7 +914,7 @@ class CursorOriginProvider:
     # -------------------------------------------------------------- web links
 
     def _repo_web_url(self) -> str:
-        return f"{self._web_base_url}/codebase/{self.repository['name']}"
+        return f"{self._web_base_url}/{self.repository['name']}"
 
     def get_file_url(
         self,
