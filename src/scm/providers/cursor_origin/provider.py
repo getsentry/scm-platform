@@ -89,8 +89,9 @@ PROVIDER_NAME: ProviderName = "cursor_origin"
 
 # No Origin resource carries a web URL -- not in a REST response, not in a webhook
 # payload -- so every link this provider produces is assembled locally. The repository
-# prefix `https://cursor.com/codebase/{owner}/{repo}` is documented; the per-resource
-# suffixes (`/pull/{n}` and friends) are GitHub-shaped guesses. See limitations.md.
+# prefix `https://cursor.com/codebase/{owner}/{repo}` is documented, and `/pull/{n}` is
+# confirmed against the web UI; the commit and blob suffixes are still GitHub-shaped
+# guesses. See limitations.md.
 #
 # This is the *codebase root*, so a repository sits directly beneath it. Sentry defines
 # the same value as `CURSOR_ORIGIN_WEB_BASE_URL` in

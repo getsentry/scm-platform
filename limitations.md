@@ -285,12 +285,21 @@ repository directly beneath it — which is the same value and meaning as the co
 repository arrives here as `web_base_url`, so a base that already ends in `/codebase` combined with a
 provider that appends its own would yield `/codebase/codebase/…`.
 
-**The per-resource suffixes are not.** `/pull/{n}`, `/commit/{sha}`, and `/blob/{sha}/{path}` are
-GitHub-shaped guesses; nothing in the docs, the spec, the changelog, or search results pins them
-down, and everything under `/codebase/` redirects to login whether the path is real or nonsense, so
-an unauthenticated probe cannot distinguish them either. **Confirm them in the web UI before anyone
-demos a link.** They surface as `get_file_url`, `get_commit_url`, `get_commits_url`,
-`get_pull_request_url`, and the `html_url` on every mapped `PullRequest` and `Review`.
+**The per-resource suffixes are undocumented, and were settled by looking.** Nothing in the docs, the
+spec, the changelog, or search results pins them down, and everything under `/codebase/` redirects to
+login whether the path is real or nonsense, so an unauthenticated probe cannot distinguish them
+either. Status:
+
+| Builder | Suffix | |
+|---|---|---|
+| `get_pull_request_url` (and `PullRequest.html_url`, `Review.html_url`) | `/pull/{n}` | ✅ confirmed in the web UI |
+| `get_commit_url` | `/commit/{sha}` | unconfirmed |
+| `get_file_url` | `/blob/{sha}/{path}`, `#L{start}-L{end}` | unconfirmed |
+| `get_commits_url` | `/commits/{sha}` | unconfirmed |
+
+The line anchor on `get_file_url` is the one worth checking hardest: it is how Seer points at a
+specific line, and an anchor the UI does not understand degrades quietly to "top of file" rather than
+failing.
 
 One consequence for check runs: `CheckRun.detailsUrl` is **caller-supplied** (the input schema is
 writable, the response field is `readOnly` and just echoes it). It is meant to point at the CI
