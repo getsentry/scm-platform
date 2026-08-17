@@ -1,0 +1,523 @@
+#!/usr/bin/env python
+"""
+RPC client that talks to a cursor-origin-server instance.
+
+Usage:
+    bin/cursor-origin-client --repo ownerSlug/repoName <command> [args...]
+
+Configuration (CLI args override env vars, which override .credentials):
+    --base-url / SCM_RPC_BASE_URL       Server URL (default: http://127.0.0.1:8081)
+    --secret / SCM_RPC_SIGNING_SECRET   HMAC signing secret (default: "secret")
+    --org-id                            Organization ID (default: 1)
+    --repo / ORIGIN_REPOSITORY_NAME     Origin repository as ownerSlug/repoName
+
+Only the actions the Origin provider implements are exposed; see limitations.md for
+what Origin cannot do at all. Every list command takes --cursor/--per-page, where
+--cursor is an opaque `nextPageToken` from a previous page (not a page number).
+
+Read commands:
+    get-repository
+    list-repositories [--cursor <token>] [--per-page <n>]
+    get-authenticated-actor
+    get-branch <name>
+    get-git-ref <ref>                      e.g. heads/main, tags/v1, HEAD
+    get-file-content <path> <ref>
+    get-directory-contents <path> [--ref <ref>]
+    get-readme <ref>
+    get-tree <tree_sha> [--no-recursive]
+    get-full-tree <tree_sha> [--no-recursive]
+    get-commit <sha>
+    get-commit-changes <sha> [--cursor <token>] [--per-page <n>]
+    get-commits [--ref <ref>] [--cursor <token>] [--per-page <n>]
+    get-git-commit <sha>
+    compare-commits <start_sha> <end_sha> [--cursor <token>] [--per-page <n>]
+    get-pull-request <id>
+    get-pull-requests [--state open|closed|all] [--head <branch>]
+    get-pull-request-files <id> [--cursor <token>] [--per-page <n>]
+    get-pull-request-commits <id> [--cursor <token>] [--per-page <n>]
+    get-pull-request-comments <id> [--cursor <token>] [--per-page <n>]
+    list-pull-request-reviews <id> [--cursor <token>] [--per-page <n>]
+    get-check-run <check_run_id>
+    list-check-runs-for-ref <ref> [--check-name <name>] [--status ...]
+    list-check-runs-in-check-suite <check_suite_id> [--check-name <name>] [--status ...]
+    get-file-url <path> <sha> [--start-line <n>] [--end-line <n>]
+    get-commit-url <sha>
+    get-pull-request-url <id>
+
+Write commands (these create real, visible artifacts):
+    create-pull-request <title> <body> <head> <base>
+    create-pull-request-draft <title> <body> <head> <base>
+    update-pull-request <id> [--title <t>] [--body <b>] [--state open|closed]
+    mark-pull-request-ready-for-review <id>
+    mark-pull-request-as-draft <id>
+    create-pull-request-comment <id> <body>
+    create-review <id> <event> [--body <b>]     event: approve|change_request|comment
+    create-check-run <name> <head_sha> [--status ...] [--conclusion ...]
+        [--external-id <id>] [--started-at <iso8601>] [--completed-at <iso8601>]
+        [--output-title <t> --output-summary <s> [--output-text <x>]]
+    update-check-run <check_run_id> [--status ...] [--conclusion ...]
+        [--output-title <t> --output-summary <s> [--output-text <x>]]
+"""
+
+import argparse
+import json
+import logging
+import pathlib
+import sys
+
+from scm.manager import SourceCodeManager
+from scm.types import (
+    CheckRunOutput,
+    CompareCommitsProtocol,
+    CreateCheckRunProtocol,
+    CreatePullRequestCommentProtocol,
+    CreatePullRequestDraftProtocol,
+    CreatePullRequestProtocol,
+    CreateReviewProtocol,
+    GetAuthenticatedActorProtocol,
+    GetBranchProtocol,
+    GetCheckRunProtocol,
+    GetCommitChangesProtocol,
+    GetCommitProtocol,
+    GetCommitsProtocol,
+    GetCommitUrlProtocol,
+    GetDirectoryContentsProtocol,
+    GetFileContentProtocol,
+    GetFileUrlProtocol,
+    GetFullTreeProtocol,
+    GetGitCommitProtocol,
+    GetGitRefProtocol,
+    GetPullRequestCommentsProtocol,
+    GetPullRequestCommitsProtocol,
+    GetPullRequestFilesProtocol,
+    GetPullRequestProtocol,
+    GetPullRequestsProtocol,
+    GetPullRequestUrlProtocol,
+    GetReadmeProtocol,
+    GetRepositoryProtocol,
+    GetTreeProtocol,
+    ListCheckRunsForRefProtocol,
+    ListCheckRunsInCheckSuiteProtocol,
+    ListPullRequestReviewsProtocol,
+    ListRepositoriesProtocol,
+    MarkPullRequestDraftStateProtocol,
+    PaginationParams,
+    UpdateCheckRunProtocol,
+    UpdatePullRequestProtocol,
+)
+
+BUILD_STATUS_CHOICES = ["pending", "running", "completed"]
+BUILD_CONCLUSION_CHOICES = [
+    "success",
+    "failure",
+    "cancelled",
+    "skipped",
+    "timed_out",
+    "neutral",
+    "action_required",
+    "unknown",
+]
+
+logger = logging.getLogger(__name__)
+
+
+def dump(obj: object) -> None:
+    logger.info(json.dumps(obj, indent=2, default=str))
+
+
+def build_check_run_output(args: argparse.Namespace) -> CheckRunOutput | None:
+    if args.output_title is None and args.output_summary is None and args.output_text is None:
+        return None
+    if args.output_title is None or args.output_summary is None:
+        raise SystemExit("--output-title and --output-summary are both required when setting an output.")
+    output: CheckRunOutput = {"title": args.output_title, "summary": args.output_summary}
+    if args.output_text is not None:
+        output["text"] = args.output_text
+    return output
+
+
+def add_check_run_output_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--output-title", default=None)
+    p.add_argument("--output-summary", default=None)
+    p.add_argument("--output-text", default=None)
+
+
+def add_pagination_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--cursor", default=None, help="opaque nextPageToken from a previous page")
+    p.add_argument("--per-page", type=int, default=None)
+
+
+def pagination_of(args: argparse.Namespace) -> PaginationParams | None:
+    pagination: PaginationParams = {}
+    if getattr(args, "cursor", None) is not None:
+        pagination["cursor"] = args.cursor
+    if getattr(args, "per_page", None) is not None:
+        pagination["per_page"] = args.per_page
+    return pagination or None
+
+
+def load_credentials() -> dict[str, str]:
+    """Load KEY=VALUE pairs from .credentials, skipping blanks and comments."""
+    creds: dict[str, str] = {}
+    path = pathlib.Path(__file__).resolve().parent.parent / ".credentials"
+    if not path.exists():
+        return creds
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip().strip("\"'")
+        if value:
+            creds[key.strip()] = value
+    return creds
+
+
+def main() -> None:  # noqa: C901 -- a flat command dispatch, same shape as bin/github-client
+    creds = load_credentials()
+
+    parser = argparse.ArgumentParser(description="Cursor Origin RPC Client")
+    parser.add_argument("--base-url", default=None)
+    parser.add_argument("--secret", default=None)
+    parser.add_argument("--org-id", type=int, default=1)
+    parser.add_argument(
+        "--repo",
+        default=creds.get("ORIGIN_REPOSITORY_NAME"),
+        required="ORIGIN_REPOSITORY_NAME" not in creds,
+        help="ownerSlug/repoName; defaults to ORIGIN_REPOSITORY_NAME from .credentials",
+    )
+
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("get-repository")
+    sub.add_parser("get-authenticated-actor")
+
+    p = sub.add_parser("list-repositories")
+    add_pagination_args(p)
+
+    p = sub.add_parser("get-branch")
+    p.add_argument("name")
+
+    p = sub.add_parser("get-git-ref")
+    p.add_argument("ref")
+
+    p = sub.add_parser("get-file-content")
+    p.add_argument("path")
+    p.add_argument("ref")
+
+    p = sub.add_parser("get-directory-contents")
+    p.add_argument("path")
+    p.add_argument("--ref", default=None)
+
+    p = sub.add_parser("get-readme")
+    p.add_argument("ref")
+
+    for name in ("get-tree", "get-full-tree"):
+        p = sub.add_parser(name)
+        p.add_argument("tree_sha")
+        p.add_argument("--no-recursive", action="store_true")
+
+    p = sub.add_parser("get-commit")
+    p.add_argument("sha")
+
+    p = sub.add_parser("get-commit-changes")
+    p.add_argument("sha")
+    add_pagination_args(p)
+
+    p = sub.add_parser("get-commits")
+    p.add_argument("--ref", default=None)
+    add_pagination_args(p)
+
+    p = sub.add_parser("get-git-commit")
+    p.add_argument("sha")
+
+    p = sub.add_parser("compare-commits")
+    p.add_argument("start_sha")
+    p.add_argument("end_sha")
+    add_pagination_args(p)
+
+    p = sub.add_parser("get-pull-request")
+    p.add_argument("id")
+
+    p = sub.add_parser("get-pull-requests")
+    p.add_argument("--state", default="open", choices=["open", "closed", "all"])
+    p.add_argument("--head", default=None)
+    add_pagination_args(p)
+
+    for name in (
+        "get-pull-request-files",
+        "get-pull-request-commits",
+        "get-pull-request-comments",
+        "list-pull-request-reviews",
+    ):
+        p = sub.add_parser(name)
+        p.add_argument("id")
+        add_pagination_args(p)
+
+    p = sub.add_parser("get-check-run")
+    p.add_argument("check_run_id")
+
+    p = sub.add_parser("list-check-runs-for-ref")
+    p.add_argument("ref")
+    p.add_argument("--check-name", default=None)
+    p.add_argument("--status", default=None, choices=["queued", "in_progress", "completed"])
+    add_pagination_args(p)
+
+    p = sub.add_parser("list-check-runs-in-check-suite")
+    p.add_argument("check_suite_id")
+    p.add_argument("--check-name", default=None)
+    p.add_argument("--status", default=None, choices=["queued", "in_progress", "completed"])
+    add_pagination_args(p)
+
+    p = sub.add_parser("get-file-url")
+    p.add_argument("path")
+    p.add_argument("sha")
+    p.add_argument("--start-line", type=int, default=None)
+    p.add_argument("--end-line", type=int, default=None)
+
+    p = sub.add_parser("get-commit-url")
+    p.add_argument("sha")
+
+    p = sub.add_parser("get-pull-request-url")
+    p.add_argument("id")
+
+    for name in ("create-pull-request", "create-pull-request-draft"):
+        p = sub.add_parser(name)
+        p.add_argument("title")
+        p.add_argument("body")
+        p.add_argument("head")
+        p.add_argument("base")
+
+    p = sub.add_parser("update-pull-request")
+    p.add_argument("id")
+    p.add_argument("--title", default=None)
+    p.add_argument("--body", default=None)
+    p.add_argument("--state", default=None, choices=["open", "closed"])
+
+    for name in ("mark-pull-request-ready-for-review", "mark-pull-request-as-draft"):
+        p = sub.add_parser(name)
+        p.add_argument("id")
+
+    p = sub.add_parser("create-pull-request-comment")
+    p.add_argument("id")
+    p.add_argument("body")
+
+    p = sub.add_parser("create-review")
+    p.add_argument("id")
+    p.add_argument("event", choices=["approve", "change_request", "comment"])
+    p.add_argument("--body", default=None)
+
+    p = sub.add_parser("create-check-run")
+    p.add_argument("name")
+    p.add_argument("head_sha")
+    p.add_argument("--status", default=None, choices=BUILD_STATUS_CHOICES)
+    p.add_argument("--conclusion", default=None, choices=BUILD_CONCLUSION_CHOICES)
+    p.add_argument("--external-id", default=None)
+    p.add_argument("--started-at", default=None)
+    p.add_argument("--completed-at", default=None)
+    add_check_run_output_args(p)
+
+    p = sub.add_parser("update-check-run")
+    p.add_argument("check_run_id")
+    p.add_argument("--status", default=None, choices=BUILD_STATUS_CHOICES)
+    p.add_argument("--conclusion", default=None, choices=BUILD_CONCLUSION_CHOICES)
+    add_check_run_output_args(p)
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    scm = SourceCodeManager.make_proxy_client(
+        args.org_id,
+        ("cursor_origin", args.repo),
+        base_url=args.base_url if args.base_url else "http://127.0.0.1:8081",
+        signing_secret=args.secret if args.secret else "secret",
+    )
+
+    if args.command == "get-repository":
+        assert isinstance(scm, GetRepositoryProtocol)
+        dump(scm.get_repository())
+
+    elif args.command == "list-repositories":
+        assert isinstance(scm, ListRepositoriesProtocol)
+        dump(scm.list_repositories(pagination=pagination_of(args)))
+
+    elif args.command == "get-authenticated-actor":
+        assert isinstance(scm, GetAuthenticatedActorProtocol)
+        dump(scm.get_authenticated_actor())
+
+    elif args.command == "get-branch":
+        assert isinstance(scm, GetBranchProtocol)
+        dump(scm.get_branch(args.name))
+
+    elif args.command == "get-git-ref":
+        assert isinstance(scm, GetGitRefProtocol)
+        dump(scm.get_git_ref(args.ref))
+
+    elif args.command == "get-file-content":
+        assert isinstance(scm, GetFileContentProtocol)
+        dump(scm.get_file_content(args.path, args.ref))
+
+    elif args.command == "get-directory-contents":
+        assert isinstance(scm, GetDirectoryContentsProtocol)
+        dump(scm.get_directory_contents(args.path, ref=args.ref))
+
+    elif args.command == "get-readme":
+        assert isinstance(scm, GetReadmeProtocol)
+        dump(scm.get_readme(args.ref))
+
+    elif args.command == "get-tree":
+        assert isinstance(scm, GetTreeProtocol)
+        dump(scm.get_tree(args.tree_sha, recursive=not args.no_recursive))
+
+    elif args.command == "get-full-tree":
+        assert isinstance(scm, GetFullTreeProtocol)
+        dump(scm.get_full_tree(args.tree_sha, recursive=not args.no_recursive))
+
+    elif args.command == "get-commit":
+        assert isinstance(scm, GetCommitProtocol)
+        dump(scm.get_commit(args.sha))
+
+    elif args.command == "get-commit-changes":
+        assert isinstance(scm, GetCommitChangesProtocol)
+        dump(scm.get_commit_changes(args.sha, pagination=pagination_of(args)))
+
+    elif args.command == "get-commits":
+        assert isinstance(scm, GetCommitsProtocol)
+        dump(scm.get_commits(ref=args.ref, pagination=pagination_of(args)))
+
+    elif args.command == "get-git-commit":
+        assert isinstance(scm, GetGitCommitProtocol)
+        dump(scm.get_git_commit(args.sha))
+
+    elif args.command == "compare-commits":
+        assert isinstance(scm, CompareCommitsProtocol)
+        dump(scm.compare_commits(args.start_sha, args.end_sha, pagination=pagination_of(args)))
+
+    elif args.command == "get-pull-request":
+        assert isinstance(scm, GetPullRequestProtocol)
+        dump(scm.get_pull_request(args.id))
+
+    elif args.command == "get-pull-requests":
+        assert isinstance(scm, GetPullRequestsProtocol)
+        dump(scm.get_pull_requests(state=args.state, head=args.head, pagination=pagination_of(args)))
+
+    elif args.command == "get-pull-request-files":
+        assert isinstance(scm, GetPullRequestFilesProtocol)
+        dump(scm.get_pull_request_files(args.id, pagination=pagination_of(args)))
+
+    elif args.command == "get-pull-request-commits":
+        assert isinstance(scm, GetPullRequestCommitsProtocol)
+        dump(scm.get_pull_request_commits(args.id, pagination=pagination_of(args)))
+
+    elif args.command == "get-pull-request-comments":
+        assert isinstance(scm, GetPullRequestCommentsProtocol)
+        dump(scm.get_pull_request_comments(args.id, pagination=pagination_of(args)))
+
+    elif args.command == "list-pull-request-reviews":
+        assert isinstance(scm, ListPullRequestReviewsProtocol)
+        dump(scm.list_pull_request_reviews(args.id, pagination=pagination_of(args)))
+
+    elif args.command == "get-check-run":
+        assert isinstance(scm, GetCheckRunProtocol)
+        dump(scm.get_check_run(args.check_run_id))
+
+    elif args.command == "list-check-runs-for-ref":
+        assert isinstance(scm, ListCheckRunsForRefProtocol)
+        dump(
+            scm.list_check_runs_for_ref(
+                args.ref,
+                check_name=args.check_name,
+                status=args.status,
+                pagination=pagination_of(args),
+            )
+        )
+
+    elif args.command == "list-check-runs-in-check-suite":
+        assert isinstance(scm, ListCheckRunsInCheckSuiteProtocol)
+        dump(
+            scm.list_check_runs_in_check_suite(
+                args.check_suite_id,
+                check_name=args.check_name,
+                status=args.status,
+                pagination=pagination_of(args),
+            )
+        )
+
+    elif args.command == "get-file-url":
+        assert isinstance(scm, GetFileUrlProtocol)
+        dump(scm.get_file_url(args.path, args.sha, args.start_line, args.end_line))
+
+    elif args.command == "get-commit-url":
+        assert isinstance(scm, GetCommitUrlProtocol)
+        dump(scm.get_commit_url(args.sha))
+
+    elif args.command == "get-pull-request-url":
+        assert isinstance(scm, GetPullRequestUrlProtocol)
+        dump(scm.get_pull_request_url(args.id))
+
+    elif args.command == "create-pull-request":
+        assert isinstance(scm, CreatePullRequestProtocol)
+        dump(scm.create_pull_request(args.title, args.body, args.head, args.base))
+
+    elif args.command == "create-pull-request-draft":
+        assert isinstance(scm, CreatePullRequestDraftProtocol)
+        dump(scm.create_pull_request_draft(args.title, args.body, args.head, args.base))
+
+    elif args.command == "update-pull-request":
+        assert isinstance(scm, UpdatePullRequestProtocol)
+        dump(scm.update_pull_request(args.id, title=args.title, body=args.body, state=args.state))
+
+    elif args.command == "mark-pull-request-ready-for-review":
+        assert isinstance(scm, MarkPullRequestDraftStateProtocol)
+        dump(scm.mark_pull_request_ready_for_review(args.id))
+
+    elif args.command == "mark-pull-request-as-draft":
+        assert isinstance(scm, MarkPullRequestDraftStateProtocol)
+        dump(scm.mark_pull_request_as_draft(args.id))
+
+    elif args.command == "create-pull-request-comment":
+        assert isinstance(scm, CreatePullRequestCommentProtocol)
+        dump(scm.create_pull_request_comment(args.id, args.body))
+
+    elif args.command == "create-review":
+        assert isinstance(scm, CreateReviewProtocol)
+        # Origin pins a review to a PR version rather than a commit, so commit_sha is
+        # unused; inline comments are impossible, hence the empty list.
+        dump(scm.create_review(args.id, "", args.event, [], body=args.body))
+
+    elif args.command == "create-check-run":
+        assert isinstance(scm, CreateCheckRunProtocol)
+        dump(
+            scm.create_check_run(
+                args.name,
+                args.head_sha,
+                status=args.status,
+                conclusion=args.conclusion,
+                external_id=args.external_id,
+                started_at=args.started_at,
+                completed_at=args.completed_at,
+                output=build_check_run_output(args),
+            )
+        )
+
+    elif args.command == "update-check-run":
+        assert isinstance(scm, UpdateCheckRunProtocol)
+        dump(
+            scm.update_check_run(
+                args.check_run_id,
+                status=args.status,
+                conclusion=args.conclusion,
+                output=build_check_run_output(args),
+            )
+        )
+
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()
