@@ -87,10 +87,10 @@ from scm.types import (
 
 PROVIDER_NAME: ProviderName = "cursor_origin"
 
-# Origin has no documented web-UI URL scheme and returns no `htmlUrl` on any resource,
-# so every web link below is constructed from this base. See limitations.md -- these
-# paths are a best-effort guess and are the one part of this provider not verified
-# against the live service.
+# No Origin resource carries a web URL -- not in a REST response, not in a webhook
+# payload -- so every link this provider produces is assembled locally. The repository
+# prefix `https://cursor.com/codebase/{owner}/{repo}` is documented; the per-resource
+# suffixes (`/pull/{n}` and friends) are GitHub-shaped guesses. See limitations.md.
 CURSOR_ORIGIN_WEB_BASE_URL = "https://cursor.com"
 
 # Origin's page size is clamped server-side to 100.
@@ -949,7 +949,10 @@ class CursorOriginProvider:
     # ------------------------------------------------------- instance mappers
 
     def _map_pull_request(self, raw: dict[str, Any]) -> PullRequest:
-        """Origin returns no web URL on any resource, so the link is built locally."""
+        """Origin returns no web URL on any resource, so the link is built locally.
+
+        ``number`` arrives as a string: Origin serializes every 64-bit integer that way.
+        """
         number = str(raw["number"])
         head = raw.get("head") or {}
         base = raw.get("base") or {}

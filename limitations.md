@@ -260,17 +260,37 @@ than forwarding a filter that will not be applied.
 - `draft` is a plain field on the PR, so each is a single PATCH — no read-first, no GraphQL (contrast
   GitHub, which needs a node id and a mutation).
 
-## Web URLs — unverified
+## Web URLs — the repository prefix is documented, the rest is a guess
 
-**Origin returns no `htmlUrl` on any resource**, and its web UI URL scheme is not documented. Every
-link the provider produces — `get_file_url`, `get_commit_url`, `get_commits_url`,
-`get_pull_request_url`, and the `html_url` on every mapped `PullRequest` and `Review` — is built
-locally from `https://cursor.com/codebase/{owner}/{repo}` with GitHub-style suffixes
-(`/blob/{sha}/{path}`, `/commit/{sha}`, `/pull/{n}`).
+**No resource in the API carries a web URL, and this is deliberate rather than an oversight.** An
+audit of all 144 schemas in [`openapi.yaml`](https://cursor.com/docs/api/origin/openapi.yaml) finds
+exactly six URL-shaped fields: `App.webhookUrl`, `Repo.cloneUrl`, and four `detailsUrl` (on
+`CheckRun`/`CheckSuite` and their inputs). There is no `htmlUrl`, `html_url`, `webUrl`, `url`, or
+`_links` anywhere. Two schema descriptions say so outright — `CommitParent` is "Only the SHA is
+exposed (URLs omitted)", and the compare summary is "without nested commit lists, file diffs, or URL
+fields".
 
-This is the one part of the provider that has **not** been verified against the live service, because
-verifying it needs the web UI rather than the API. If the scheme is wrong, these links are wrong
-everywhere they surface in Sentry — check them before a demo.
+**Webhook payloads carry none either.** `PullRequestWebhookPayload` is
+`{pullRequest, repository}`; the comment, push, and check-run payloads are the same story. Anything
+consuming a webhook has to assemble the link from `repository.owner.slug`, `repository.name`, and
+`pullRequest.number` — exactly what this provider does.
+
+What *is* documented, in the product docs rather than the API reference: the codebase name is
+"the `{owner}` in `https://cursor.com/codebase/{owner}/{repo}`". So the repository-level prefix the
+provider builds on is citable.
+
+**The per-resource suffixes are not.** `/pull/{n}`, `/commit/{sha}`, and `/blob/{sha}/{path}` are
+GitHub-shaped guesses; nothing in the docs, the spec, the changelog, or search results pins them
+down, and everything under `/codebase/` redirects to login whether the path is real or nonsense, so
+an unauthenticated probe cannot distinguish them either. **Confirm them in the web UI before anyone
+demos a link.** They surface as `get_file_url`, `get_commit_url`, `get_commits_url`,
+`get_pull_request_url`, and the `html_url` on every mapped `PullRequest` and `Review`.
+
+One consequence for check runs: `CheckRun.detailsUrl` is **caller-supplied** (the input schema is
+writable, the response field is `readOnly` and just echoes it). It is meant to point at the CI
+system's own page, not at Origin. Since `create_check_run`'s protocol signature has no URL argument,
+we never set it, so `CheckRun.html_url` is always empty. If Seer wants its check runs to link back to
+Sentry, that argument has to be added to the protocol first.
 
 ## Rate limits
 
