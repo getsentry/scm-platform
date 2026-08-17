@@ -1,0 +1,294 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/vnd.github+json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.github.com/app/installations/_/access_tokens
+  response:
+    body:
+      string: '{"token": "SCRUBBED", "expires_at": "2026-07-15T10:01:42Z", "permissions":
+        {"administration": "read", "checks": "write", "contents": "write", "issues":
+        "write", "metadata": "read", "pull_requests": "write", "repository_hooks":
+        "write", "statuses": "write", "workflows": "write"}, "repository_selection":
+        "selected"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - public, max-age=60, s-maxage=60
+      Content-Length:
+      - '323'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 09:01:42 GMT
+      ETag:
+      - '"d22ea5ff972ee926f9b011380185ac6d388685551ab42b2b6bf70783642f487e"'
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept,Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - DB21:199A4:FDFDA72:F08ED6E:6A574C76
+      X-XSS-Protection:
+      - '0'
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/a?ref=topics%2Fsubdirs
+  response:
+    body:
+      string: '[{"name":"b","path":"a/b","sha":"cf8b3eaec626e780d80b482cb376893cab399509","size":0,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/a/b?ref=topics/subdirs","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/tree/topics/subdirs/a/b","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/trees/cf8b3eaec626e780d80b482cb376893cab399509","download_url":null,"type":"dir","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/a/b?ref=topics/subdirs","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/trees/cf8b3eaec626e780d80b482cb376893cab399509","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/tree/topics/subdirs/a/b"}},{"name":"c","path":"a/c","sha":"62028f2714488ab682456129c47e7656f70708b2","size":0,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/a/c?ref=topics/subdirs","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/tree/topics/subdirs/a/c","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/trees/62028f2714488ab682456129c47e7656f70708b2","download_url":null,"type":"dir","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/a/c?ref=topics/subdirs","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/trees/62028f2714488ab682456129c47e7656f70708b2","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/tree/topics/subdirs/a/c"}}]'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '1663'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 09:01:42 GMT
+      ETag:
+      - '"7d5c71b0cb4e80c4826ad2dc2155880b87136eda"'
+      Last-Modified:
+      - Mon, 06 Jul 2026 08:59:44 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP, Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - DB22:28314F:FF4FAD0:F1D89D8:6A574C76
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4994'
+      X-RateLimit-Reset:
+      - '1784107729'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '6'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - contents=read
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/d?ref=topics%2Fsubdirs
+  response:
+    body:
+      string: '[{"name":"C.md","path":"d/C.md","sha":"3cc58df83752123644fef39faab2393af643b1d2","size":2,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/d/C.md?ref=topics/subdirs","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/subdirs/d/C.md","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/3cc58df83752123644fef39faab2393af643b1d2","download_url":"https://raw.githubusercontent.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/topics/subdirs/d/C.md","type":"file","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/d/C.md?ref=topics/subdirs","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/3cc58df83752123644fef39faab2393af643b1d2","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/subdirs/d/C.md"}},{"name":"E.md","path":"d/E.md","sha":"1c507261389e25abfe3620ddd348c73f4eb3b91e","size":2,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/d/E.md?ref=topics/subdirs","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/subdirs/d/E.md","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/1c507261389e25abfe3620ddd348c73f4eb3b91e","download_url":"https://raw.githubusercontent.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/topics/subdirs/d/E.md","type":"file","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/d/E.md?ref=topics/subdirs","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/1c507261389e25abfe3620ddd348c73f4eb3b91e","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/subdirs/d/E.md"}}]'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '1899'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 09:01:43 GMT
+      ETag:
+      - '"7d5c71b0cb4e80c4826ad2dc2155880b87136eda"'
+      Last-Modified:
+      - Mon, 06 Jul 2026 08:59:44 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP, Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - DB23:3A7FC4:1030EB39:F5ABABC:6A574C76
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4993'
+      X-RateLimit-Reset:
+      - '1784107729'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '7'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - contents=read
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/README.md?ref=topics%2Fsubdirs
+  response:
+    body:
+      string: '{"name":"README.md","path":"README.md","sha":"d96986775b6793cac0a358b35650de94752a9530","size":92,"url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/README.md?ref=topics/subdirs","html_url":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/subdirs/README.md","git_url":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/d96986775b6793cac0a358b35650de94752a9530","download_url":"https://raw.githubusercontent.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/topics/subdirs/README.md","type":"file","content":"IyB0ZXN0LVNlbnRyeS1JbnRlZ3JhdGlvbi1EZXYtamFjcXVldjYKVGVzdCBy\nZXBvIGZvciBteSBkZXZlbG9wbWVudHMgaW4gU2VudHJ5J3MgR2l0SHViIEFw\ncAo=\n","encoding":"base64","_links":{"self":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/contents/README.md?ref=topics/subdirs","git":"https://api.github.com/repos/jacquev6/test-Sentry-Integration-Dev-jacquev6/git/blobs/d96986775b6793cac0a358b35650de94752a9530","html":"https://github.com/jacquev6/test-Sentry-Integration-Dev-jacquev6/blob/topics/subdirs/README.md"}}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining,
+        X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes,
+        X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO,
+        X-GitHub-Request-Id, Deprecation, Sunset, Warning
+      Cache-Control:
+      - private, max-age=60, s-maxage=60
+      Content-Length:
+      - '1135'
+      Content-Security-Policy:
+      - default-src 'none'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 09:01:43 GMT
+      ETag:
+      - '"d96986775b6793cac0a358b35650de94752a9530"'
+      Last-Modified:
+      - Wed, 15 Jul 2026 08:22:38 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin, strict-origin-when-cross-origin
+      Server:
+      - github.com
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubdomains; preload
+      Vary:
+      - Accept, Authorization, Cookie, X-GitHub-OTP, Accept-Encoding, Accept, X-Requested-With
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-GitHub-Media-Type:
+      - github.v3; format=json
+      X-GitHub-Request-Id:
+      - DB24:199A4:FDFE685:F08F8BF:6A574C77
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Remaining:
+      - '4992'
+      X-RateLimit-Reset:
+      - '1784107729'
+      X-RateLimit-Resource:
+      - core
+      X-RateLimit-Used:
+      - '8'
+      X-XSS-Protection:
+      - '0'
+      x-accepted-github-permissions:
+      - contents=read
+      x-github-api-version-selected:
+      - '2022-11-28'
+    status:
+      code: 200
+      message: OK
+version: 1

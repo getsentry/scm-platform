@@ -1,0 +1,84 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/commits/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c
+  response:
+    body:
+      string: '{"id":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","short_id":"6d8ca33d","created_at":"2026-02-26T09:47:45.000+01:00","parent_ids":["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],"title":"Add
+        blah","message":"Add blah\n","author_name":"Vincent Jacques","author_email":"vincent@vincent-jacques.net","authored_date":"2026-02-26T09:47:45.000+01:00","committer_name":"Vincent
+        Jacques","committer_email":"vincent@vincent-jacques.net","committed_date":"2026-02-26T09:47:45.000+01:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","stats":{"additions":0,"deletions":0,"total":0},"status":null,"project_id":79787061,"last_pipeline":null}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6d0fdc76fca-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:44 GMT
+      ETag:
+      - W/"78aa33d764f194bff715546e4f59cc33"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '749'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-40-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '29'
+      ratelimit-remaining:
+      - '1971'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6d0fdc76fca-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '2'
+      x-request-id:
+      - a17fb6d0fdc76fca-CDG
+      x-runtime:
+      - '0.125871'
+    status:
+      code: 200
+      message: OK
+version: 1

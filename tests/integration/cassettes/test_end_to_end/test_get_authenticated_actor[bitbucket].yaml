@@ -1,0 +1,127 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/user
+  response:
+    body:
+      string: '{"display_name": "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "repositories": {"href": "https://api.bitbucket.org/2.0/repositories/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "snippets": {"href": "https://api.bitbucket.org/2.0/snippets/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"},
+        "hooks": {"href": "https://api.bitbucket.org/2.0/workspaces/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/hooks"}},
+        "created_on": "2011-01-13T20:39:43.054857+00:00", "type": "user", "uuid":
+        "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "has_2fa_enabled": null, "username":
+        "jacquev6", "is_staff": false, "account_id": "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c",
+        "nickname": "jacquev6", "account_status": "active", "location": null}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 5736dc65-af3e-4aa3-a94f-52dac5b912f6
+      Atl-Traceid:
+      - 5736dc65af3e4aa3a94f52dac5b912f6
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 09:49:51 GMT
+      Etag:
+      - W/"222757c3c5972db72f50c80edd25da2a"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=1,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=230,atl-edge;dur=147,atl-edge-internal;dur=17,atl-edge-upstream;dur=131,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG55-P3",cdn-rid;desc="THLY8r0DWwyjcIt9GCIW09BCjxB1NFt6q-FJbYsWAQtncUZ8g_23pQ==",cdn-downstream-fbl;dur=234
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 72084d252267d49b631f07ad379203a2.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - account
+      X-Amz-Cf-Id:
+      - THLY8r0DWwyjcIt9GCIW09BCjxB1NFt6q-FJbYsWAQtncUZ8g_23pQ==
+      X-Amz-Cf-Pop:
+      - CDG55-P3
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 9c7ec8e50c97986c
+      X-B3-Traceid:
+      - 5736dc65af3e4aa3a94f52dac5b912f6
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:repository:bitbucket, read:permission:bitbucket, read:issue:bitbucket,
+        read:pullrequest:bitbucket, read:gpg-key:bitbucket, write:issue:bitbucket,
+        read:user:bitbucket, read:workspace:bitbucket, read:test:bitbucket, read:runner:bitbucket,
+        read:wiki:bitbucket, read:ssh-key:bitbucket, read:webhook:bitbucket, write:repository:bitbucket,
+        write:pullrequest:bitbucket, read:package:bitbucket, write:test:bitbucket,
+        read:project:bitbucket, read:snippet:bitbucket, read:pipeline:bitbucket
+      X-Render-Time:
+      - '0.10817790031433105'
+      X-Request-Count:
+      - '1131'
+      X-Served-By:
+      - 441498bbea02
+      X-Static-Version:
+      - a1ea9c7db4bd
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.004956'
+      X-Usage-User-Time:
+      - '0.074418'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - a1ea9c7db4bd
+      X-View-Name:
+      - bitbucket.apps.bb.api.v20.handlers.CurrentUserHandler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '1073'
+    status:
+      code: 200
+      message: OK
+version: 1

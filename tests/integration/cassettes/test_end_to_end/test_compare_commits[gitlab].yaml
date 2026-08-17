@@ -1,0 +1,86 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/compare?from=0941ee0a9eac9914cfddf5adec7a9558a2f1c447&to=6d8ca33dae268d3c5835e721e5702ef9dcb43c8c
+  response:
+    body:
+      string: '{"commit":{"id":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","short_id":"6d8ca33d","created_at":"2026-02-26T09:47:45.000+01:00","parent_ids":["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],"title":"Add
+        blah","message":"Add blah\n","author_name":"Vincent Jacques","author_email":"vincent@vincent-jacques.net","authored_date":"2026-02-26T09:47:45.000+01:00","committer_name":"Vincent
+        Jacques","committer_email":"vincent@vincent-jacques.net","committed_date":"2026-02-26T09:47:45.000+01:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c"},"commits":[{"id":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","short_id":"6d8ca33d","created_at":"2026-02-26T09:47:45.000+01:00","parent_ids":["0941ee0a9eac9914cfddf5adec7a9558a2f1c447"],"title":"Add
+        blah","message":"Add blah\n","author_name":"Vincent Jacques","author_email":"vincent@vincent-jacques.net","authored_date":"2026-02-26T09:47:45.000+01:00","committer_name":"Vincent
+        Jacques","committer_email":"vincent@vincent-jacques.net","committed_date":"2026-02-26T09:47:45.000+01:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/6d8ca33dae268d3c5835e721e5702ef9dcb43c8c"}],"diffs":[{"diff":"","collapsed":false,"too_large":false,"new_path":"BLAH.md","old_path":"BLAH.md","a_mode":"0","b_mode":"100644","new_file":true,"renamed_file":false,"deleted_file":false,"generated_file":null}],"compare_timeout":false,"compare_same_ref":false,"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/compare/0941ee0a9eac9914cfddf5adec7a9558a2f1c447...6d8ca33dae268d3c5835e721e5702ef9dcb43c8c"}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6cde8ed0159-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:43 GMT
+      ETag:
+      - W/"4d2d422e91f1a1b3c5988cfa4ac5489f"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1750'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-22-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '28'
+      ratelimit-remaining:
+      - '1972'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6cde8ed0159-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '35'
+      x-request-id:
+      - a17fb6cde8ed0159-CDG
+      x-runtime:
+      - '0.259629'
+    status:
+      code: 200
+      message: OK
+version: 1

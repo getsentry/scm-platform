@@ -1,0 +1,267 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests?state=closed
+  response:
+    body:
+      string: '[{"id":504927842,"iid":107,"project_id":79787061,"title":"PR from API
+        2026-07-08 12:00:00","description":"Another PR, made through the API.","state":"closed","created_at":"2026-07-08T14:17:30.916Z","updated_at":"2026-07-08T14:17:32.361Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-08T14:17:32.239Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-08T14:17:32.051Z","reference":"!107","references":{"short":"!107","relative":"!107","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!107"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/107","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":504889173,"iid":106,"project_id":79787061,"title":"PR
+        from API 2026-07-08 15:03:08.181564","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-08T13:03:08.632Z","updated_at":"2026-07-08T13:03:10.364Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-08T13:03:09.773Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-08T13:03:10.356Z","reference":"!106","references":{"short":"!106","relative":"!106","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!106"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/106","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":503864605,"iid":105,"project_id":79787061,"title":"PR
+        from API 2026-07-06 14:41:25.921125","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-06T12:41:26.415Z","updated_at":"2026-07-06T12:41:27.494Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-06T12:41:27.338Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-06T12:41:27.405Z","reference":"!105","references":{"short":"!105","relative":"!105","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!105"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/105","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":503826388,"iid":104,"project_id":79787061,"title":"PR
+        from API 2026-07-06 13:27:06.641537","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-06T11:27:07.016Z","updated_at":"2026-07-06T11:27:08.208Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-06T11:27:08.053Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-06T11:27:07.888Z","reference":"!104","references":{"short":"!104","relative":"!104","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!104"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/104","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":503797513,"iid":103,"project_id":79787061,"title":"PR
+        from API 2026-07-06 12:36:59.203296","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-06T10:36:59.584Z","updated_at":"2026-07-06T10:37:00.881Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-06T10:37:00.727Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-06T10:37:00.513Z","reference":"!103","references":{"short":"!103","relative":"!103","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!103"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/103","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":503793884,"iid":102,"project_id":79787061,"title":"PR
+        from API 2026-07-06 12:33:02.784591","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-06T10:33:03.355Z","updated_at":"2026-07-06T10:33:04.705Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-06T10:33:04.606Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-06T10:33:04.332Z","reference":"!102","references":{"short":"!102","relative":"!102","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!102"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/102","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":503790079,"iid":101,"project_id":79787061,"title":"PR
+        from API 2026-07-06 12:29:37.687884","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-06T10:29:38.070Z","updated_at":"2026-07-06T10:29:39.248Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-06T10:29:39.099Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-06T10:29:39.091Z","reference":"!101","references":{"short":"!101","relative":"!101","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!101"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/101","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":503777158,"iid":100,"project_id":79787061,"title":"PR
+        from API 2026-07-06 12:20:43.915611","description":"Another PR, made through
+        the API.","state":"closed","created_at":"2026-07-06T10:20:44.426Z","updated_at":"2026-07-06T10:20:45.637Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-06T10:20:45.504Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-06T10:20:45.590Z","reference":"!100","references":{"short":"!100","relative":"!100","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!100"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/100","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":496918178,"iid":99,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-06-17 15:21:36.261306","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-06-17T13:21:36.592Z","updated_at":"2026-06-17T13:22:07.385Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-06-17T13:22:07.155Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-06-17T13:21:37.954Z","reference":"!99","references":{"short":"!99","relative":"!99","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!99"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/99","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":491753954,"iid":98,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-06-03 10:34:20.753326","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-06-03T08:34:21.095Z","updated_at":"2026-06-17T12:34:44.733Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-06-17T12:34:44.780Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":7,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-06-03T08:34:22.387Z","reference":"!98","references":{"short":"!98","relative":"!98","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!98"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/98","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":491739273,"iid":97,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-06-03 09:55:18.376800","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-06-03T07:55:18.768Z","updated_at":"2026-06-03T08:30:38.371Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-06-03T08:30:38.394Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":3,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-06-03T07:55:19.855Z","reference":"!97","references":{"short":"!97","relative":"!97","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!97"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/97","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":491738601,"iid":96,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-06-03 09:53:51.111771","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-06-03T07:53:51.590Z","updated_at":"2026-06-03T07:54:22.474Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-06-03T07:54:22.259Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-06-03T07:53:52.613Z","reference":"!96","references":{"short":"!96","relative":"!96","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!96"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/96","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481725043,"iid":95,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-06 15:23:25.575511","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-06T13:23:26.120Z","updated_at":"2026-05-06T13:23:57.240Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-06T13:23:57.031Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-06T13:23:28.453Z","reference":"!95","references":{"short":"!95","relative":"!95","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!95"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/95","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481724060,"iid":94,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-06 15:21:33.853271","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-06T13:21:34.619Z","updated_at":"2026-05-06T13:22:05.245Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-06T13:22:05.093Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-06T13:21:37.009Z","reference":"!94","references":{"short":"!94","relative":"!94","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!94"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/94","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481718594,"iid":93,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-06 15:10:58.422203","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-06T13:10:59.277Z","updated_at":"2026-05-06T13:11:30.008Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-06T13:11:29.854Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-06T13:11:00.417Z","reference":"!93","references":{"short":"!93","relative":"!93","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!93"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/93","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481220943,"iid":92,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-05 16:49:50.106369","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-05T14:49:50.482Z","updated_at":"2026-05-05T14:50:21.172Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-05T14:50:21.017Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-05T14:49:51.758Z","reference":"!92","references":{"short":"!92","relative":"!92","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!92"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/92","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481216050,"iid":91,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-05 16:39:56.761384","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-05T14:39:57.156Z","updated_at":"2026-05-05T14:40:27.879Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-05T14:40:27.715Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-05T14:39:59.115Z","reference":"!91","references":{"short":"!91","relative":"!91","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!91"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/91","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481211775,"iid":90,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-05 16:30:17.613334","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-05T14:30:18.046Z","updated_at":"2026-05-05T14:30:48.755Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-05T14:30:48.604Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-05T14:30:19.182Z","reference":"!90","references":{"short":"!90","relative":"!90","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!90"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/90","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481208643,"iid":89,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-05 16:24:35.208062","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-05T14:24:35.868Z","updated_at":"2026-05-05T14:25:06.813Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-05T14:25:06.529Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-05T14:24:37.237Z","reference":"!89","references":{"short":"!89","relative":"!89","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!89"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/89","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":481157418,"iid":88,"project_id":79787061,"title":"PR
+        to trigger webhook 2026-05-05 14:39:23.018631","description":"Another PR,
+        to trigger the webhook.","state":"closed","created_at":"2026-05-05T12:39:23.433Z","updated_at":"2026-05-05T12:39:54.486Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-05-05T12:39:54.335Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-05-05T12:39:24.722Z","reference":"!88","references":{"short":"!88","relative":"!88","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!88"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/88","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb691c96778fe-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:34 GMT
+      ETag:
+      - W/"d483bd8289b4aeeaf95c0f2dcf37aa07"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=2&per_page=20&sort=desc&state=closed&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="next", <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=closed&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=6&per_page=20&sort=desc&state=closed&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '42746'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-11-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '11'
+      ratelimit-remaining:
+      - '1989'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb691c96778fe-CDG","version":"1"}'
+      x-next-page:
+      - '2'
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb691c96778fe-CDG
+      x-runtime:
+      - '0.410878'
+      x-total:
+      - '105'
+      x-total-pages:
+      - '6'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests?state=merged
+  response:
+    body:
+      string: '[{"id":464363971,"iid":27,"project_id":79787061,"title":"Add blah","description":"","state":"merged","created_at":"2026-03-16T10:51:17.718Z","updated_at":"2026-03-16T10:52:00.413Z","merged_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"merge_user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"merged_at":"2026-03-16T10:52:00.510Z","closed_by":null,"closed_at":null,"target_branch":"develop","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":"539e15b113b9a05a9c92ee255f222a4e228fcc41","squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-03-16T10:51:24.155Z","reference":"!27","references":{"short":"!27","relative":"!27","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!27"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/27","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6963bef8048-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:34 GMT
+      ETag:
+      - W/"1f025a5341405a94744576df98070323"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=merged&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=merged&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '2390'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-30-lb-gprd
+      gitlab-sv:
+      - gke-cny-api
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '12'
+      ratelimit-remaining:
+      - '1988'
+      ratelimit-reset:
+      - '1783520280'
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6963bef8048-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb6963bef8048-CDG
+      x-runtime:
+      - '0.159770'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1
