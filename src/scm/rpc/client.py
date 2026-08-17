@@ -12,6 +12,7 @@ from scm.errors import (
     RpcInvalidGrant,
     SCMCodedError,
 )
+from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
@@ -123,6 +124,8 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
         return GitHubProvider(client, organization_id, repository, web_base_url=web_base_url)
     elif repository["provider_name"] == "gitlab":
         return GitLabProvider(client, organization_id, repository)
+    elif repository["provider_name"] == "cursor_origin":
+        return CursorOriginProvider(client, organization_id, repository)
     else:
         return None
 
