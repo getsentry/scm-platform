@@ -499,17 +499,3 @@ def test_request_review_posts_reviewers(provider: GiteaProvider, client) -> None
     call = client.request.call_args
     assert call.kwargs["path"] == "/repos/acme/widgets/pulls/7/requested_reviewers"
     assert call.kwargs["data"] == {"reviewers": ["alice", "bob"]}
-
-
-def test_map_commit_never_claims_bot_status() -> None:
-    """Gitea's user object has no bot marker, so the key stays absent rather
-    than asserting something the API never said."""
-    commit = map_commit(
-        {
-            "sha": "abc",
-            "commit": {"message": "m"},
-            "author": {"id": 5, "login": "ci-runner"},
-        }
-    )
-    assert commit["author_login"] == "ci-runner"
-    assert "author_is_bot" not in commit

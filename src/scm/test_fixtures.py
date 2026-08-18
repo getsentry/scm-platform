@@ -275,14 +275,12 @@ def make_github_commit(
     stats: dict[str, int] | None = None,
     author_login: str | None = None,
     committer_login: str | None = None,
-    author_type: str = "User",
 ) -> dict[str, Any]:
     """Factory for GitHub commit API responses.
 
     ``author_login``/``committer_login`` populate the top-level GitHub *user*
     objects, which GitHub omits (sends as null) for commits it cannot attribute
-    to an account. ``author_type`` is GitHub's account classification, which it
-    always sends alongside a login; pass ``"Bot"`` for an automation account.
+    to an account.
     """
     result: dict[str, Any] = {
         "sha": sha,
@@ -297,7 +295,7 @@ def make_github_commit(
         "files": files if files is not None else [make_github_commit_file()],
         "stats": stats if stats is not None else {"additions": 1, "deletions": 0, "total": 1},
     }
-    result["author"] = {"login": author_login, "type": author_type} if author_login is not None else None
+    result["author"] = {"login": author_login} if author_login is not None else None
     result["committer"] = {"login": committer_login} if committer_login is not None else None
     return result
 
@@ -392,13 +390,8 @@ def make_github_pull_request_commit(
     author_date: str = "2026-02-04T10:00:00Z",
     author_login: str | None = "testuser",
     committer_login: str | None = None,
-    author_type: str = "User",
 ) -> dict[str, Any]:
-    """Factory for GitHub pull request commit API responses.
-
-    ``author_type`` is GitHub's account classification, sent alongside every
-    login; pass ``"Bot"`` for an automation account.
-    """
+    """Factory for GitHub pull request commit API responses."""
     result: dict[str, Any] = {
         "sha": sha,
         "commit": {
@@ -410,7 +403,7 @@ def make_github_pull_request_commit(
             },
         },
     }
-    result["author"] = {"login": author_login, "type": author_type} if author_login is not None else None
+    result["author"] = {"login": author_login} if author_login is not None else None
     result["committer"] = {"login": committer_login} if committer_login is not None else None
     return result
 
