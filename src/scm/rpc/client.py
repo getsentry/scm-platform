@@ -12,6 +12,7 @@ from scm.errors import (
     RpcInvalidGrant,
     SCMCodedError,
 )
+from scm.providers.gitea.provider import GiteaProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
@@ -140,6 +141,17 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
             rate_limiter=NoOpRateLimiter(),
             web_base_url=web_base_url,
         )
+    elif repository["provider_name"] == "gitea":
+        # Gitea is always self-hosted and its ROOT_URL may carry a sub-path, so
+        # the full base URL has to travel on the repository -- there is no
+        # hostname convention to rebuild it from.
+        web_base_url = repository["web_base_url"]
+        if not web_base_url:
+            raise RpcInvalidGrant(
+                detail="web_base_url is required for gitea repositories",
+            )
+
+        return GiteaProvider(client, organization_id, repository, web_base_url=web_base_url)
     elif repository["provider_name"] == "gitlab":
         return GitLabProvider(client, organization_id, repository)
     else:
