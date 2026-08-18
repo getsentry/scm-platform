@@ -74,11 +74,11 @@ Cursor Origin: *not supported* (no issue tracker)
 
 ## `create_issue_comment_reaction`
 
-Cursor Origin: *not supported* (no issue tracker, no reactions)
+Cursor Origin: *not supported* (no issue tracker; and the API exposes no reactions — see limitations.md)
 
 ## `create_issue_reaction`
 
-Cursor Origin: *not supported* (no issue tracker, no reactions)
+Cursor Origin: *not supported* (no issue tracker; and the API exposes no reactions — see limitations.md)
 
 ## `create_pull_request`
 
@@ -90,7 +90,7 @@ Cursor Origin: [POST /repos/{o}/{r}/pulls/{n}/comments](https://cursor.com/docs/
 
 ## `create_pull_request_comment_reaction`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `create_pull_request_draft`
 
@@ -98,7 +98,7 @@ Cursor Origin: [POST /repos/{o}/{r}/pulls](https://cursor.com/docs/api/origin) w
 
 ## `create_pull_request_reaction`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `create_review`
 
@@ -116,7 +116,7 @@ Cursor Origin: [POST /repos/{o}/{r}/pulls/{n}/comments](https://cursor.com/docs/
 
 ## `create_review_comment_reaction`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `create_review_comment_reply`
 
@@ -136,11 +136,11 @@ Cursor Origin: *not supported* (no issue tracker)
 
 ## `delete_issue_comment_reaction`
 
-Cursor Origin: *not supported* (no issue tracker, no reactions)
+Cursor Origin: *not supported* (no issue tracker; and the API exposes no reactions — see limitations.md)
 
 ## `delete_issue_reaction`
 
-Cursor Origin: *not supported* (no issue tracker, no reactions)
+Cursor Origin: *not supported* (no issue tracker; and the API exposes no reactions — see limitations.md)
 
 ## `delete_pull_request_comment`
 
@@ -148,15 +148,15 @@ Cursor Origin: *not supported* (comments can be edited, not deleted)
 
 ## `delete_pull_request_comment_reaction`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `delete_pull_request_reaction`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `delete_review_comment_reaction`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `download_archive`
 
@@ -250,7 +250,7 @@ Cursor Origin: *not supported* (no issue tracker)
 
 ## `get_issue_comment_reactions`
 
-Cursor Origin: *not supported* (no issue tracker, no reactions)
+Cursor Origin: *not supported* (no issue tracker; and the API exposes no reactions — see limitations.md)
 
 ## `get_issue_comments`
 
@@ -258,7 +258,7 @@ Cursor Origin: *not supported* (no issue tracker)
 
 ## `get_issue_reactions`
 
-Cursor Origin: *not supported* (no issue tracker, no reactions)
+Cursor Origin: *not supported* (no issue tracker; and the API exposes no reactions — see limitations.md)
 
 ## `get_pull_request`
 
@@ -266,7 +266,7 @@ Cursor Origin: [GET /repos/{o}/{r}/pulls/{n}](https://cursor.com/docs/api/origin
 
 ## `get_pull_request_comment_reactions`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `get_pull_request_comments`
 
@@ -287,7 +287,7 @@ Cursor Origin: [GET /repos/{o}/{r}/pulls/{n}/files](https://cursor.com/docs/api/
 
 ## `get_pull_request_reactions`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `get_pull_request_review`
 
@@ -341,7 +341,7 @@ Cursor Origin: *not supported* (no collaborator or permission endpoint)
 
 ## `get_review_comment_reactions`
 
-Cursor Origin: *not supported* (no reactions)
+Cursor Origin: *not supported* (the API exposes no reactions; the web UI does have them — see limitations.md)
 
 ## `get_review_comments`
 

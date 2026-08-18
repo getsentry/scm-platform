@@ -14,7 +14,8 @@ Because there is no issue tracker:
   - `get_issue_comments`
   - `update_issue`
 
-Because there are no emoji reactions:
+Because the API exposes no emoji reactions — **the web UI does have them**, so this is a gap in the
+partner API rather than a missing product feature (see "Reactions exist in the UI but not the API"):
   - `create_issue_comment_reaction`
   - `create_issue_reaction`
   - `create_pull_request_comment_reaction`
@@ -140,10 +141,28 @@ its detail.
 - `get_review_comments` (listing the comments of a given review) has no counterpart at all: Origin
   does not associate comments with a review.
 
-## No emoji reactions
+## Reactions exist in the UI but not the API
 
-Same consequence as Bitbucket: Sentry cannot acknowledge that it has queued work — the 👀-on-a-new-PR
-affordance is unavailable. Those code paths have to be optional.
+Origin's web UI **does** support reactions — you can leave a 👍 on a pull request comment. The partner
+API does not expose them, which is worth stating precisely because the two are easy to conflate:
+
+- Fetching a comment that visibly *has* a reaction returns only
+  `{id, thread, body, author, createdAt, updatedAt}` — no reactions field, no count, no rollup.
+- Every plausible reaction route (`/pulls/comments/{id}/reactions`,
+  `/pulls/{n}/comments/{id}/reactions`, `/pulls/{n}/reactions`, `/reactions`) answers
+  `"Route GET:… not found"`. That is the router, not authorization — routing happens first — so the
+  paths genuinely do not exist rather than being hidden from our token.
+- The OpenAPI document contains no occurrence of reaction, emoji, thumbs, award, or vote.
+
+So this is a **gap in the partner API, not a missing product feature**, and a good candidate to raise
+with Cursor: it needs a read (rollup or list) and a create, on pull request comments. Until then the
+consequence is the same as Bitbucket's: Sentry cannot acknowledge that it has queued work — the
+👀-on-a-new-PR affordance is unavailable, and those code paths have to be optional.
+
+Caveat on the evidence: everything above was probed with an *installation* token, the only credential
+this provider uses. The route-not-found responses are authorization-independent, so the endpoints are
+absent for every caller — but if Cursor ever adds them under user-scoped auth only, an app would still
+be unable to reach them.
 
 ## No commit, branch, or content writes
 
@@ -332,10 +351,16 @@ either. Status:
 
 | Builder | Suffix | |
 |---|---|---|
-| `get_pull_request_url` (and `PullRequest.html_url`, `Review.html_url`) | `/pull/{n}` | ✅ confirmed in the web UI |
+| `get_pull_request_url` (and `PullRequest.html_url`, `Review.html_url`) | `/pull/{n}` | ✅ confirmed; the plural `/pulls/{n}` is a **dead link** |
 | `get_commit_url` | `/commit/{sha}` | unconfirmed |
 | `get_file_url` | `/blob/{sha}/{path}`, `#L{start}-L{end}` | unconfirmed |
 | `get_commits_url` | `/commits/{sha}` | unconfirmed |
+| *(no protocol method)* | `/pull/{n}#discussion-{commentId}` | ✅ confirmed — a comment permalink |
+
+That last row is a freebie worth remembering: a comment anchors as `#discussion-{commentId}`, and the
+comment id is exactly what `create_pull_request_comment` and the degraded review comments return. There
+is no protocol method for a comment URL, so nothing uses it yet, but it is the one link shape that
+could point a reader straight at a specific finding.
 
 The line anchor on `get_file_url` is the one worth checking hardest: it is how Seer points at a
 specific line, and an anchor the UI does not understand degrades quietly to "top of file" rather than
