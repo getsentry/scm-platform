@@ -13,9 +13,10 @@ that arrive as ``{}`` rather than as an empty list.
 
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import pytest
+import requests
 
 from scm.errors import (
     PathIsDirectory,
@@ -30,6 +31,7 @@ from scm.errors import (
 from scm.providers.cursor_origin.provider import (
     CURSOR_ORIGIN_WEB_BASE_URL,
     CursorOriginProvider,
+    format_comment_location,
     map_actor,
     map_check_run,
     map_commit,
@@ -37,8 +39,9 @@ from scm.providers.cursor_origin.provider import (
     map_file_content,
     map_git_tree,
     map_repository,
+    map_review_comment,
 )
-from scm.types import CoPilotChatExtension, Repository
+from scm.types import CoPilotChatExtension, CredentialsSet, Repository
 
 # --------------------------------------------------------------------------- harness
 
@@ -78,11 +81,38 @@ class FakeApiClient:
     def queue(self, payload: Any, *, status_code: int = 200, headers: dict[str, str] | None = None) -> None:
         self.responses.append(FakeResponse(payload, status_code=status_code, headers=headers))
 
-    def request(self, **kwargs: Any) -> FakeResponse:
-        self.calls.append(kwargs)
+    # Spelled out rather than **kwargs so the fake actually satisfies the ApiClient
+    # protocol -- a fake that is looser than the real thing hides signature drift.
+    def request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        allow_redirects: bool | None = None,
+        stream: bool = True,
+        raw_response: bool = True,
+        credentials_set: CredentialsSet = "installation",
+        timeout: float | tuple[float, float] | None = None,
+    ) -> requests.Response:
+        self.calls.append(
+            {
+                "method": method,
+                "path": path,
+                "headers": headers,
+                "data": data,
+                "params": params,
+                "allow_redirects": allow_redirects,
+                "stream": stream,
+                "raw_response": raw_response,
+                "credentials_set": credentials_set,
+                "timeout": timeout,
+            }
+        )
         if not self.responses:
-            raise AssertionError(f"No queued response for {kwargs['method']} {kwargs['path']}")
-        return self.responses.pop(0)
+            raise AssertionError(f"No queued response for {method} {path}")
+        return cast(requests.Response, self.responses.pop(0))
 
     @property
     def last(self) -> dict[str, Any]:
@@ -278,15 +308,6 @@ def test_get_commits_spells_the_ref_parameter_sha() -> None:
     provider.get_commits(ref="topic")
 
     assert client.last["params"] == {"sha": "topic"}
-
-
-def test_create_review_rejects_inline_comments() -> None:
-    provider, client = make_provider()
-
-    with pytest.raises(ResourceBadRequest, match="does not support inline review comments"):
-        provider.create_review("1", "a" * 40, "comment", [{"path": "a.py", "body": "x"}])
-
-    assert client.calls == []
 
 
 def test_create_pull_request_comment_rejects_copilot_extensions() -> None:
@@ -579,6 +600,173 @@ def test_create_review_sends_a_verdict() -> None:
     assert client.last["data"] == {"verdict": "request_changes", "body": "please fix"}
     assert result["data"]["state"] == "changes_requested"
     assert result["data"]["commit_id"] == "a" * 40
+
+
+# ------------------------------------------------- review comments (degraded)
+
+COMMENT = {
+    "id": "cmt_01test",
+    "body": "posted body",
+    "author": {"app": {"id": "app_01test", "slug": "test-app"}},
+    "createdAt": "2026-08-17T22:17:32.816Z",
+    "thread": {"id": "thr_01test"},
+}
+
+
+def test_create_review_comment_states_its_location_in_the_body() -> None:
+    """Origin has no diff anchor, so the location has to survive as text."""
+    provider, client = make_provider()
+    client.queue(COMMENT)
+
+    result = provider.create_review_comment("1", "a" * 40, "this leaks", "src/a.cs", {"head": 42})
+
+    assert client.last["path"] == "/repos/test-owner/test-repo/pulls/1/comments"
+    assert client.last["data"]["body"] == "**`src/a.cs`** line 42\n\nthis leaks"
+    # The location echoes the request; Origin is not holding an anchor.
+    assert result["data"]["file_path"] == "src/a.cs"
+    assert result["data"]["line"] == {"head": 42}
+    assert result["data"]["thread_id"] == "thr_01test"
+
+
+def test_create_review_comment_labels_a_base_side_line() -> None:
+    provider, client = make_provider()
+    client.queue(COMMENT)
+
+    provider.create_review_comment("1", "a" * 40, "gone", "src/a.cs", {"base": 17})
+
+    assert client.last["data"]["body"].startswith("**`src/a.cs`** line 17 (before)")
+
+
+def test_create_review_comment_renders_a_line_range() -> None:
+    provider, client = make_provider()
+    client.queue(COMMENT)
+
+    provider.create_review_comment("1", "a" * 40, "b", "src/a.cs", {"head": 20}, start_line={"head": 10})
+
+    assert client.last["data"]["body"].startswith("**`src/a.cs`** lines 10-20")
+
+
+def test_create_review_comment_file_omits_a_line() -> None:
+    provider, client = make_provider()
+    client.queue(COMMENT)
+
+    result = provider.create_review_comment_file("1", "a" * 40, "whole file", "src/a.cs", "head")
+
+    assert client.last["data"]["body"] == "**`src/a.cs`**\n\nwhole file"
+    assert result["data"]["line"] is None
+
+
+def test_the_location_header_carries_no_link() -> None:
+    """The blob URL shape is unverified, and a dead link is worse than a searchable path."""
+    provider, client = make_provider()
+    client.queue(COMMENT)
+
+    provider.create_review_comment("1", "a" * 40, "b", "src/a.cs", {"head": 1})
+
+    assert "http" not in client.last["data"]["body"]
+
+
+def test_create_review_comment_reply_resolves_the_thread_first() -> None:
+    provider, client = make_provider()
+    client.queue(COMMENT)  # the parent, read for its thread id
+    client.queue({**COMMENT, "id": "cmt_02"})
+
+    result = provider.create_review_comment_reply("1", "replying", "cmt_01test")
+
+    assert [c["method"] for c in client.calls] == ["GET", "POST"]
+    assert client.calls[0]["path"] == "/repos/test-owner/test-repo/pulls/comments/cmt_01test"
+    assert client.calls[1]["data"] == {"body": "replying", "threadId": "thr_01test"}
+    assert result["data"]["id"] == "cmt_02"
+
+
+def test_create_review_comment_reply_without_a_thread_raises() -> None:
+    provider, client = make_provider()
+    client.queue({"id": "cmt_01test", "body": "x"})
+
+    with pytest.raises(UnexpectedResponseFormat):
+        provider.create_review_comment_reply("1", "replying", "cmt_01test")
+
+
+def test_update_review_comment_patches_in_place() -> None:
+    provider, client = make_provider()
+    client.queue({**COMMENT, "body": "edited"})
+
+    result = provider.update_review_comment("1", "cmt_01test", "edited")
+
+    assert client.last["method"] == "PATCH"
+    assert client.last["path"] == "/repos/test-owner/test-repo/pulls/comments/cmt_01test"
+    assert result["data"]["body"] == "edited"
+
+
+def test_create_review_posts_the_verdict_then_each_finding() -> None:
+    provider, client = make_provider()
+    client.queue(
+        {
+            "id": "rev_01test",
+            "verdict": "comment",
+            "author": {"app": {"id": "app_01test", "slug": "test-app"}},
+            "pullRequestVersion": {"headSha": "a" * 40},
+        }
+    )
+    client.queue(COMMENT)
+    client.queue(COMMENT)
+
+    result = provider.create_review(
+        "1",
+        "a" * 40,
+        "comment",
+        [
+            {"path": "src/a.cs", "body": "first", "line": {"head": 4}},
+            {"path": "src/b.cs", "body": "second"},
+        ],
+        body="overall",
+    )
+
+    # The verdict lands first: a partial failure should leave a review missing detail,
+    # not findings with no review attached.
+    assert client.paths == [
+        "/repos/test-owner/test-repo/pulls/1/reviews",
+        "/repos/test-owner/test-repo/pulls/1/comments",
+        "/repos/test-owner/test-repo/pulls/1/comments",
+    ]
+    assert client.calls[0]["data"] == {"verdict": "comment", "body": "overall"}
+    assert client.calls[1]["data"]["body"] == "**`src/a.cs`** line 4\n\nfirst"
+    assert client.calls[2]["data"]["body"] == "**`src/b.cs`**\n\nsecond"
+    assert result["data"]["id"] == "rev_01test"
+
+
+def test_create_review_without_comments_makes_one_request() -> None:
+    provider, client = make_provider()
+    client.queue({"id": "rev_01test", "verdict": "approve"})
+
+    provider.create_review("1", "a" * 40, "approve", [])
+
+    assert len(client.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("path", "line", "start_line", "expected"),
+    [
+        ("a.py", None, None, "**`a.py`**"),
+        ("a.py", {"head": 3}, None, "**`a.py`** line 3"),
+        ("a.py", {"base": 3}, None, "**`a.py`** line 3 (before)"),
+        ("a.py", {"base": 3, "head": 9}, None, "**`a.py`** line 9"),
+        ("a.py", {"head": 9}, {"head": 4}, "**`a.py`** lines 4-9"),
+        ("a.py", {}, None, "**`a.py`** line ?"),
+    ],
+)
+def test_format_comment_location(path: str, line: Any, start_line: Any, expected: str) -> None:
+    assert format_comment_location(path, line, start_line) == expected
+
+
+def test_map_review_comment_leaves_the_location_unset_when_read_back() -> None:
+    """A comment fetched rather than written carries its location only in body text."""
+    mapped = map_review_comment(COMMENT)
+
+    assert mapped["file_path"] is None
+    assert mapped["line"] is None
+    assert mapped["thread_id"] == "thr_01test"
+    assert mapped["author"] == {"id": "app_01test", "username": "test-app"}
 
 
 # ------------------------------------------------------------------------ check runs

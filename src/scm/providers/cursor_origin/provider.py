@@ -55,6 +55,7 @@ from scm.types import (
     CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
+    DiffLine,
     FileContent,
     FileContentType,
     FileStatus,
@@ -78,8 +79,10 @@ from scm.types import (
     ResourceId,
     ResponseMeta,
     Review,
+    ReviewComment,
     ReviewCommentInput,
     ReviewEvent,
+    ReviewSide,
     TreeEntry,
     TreeEntryMode,
     TreeEntryType,
@@ -744,6 +747,100 @@ class CursorOriginProvider:
         response = self.post(f"{self._repo}/pulls/{pull_request_id}/comments", data={"body": body})
         return map_action(response, map_comment)
 
+    # --------------------------------------------- review comments (degraded)
+
+    def _post_located_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        path: str,
+        line: DiffLine | None,
+        start_line: DiffLine | None = None,
+        thread_id: str | None = None,
+    ) -> requests.Response:
+        """Post a general comment carrying its own location header.
+
+        Origin has no diff-anchored comments, so an inline comment degrades to a
+        general-discussion one that *states* where it belongs. The finding still
+        reaches the pull request; it just is not attached to the diff.
+        """
+        data: dict[str, Any] = {"body": f"{format_comment_location(path, line, start_line)}\n\n{body}"}
+        if thread_id is not None:
+            data["threadId"] = thread_id
+        return self.post(f"{self._repo}/pulls/{pull_request_id}/comments", data=data)
+
+    def create_review_comment(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a review comment on a diff line -- **best-effort**.
+
+        Origin has no inline review comments, so this posts a general-discussion
+        comment prefixed with the file and line it refers to. The returned
+        ``ReviewComment`` reports the ``file_path``/``line`` the caller *asked* for, not
+        an anchor Origin is holding: nothing in Origin knows this comment belongs to a
+        diff position, so it will not move with the diff, cannot be resolved, and will
+        not appear in the file view. ``commit_id`` is unused.
+        """
+        response = self._post_located_comment(pull_request_id, body, path, line, start_line)
+        return map_action(
+            response,
+            lambda r: map_review_comment(r, file_path=path, line=line, start_line=start_line, head=commit_id),
+        )
+
+    def create_review_comment_file(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        side: ReviewSide,
+    ) -> ActionResult[ReviewComment]:
+        """Leave a file-level review comment -- **best-effort**, as above, with no line."""
+        response = self._post_located_comment(pull_request_id, body, path, None)
+        return map_action(response, lambda r: map_review_comment(r, file_path=path, head=commit_id))
+
+    def create_review_comment_reply(
+        self,
+        pull_request_id: str,
+        body: str,
+        comment_id: str,
+    ) -> ActionResult[ReviewComment]:
+        """Reply within the thread that ``comment_id`` belongs to.
+
+        Origin threads replies by ``threadId`` rather than by parent comment, so the
+        comment is read first to recover its thread -- two requests. This is the one
+        piece of review-comment behavior Origin supports natively.
+        """
+        parent = self.get(f"{self._repo}/pulls/comments/{comment_id}").json()
+        thread_id = (parent.get("thread") or {}).get("id")
+        if not thread_id:
+            raise UnexpectedResponseFormat(detail="Pull request comment response is missing its thread id.")
+        response = self.post(
+            f"{self._repo}/pulls/{pull_request_id}/comments",
+            data={"body": body, "threadId": thread_id},
+        )
+        return map_action(response, map_review_comment)
+
+    def update_review_comment(
+        self,
+        pull_request_id: str,
+        comment_id: str,
+        body: str,
+    ) -> ActionResult[ReviewComment]:
+        """Edit a comment in place. Origin allows this only for the comment's own author.
+
+        With no way to resolve or collapse a superseded comment, editing is the only
+        means of retracting a finding without leaving the stale text behind.
+        """
+        response = self.patch(f"{self._repo}/pulls/comments/{comment_id}", data={"body": body})
+        return map_action(response, map_review_comment)
+
     # ----------------------------------------------------------------- reviews
 
     def create_review(
@@ -754,22 +851,34 @@ class CursorOriginProvider:
         comments: list[ReviewCommentInput],
         body: str | None = None,
     ) -> ActionResult[Review]:
-        """Submit a review verdict.
+        """Submit a review verdict, with inline comments degraded to general ones.
 
-        Origin has no inline review comments at all -- the review body is the whole
-        review. Inline ``comments`` are rejected rather than silently dropped, since a
-        review that quietly loses its findings is worse than one that fails. ``commit_sha``
-        is unused: Origin pins a review to a PR *version*, not a commit.
+        Origin's review endpoint takes a verdict and a body and nothing else, so this is
+        **not atomic**: the verdict is submitted first, then each inline comment is
+        posted separately as a located general comment (see
+        :meth:`create_review_comment`). A failure part-way leaves a submitted verdict
+        with some of its findings missing.
+
+        The verdict goes first deliberately. If it went last, a failure would leave
+        findings posted under no review at all, which reads as an unattributed drive-by;
+        this way the review exists and the gap is in its detail.
+
+        ``commit_sha`` is unused -- Origin pins a review to a pull request *version*.
         """
-        if comments:
-            raise ResourceBadRequest(
-                detail="Cursor Origin does not support inline review comments; "
-                "post the findings in the review body or as pull request comments.",
-            )
         data: dict[str, Any] = {"verdict": CURSOR_ORIGIN_REVIEW_VERDICT_MAP[event]}
         if body is not None:
             data["body"] = body
         response = self.post(f"{self._repo}/pulls/{pull_request_id}/reviews", data=data)
+
+        for comment in comments:
+            self._post_located_comment(
+                pull_request_id,
+                comment["body"],
+                comment["path"],
+                comment.get("line"),
+                comment.get("start_line"),
+            )
+
         return map_action(response, lambda r: self._map_review(pull_request_id, r))
 
     def list_pull_request_reviews(
@@ -1193,6 +1302,64 @@ def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
         sha=raw["sha"],
         tree=GitCommitTree(sha=(raw.get("tree") or {}).get("sha", "")),
         message=raw.get("message", ""),
+    )
+
+
+def _line_label(line: DiffLine) -> str:
+    """Describe a diff line in prose. The base side is named because a reader looking at
+    the current file will not find the line there."""
+    head = line.get("head")
+    if head is not None:
+        return str(head)
+    base = line.get("base")
+    return f"{base} (before)" if base is not None else "?"
+
+
+def format_comment_location(path: str, line: DiffLine | None, start_line: DiffLine | None = None) -> str:
+    """Render the header that stands in for a diff anchor.
+
+    Deliberately plain text rather than a link: the blob URL shape is still unverified
+    (see limitations.md), and a dead link is worse than a path a reader can search for.
+    """
+    if line is None:
+        return f"**`{path}`**"
+    if start_line is not None:
+        return f"**`{path}`** lines {_line_label(start_line)}-{_line_label(line)}"
+    return f"**`{path}`** line {_line_label(line)}"
+
+
+def map_review_comment(
+    raw: dict[str, Any],
+    *,
+    file_path: str | None = None,
+    line: DiffLine | None = None,
+    start_line: DiffLine | None = None,
+    head: str | None = None,
+) -> ReviewComment:
+    """Map a general-discussion comment into the review-comment shape.
+
+    ``file_path``/``line``/``start_line`` are echoed from the caller's request rather
+    than read from the response: Origin stores no diff position, so these describe what
+    the comment *says* about itself, not an anchor the service is maintaining. They are
+    ``None`` when the comment is read back rather than just written, because at that
+    point the location exists only inside the body text.
+    """
+    return ReviewComment(
+        id=str(raw["id"]),
+        unique_id=str(raw["id"]),
+        url=None,
+        file_path=file_path,
+        body=raw.get("body", ""),
+        author=map_actor(raw.get("author")),
+        created_at=raw.get("createdAt"),
+        diff_hunk=None,
+        line=line,
+        start_line=start_line,
+        review_id=None,
+        author_association=None,
+        commit_sha=None,
+        head=head,
+        thread_id=(raw.get("thread") or {}).get("id"),
     )
 
 

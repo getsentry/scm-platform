@@ -102,15 +102,17 @@ Cursor Origin: *not supported* (no reactions)
 
 ## `create_review`
 
-Cursor Origin: [POST /repos/{o}/{r}/pulls/{n}/reviews](https://cursor.com/docs/api/origin) (verdict and body only; inline comments are rejected)
+Cursor Origin:
+- [POST /repos/{o}/{r}/pulls/{n}/reviews](https://cursor.com/docs/api/origin) (verdict and body only)
+- [POST /repos/{o}/{r}/pulls/{n}/comments](https://cursor.com/docs/api/origin) once per inline comment, degraded to a located general comment (see limitations.md). Not atomic; the verdict is posted first.
 
 ## `create_review_comment`
 
-Cursor Origin: *not supported* (comments carry no file, line, or side)
+Cursor Origin: [POST /repos/{o}/{r}/pulls/{n}/comments](https://cursor.com/docs/api/origin) — **degraded**. Origin has no diff anchor, so the comment states its file and line in a header line instead. See limitations.md.
 
 ## `create_review_comment_file`
 
-Cursor Origin: *not supported* (comments carry no file, line, or side)
+Cursor Origin: [POST /repos/{o}/{r}/pulls/{n}/comments](https://cursor.com/docs/api/origin) — **degraded**, as `create_review_comment` but with no line.
 
 ## `create_review_comment_reaction`
 
@@ -118,9 +120,11 @@ Cursor Origin: *not supported* (no reactions)
 
 ## `create_review_comment_reply`
 
-Cursor Origin: *not implemented* — `POST /repos/{o}/{r}/pulls/{n}/comments` with a `threadId` replies
-within a general-discussion thread, but the protocol's reply is a *review*-comment reply and Origin
-has no review comments to reply to. See limitations.md.
+Cursor Origin:
+- [GET /repos/{o}/{r}/pulls/comments/{comment_id}](https://cursor.com/docs/api/origin) (to recover the thread id)
+- [POST /repos/{o}/{r}/pulls/{n}/comments](https://cursor.com/docs/api/origin) with `threadId`
+
+Threading is native here: Origin threads by thread id rather than by parent comment.
 
 ## `delete_branch`
 
@@ -302,7 +306,8 @@ convention is established for Origin yet)
 
 ## `get_pull_request_url`
 
-Cursor Origin: built locally from the web base URL — **unverified**, see limitations.md
+Cursor Origin: built locally from the web base URL — `/pull/{n}`, confirmed in the web UI (the plural
+`/pulls/{n}` is a dead link). See limitations.md.
 
 ## `get_pull_requests`
 
@@ -428,5 +433,4 @@ Cursor Origin: [PATCH /repos/{o}/{r}/pulls/{n}](https://cursor.com/docs/api/orig
 
 ## `update_review_comment`
 
-Cursor Origin: *not supported* (there are no review comments; general comments are edited with
-`PATCH /repos/{o}/{r}/pulls/comments/{id}`, which no action maps to)
+Cursor Origin: [PATCH /repos/{o}/{r}/pulls/comments/{comment_id}](https://cursor.com/docs/api/origin) (author-only). With no resolve or collapse, editing in place is the only way to retract a superseded finding.

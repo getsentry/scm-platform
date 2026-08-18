@@ -32,10 +32,13 @@ Because there are no emoji reactions:
   - `get_review_comment_reactions`
 
 Because there are no diff-anchored (inline) review comments:
+  - `get_review_comments`
+
+  Implemented but **degraded** — they post a general comment stating the file and line
+  rather than anchoring to the diff (see "Degraded inline review comments"):
+  - `create_review`
   - `create_review_comment`
   - `create_review_comment_file`
-  - `get_review_comments`
-  - `update_review_comment`
 
 Because there are no review threads:
   - `collapse_pull_request_comment`
@@ -74,9 +77,8 @@ Because the endpoint accepts the filter and ignores it (see "Silently ignored pa
   - `get_commits_by_path`
 
 Implemented by neither Origin nor us yet, but possible — see actions-quick-ref.md for each:
-`create_review_comment_reply`, `delete_pull_request_comment`, `get_app_installation`,
-`get_pull_request_diff`, `get_pull_request_review`, `get_pull_request_review_threads`,
-`get_pull_request_template`.
+`delete_pull_request_comment`, `get_app_installation`, `get_pull_request_diff`,
+`get_pull_request_review`, `get_pull_request_review_threads`, `get_pull_request_template`.
 
 # Consequences
 
@@ -88,17 +90,55 @@ docs' own words, "general-discussion comments, not diff-anchored review comments
 line through the public API, and `POST .../reviews` takes a verdict and a body but no `comments[]`
 array.
 
-So a Seer review on Origin cannot be a set of line comments. It has to be a single comment (or review
-body) that names the file and line in prose. `create_review` and `create_review_comment` **raise**
-rather than dropping the inline comments, because a review that silently loses its findings is worse
-than one that fails loudly.
+So a Seer review on Origin cannot be a set of line comments.
 
-Knock-on effects:
-- Seer's dedupe-against-existing-comments logic keys on review comments. On Origin it will have to key
-  on general comments instead.
-- Nothing can be resolved or collapsed, so superseded Seer comments accumulate on the thread. Editing
-  a comment in place (`PATCH /pulls/comments/{id}`, author-only) is the closest substitute, but no
-  action maps to it yet.
+### Degraded inline review comments
+
+Rather than refusing, the provider degrades: an inline comment becomes a general-discussion comment
+whose first line states where it belongs.
+
+```
+**`src/NuGetTrends.Web/Startup.cs`** line 42
+
+The finding text, unchanged.
+```
+
+`create_review_comment`, `create_review_comment_file`, and `create_review` (which posts its verdict
+first, then each finding) all go through this path. The header is built by
+`format_comment_location`; a base-side line is labeled `line 17 (before)` so a reader who cannot find
+it in the current file knows why, and a range renders as `lines 10-20`.
+
+It is deliberately **plain text, not a link.** The blob URL shape is still unverified, and a dead link
+is worse than a path the reader can search for. Once `/blob/{sha}/{path}#L{n}` is confirmed, this is
+the one place to change.
+
+What the caller gets back is honest about the compromise. The returned `ReviewComment` echoes the
+`file_path` and `line` that were *asked for*, not an anchor Origin is holding — nothing in Origin
+knows the comment belongs to a diff position, so it will not move with the diff, will not appear in
+the file view, and cannot be resolved.
+
+`create_review` is **not atomic**: the verdict is one request and each finding another. The verdict
+goes first on purpose — if it went last, a partial failure would leave findings posted under no
+review at all, which reads as an unattributed drive-by. This way the review exists and the gap is in
+its detail.
+
+### What still works natively
+
+- **Threaded replies.** `create_review_comment_reply` works properly: Origin threads by `threadId`,
+  which the provider resolves from the parent comment id (two requests). Verified live — the reply
+  lands in the parent's thread.
+- **Editing in place.** `update_review_comment` maps to `PATCH /pulls/comments/{id}` (author-only).
+  With no resolve or collapse, editing is the only way to retract a superseded finding rather than
+  leave the stale text sitting there.
+
+### Knock-on effects
+
+- Seer's dedupe-against-existing-comments logic keys on review comments. On Origin it has to key on
+  general comments instead — `get_pull_request_comments` plus the bot login (`author.app.slug`) is
+  enough to find its own.
+- Nothing can be resolved or collapsed, so superseded comments accumulate unless edited in place.
+- `get_review_comments` (listing the comments of a given review) has no counterpart at all: Origin
+  does not associate comments with a review.
 
 ## No emoji reactions
 
