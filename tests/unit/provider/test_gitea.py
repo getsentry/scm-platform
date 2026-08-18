@@ -73,14 +73,14 @@ def _mock_response(json_data: Any, *, status_code: int = 200, headers: dict[str,
 # Construction
 
 
-def test_requires_owner_and_name(client: ApiClient) -> None:
+def test_requires_owner_and_name(client) -> None:
     """A bare repository name would build a URL one segment short and hit an unrelated route."""
     for bad in ("widgets", "acme/widgets/extra", "acme/", "/widgets"):
         with pytest.raises(MalformedExternalId):
             _make_gitea_provider(client, name=bad)
 
 
-def test_requires_web_base_url(client: ApiClient) -> None:
+def test_requires_web_base_url(client) -> None:
     with pytest.raises(MalformedExternalId):
         GiteaProvider(client, 1, _make_repository(), web_base_url="")
 
@@ -90,7 +90,7 @@ def test_build_url_preserves_sub_path_install(provider: GiteaProvider) -> None:
     assert provider.build_url("/repos/acme/widgets") == "https://gitea.example.com/gitea/api/v1/repos/acme/widgets"
 
 
-def test_build_url_strips_trailing_slash(client: ApiClient) -> None:
+def test_build_url_strips_trailing_slash(client) -> None:
     p = GiteaProvider(client, 1, _make_repository(), web_base_url="https://gitea.example.com/")
     assert p.build_url("/user") == "https://gitea.example.com/api/v1/user"
 
@@ -151,7 +151,7 @@ def test_facade_reports_unsupported_capabilities(provider: GiteaProvider) -> Non
 # Pagination
 
 
-def test_pagination_uses_limit_not_per_page(provider: GiteaProvider, client: ApiClient) -> None:
+def test_pagination_uses_limit_not_per_page(provider: GiteaProvider, client) -> None:
     """Gitea names the page-size parameter `limit`; `per_page` would be ignored."""
     client.request.return_value = _mock_response([])
     provider.get("/repos/acme/widgets/commits", pagination=PaginationParams(per_page=25, cursor="3"))
@@ -161,7 +161,7 @@ def test_pagination_uses_limit_not_per_page(provider: GiteaProvider, client: Api
     assert "per_page" not in params
 
 
-def test_pagination_clamps_to_gitea_cap(provider: GiteaProvider, client: ApiClient) -> None:
+def test_pagination_clamps_to_gitea_cap(provider: GiteaProvider, client) -> None:
     """Gitea silently clamps a limit above MAX_RESPONSE_ITEMS, which would truncate a page loop."""
     client.request.return_value = _mock_response([])
     provider.get("/repos/acme/widgets/commits", pagination=PaginationParams(per_page=100, cursor="1"))
@@ -169,7 +169,7 @@ def test_pagination_clamps_to_gitea_cap(provider: GiteaProvider, client: ApiClie
     assert client.request.call_args.kwargs["params"]["limit"] == str(GITEA_MAX_PAGE_SIZE)
 
 
-def test_next_cursor_advances_blindly(provider: GiteaProvider, client: ApiClient) -> None:
+def test_next_cursor_advances_blindly(provider: GiteaProvider, client) -> None:
     """Gitea sends no next-page header, so the cursor increments and the loop stops on an empty page."""
     client.request.return_value = _mock_response([{"sha": "abc", "commit": {"message": "m"}}])
     result = provider.get_commits_by_path("src/app.py", pagination=PaginationParams(per_page=50, cursor="4"))
@@ -184,7 +184,7 @@ def test_next_cursor_advances_blindly(provider: GiteaProvider, client: ApiClient
     "status_code,expected",
     [(403, ResourceForbidden), (404, ResourceNotFound), (422, ResourceUnprocessableContent)],
 )
-def test_error_status_is_mapped(provider: GiteaProvider, client: ApiClient, status_code, expected) -> None:
+def test_error_status_is_mapped(provider: GiteaProvider, client, status_code, expected) -> None:
     client.request.return_value = _mock_response({}, status_code=status_code)
     with pytest.raises(expected):
         provider.get_repository()
@@ -193,7 +193,7 @@ def test_error_status_is_mapped(provider: GiteaProvider, client: ApiClient, stat
 # Draft state
 
 
-def test_mark_as_draft_adds_wip_prefix(provider: GiteaProvider, client: ApiClient) -> None:
+def test_mark_as_draft_adds_wip_prefix(provider: GiteaProvider, client) -> None:
     """Gitea's PR edit payload has no `draft` field, so draft state is written via the title."""
     client.request.return_value = _mock_response({"title": "Fix the bug"})
     provider.mark_pull_request_as_draft("7")
@@ -203,7 +203,7 @@ def test_mark_as_draft_adds_wip_prefix(provider: GiteaProvider, client: ApiClien
     assert patch_call.kwargs["data"] == {"title": "WIP: Fix the bug"}
 
 
-def test_mark_as_draft_is_idempotent(provider: GiteaProvider, client: ApiClient) -> None:
+def test_mark_as_draft_is_idempotent(provider: GiteaProvider, client) -> None:
     """Without the read-then-patch, a repeated call would stack prefixes."""
     client.request.return_value = _mock_response({"title": "WIP: Fix the bug"})
     provider.mark_pull_request_as_draft("7")
@@ -212,13 +212,13 @@ def test_mark_as_draft_is_idempotent(provider: GiteaProvider, client: ApiClient)
     assert client.request.call_args.kwargs["method"] == "GET"
 
 
-def test_ready_for_review_strips_prefix(provider: GiteaProvider, client: ApiClient) -> None:
+def test_ready_for_review_strips_prefix(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response({"title": "[WIP] Fix the bug"})
     provider.mark_pull_request_ready_for_review("7")
     assert client.request.call_args.kwargs["data"] == {"title": "Fix the bug"}
 
 
-def test_ready_for_review_on_non_draft_is_a_noop(provider: GiteaProvider, client: ApiClient) -> None:
+def test_ready_for_review_on_non_draft_is_a_noop(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response({"title": "Fix the bug"})
     provider.mark_pull_request_ready_for_review("7")
     assert client.request.call_count == 1
@@ -241,7 +241,7 @@ def test_strip_wip_prefix(title: str, expected: str) -> None:
 # Reactions
 
 
-def test_reaction_id_is_its_content(provider: GiteaProvider, client: ApiClient) -> None:
+def test_reaction_id_is_its_content(provider: GiteaProvider, client) -> None:
     """Gitea assigns no reaction id, so content doubles as the identifier."""
     client.request.return_value = _mock_response({"content": "rocket", "user": {"id": 3, "login": "bot"}})
     result = provider.create_pull_request_reaction("7", "rocket")
@@ -249,7 +249,7 @@ def test_reaction_id_is_its_content(provider: GiteaProvider, client: ApiClient) 
     assert result["data"]["content"] == "rocket"
 
 
-def test_delete_reaction_sends_content_in_body(provider: GiteaProvider, client: ApiClient) -> None:
+def test_delete_reaction_sends_content_in_body(provider: GiteaProvider, client) -> None:
     """Gitea's delete endpoint takes the content in a body, not an id in the path."""
     client.request.return_value = _mock_response(None, status_code=200)
     provider.delete_pull_request_reaction("7", "rocket")
@@ -260,7 +260,7 @@ def test_delete_reaction_sends_content_in_body(provider: GiteaProvider, client: 
     assert call.kwargs["data"] == {"content": "rocket"}
 
 
-def test_pull_request_comment_reaction_uses_issue_comment_route(provider: GiteaProvider, client: ApiClient) -> None:
+def test_pull_request_comment_reaction_uses_issue_comment_route(provider: GiteaProvider, client) -> None:
     """Gitea models pull requests as issues, so PR comments live on the issue comment routes."""
     client.request.return_value = _mock_response({"content": "+1", "user": {"id": 3, "login": "bot"}})
     provider.create_pull_request_comment_reaction("7", "912", "+1")
@@ -270,7 +270,7 @@ def test_pull_request_comment_reaction_uses_issue_comment_route(provider: GiteaP
 # Check runs
 
 
-def test_check_run_id_is_composite(provider: GiteaProvider, client: ApiClient) -> None:
+def test_check_run_id_is_composite(provider: GiteaProvider, client) -> None:
     """A Gitea status id changes on every update; the context is what is stable across runs."""
     run = map_check_run({"context": "ci/build", "status": "success", "target_url": "https://ci/1"}, "deadbeef")
     assert run["id"] == "deadbeef:ci/build"
@@ -307,7 +307,7 @@ def test_latest_status_per_context_dedupes() -> None:
     assert result[0]["status"] == "success"
 
 
-def test_list_check_runs_filters_by_name(provider: GiteaProvider, client: ApiClient) -> None:
+def test_list_check_runs_filters_by_name(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response(
         [
             {"context": "ci/build", "status": "success"},
@@ -318,7 +318,7 @@ def test_list_check_runs_filters_by_name(provider: GiteaProvider, client: ApiCli
     assert [r["name"] for r in result["data"]] == ["ci/test"]
 
 
-def test_list_check_runs_all_keeps_duplicate_contexts(provider: GiteaProvider, client: ApiClient) -> None:
+def test_list_check_runs_all_keeps_duplicate_contexts(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response(
         [
             {"context": "ci/build", "status": "success"},
@@ -372,7 +372,9 @@ def test_map_commit_populates_account_logins() -> None:
     assert commit["id"] == "deadbeef"
     assert commit["author_login"] == "dev"
     assert commit["committer_login"] == "ci-bot"
-    assert commit["author"]["date"] == datetime.datetime(2026, 1, 2, 3, 4, 5, tzinfo=datetime.UTC)
+    author = commit["author"]
+    assert author is not None
+    assert author["date"] == datetime.datetime(2026, 1, 2, 3, 4, 5, tzinfo=datetime.UTC)
     assert commit["additions"] == 10
 
 
@@ -439,7 +441,7 @@ def test_map_reaction_without_user() -> None:
 # Routing
 
 
-def test_get_repository_uses_owner_name_path(provider: GiteaProvider, client: ApiClient) -> None:
+def test_get_repository_uses_owner_name_path(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response(
         {
             "full_name": "acme/widgets",
@@ -456,7 +458,7 @@ def test_get_repository_uses_owner_name_path(provider: GiteaProvider, client: Ap
     assert result["data"]["full_name"] == "acme/widgets"
 
 
-def test_get_commits_by_path_forwards_filters(provider: GiteaProvider, client: ApiClient) -> None:
+def test_get_commits_by_path_forwards_filters(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response([])
     provider.get_commits_by_path(
         "src/app.py",
@@ -471,7 +473,7 @@ def test_get_commits_by_path_forwards_filters(provider: GiteaProvider, client: A
     assert params["until"].startswith("2026-02-01")
 
 
-def test_get_repository_user_permission_maps_owner_to_admin(provider: GiteaProvider, client: ApiClient) -> None:
+def test_get_repository_user_permission_maps_owner_to_admin(provider: GiteaProvider, client) -> None:
     """Gitea's `owner` sits above `admin`, but the generic model tops out at admin."""
     client.request.return_value = _mock_response({"permission": "owner", "user": {"id": 5, "login": "dev"}})
     result = provider.get_repository_user_permission("dev")
@@ -479,7 +481,7 @@ def test_get_repository_user_permission_maps_owner_to_admin(provider: GiteaProvi
     assert result["data"]["login"] == "dev"
 
 
-def test_update_issue_resolves_label_names_to_ids(provider: GiteaProvider, client: ApiClient) -> None:
+def test_update_issue_resolves_label_names_to_ids(provider: GiteaProvider, client) -> None:
     """Gitea's issue-edit payload takes label ids; an unknown name is dropped, not fatal."""
     client.request.side_effect = [
         _mock_response([{"id": 1, "name": "bug"}, {"id": 2, "name": "p1"}]),
@@ -491,7 +493,7 @@ def test_update_issue_resolves_label_names_to_ids(provider: GiteaProvider, clien
     assert patch_call.kwargs["data"] == {"state": "closed", "labels": [1]}
 
 
-def test_request_review_posts_reviewers(provider: GiteaProvider, client: ApiClient) -> None:
+def test_request_review_posts_reviewers(provider: GiteaProvider, client) -> None:
     client.request.return_value = _mock_response({})
     provider.request_review("7", ["alice", "bob"])
     call = client.request.call_args
