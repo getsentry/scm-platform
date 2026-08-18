@@ -115,8 +115,13 @@ Because the endpoint accepts the filter and ignores it (see "Silently ignored pa
   - `get_commits_by_path`
 
 Implemented by neither Origin nor us yet, but possible — see actions-quick-ref.md for each:
-`delete_pull_request_comment`, `get_app_installation`, `get_pull_request_diff`,
-`get_pull_request_review`, `get_pull_request_review_threads`, `get_pull_request_template`.
+`delete_pull_request_comment`, `get_pull_request_diff`, `get_pull_request_review`,
+`get_pull_request_review_threads`, `get_pull_request_template`.
+
+`get_app_installation` **is** implemented, and it is load-bearing for Seer rather than optional:
+`check_repo_access` calls it to decide whether Seer may open a pull request, and treats a provider
+that does not implement it as "no write access" — so the whole PR path fails closed, with a message
+about permissions rather than about a missing method.
 
 # Consequences
 

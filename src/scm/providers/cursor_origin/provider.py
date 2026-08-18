@@ -48,6 +48,7 @@ from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    AppInstallation,
     Author,
     BranchName,
     BuildConclusion,
@@ -335,6 +336,32 @@ class CursorOriginProvider:
         """
         response = self.get("/app", credentials_set="application")
         return map_action(response, lambda r: Author(id=str(r["id"]), username=r["slug"]))
+
+    def get_app_installation(self) -> ActionResult[AppInstallation]:
+        """The granted scopes of the installation covering this repository.
+
+        Origin has no per-repository installation route -- both
+        ``GET /repos/{owner}/{repo}/installation`` and ``GET /installation`` 404 with a
+        route-not-found body. The only place granted scopes are reported is the
+        app-scoped installation resource, so this lists installations with the app JWT
+        and matches on ``target.slug``, the codebase that prefixes every repository's
+        ``fullName``.
+
+        Consequences worth knowing:
+
+        - It costs the app-JWT credential rather than the installation token, like
+          ``get_authenticated_actor``.
+        - An app installed on several codebases gets one installation per codebase, and
+          scopes are per-installation, so matching on the owner slug is required --
+          taking the first entry would report another codebase's grant.
+        - ``has_write_access`` requires *both* ``contents:write`` and
+          ``pull_requests:write``, mirroring GitHub's mapping. Note that
+          ``contents:write`` does not buy a REST content write on Origin (there is no
+          such route) -- it is the scope that authorizes the Git-over-HTTPS push.
+        """
+        response = self.get("/app/installations", credentials_set="application")
+        owner = self.repository["name"].split("/")[0]
+        return map_action(response, lambda r: map_app_installation(r, owner))
 
     # -------------------------------------------------------------------- refs
 
@@ -1106,6 +1133,28 @@ class CursorOriginProvider:
 
 
 # ------------------------------------------------------------------ mappers
+
+
+def map_app_installation(raw: dict[str, Any], owner: str) -> AppInstallation:
+    """Map ``GET /app/installations`` to the installation covering ``owner``.
+
+    An installation with no match reports no access rather than raising: the caller
+    (``check_repo_access``) treats an exception and a no-access answer the same way, and
+    "the app is not installed on this codebase" is a legitimate answer to the question
+    rather than a failure to answer it.
+    """
+    installations = raw.get("installations") or []
+    scopes: set[str] = set()
+    for installation in installations:
+        if (installation.get("target") or {}).get("slug") == owner:
+            scopes = set(installation.get("scopes") or [])
+            break
+
+    return AppInstallation(
+        has_read_access="repository:metadata:read" in scopes,
+        has_write_access=("repository:contents:write" in scopes and "repository:pull_requests:write" in scopes),
+        has_check_run_write_access="repository:checks:write" in scopes,
+    )
 
 
 def _normalize_head(head: str) -> str:

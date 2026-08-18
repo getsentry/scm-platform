@@ -309,6 +309,99 @@ def test_app_endpoints_use_application_credentials() -> None:
     assert actor["data"] == {"id": "app_01test", "username": "test-app"}
 
 
+def _installations(*, owner: str, scopes: list[str]) -> dict[str, Any]:
+    """The shape of ``GET /app/installations``, as observed live."""
+    return {
+        "installations": [
+            {
+                "id": "i_01test",
+                "appId": "app_01test",
+                "repoSelectionMode": "selected",
+                "scopes": scopes,
+                "target": {"slug": owner, "id": "ns_01test"},
+            }
+        ]
+    }
+
+
+ALL_SCOPES = [
+    "repository:metadata:read",
+    "repository:contents:read",
+    "repository:contents:write",
+    "repository:pull_requests:read",
+    "repository:pull_requests:write",
+    "repository:checks:read",
+    "repository:checks:write",
+]
+
+
+def test_app_installation_maps_granted_scopes() -> None:
+    provider, client = make_provider()
+    client.queue(_installations(owner="test-owner", scopes=ALL_SCOPES))
+
+    result = provider.get_app_installation()
+
+    # Scopes are only reported on the app-scoped resource, which needs the app JWT.
+    assert client.last["path"] == "/app/installations"
+    assert client.last["credentials_set"] == "application"
+    assert result["data"] == {
+        "has_read_access": True,
+        "has_write_access": True,
+        "has_check_run_write_access": True,
+    }
+
+
+def test_app_installation_write_needs_both_contents_and_pull_requests() -> None:
+    """Mirrors GitHub's mapping: contents:write alone is not write access."""
+    provider, client = make_provider()
+    client.queue(
+        _installations(
+            owner="test-owner",
+            scopes=["repository:metadata:read", "repository:contents:write"],
+        )
+    )
+
+    assert provider.get_app_installation()["data"] == {
+        "has_read_access": True,
+        "has_write_access": False,
+        "has_check_run_write_access": False,
+    }
+
+
+def test_app_installation_matches_on_owner_slug() -> None:
+    """Scopes are per-installation, so the wrong codebase's grant must not be reported.
+
+    Taking the first entry would hand back another codebase's scopes -- which is the
+    quiet-wrong-answer failure, not a loud one.
+    """
+    provider, client = make_provider()
+    client.queue(
+        {
+            "installations": [
+                {
+                    "id": "i_01other",
+                    "scopes": ALL_SCOPES,
+                    "target": {"slug": "some-other-codebase", "id": "ns_01other"},
+                }
+            ]
+        }
+    )
+
+    assert provider.get_app_installation()["data"] == {
+        "has_read_access": False,
+        "has_write_access": False,
+        "has_check_run_write_access": False,
+    }
+
+
+def test_app_installation_handles_empty_collection() -> None:
+    """Origin omits the collection key entirely rather than sending []."""
+    provider, client = make_provider()
+    client.queue({})
+
+    assert provider.get_app_installation()["data"]["has_write_access"] is False
+
+
 # ------------------------------------------------------- refusals (silently-ignored params)
 
 

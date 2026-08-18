@@ -173,9 +173,11 @@ Cursor Origin: *not supported* (no CI surface of its own; only check runs report
 
 ## `get_app_installation`
 
-Cursor Origin: *not implemented* — [GET /app/installations/{id}](https://cursor.com/docs/api/origin)
-returns the granted `scopes`, but it needs the app JWT *and* the installation id, and the provider is
-constructed with neither. See limitations.md.
+Cursor Origin: [GET /app/installations](https://cursor.com/docs/api/origin) (app JWT), taking the
+installation whose `target.slug` is the repository owner. The per-repository and bare forms
+(`/repos/{o}/{r}/installation`, `/installation`) both 404, so the app-scoped *list* is the only place
+granted `scopes` are reported — and matching on the owner slug avoids needing the installation id,
+which the provider is not constructed with.
 
 ## `get_archive_link`
 
