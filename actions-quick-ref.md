@@ -28,6 +28,11 @@ least one path (see `get_file_content`).
 
 Every endpoint below was exercised against `sentry/nuget-trends` unless marked otherwise.
 
+*not supported* here means **the published API does not offer it**, which is not always the same as
+Origin not having it — the web UI has reactions, for instance. We build to the spec rather than to
+probed-out endpoints; see the "Scope" and "Revisit when Origin supports it" sections of
+[limitations.md](limitations.md).
+
 # Actions
 
 ## `collapse_pull_request_comment`

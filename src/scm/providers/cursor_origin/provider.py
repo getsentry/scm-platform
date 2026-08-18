@@ -20,6 +20,13 @@ The write surface is small: pull requests, pull-request comments, reviews, and c
 runs. There is no way to write a commit, branch, ref, blob, or tree over REST -- those
 go over Git HTTPS with the installation token. See ``limitations.md`` for the full list
 and ``actions-quick-ref.md`` for the action -> endpoint mapping.
+
+**Scope.** This is written to what Origin's OpenAPI document publishes and we verified on
+the wire, and nothing else. A feature visible in Origin's web UI but absent from the API
+-- reactions, today -- stays unimplemented rather than reverse-engineered: an endpoint
+found by probing is one Cursor never promised and can withdraw without notice. The API is
+``v1alpha1``, so every gap here is provisional; ``limitations.md`` keeps a "Revisit when
+Origin supports it" list so the next person reads them as pending, not settled.
 """
 
 from collections.abc import Callable, Iterator

@@ -4,6 +4,43 @@
     two is a mechanical interleave.
 -->
 
+# Scope: built against the published API, not against the product
+
+Origin's API self-reports as `v1alpha1` and its docs label it Alpha / Early Beta, "subject to change".
+This provider is deliberately built to **what the [OpenAPI document](https://cursor.com/docs/api/origin/openapi.yaml)
+publishes and we could verify on the wire** — nothing else.
+
+Two consequences worth being explicit about, because both are choices rather than accidents:
+
+1. **A feature in the web UI is not a feature we implement.** Origin's UI has reactions; its API does
+   not expose them. We do not reverse-engineer around that — an undocumented endpoint found by probing
+   is one Cursor never promised, can change without notice, and would fail in production long after
+   whoever added it moved on.
+2. **Every gap below is provisional.** The list describes the API as of **2026-08-17**, not a permanent
+   verdict on Origin. The section "Revisit when Origin supports it" collects the ones we would
+   implement the moment they ship, so the next person reads them as pending rather than settled.
+
+Where a gap has a cheap, honest partial answer, we take it and say so — see "Degraded inline review
+comments". Where it does not, the action stays unimplemented and the facade hides it.
+
+# Revisit when Origin supports it
+
+In rough order of what would buy the most, and what to watch for:
+
+| Gap | Watch for | Unblocks |
+|---|---|---|
+| **Reactions** | any reaction field or route on pull request comments | Sentry's 👀 "request queued" acknowledgement — the most visible loss, and the smallest ask |
+| **Inline review comments** | `path`/`line`/`side` on the comment schema, or `comments[]` on `POST /reviews` | Seer reviews as real line comments instead of located general ones |
+| **Review threads & resolve** | a thread resource, or `resolved` on a comment | retiring superseded Seer findings instead of editing them in place |
+| **Content / commit / branch writes** | any `POST` under `contents`, `git/*`, or `branches` | `create_commit` and friends; today Seer must clone and push |
+| **`compare` file list** | `files[]` on the compare response | `compare_commits().diff`, which is empty today |
+| **Commit date and path filters** | `since`/`until`/`path` actually filtering rather than being ignored | `get_commits(since=…)` and `get_commits_by_path`, which currently raise |
+| **Reviewer operations** | any reviewer add/remove route (webhook-only today) | `request_review` |
+| **Archive download** | a `tarball`/`zipball` route | `get_archive_link`; Seer could stop cloning |
+
+Anything on this list that starts working is a small, contained change here — the mapping tables and
+docstrings already name the endpoint each one would use.
+
 # Actions not supported on Cursor Origin
 
 Because there is no issue tracker:
@@ -403,4 +440,11 @@ is a native Origin repository, so nothing here exercises that path.
 ## API stability
 
 The API self-reports as `v1alpha1` and the docs label it Alpha / Early Beta, "subject to change".
-Everything above was true on 2026-08-17.
+Everything above was true on 2026-08-17 — see "Scope" at the top for how that shapes what is
+implemented, and "Revisit when Origin supports it" for what to re-check when the API moves.
+
+A concrete re-check list for whoever revisits this: the endpoints whose *behavior* we depend on and
+that could change without breaking loudly are the ignored query parameters (a `since` that starts
+working would silently begin filtering where we currently raise), `recursive` accepting any non-empty
+value, `size` being a string on `contents` but an int on `git/blobs`, and the absence of a `truncated`
+flag on trees. Each of those has a test naming it.
