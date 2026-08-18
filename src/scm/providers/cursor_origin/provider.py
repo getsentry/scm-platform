@@ -634,7 +634,7 @@ class CursorOriginProvider:
     ) -> PaginatedActionResult[list[PullRequest]]:
         params: dict[str, str] = {"state": state if state is not None else "all"}
         if head:
-            params["head"] = head
+            params["head"] = _normalize_head(head)
         response = self.get(
             f"{self._repo}/pulls",
             params=params,
@@ -1106,6 +1106,34 @@ class CursorOriginProvider:
 
 
 # ------------------------------------------------------------------ mappers
+
+
+def _normalize_head(head: str) -> str:
+    """Normalize a GitHub-shaped ``head`` filter to the bare branch name Origin wants.
+
+    Callers pass ``head`` in GitHub's shape: an optional ``owner:`` prefix and
+    sometimes a ``refs/heads/`` ref prefix (e.g. ``"acme:refs/heads/feature"``).
+    Seer does exactly this -- it looks for an existing open PR with
+    ``head=f"{owner}:{branch}"`` before opening a new one.
+
+    Origin's ``head`` filter is a real server-side filter (verified: a branch that
+    does not exist returns zero pull requests rather than the unfiltered list), but
+    it accepts only a plain git ref. The qualified form is rejected outright:
+
+        GET /pulls?state=open&head=sentry:some-branch
+        -> 400 {"code": 3, "message": "Git ref is invalid"}
+
+    So this is not one of Origin's silently-ignored parameters -- forwarding the
+    GitHub shape unchanged is a loud 400, which is why it is normalized here rather
+    than in the caller. GitLab's provider does the same thing for the same reason
+    (``_head_to_source_branch``).
+
+    A ``refs/heads/`` prefix is in fact accepted by Origin (verified: it returns the
+    same single pull request as the bare name). It is stripped anyway, so that one
+    normalization covers both spellings and matches GitLab's behaviour.
+    """
+    branch = head.split(":", 1)[-1]
+    return branch.removeprefix("refs/heads/")
 
 
 def _check_run_input(

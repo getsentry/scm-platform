@@ -242,6 +242,30 @@ def test_empty_collection_arrives_as_an_empty_object() -> None:
     assert result["meta"]["next_cursor"] is None
 
 
+@pytest.mark.parametrize(
+    ("head", "expected"),
+    [
+        ("sentry:my-branch", "my-branch"),
+        ("refs/heads/my-branch", "my-branch"),
+        ("sentry:refs/heads/my-branch", "my-branch"),
+        ("my-branch", "my-branch"),
+    ],
+)
+def test_github_shaped_head_is_normalized_to_a_bare_ref(head: str, expected: str) -> None:
+    """Origin's ``head`` filter takes a plain git ref and 400s on ``owner:branch``.
+
+    Seer looks for an existing open PR with ``head=f"{owner}:{branch}"`` before
+    opening a new one, so forwarding the GitHub shape unchanged would fail the whole
+    PR-creation path with "Git ref is invalid".
+    """
+    provider, client = make_provider()
+    client.queue({})
+
+    provider.get_pull_requests(head=head)
+
+    assert client.last["params"]["head"] == expected
+
+
 def test_conditional_request_forwards_if_none_match() -> None:
     provider, client = make_provider()
     client.queue({"ref": "refs/heads/main", "object": {"sha": "a" * 40}})
