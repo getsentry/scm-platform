@@ -390,9 +390,22 @@ either. Status:
 |---|---|---|
 | `get_pull_request_url` (and `PullRequest.html_url`, `Review.html_url`) | `/pull/{n}` | ✅ confirmed; the plural `/pulls/{n}` is a **dead link** |
 | `get_commit_url` | `/commit/{sha}` | unconfirmed |
-| `get_file_url` | `/blob/{sha}/{path}`, `#L{start}-L{end}` | unconfirmed |
+| `get_file_url` | `/blob/{ref}/{path}` | ⚠️ **partly** — confirmed with a *branch* as the ref |
+| `get_file_url` | `#L{start}-L{end}` | unconfirmed |
 | `get_commits_url` | `/commits/{sha}` | unconfirmed |
 | *(no protocol method)* | `/pull/{n}#discussion-{commentId}` | ✅ confirmed — a comment permalink |
+
+The `get_file_url` row is split on purpose. `/blob/main/scripts/backfill-package-first-seen.cs` was
+confirmed in a logged-in browser, which settles the `/blob/` segment and the path layout — but the
+provider passes a **40-character sha** where that test used a branch name, and GitHub's tolerance of
+both proves nothing about Origin's. The `#L` anchor is untested either way, and it is the piece Seer
+leans on hardest: an anchor the UI does not understand degrades quietly to top-of-file rather than
+erroring, so it will not announce itself.
+
+Note that **curl cannot settle any of these.** Every path under `/codebase/` answers 307 to
+`cursor.com/api/auth/login` — including deliberately malformed ones — because Origin authenticates
+before it routes. A valid URL and a nonsense URL are indistinguishable unauthenticated. Only a
+logged-in browser decides, which is why these rows move slowly.
 
 That last row is a freebie worth remembering: a comment anchors as `#discussion-{commentId}`, and the
 comment id is exactly what `create_pull_request_comment` and the degraded review comments return. There
