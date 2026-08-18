@@ -2306,8 +2306,14 @@ def _set_commit_logins(mapped: Commit | PullRequestCommit, raw: dict[str, Any]) 
     are null for commits whose email matches no GitHub account, in which case
     the key is left off rather than set to ``None``.
     """
-    if author_login := (raw.get("author") or {}).get("login"):
+    author = raw.get("author") or {}
+    if author_login := author.get("login"):
         mapped["author_login"] = author_login
+        # GitHub classifies each account as "User" or "Bot". Surface it, since
+        # not every automation's login carries the "[bot]" suffix a caller
+        # would otherwise have to pattern-match on.
+        if (account_type := author.get("type")) is not None:
+            mapped["author_is_bot"] = account_type == "Bot"
     if committer_login := (raw.get("committer") or {}).get("login"):
         mapped["committer_login"] = committer_login
 

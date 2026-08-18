@@ -721,9 +721,12 @@ def map_commit(raw: dict[str, Any]) -> Commit:
     )
 
     # Unlike GitLab, Gitea attaches the resolved *accounts* alongside the git
-    # identities, so the login keys can be populated -- these are what a caller
-    # tests to tell a bot's commits from a human's. They are absent when the
+    # identities, so the login keys can be populated. They are absent when the
     # commit email matches no account.
+    #
+    # `author_is_bot` is deliberately never set: Gitea's user object has no
+    # account-type or bot marker of any kind, so there is nothing to report and
+    # claiming "not a bot" would be an assertion the API never made.
     if (author := raw.get("author")) and author.get("login"):
         commit["author_login"] = author["login"]
     if (committer := raw.get("committer")) and committer.get("login"):

@@ -354,12 +354,16 @@ def expected_file_content(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def expected_commit_logins(raw: dict[str, Any]) -> dict[str, str]:
-    return {
+def expected_commit_logins(raw: dict[str, Any]) -> dict[str, Any]:
+    expected: dict[str, Any] = {
         f"{field}_login": (raw[field] or {})["login"]
         for field in ("author", "committer")
         if (raw.get(field) or {}).get("login")
     }
+    author = raw.get("author") or {}
+    if author.get("login") and author.get("type") is not None:
+        expected["author_is_bot"] = author["type"] == "Bot"
+    return expected
 
 
 def expected_commit(raw: dict[str, Any]) -> dict[str, Any]:
@@ -3608,3 +3612,34 @@ def test_public_methods_are_accounted_for() -> None:
     } - transport_methods
 
     assert public_methods == covered_methods
+
+
+def test_compare_commits_reports_bot_authorship() -> None:
+    """Not every automation's login carries the "[bot]" suffix, so the account
+    type is the reliable signal."""
+    provider, client = make_provider()
+    client.queue(
+        "get",
+        FakeResponse(
+            make_github_commit_comparison(
+                commits=[
+                    make_github_commit(author_login="ci-runner", author_type="Bot"),
+                    make_github_commit(author_login="alice", author_type="User"),
+                ],
+            )
+        ),
+    )
+
+    commits = provider.compare_commits("aaa", "bbb")["data"]["commits"]
+
+    assert commits[0]["author_is_bot"] is True
+    assert commits[1]["author_is_bot"] is False
+
+
+def test_compare_commits_omits_bot_flag_without_an_account() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse(make_github_commit_comparison(commits=[make_github_commit()])))
+
+    commit = provider.compare_commits("aaa", "bbb")["data"]["commits"][0]
+
+    assert "author_is_bot" not in commit

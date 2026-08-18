@@ -410,6 +410,15 @@ class Commit(TypedDict):
     to an account: GitLab's commit and compare endpoints carry no user objects
     at all, so they are never populated there, and GitHub omits them for
     commits whose email matches no account.
+
+    ``author_is_bot`` reports whether the provider classifies the authoring
+    account as an automation rather than a person. It is set only where the
+    provider says so authoritatively -- GitHub tags accounts ``User`` or
+    ``Bot`` -- and is absent everywhere else, including Gitea and GitLab, whose
+    user objects carry no bot marker at all. Absent therefore means "the
+    provider does not say", not "not a bot", so a caller that must exclude
+    automation should treat the key as one signal among several (a ``[bot]``
+    login suffix being the usual other one) rather than as a complete answer.
     """
 
     id: SHA
@@ -419,6 +428,7 @@ class Commit(TypedDict):
     deletions: int | None
     author_login: NotRequired[str]
     committer_login: NotRequired[str]
+    author_is_bot: NotRequired[bool]
 
 
 class CommitWithChanges(Commit):
@@ -494,13 +504,15 @@ class PullRequestFile(TypedDict):
 
 
 class PullRequestCommit(TypedDict):
-    """A commit listed on a pull request. See :class:`Commit` for the login fields."""
+    """A commit listed on a pull request. See :class:`Commit` for the login and
+    bot fields."""
 
     sha: SHA
     message: str
     author: CommitAuthor | None
     author_login: NotRequired[str]
     committer_login: NotRequired[str]
+    author_is_bot: NotRequired[bool]
 
 
 class DiffLine(TypedDict, total=False):
