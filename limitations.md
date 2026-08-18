@@ -389,23 +389,24 @@ either. Status:
 | Builder | Suffix | |
 |---|---|---|
 | `get_pull_request_url` (and `PullRequest.html_url`, `Review.html_url`) | `/pull/{n}` | ✅ confirmed; the plural `/pulls/{n}` is a **dead link** |
+| `get_file_url` | `/blob/{sha}/{path}` and `/blob/{branch}/{path}` | ✅ confirmed, both refs |
+| `get_file_url` | `#L{start}-L{end}` | ✅ confirmed — the anchor works |
 | `get_commit_url` | `/commit/{sha}` | unconfirmed |
-| `get_file_url` | `/blob/{ref}/{path}` | ⚠️ **partly** — confirmed with a *branch* as the ref |
-| `get_file_url` | `#L{start}-L{end}` | unconfirmed |
-| `get_commits_url` | `/commits/{sha}` | unconfirmed |
+| `get_commits_url` | `/commits/{sha}`, plus `/{path}` when scoped to a file | unconfirmed |
 | *(no protocol method)* | `/pull/{n}#discussion-{commentId}` | ✅ confirmed — a comment permalink |
 
-The `get_file_url` row is split on purpose. `/blob/main/scripts/backfill-package-first-seen.cs` was
-confirmed in a logged-in browser, which settles the `/blob/` segment and the path layout — but the
-provider passes a **40-character sha** where that test used a branch name, and GitHub's tolerance of
-both proves nothing about Origin's. The `#L` anchor is untested either way, and it is the piece Seer
-leans on hardest: an anchor the UI does not understand degrades quietly to top-of-file rather than
-erroring, so it will not announce itself.
+`get_file_url` is fully settled: the `/blob/` segment, a branch *or* a 40-character sha in the ref
+position, and the line anchor were each checked in a logged-in browser. That last one mattered most —
+Seer uses it to point at a specific line, and an anchor the UI did not understand would have degraded
+quietly to top-of-file rather than erroring.
+
+The two commit shapes are the only ones left, and nothing depends on them urgently: `get_commit_url`
+feeds Sentry's commit links, `get_commits_url` its history links.
 
 Note that **curl cannot settle any of these.** Every path under `/codebase/` answers 307 to
 `cursor.com/api/auth/login` — including deliberately malformed ones — because Origin authenticates
 before it routes. A valid URL and a nonsense URL are indistinguishable unauthenticated. Only a
-logged-in browser decides, which is why these rows move slowly.
+logged-in browser decides, which is why these rows moved slowly.
 
 That last row is a freebie worth remembering: a comment anchors as `#discussion-{commentId}`, and the
 comment id is exactly what `create_pull_request_comment` and the degraded review comments return. There
