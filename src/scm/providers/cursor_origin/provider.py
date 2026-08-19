@@ -993,6 +993,12 @@ class CursorOriginProvider:
         replaces the previous state. The existing run and its suite have to be read
         first to recover the key, name, and head sha the upsert needs, so an update
         costs three requests.
+
+        Because the POST replaces rather than patches, anything the caller omits has to
+        be carried over from the run that was just read, or it is cleared: status,
+        timestamps, and conclusion all are. ``output`` is the exception -- Origin's read
+        shape for it is unverified, so an omitted ``output`` is dropped. See
+        limitations.md.
         """
         existing = self.get(f"{self._repo}/check-runs/{check_run_id}").json()
         suite_id = (existing.get("checkSuite") or {}).get("id")
@@ -1015,6 +1021,7 @@ class CursorOriginProvider:
                     external_id=existing.get("externalId", existing["key"]),
                     status=status if status is not None else CURSOR_ORIGIN_STATUS_MAP.get(existing.get("status", "")),
                     conclusion=conclusion,
+                    existing_conclusion=existing.get("conclusion"),
                     started_at=existing.get("startedAt"),
                     completed_at=existing.get("completedAt"),
                     output=output,
@@ -1192,10 +1199,21 @@ def _check_run_input(
     external_id: str,
     status: BuildStatus | None,
     conclusion: BuildConclusion | None,
+    existing_conclusion: str | None = None,
     started_at: str | None,
     completed_at: str | None,
     output: CheckRunOutput | None,
 ) -> dict[str, Any]:
+    """Build the ``checkRun`` body of an upsert.
+
+    ``existing_conclusion`` is the Origin-shaped conclusion already on the run, and is
+    used verbatim when the caller supplies none. Because the POST replaces the run
+    rather than patching it, omitting the field would clear a conclusion the run
+    already had -- and Origin requires one on a completed run, so an output-only
+    update of a finished check would fail outright. Passing the raw value through
+    also avoids a lossy round trip: `stale` reads as `unknown`, which would be
+    written back as `neutral`.
+    """
     data: dict[str, Any] = {
         "key": key,
         "name": name,
@@ -1206,6 +1224,8 @@ def _check_run_input(
     }
     if conclusion is not None:
         data["conclusion"] = CURSOR_ORIGIN_CONCLUSION_WRITE_MAP[conclusion]
+    elif existing_conclusion is not None:
+        data["conclusion"] = existing_conclusion
     if started_at is not None:
         data["startedAt"] = started_at
     if completed_at is not None:

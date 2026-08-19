@@ -335,6 +335,14 @@ than forwarding a filter that will not be applied.
   a fresh `externalId` per retry.
 - **There is no PATCH.** An update is a re-POST with the same key, which means reading the existing run
   *and* its suite first to recover the key, name, and head sha — three requests per update.
+- **The upsert replaces the run, so anything omitted is cleared.** `update_check_run` therefore carries
+  the existing status, timestamps, and conclusion across when the caller supplies none — without that,
+  an output-only update of a completed run would drop its conclusion, which Origin requires. The
+  existing conclusion is re-sent as the raw Origin string rather than round-tripped through
+  `BuildConclusion`, so `stale` survives instead of degrading to `neutral`.
+- **`output` is the one field not carried across**, because Origin's *read* shape for it is unverified
+  and re-sending a shape the write endpoint does not accept would fail the whole update. An update that
+  omits `output` clears it. Revisit once the read shape is confirmed.
 - The check-run list endpoints take no filters, so `check_name`/`status` are applied client-side after
   the page is fetched. A page can therefore come back short or empty while later pages still hold
   matches: walk to the end rather than stopping at the first empty page. `timestamp_filter` has no

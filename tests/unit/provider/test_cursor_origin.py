@@ -935,6 +935,58 @@ def test_update_check_run_reads_back_then_upserts() -> None:
     assert result["data"]["conclusion"] == "success"
 
 
+def test_update_check_run_preserves_the_existing_conclusion() -> None:
+    """The POST replaces the run, so an output-only update would otherwise clear the
+    conclusion -- which Origin requires on a completed run."""
+    provider, client = make_provider()
+    completed = {**CHECK_RUN, "status": "completed", "conclusion": "success"}
+    client.queue(completed)
+    client.queue({"id": "crg_01test", "key": "suite-key", "name": "suite", "externalId": "suite-ext"})
+    client.queue({"checkSuite": {"id": "crg_01test"}, "checkRun": completed})
+
+    provider.update_check_run("cr_01test", output={"title": "t", "summary": "s"})
+
+    sent = client.calls[2]["data"]["checkRun"]
+    assert sent["conclusion"] == "success"
+    assert sent["status"] == "completed"
+    assert sent["output"] == {"title": "t", "summary": "s"}
+
+
+def test_update_check_run_prefers_the_callers_conclusion_over_the_existing_one() -> None:
+    provider, client = make_provider()
+    client.queue({**CHECK_RUN, "status": "completed", "conclusion": "success"})
+    client.queue({"id": "crg_01test", "key": "suite-key", "name": "suite", "externalId": "suite-ext"})
+    client.queue({"checkSuite": {"id": "crg_01test"}, "checkRun": CHECK_RUN})
+
+    provider.update_check_run("cr_01test", conclusion="failure")
+
+    assert client.calls[2]["data"]["checkRun"]["conclusion"] == "failure"
+
+
+def test_update_check_run_sends_no_conclusion_when_the_run_has_none() -> None:
+    provider, client = make_provider()
+    client.queue(CHECK_RUN)
+    client.queue({"id": "crg_01test", "key": "suite-key", "name": "suite", "externalId": "suite-ext"})
+    client.queue({"checkSuite": {"id": "crg_01test"}, "checkRun": CHECK_RUN})
+
+    provider.update_check_run("cr_01test", status="running")
+
+    assert "conclusion" not in client.calls[2]["data"]["checkRun"]
+
+
+def test_update_check_run_round_trips_a_conclusion_the_protocol_cannot_express() -> None:
+    """`stale` reads as `unknown`, which would write back as `neutral`; the raw value is
+    carried across instead."""
+    provider, client = make_provider()
+    client.queue({**CHECK_RUN, "status": "completed", "conclusion": "stale"})
+    client.queue({"id": "crg_01test", "key": "suite-key", "name": "suite", "externalId": "suite-ext"})
+    client.queue({"checkSuite": {"id": "crg_01test"}, "checkRun": CHECK_RUN})
+
+    provider.update_check_run("cr_01test", output={"title": "t", "summary": "s"})
+
+    assert client.calls[2]["data"]["checkRun"]["conclusion"] == "stale"
+
+
 def test_update_check_run_without_a_suite_id_raises() -> None:
     provider, client = make_provider()
     client.queue({**CHECK_RUN, "checkSuite": {}})
