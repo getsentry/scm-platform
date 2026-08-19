@@ -995,6 +995,28 @@ def test_update_check_run_without_a_suite_id_raises() -> None:
         provider.update_check_run("cr_01test", status="completed")
 
 
+@pytest.mark.parametrize(
+    "run_overrides,suite",
+    [
+        ({"sha": None}, {"id": "crg_01test", "key": "suite-key"}),
+        ({"key": None}, {"id": "crg_01test", "key": "suite-key"}),
+        ({}, {"id": "crg_01test"}),
+    ],
+    ids=["no run sha", "no run key", "no suite key"],
+)
+def test_update_check_run_reports_a_malformed_read_instead_of_a_key_error(
+    run_overrides: dict[str, object], suite: dict[str, object]
+) -> None:
+    """The upsert is built from a response, not from caller input, so a field Origin
+    promised but omitted surfaces as the error callers already handle."""
+    provider, client = make_provider()
+    client.queue({k: v for k, v in {**CHECK_RUN, **run_overrides}.items() if v is not None})
+    client.queue(suite)
+
+    with pytest.raises(UnexpectedResponseFormat):
+        provider.update_check_run("cr_01test", status="completed")
+
+
 def test_check_run_lists_filter_client_side() -> None:
     """Origin's check-run lists take no filters, so they are applied after the fetch."""
     provider, client = make_provider()

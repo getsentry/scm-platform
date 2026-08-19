@@ -1006,19 +1006,30 @@ class CursorOriginProvider:
             raise UnexpectedResponseFormat(detail="Check run response is missing its check suite id.")
         suite = self.get(f"{self._repo}/check-suites/{suite_id}").json()
 
+        # Origin marks all three required, but they are read off a response rather than
+        # built here, so a missing one surfaces as UnexpectedResponseFormat -- which
+        # callers already handle -- instead of a KeyError escaping the provider.
+        head_sha = existing.get("sha")
+        run_key = existing.get("key")
+        suite_key = suite.get("key")
+        if not head_sha or not run_key or not suite_key:
+            raise UnexpectedResponseFormat(
+                detail="Check run response is missing its sha, key, or check suite key.",
+            )
+
         response = self.post(
             f"{self._repo}/check-runs",
             data={
-                "headSha": existing["sha"],
+                "headSha": head_sha,
                 "checkSuite": {
-                    "key": suite["key"],
-                    "name": suite.get("name", suite["key"]),
-                    "externalId": suite.get("externalId", suite["key"]),
+                    "key": suite_key,
+                    "name": suite.get("name", suite_key),
+                    "externalId": suite.get("externalId", suite_key),
                 },
                 "checkRun": _check_run_input(
-                    key=existing["key"],
-                    name=existing.get("name", existing["key"]),
-                    external_id=existing.get("externalId", existing["key"]),
+                    key=run_key,
+                    name=existing.get("name", run_key),
+                    external_id=existing.get("externalId", run_key),
                     status=status if status is not None else CURSOR_ORIGIN_STATUS_MAP.get(existing.get("status", "")),
                     conclusion=conclusion,
                     existing_conclusion=existing.get("conclusion"),
