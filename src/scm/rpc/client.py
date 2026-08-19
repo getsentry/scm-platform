@@ -125,6 +125,11 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     elif repository["provider_name"] == "gitlab":
         return GitLabProvider(client, organization_id, repository)
     elif repository["provider_name"] == "cursor_origin":
+        # Unlike github_enterprise, the web base is optional: Origin is single-tenant, so
+        # the provider's own default is right whenever Sentry did not store one.
+        web_base_url = repository["web_base_url"]
+        if web_base_url:
+            return CursorOriginProvider(client, organization_id, repository, web_base_url=web_base_url)
         return CursorOriginProvider(client, organization_id, repository)
     else:
         return None
