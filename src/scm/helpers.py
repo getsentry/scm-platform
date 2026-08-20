@@ -63,6 +63,7 @@ def exec_provider_fn[T](
     referrer: Referrer = "shared",
     provider_fn: Callable[[], T],
     record_count: Callable[[str, int, dict[str, str]], None],
+    passthrough: tuple[type[BaseException], ...] = (),
 ) -> T:
     provider_name = provider.__class__.__name__
 
@@ -74,6 +75,12 @@ def exec_provider_fn[T](
     except SCMError:
         record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})
         record_count("sentry.scm.actions.failed_by_referrer", 1, {"referrer": referrer})
+        raise
+    except passthrough:
+        # Caller-declared control-flow exceptions (e.g. a Celery ``SoftTimeLimitExceeded``, which
+        # subclasses ``Exception`` and would otherwise be swallowed below). These signal that the
+        # caller is aborting us, not that the provider failed, so propagate untouched and don't
+        # record a provider outcome. Empty by default, so callers that don't opt in are unaffected.
         raise
     except Exception as e:
         record_count("sentry.scm.actions.failed_by_provider", 1, {"provider": provider_name})

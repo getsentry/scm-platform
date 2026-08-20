@@ -1140,6 +1140,88 @@ def test_exec_records_failure_metric_on_unhandled_exception() -> None:
     ]
 
 
+def test_exec_reraises_passthrough_exception_unwrapped() -> None:
+    """A caller-declared passthrough exception propagates untouched instead of being wrapped.
+
+    Models a framework control-flow signal such as Celery's ``SoftTimeLimitExceeded`` (which
+    subclasses ``Exception`` and would otherwise be swallowed by the catch-all). scm-platform
+    stays framework-agnostic: the caller names the type, the library just honors it.
+    """
+
+    class Aborted(Exception):
+        pass
+
+    class AbortingProvider(BaseTestProvider):
+        def get_branch(self, branch, request_options=None):
+            raise Aborted("caller is aborting")
+
+    scm = SourceCodeManager(AbortingProvider(), passthrough=(Aborted,))
+
+    with pytest.raises(Aborted) as e:
+        assert isinstance(scm, GetBranchProtocol)
+        scm.get_branch(branch="main")
+    # Propagated as-is: not rewrapped as UnhandledException, no synthetic cause chain added.
+    assert e.value.__cause__ is None
+
+
+def test_exec_passthrough_records_no_provider_outcome() -> None:
+    """A passthrough exception is not a provider failure, so no success/failure metric is recorded."""
+    metrics: list[tuple[str, int, dict[str, str]]] = []
+
+    class Aborted(Exception):
+        pass
+
+    class AbortingProvider(BaseTestProvider):
+        def get_branch(self, branch, request_options=None):
+            raise Aborted("boom")
+
+    scm = SourceCodeManager(
+        AbortingProvider(),
+        record_count=lambda k, a, t: metrics.append((k, a, t)),
+        passthrough=(Aborted,),
+    )
+
+    with pytest.raises(Aborted):
+        assert isinstance(scm, GetBranchProtocol)
+        scm.get_branch(branch="main")
+
+    assert metrics == []
+
+
+def test_exec_still_wraps_non_passthrough_when_passthrough_set() -> None:
+    """Declaring a passthrough type does not stop unrelated exceptions from being wrapped."""
+
+    class Aborted(Exception):
+        pass
+
+    class ExplodingProvider(BaseTestProvider):
+        def get_branch(self, branch, request_options=None):
+            raise RuntimeError("unexpected failure")
+
+    scm = SourceCodeManager(ExplodingProvider(), passthrough=(Aborted,))
+
+    with pytest.raises(SCMCodedError) as e:
+        assert isinstance(scm, GetBranchProtocol)
+        scm.get_branch(branch="main")
+    assert e.value.code == "unhandled_exception"
+    assert isinstance(e.value.__cause__, RuntimeError)
+
+
+def test_exec_default_passthrough_wraps_everything() -> None:
+    """With no passthrough declared (the default), all non-SCM exceptions are still wrapped."""
+
+    class ExplodingProvider(BaseTestProvider):
+        def get_branch(self, branch, request_options=None):
+            raise RuntimeError("boom")
+
+    scm = SourceCodeManager(ExplodingProvider())
+
+    with pytest.raises(SCMCodedError) as e:
+        assert isinstance(scm, GetBranchProtocol)
+        scm.get_branch(branch="main")
+    assert e.value.code == "unhandled_exception"
+
+
 def test_exec_passes_custom_referrer() -> None:
     """The referrer set on SourceCodeManager is forwarded through _exec to exec_provider_fn."""
     metrics: list[tuple[str, int, dict[str, str]]] = []
