@@ -236,20 +236,28 @@ class PerforceProvider:
         options = request_options or {}
         return self.request("GET", path=path, params=params or {}, stream=stream, timeout=options.get("timeout"))
 
+    def contain(self, depot_path: str) -> str:
+        """Refuse an absolute depot path outside this repository.
+
+        Branch names and file paths both reach the provider from outside -- user
+        settings and agent tool calls -- so an absolute path elsewhere on the
+        server would otherwise read a depot the organization never connected. The
+        trailing separator is what stops "//SentryDemoEvil" matching "//SentryDemo".
+        """
+        if depot_path != self.depot_path and not depot_path.startswith(f"{self.depot_path}/"):
+            raise MalformedExternalId()
+        return depot_path
+
     def depot_scope(self, branch: BranchName | None = None) -> str:
         if not branch:
             return f"{self.depot_path}/..."
         if branch.startswith("//"):
-            # ``branch_name`` is user-editable, so it must not escape the depot. The
-            # trailing separator is what stops "//SentryDemoEvil" matching "//SentryDemo".
-            if branch != self.depot_path and not branch.startswith(f"{self.depot_path}/"):
-                raise MalformedExternalId()
-            return f"{branch.rstrip('/')}/..."
+            return f"{self.contain(branch.rstrip('/'))}/..."
         return f"{self.depot_path}/{branch.strip('/')}/..."
 
     def resolve_path(self, path: str) -> str:
         if path.startswith("//"):
-            return path
+            return self.contain(path)
         return f"{self.depot_path}/{path.lstrip('/')}"
 
     def get_app_installation(self) -> ActionResult[AppInstallation]:

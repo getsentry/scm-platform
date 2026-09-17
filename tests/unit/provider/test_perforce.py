@@ -93,11 +93,27 @@ def test_depot_scope_resolves_branches(provider: PerforceProvider, branch, expec
     assert provider.depot_scope(branch) == expected
 
 
-@pytest.mark.parametrize("branch", ["//OtherDepot/main", "//SentryDemoEvil/main"])
+ESCAPES = ["//OtherDepot/main", "//SentryDemoEvil/main"]
+
+
+@pytest.mark.parametrize("branch", ESCAPES)
 def test_absolute_branch_outside_the_depot_is_refused(provider: PerforceProvider, branch: str) -> None:
     # "//SentryDemoEvil" is the prefix collision a naive startswith would admit.
     with pytest.raises(MalformedExternalId):
         provider.depot_scope(branch)
+
+
+@pytest.mark.parametrize("path", ESCAPES)
+def test_absolute_file_path_outside_the_depot_is_refused(provider: PerforceProvider, path: str) -> None:
+    # Reached from agent tool calls, so get_file_content / get_commits_by_path must
+    # not read a depot the organization never connected.
+    with pytest.raises(MalformedExternalId):
+        provider.resolve_path(path)
+
+
+def test_absolute_file_path_inside_the_depot_is_allowed(provider: PerforceProvider) -> None:
+    # The tree listing hands back full depot paths, so this is the normal case.
+    assert provider.resolve_path(f"{DEPOT}/Source/a.cpp") == f"{DEPOT}/Source/a.cpp"
 
 
 def test_multi_digit_indices_group_under_the_full_index() -> None:
