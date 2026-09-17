@@ -1,29 +1,12 @@
 """Perforce (Helix Core) provider, read-only.
 
-Perforce speaks the P4 RPC protocol on TCP/1666, not HTTP, so this provider
-addresses **synthetic routes** that the injected ``ApiClient`` translates into
-``p4`` commands (``sentry.integrations.perforce.api_client.PerforceApiClient``
-in Sentry; ``RpcApiClient`` over the proxy, which only requires a relative path).
+Perforce speaks the P4 RPC protocol, not HTTP, so this provider addresses
+synthetic routes that the injected ``ApiClient`` turns into ``p4`` commands.
+Tagged routes return a JSON list of p4 records; ``/print`` returns
+``{"stat": ..., "content_base64": ...}``; ``/archive`` streams gzip.
 
-Wire contract:
-
-- Tagged routes (``/files``, ``/fstat``, ``/changes``, ``/describe``) return a
-  JSON list of records using p4's own field names.
-- ``/print`` returns ``{"stat": {...}, "content_base64": "..."}``. Base64, not
-  text: ``p4 print`` emits raw bytes and a file without a trailing newline runs
-  straight into the next record's header.
-- ``/archive`` streams ``application/gzip``.
-- ``/changes`` and ``/describe`` records may carry ``userEmail``/``userFullName``
-  enriched by the client, since ``CommitAuthor.email`` is required and p4 reports
-  only a login.
-
-Identifiers: a changelist number (as a string) is both commit SHA and tree SHA --
-a changelist is already a complete immutable snapshot. A branch is a depot path
-or a stream beneath it.
-
-Write, review and check-run protocols are absent rather than stubbed: ``Facade``
-builds each provider's method set from the protocols it structurally satisfies,
-so callers take their unsupported-provider branch.
+A changelist number (as a string) is both commit SHA and tree SHA. A branch is
+a depot path or a stream beneath it.
 """
 
 import base64
@@ -87,8 +70,6 @@ _ACTION_TO_STATUS: dict[str, FileStatus] = {
 
 
 class Perforce:
-    """Synthetic routes -- a command vocabulary, not URLs on any server."""
-
     archive = "/archive"
     changes = "/changes"
     describe = "/describe"
@@ -98,12 +79,11 @@ class Perforce:
 
 
 def split_base_type(head_type: str) -> str:
-    """Strip ``+modifiers`` from a p4 file type (``binary+FS2w`` -> ``binary``)."""
     return head_type.split("+", 1)[0].lower()
 
 
 def map_tree_entry_mode(head_type: str) -> TreeEntryMode:
-    """Perforce has no mode bits; executability and symlink-ness live in the file type."""
+    # Perforce has no mode bits; executability and symlink-ness live in the type.
     if split_base_type(head_type) in _SYMLINK_BASE_TYPES:
         return "120000"
     modifiers = head_type.split("+", 1)[1] if "+" in head_type else ""
@@ -115,7 +95,6 @@ def map_action_to_status(action: str) -> FileStatus:
 
 
 def parse_p4_time(raw: str | None) -> datetime.datetime | None:
-    """Parse p4's epoch-seconds timestamp; an unreadable time still leaves a usable commit."""
     if not raw:
         return None
     try:
@@ -125,6 +104,7 @@ def parse_p4_time(raw: str | None) -> datetime.datetime | None:
 
 
 def map_commit_author(raw: dict[str, Any]) -> CommitAuthor:
+    # p4 reports only a login; the client enriches where it can, and ``email`` is required.
     login = raw.get("user", "")
     return CommitAuthor(
         name=raw.get("userFullName") or login,
@@ -134,7 +114,6 @@ def map_commit_author(raw: dict[str, Any]) -> CommitAuthor:
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:
-    """``additions``/``deletions`` would mean diffing every file in the changelist."""
     commit = Commit(
         id=str(raw.get("change", "")),
         message=raw.get("desc", ""),
@@ -148,21 +127,16 @@ def map_commit(raw: dict[str, Any]) -> Commit:
 
 
 def iter_indexed_records(raw: dict[str, Any], prefix: str) -> list[dict[str, Any]]:
-    """Regroup ``p4 describe``'s flattened ``depotFile0``/``action0``/... fields by index.
-
-    Single-pass: a changelist can hold tens of thousands of files, so rescanning
-    every key per index would be quadratic. The non-greedy name lets the index
-    take every trailing digit, so ``depotFile10`` groups under 10, not 0.
-    """
+    """Regroup ``p4 describe``'s flattened ``depotFile0``/``action0``/... fields by index."""
     grouped: dict[int, dict[str, Any]] = defaultdict(dict)
     for key, value in raw.items():
+        # Non-greedy name, so the index takes every trailing digit: "depotFile10" is 10, not 0.
         if match := _INDEXED_FIELD.match(key):
             grouped[int(match.group("index"))][match.group("name")] = value
     return [grouped[index] for index in sorted(grouped) if prefix in grouped[index]]
 
 
 def map_commit_file(raw: dict[str, Any]) -> CommitFile:
-    """``patch`` is None: these come from ``describe -s``, which omits diffs."""
     return CommitFile(
         filename=raw.get("depotFile", ""),
         status=map_action_to_status(raw.get("action", "")),
@@ -174,7 +148,6 @@ def map_commit_file(raw: dict[str, Any]) -> CommitFile:
 
 
 def map_tree_entry(raw: dict[str, Any]) -> TreeEntry:
-    """``sha`` is p4's stored content MD5 -- a real identity, like a git blob SHA."""
     file_size = raw.get("fileSize")
     return TreeEntry(
         path=raw.get("depotFile", ""),
@@ -264,15 +237,11 @@ class PerforceProvider:
         return self.request("GET", path=path, params=params or {}, stream=stream, timeout=options.get("timeout"))
 
     def depot_scope(self, branch: BranchName | None = None) -> str:
-        """Resolve a branch to a ``//depot/...`` wildcard.
-
-        ``branch_name`` comes from user-editable repository settings, so an
-        absolute path must stay inside the registered depot. The trailing
-        separator is what stops ``//SentryDemoEvil`` matching ``//SentryDemo``.
-        """
         if not branch:
             return f"{self.depot_path}/..."
         if branch.startswith("//"):
+            # ``branch_name`` is user-editable, so it must not escape the depot. The
+            # trailing separator is what stops "//SentryDemoEvil" matching "//SentryDemo".
             if branch != self.depot_path and not branch.startswith(f"{self.depot_path}/"):
                 raise MalformedExternalId()
             return f"{branch.rstrip('/')}/..."
@@ -284,7 +253,7 @@ class PerforceProvider:
         return f"{self.depot_path}/{path.lstrip('/')}"
 
     def get_app_installation(self) -> ActionResult[AppInstallation]:
-        """Probe depot read access: authenticating is not the same as being allowed the depot."""
+        # Probe the depot: authenticating is not the same as being allowed to read it.
         self.get(Perforce.files, params={"path": self.depot_scope(), "max": "1"})
         return ActionResult(
             data=AppInstallation(has_read_access=True, has_write_access=False, has_check_run_write_access=False),
@@ -294,11 +263,7 @@ class PerforceProvider:
         )
 
     def get_repository(self) -> ActionResult[GitRepository]:
-        """``default_branch`` is the depot path, so it can be handed straight back to ``get_branch``.
-
-        ``size`` would cost a whole-depot ``p4 sizes`` per client construction; its
-        only consumer already renders an unknown-metadata placeholder.
-        """
+        # ``size`` would cost a whole-depot ``p4 sizes`` per construction; nothing needs it.
         return ActionResult(
             data=GitRepository(
                 full_name=self.depot_path,
@@ -373,11 +338,8 @@ class PerforceProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[GitTree]:
-        """One ``fstat`` returns the whole flat manifest, so there is nothing to paginate.
-
-        ``truncated`` must stay False: consumers fall back to a divide-and-conquer
-        walk over subtree SHAs, which is GitHub-shaped and has no p4 analogue.
-        """
+        # One fstat returns the whole flat manifest. ``truncated`` must stay False:
+        # consumers otherwise fall back to a subtree walk that has no p4 analogue.
         entries = self.fetch_tree_entries(tree_sha, request_options)
         return PaginatedActionResult(
             data=GitTree(sha=tree_sha, tree=[map_tree_entry(entry) for entry in entries], truncated=False),
@@ -453,9 +415,9 @@ class PerforceProvider:
         return make_paginated_result(map_commit, response.json())
 
     def get_file_url(self, file_path: str, sha: SHA, start_line: int | None = None, end_line: int | None = None) -> str:
-        """Without a web UI, return the depot path -- it can be pasted into ``p4``."""
         depot_file = self.resolve_path(file_path)
         if not self.web_base_url:
+            # No web UI configured; a depot path can at least be pasted into p4.
             return f"{depot_file}@{sha}" if sha else depot_file
 
         url = f"{self.web_base_url.rstrip('/')}/files/{quote(depot_file.lstrip('/'), safe='/')}"
@@ -489,11 +451,7 @@ class PerforceProvider:
         archive_format: ArchiveFormat = "tarball",
         request_options: RequestOptions | None = None,
     ) -> requests.Response:
-        """Stream a gzipped tar of the readable source at a changelist.
-
-        Perforce has no archive command; the client builds the tar by listing the
-        manifest and printing its contents. Returned unread so the caller streams.
-        """
+        # Returned unread so the caller streams it.
         return self.get(
             Perforce.archive,
             params={"path": self.depot_scope(), "change": ref, "filter": TEXT_TYPE_FILTER},

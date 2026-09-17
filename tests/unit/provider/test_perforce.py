@@ -72,15 +72,15 @@ def _response(json_data, status_code: int = 200):
 
 
 def test_satisfies_exactly_the_read_protocols(provider: PerforceProvider) -> None:
-    """Load-bearing: ``Facade`` derives the method set from structural conformance, so a
-    typo'd signature silently drops a capability and a stubbed write silently gains one."""
+    # Facade derives the method set from structural conformance: a typo'd signature
+    # silently drops a capability, a stubbed write silently gains one.
     facade = Facade(provider, record_count=lambda name, value, tags: None)
     assert {p.__name__ for p in ALL_PROTOCOLS if isinstance(facade, p)} == EXPECTED_PROTOCOLS
 
 
 @pytest.mark.parametrize("external_id", [None, "", "SentryDemo/main"])
 def test_rejects_external_id_that_is_not_a_depot_path(client, external_id) -> None:
-    """Defaulting to ``//...`` would silently widen every read to the whole server."""
+    # Defaulting to "//..." would silently widen every read to the whole server.
     with pytest.raises(MalformedExternalId):
         _make_provider(client, external_id=external_id)
 
@@ -95,15 +95,13 @@ def test_depot_scope_resolves_branches(provider: PerforceProvider, branch, expec
 
 @pytest.mark.parametrize("branch", ["//OtherDepot/main", "//SentryDemoEvil/main"])
 def test_absolute_branch_outside_the_depot_is_refused(provider: PerforceProvider, branch: str) -> None:
-    """``branch_name`` comes from user-editable settings, so it must not escape the depot.
-    ``//SentryDemoEvil`` is the prefix collision a naive ``startswith`` would admit."""
+    # "//SentryDemoEvil" is the prefix collision a naive startswith would admit.
     with pytest.raises(MalformedExternalId):
         provider.depot_scope(branch)
 
 
 def test_multi_digit_indices_group_under_the_full_index() -> None:
-    """``depotFile10`` belongs to file 10, not 0 or 1. Splitting the index at one digit
-    scrambles every record past the ninth, and does it silently."""
+    # Splitting the index at one digit scrambles every record past the ninth, silently.
     raw = {f"depotFile{i}": f"//depot/f{i}.cpp" for i in range(12)}
     records = iter_indexed_records(raw, "depotFile")
     assert [r["depotFile"] for r in records] == [f"//depot/f{i}.cpp" for i in range(12)]
@@ -137,7 +135,7 @@ def test_tree_entry_carries_real_size_and_digest() -> None:
 
 
 def test_tree_entry_without_size_is_none_not_zero() -> None:
-    """Consumers test ``size is not None`` before filtering; 0 would read as an empty file."""
+    # Consumers test "size is not None" before filtering; 0 would read as an empty file.
     assert map_tree_entry({"depotFile": "//depot/a.cpp", "headType": "text"})["size"] is None
 
 
@@ -159,8 +157,7 @@ def test_get_branch_resolves_to_the_newest_changelist(provider: PerforceProvider
 
 
 def test_get_full_tree_filters_server_side_and_drops_deletes(provider: PerforceProvider, client) -> None:
-    """Binary revisions must not cross the wire, and a file deleted at this changelist
-    has no content to print -- listing it turns an absence into a spurious error."""
+    # Listing a deleted revision turns an absence into a spurious "cannot print" error.
     client.request.return_value = _response(
         [
             {"depotFile": f"{DEPOT}/live.cpp", "headType": "text", "headAction": "edit", "fileSize": "10"},
@@ -174,8 +171,7 @@ def test_get_full_tree_filters_server_side_and_drops_deletes(provider: PerforceP
 
 
 def test_get_tree_never_reports_truncation(provider: PerforceProvider, client) -> None:
-    """Truncation sends consumers into a divide-and-conquer subtree walk that is
-    GitHub-shaped and has no Perforce analogue."""
+    # Truncation sends consumers into a subtree walk that has no Perforce analogue.
     client.request.return_value = _response([])
     assert provider.get_tree("2993")["data"]["truncated"] is False
 
@@ -235,7 +231,7 @@ def test_get_commits_by_path_passes_the_date_window(provider: PerforceProvider, 
 
 
 def test_get_app_installation_probes_depot_read_access(provider: PerforceProvider, client) -> None:
-    """Authenticating to the server is not the same as being allowed the depot."""
+    # Authenticating to the server is not the same as being allowed the depot.
     client.request.return_value = _response([{"depotFile": f"{DEPOT}/a.cpp"}])
     assert provider.get_app_installation()["data"] == {
         "has_read_access": True,
@@ -245,7 +241,7 @@ def test_get_app_installation_probes_depot_read_access(provider: PerforceProvide
 
 
 def test_denied_depot_surfaces_as_a_coded_error(provider: PerforceProvider, client) -> None:
-    """A protections-table denial must not read as "installed but empty"."""
+    # A protections-table denial must not read as "installed but empty".
     response = _response(None, status_code=404)
     response.content = b"no such file(s)."
     client.request.return_value = response
@@ -273,5 +269,5 @@ def test_urls_point_at_swarm_when_configured(client) -> None:
 
 
 def test_file_url_without_a_web_ui_is_a_usable_depot_path(provider: PerforceProvider) -> None:
-    """A depot path can be pasted into ``p4`` directly, unlike a URL that 404s."""
+
     assert provider.get_file_url("Source/a.cpp", "2993") == f"{DEPOT}/Source/a.cpp@2993"
