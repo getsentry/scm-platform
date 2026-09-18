@@ -221,6 +221,8 @@ def test_get_commit_returns_the_changelist_and_its_files(provider: PerforceProvi
     )
     commit = provider.get_commit("2993")["data"]
 
+    # Changelist ids are server-global, so describe must carry the depot scope.
+    assert client.request.call_args.kwargs["params"]["path"] == f"{DEPOT}/..."
     assert commit["id"] == "2993"
     assert [(f["filename"], f["status"]) for f in commit["files"] or []] == [
         (f"{DEPOT}/a.cpp", "added"),

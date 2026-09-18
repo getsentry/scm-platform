@@ -368,7 +368,13 @@ class PerforceProvider:
         )
 
     def get_git_commit(self, sha: SHA, request_options: RequestOptions | None = None) -> ActionResult[GitCommitObject]:
-        response = self.get(Perforce.describe, params={"change": sha}, request_options=request_options)
+        # Changelist numbers are server-global, so ``/describe`` is scoped to this
+        # depot by the client -- an unscoped id names changes in any depot.
+        response = self.get(
+            Perforce.describe,
+            params={"change": sha, "path": self.depot_scope()},
+            request_options=request_options,
+        )
         records = response.json()
         raw = records[0] if records else {}
         return ActionResult(
@@ -379,7 +385,11 @@ class PerforceProvider:
         )
 
     def get_commit(self, sha: SHA, request_options: RequestOptions | None = None) -> ActionResult[CommitWithChanges]:
-        response = self.get(Perforce.describe, params={"change": sha}, request_options=request_options)
+        response = self.get(
+            Perforce.describe,
+            params={"change": sha, "path": self.depot_scope()},
+            request_options=request_options,
+        )
         records = response.json()
         raw = records[0] if records else {}
         files = [map_commit_file(record) for record in iter_indexed_records(raw, "depotFile")]
@@ -396,7 +406,11 @@ class PerforceProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[CommitFile]]:
-        response = self.get(Perforce.describe, params={"change": sha}, request_options=request_options)
+        response = self.get(
+            Perforce.describe,
+            params={"change": sha, "path": self.depot_scope()},
+            request_options=request_options,
+        )
         records = response.json()
         raw = records[0] if records else {}
         return make_paginated_result(map_commit_file, iter_indexed_records(raw, "depotFile"))
