@@ -1,0 +1,130 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/user/workspaces/jacquev6-sentry/permission
+  response:
+    body:
+      string: '{"type": "workspace_membership", "user": {"display_name": "Vincent
+        Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}, "workspace":
+        {"type": "workspace", "uuid": "{99f3f866-2f72-4c46-bdf1-0a9b8fe76e9e}", "name":
+        "jacquev6-sentry", "slug": "jacquev6-sentry", "links": {"avatar": {"href":
+        "https://bitbucket.org/workspaces/jacquev6-sentry/avatar/?ts=1782911447"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/"}, "self": {"href":
+        "https://api.bitbucket.org/2.0/workspaces/jacquev6-sentry"}}}, "links": {"self":
+        {"href": "https://api.bitbucket.org/2.0/workspaces/jacquev6-sentry/members/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"}},
+        "permission": "owner"}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 71fcd007-90d6-473e-ac02-ac97a9f8f2ec
+      Atl-Traceid:
+      - 71fcd00790d6473eac02ac97a9f8f2ec
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 10:05:36 GMT
+      Etag:
+      - W/"8949e7d492c93efc8d36d005437b37ab"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=297,atl-edge;dur=215,atl-edge-internal;dur=20,atl-edge-upstream;dur=196,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG50-P1",cdn-rid;desc="gAkAF2qELD5S9I9awOq7YveBG0IQCalgIjCpfsxj-j0mVJaGVFCRlA==",cdn-downstream-fbl;dur=304
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 dcff20cbe7f6611a8c32722d5b502d44.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - account
+      X-Amz-Cf-Id:
+      - gAkAF2qELD5S9I9awOq7YveBG0IQCalgIjCpfsxj-j0mVJaGVFCRlA==
+      X-Amz-Cf-Pop:
+      - CDG50-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - cfca01c47297fdb5
+      X-B3-Traceid:
+      - 71fcd00790d6473eac02ac97a9f8f2ec
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:runner:bitbucket, read:wiki:bitbucket, read:ssh-key:bitbucket, read:webhook:bitbucket,
+        write:repository:bitbucket, write:pullrequest:bitbucket, read:package:bitbucket,
+        write:test:bitbucket, read:project:bitbucket, read:snippet:bitbucket, read:pipeline:bitbucket,
+        read:repository:bitbucket, read:permission:bitbucket, read:issue:bitbucket,
+        read:pullrequest:bitbucket, read:gpg-key:bitbucket, write:issue:bitbucket,
+        read:user:bitbucket, read:workspace:bitbucket, read:test:bitbucket
+      X-Render-Time:
+      - '0.17340755462646484'
+      X-Request-Count:
+      - '1828'
+      X-Served-By:
+      - 2fc8ea16e0ec
+      X-Static-Version:
+      - a1ea9c7db4bd
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.003781'
+      X-Usage-User-Time:
+      - '0.086986'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - a1ea9c7db4bd
+      X-View-Name:
+      - bitbucket.apps.workspaces.api.v20.handlers.WorkspacePermissionHandler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '1163'
+    status:
+      code: 200
+      message: OK
+version: 1

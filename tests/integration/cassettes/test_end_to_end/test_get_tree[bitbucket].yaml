@@ -1,0 +1,344 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/?max_depth=100&pagelen=100
+  response:
+    body:
+      string: '{"values":[{"path":"a","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/?format=meta"}}},{"path":"d","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/?format=meta"}}},{"path":"README.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"README.md","size":92,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md"}}},{"path":"README2.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"README2.md","size":0,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md"}}},{"path":"a/b","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/?format=meta"}}},{"path":"a/c","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/?format=meta"}}},{"path":"d/C.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"d/C.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/C.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/C.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/C.md"}}},{"path":"d/E.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"d/E.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/E.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/E.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/E.md"}}},{"path":"a/b/A.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"a/b/A.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/A.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/A.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/A.md"}}},{"path":"a/b/D.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"a/b/D.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/D.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/D.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/D.md"}}},{"path":"a/c/B.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"a/c/B.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/B.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/B.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/B.md"}}}],"pagelen":100,"page":1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - f230e159-dac0-4a9e-9c59-b29dfd6a7467
+      Atl-Traceid:
+      - f230e159dac04a9e9c59b29dfd6a7467
+      Cache-Control:
+      - max-age=86400
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 08:49:47 GMT
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=1,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=481,atl-edge;dur=397,atl-edge-internal;dur=8,atl-edge-upstream;dur=390,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG52-P5",cdn-rid;desc="Xq2XU_R6rECF0ITo_TWlK0-NKhYus0aSIFgL40VXdgvijl9QRqNmVQ==",cdn-downstream-fbl;dur=485
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context, Accept-Encoding
+      Via:
+      - 1.1 5fcaff61319ae387c2158360c598d28a.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - repository
+      X-Amz-Cf-Id:
+      - Xq2XU_R6rECF0ITo_TWlK0-NKhYus0aSIFgL40VXdgvijl9QRqNmVQ==
+      X-Amz-Cf-Pop:
+      - CDG52-P5
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - eb73e04a66859b28
+      X-B3-Traceid:
+      - f230e159dac04a9e9c59b29dfd6a7467
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:gpg-key:bitbucket, read:project:bitbucket, read:workspace:bitbucket,
+        write:test:bitbucket, read:snippet:bitbucket, read:wiki:bitbucket, read:ssh-key:bitbucket,
+        read:repository:bitbucket, read:permission:bitbucket, read:pipeline:bitbucket,
+        read:issue:bitbucket, read:pullrequest:bitbucket, read:webhook:bitbucket,
+        write:issue:bitbucket, read:test:bitbucket, read:runner:bitbucket, write:repository:bitbucket,
+        read:user:bitbucket, write:pullrequest:bitbucket, read:package:bitbucket
+      X-Render-Time:
+      - '0.36208438873291016'
+      X-Request-Count:
+      - '2022'
+      X-Served-By:
+      - 5d58ccb98e62
+      X-Static-Version:
+      - 7cc8689747e8
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '8'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.012020'
+      X-Usage-User-Time:
+      - '0.093489'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 7cc8689747e8
+      X-View-Name:
+      - bitbucket.apps.repo2.api.v20.src.SourceHandler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '10476'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/?max_depth=100&pagelen=100
+  response:
+    body:
+      string: '{"values":[{"path":"a","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/?format=meta"}}},{"path":"d","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/?format=meta"}}},{"path":"README.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"README.md","size":92,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md"}}},{"path":"README2.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"README2.md","size":0,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md"}}},{"path":"a/b","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/?format=meta"}}},{"path":"a/c","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/?format=meta"}}},{"path":"d/C.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"d/C.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/C.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/C.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/C.md"}}},{"path":"d/E.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"d/E.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/E.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/E.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/E.md"}}},{"path":"a/b/A.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"a/b/A.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/A.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/A.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/A.md"}}},{"path":"a/b/D.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"a/b/D.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/D.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/D.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/b/D.md"}}},{"path":"a/c/B.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"a/c/B.md","size":2,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/B.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/B.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/c/B.md"}}}],"pagelen":100,"page":1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 6c829f33-8583-481f-83e1-b10cd2b1f652
+      Atl-Traceid:
+      - 6c829f338583481f83e1b10cd2b1f652
+      Cache-Control:
+      - max-age=86400
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 08:49:48 GMT
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=308,atl-edge;dur=224,atl-edge-internal;dur=8,atl-edge-upstream;dur=217,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG52-P1",cdn-rid;desc="c9A4TvuONAh0-EKodzwfb5bSDxd7Cu6eP_ty8esPkyjt12sUKG7S8A==",cdn-downstream-fbl;dur=312
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context, Accept-Encoding
+      Via:
+      - 1.1 a769201928d4a671d76c2aeb231718ae.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - repository
+      X-Amz-Cf-Id:
+      - c9A4TvuONAh0-EKodzwfb5bSDxd7Cu6eP_ty8esPkyjt12sUKG7S8A==
+      X-Amz-Cf-Pop:
+      - CDG52-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - d8afd5200adf7817
+      X-B3-Traceid:
+      - 6c829f338583481f83e1b10cd2b1f652
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:wiki:bitbucket, read:pipeline:bitbucket, read:ssh-key:bitbucket, read:webhook:bitbucket,
+        write:repository:bitbucket, write:pullrequest:bitbucket, read:package:bitbucket,
+        read:test:bitbucket, read:runner:bitbucket, read:project:bitbucket, read:user:bitbucket,
+        read:snippet:bitbucket, read:gpg-key:bitbucket, read:repository:bitbucket,
+        read:permission:bitbucket, read:issue:bitbucket, read:pullrequest:bitbucket,
+        write:test:bitbucket, write:issue:bitbucket, read:workspace:bitbucket
+      X-Render-Time:
+      - '0.19492459297180176'
+      X-Request-Count:
+      - '2095'
+      X-Served-By:
+      - 37ad10840898
+      X-Static-Version:
+      - 7cc8689747e8
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '112'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.009168'
+      X-Usage-User-Time:
+      - '0.059459'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 7cc8689747e8
+      X-View-Name:
+      - bitbucket.apps.repo2.api.v20.src.SourceHandler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '10476'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/
+  response:
+    body:
+      string: '{"values":[{"path":"a","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/a/?format=meta"}}},{"path":"d","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_directory","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/d/?format=meta"}}},{"path":"README.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"README.md","size":92,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README.md"}}},{"path":"README2.md","commit":{"hash":"4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commit/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"},"html":{"href":"https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/commits/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c"}},"type":"commit"},"type":"commit_file","attributes":[],"escaped_path":"README2.md","size":0,"mimetype":"text/markdown","links":{"self":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md"},"meta":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/src/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md?format=meta"},"history":{"href":"https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/filehistory/4a7da3cfe581f2a96233cd6dbb16a76472cb0a6c/README2.md"}}}],"pagelen":10,"page":1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 188f5e4f-abd2-4229-97d2-286338d9ee40
+      Atl-Traceid:
+      - 188f5e4fabd2422997d2286338d9ee40
+      Cache-Control:
+      - max-age=86400
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Jul 2026 08:49:48 GMT
+      Etag:
+      - W/"cset:1:a440ac97f62fda9700a4cdd25aaacd7f458b9a0d"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=251,atl-edge;dur=167,atl-edge-internal;dur=10,atl-edge-upstream;dur=157,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG52-P3",cdn-rid;desc="qvmtzxhlLYMkkmwQPvXnvBQonpfxMpq31jtT_TXS7Hudpwfj5iFcJw==",cdn-downstream-fbl;dur=255
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 82fd7588f1d984240495d75688ea598c.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - repository
+      X-Amz-Cf-Id:
+      - qvmtzxhlLYMkkmwQPvXnvBQonpfxMpq31jtT_TXS7Hudpwfj5iFcJw==
+      X-Amz-Cf-Pop:
+      - CDG52-P3
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 3e826bb21fa8d4d0
+      X-B3-Traceid:
+      - 188f5e4fabd2422997d2286338d9ee40
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - write:test:bitbucket, read:user:bitbucket, read:pipeline:bitbucket, write:repository:bitbucket,
+        read:gpg-key:bitbucket, write:pullrequest:bitbucket, read:package:bitbucket,
+        read:workspace:bitbucket, read:test:bitbucket, read:runner:bitbucket, read:wiki:bitbucket,
+        read:project:bitbucket, read:ssh-key:bitbucket, read:snippet:bitbucket, read:webhook:bitbucket,
+        read:repository:bitbucket, read:permission:bitbucket, read:issue:bitbucket,
+        read:pullrequest:bitbucket, write:issue:bitbucket
+      X-Render-Time:
+      - '0.1327366828918457'
+      X-Request-Count:
+      - '1921'
+      X-Served-By:
+      - e702b07b0117
+      X-Static-Version:
+      - 7cc8689747e8
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '40'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.005106'
+      X-Usage-User-Time:
+      - '0.057747'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 7cc8689747e8
+      X-View-Name:
+      - bitbucket.apps.repo2.api.v20.src.SourceHandler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '3696'
+    status:
+      code: 200
+      message: OK
+version: 1

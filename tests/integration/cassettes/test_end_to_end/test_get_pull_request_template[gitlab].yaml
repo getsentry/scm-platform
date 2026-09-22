@@ -1,0 +1,198 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/tree?path=.gitlab%2Fmerge_request_templates&ref=topics%2Ftemplates&per_page=50&page=1
+  response:
+    body:
+      string: '[{"id":"4db8a7a22fe0cfea520830392545d90b3f9155c5","name":"Default.md","type":"blob","path":".gitlab/merge_request_templates/Default.md","mode":"100644"}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a889df2ed2f4ff-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 13:12:19 GMT
+      ETag:
+      - W/"8262e01a91eba5c452d0ce1e8a38bb17"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/repository/tree?id=79787061&page=1&pagination=legacy&path=.gitlab%2Fmerge_request_templates&per_page=50&recursive=false&ref=topics%2Ftemplates>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/repository/tree?id=79787061&page=1&pagination=legacy&path=.gitlab%2Fmerge_request_templates&per_page=50&recursive=false&ref=topics%2Ftemplates>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '153'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-41-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '1'
+      ratelimit-remaining:
+      - '1999'
+      ratelimit-reset:
+      - '1783948380'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a889df2ed2f4ff-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '8'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '50'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a1a889df2ed2f4ff-CDG
+      x-runtime:
+      - '0.213106'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/files/.gitlab%2Fmerge_request_templates%2FDefault.md?ref=topics%2Ftemplates
+  response:
+    body:
+      string: '{"file_name":"Default.md","file_path":".gitlab/merge_request_templates/Default.md","size":21,"encoding":"base64","content_sha256":"cdf404f2da52d00a8ee7cf3f9572dc02454125a6ae4df26e0eaa16b6a8e686d8","ref":"topics/templates","blob_id":"4db8a7a22fe0cfea520830392545d90b3f9155c5","commit_id":"77dfc3738e864cd54cdc71ffc127266598d5a889","last_commit_id":"77dfc3738e864cd54cdc71ffc127266598d5a889","execute_filemode":false,"content":"VGVtcGxhdGUgZm9yIGdpdGxhYi4K"}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a889e2789a3ef4-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 13:12:19 GMT
+      ETag:
+      - W/"e194fe030999b5afa5fa08a4f04ac15e"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '456'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-31-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '2'
+      ratelimit-remaining:
+      - '1998'
+      ratelimit-reset:
+      - '1783948380'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-blob-id:
+      - 4db8a7a22fe0cfea520830392545d90b3f9155c5
+      x-gitlab-commit-id:
+      - 77dfc3738e864cd54cdc71ffc127266598d5a889
+      x-gitlab-content-sha256:
+      - cdf404f2da52d00a8ee7cf3f9572dc02454125a6ae4df26e0eaa16b6a8e686d8
+      x-gitlab-encoding:
+      - base64
+      x-gitlab-execute-filemode:
+      - 'false'
+      x-gitlab-file-name:
+      - Default.md
+      x-gitlab-file-path:
+      - .gitlab/merge_request_templates/Default.md
+      x-gitlab-last-commit-id:
+      - 77dfc3738e864cd54cdc71ffc127266598d5a889
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a889e2789a3ef4-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-ref:
+      - topics/templates
+      x-gitlab-score-gitaly:
+      - '6'
+      x-gitlab-size:
+      - '21'
+      x-request-id:
+      - a1a889e2789a3ef4-CDG
+      x-runtime:
+      - '0.119695'
+    status:
+      code: 200
+      message: OK
+version: 1

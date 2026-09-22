@@ -1,0 +1,877 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests?state=opened
+  response:
+    body:
+      string: '[{"id":459277081,"iid":1,"project_id":79787061,"title":"Add blah","description":"Blah
+        blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T13:04:08.950Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb660bb9d60df-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:26 GMT
+      ETag:
+      - W/"c94094a4087c4a56643fec7fa3fc6ffa"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=opened&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=opened&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '1772'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-27-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '1'
+      ratelimit-remaining:
+      - '1999'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb660bb9d60df-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb660bb9d60df-CDG
+      x-runtime:
+      - '0.327954'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1
+  response:
+    body:
+      string: '{"id":459277081,"iid":1,"project_id":79787061,"title":"Add blah","description":"Blah
+        blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T13:04:08.950Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":"1","latest_build_started_at":"2026-07-07T12:48:15.924Z","latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297"},"head_pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","before_sha":"0000000000000000000000000000000000000000","tag":false,"yaml_errors":null,"user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"started_at":"2026-07-07T12:48:15.924Z","finished_at":null,"committed_at":null,"duration":null,"queued_duration":101,"coverage":null,"detailed_status":{"icon":"status_running","text":"Running","label":"running","group":"running","tooltip":"running","has_details":true,"details_path":"/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","illustration":null,"favicon":"/assets/ci_favicons/favicon_status_running-9c635b2419a8e1ec991c993061b89cc5aefc0743bb238ecd0c381e7741a70e8c.png"},"archived":false},"diff_refs":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merge_error":null,"first_contribution":false,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6642a08c6c9-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:26 GMT
+      ETag:
+      - W/"d17d9c2ef6b222a56f11042b3caac3b2"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '3800'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-34-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '2'
+      ratelimit-remaining:
+      - '1998'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6642a08c6c9-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '6'
+      x-request-id:
+      - a17fb6642a08c6c9-CDG
+      x-runtime:
+      - '0.382450'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"title": "Foo"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '16'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: PUT
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1
+  response:
+    body:
+      string: '{"id":459277081,"iid":1,"project_id":79787061,"title":"Foo","description":"Blah
+        blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T14:17:27.373Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":"1","latest_build_started_at":"2026-07-07T12:48:15.924Z","latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297"},"head_pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","before_sha":"0000000000000000000000000000000000000000","tag":false,"yaml_errors":null,"user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"started_at":"2026-07-07T12:48:15.924Z","finished_at":null,"committed_at":null,"duration":null,"queued_duration":101,"coverage":null,"detailed_status":{"icon":"status_running","text":"Running","label":"running","group":"running","tooltip":"running","has_details":true,"details_path":"/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","illustration":null,"favicon":"/assets/ci_favicons/favicon_status_running-9c635b2419a8e1ec991c993061b89cc5aefc0743bb238ecd0c381e7741a70e8c.png"},"archived":false},"diff_refs":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merge_error":null,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6682f2e2a0f-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:27 GMT
+      ETag:
+      - W/"0f0eb12b9d733ad85f18b927465e58ea"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '3768'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-56-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '3'
+      ratelimit-remaining:
+      - '1997'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6682f2e2a0f-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '8'
+      x-request-id:
+      - a17fb6682f2e2a0f-CDG
+      x-runtime:
+      - '0.550592'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1
+  response:
+    body:
+      string: '{"id":459277081,"iid":1,"project_id":79787061,"title":"Foo","description":"Blah
+        blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T14:17:27.373Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":"1","latest_build_started_at":"2026-07-07T12:48:15.924Z","latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297"},"head_pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","before_sha":"0000000000000000000000000000000000000000","tag":false,"yaml_errors":null,"user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"started_at":"2026-07-07T12:48:15.924Z","finished_at":null,"committed_at":null,"duration":null,"queued_duration":101,"coverage":null,"detailed_status":{"icon":"status_running","text":"Running","label":"running","group":"running","tooltip":"running","has_details":true,"details_path":"/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","illustration":null,"favicon":"/assets/ci_favicons/favicon_status_running-9c635b2419a8e1ec991c993061b89cc5aefc0743bb238ecd0c381e7741a70e8c.png"},"archived":false},"diff_refs":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merge_error":null,"first_contribution":false,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb66d2f6c0d9a-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:28 GMT
+      ETag:
+      - W/"97bde9a05ed8cd02c032ae5ab4191aba"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '3795'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-35-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '4'
+      ratelimit-remaining:
+      - '1996'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb66d2f6c0d9a-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '6'
+      x-request-id:
+      - a17fb66d2f6c0d9a-CDG
+      x-runtime:
+      - '0.487403'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"title": "Add blah"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '21'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: PUT
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1
+  response:
+    body:
+      string: '{"id":459277081,"iid":1,"project_id":79787061,"title":"Add blah","description":"Blah
+        blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T14:17:29.497Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":"1","latest_build_started_at":"2026-07-07T12:48:15.924Z","latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297"},"head_pipeline":{"id":2658594297,"iid":1,"project_id":79787061,"sha":"7497e018d01503b6abc3053b7896266115e631f6","ref":"topics/blah","status":"running","source":"external","created_at":"2026-07-07T12:46:34.741Z","updated_at":"2026-07-07T12:48:15.925Z","web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","before_sha":"0000000000000000000000000000000000000000","tag":false,"yaml_errors":null,"user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"started_at":"2026-07-07T12:48:15.924Z","finished_at":null,"committed_at":null,"duration":null,"queued_duration":101,"coverage":null,"detailed_status":{"icon":"status_running","text":"Running","label":"running","group":"running","tooltip":"running","has_details":true,"details_path":"/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/pipelines/2658594297","illustration":null,"favicon":"/assets/ci_favicons/favicon_status_running-9c635b2419a8e1ec991c993061b89cc5aefc0743bb238ecd0c381e7741a70e8c.png"},"archived":false},"diff_refs":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"7497e018d01503b6abc3053b7896266115e631f6","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merge_error":null,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6723ae600c6-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:30 GMT
+      ETag:
+      - W/"71dab6a04fc4ae5d78d372f6540509ca"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '3773'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-36-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '5'
+      ratelimit-remaining:
+      - '1995'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6723ae600c6-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '8'
+      x-request-id:
+      - a17fb6723ae600c6-CDG
+      x-runtime:
+      - '1.581927'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"title": "PR from API 2026-07-08 12:00:00", "description": "Another PR,
+      made through the API.", "source_branch": "topics/blih", "target_branch": "main"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '153'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests
+  response:
+    body:
+      string: '{"id":504927842,"iid":107,"project_id":79787061,"title":"PR from API
+        2026-07-08 12:00:00","description":"Another PR, made through the API.","state":"opened","created_at":"2026-07-08T14:17:30.916Z","updated_at":"2026-07-08T14:17:30.916Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"checking","detailed_merge_status":"preparing","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":null,"reference":"!107","references":{"short":"!107","relative":"!107","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!107"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/107","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":null,"latest_build_started_at":null,"latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":null,"head_pipeline":null,"diff_refs":null,"merge_error":null,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb67e6aca6f30-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '2035'
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:31 GMT
+      ETag:
+      - W/"46cf490f0e9f75bbe3113190e15aa9f7"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-30-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '6'
+      ratelimit-remaining:
+      - '1994'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb67e6aca6f30-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '4'
+      x-request-id:
+      - a17fb67e6aca6f30-CDG
+      x-runtime:
+      - '0.353610'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests?state=opened
+  response:
+    body:
+      string: '[{"id":504927842,"iid":107,"project_id":79787061,"title":"PR from API
+        2026-07-08 12:00:00","description":"Another PR, made through the API.","state":"opened","created_at":"2026-07-08T14:17:30.916Z","updated_at":"2026-07-08T14:17:30.916Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"checking","detailed_merge_status":"preparing","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":null,"reference":"!107","references":{"short":"!107","relative":"!107","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!107"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/107","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null},{"id":459277081,"iid":1,"project_id":79787061,"title":"Add
+        blah","description":"Blah blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T14:17:29.497Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb681f901f160-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:31 GMT
+      ETag:
+      - W/"13ace493494e92c84740732a01a4b51f"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=opened&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=opened&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '3568'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-16-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '7'
+      ratelimit-remaining:
+      - '1993'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb681f901f160-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '6'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb681f901f160-CDG
+      x-runtime:
+      - '0.280553'
+      x-total:
+      - '2'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"state_event": "close"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: PUT
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/107
+  response:
+    body:
+      string: '{"id":504927842,"iid":107,"project_id":79787061,"title":"PR from API
+        2026-07-08 12:00:00","description":"Another PR, made through the API.","state":"closed","created_at":"2026-07-08T14:17:30.916Z","updated_at":"2026-07-08T14:17:32.361Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-08T14:17:32.239Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"checking","detailed_merge_status":"checking","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":null,"reference":"!107","references":{"short":"!107","relative":"!107","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!107"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/107","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":"1","latest_build_started_at":null,"latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":null,"head_pipeline":null,"diff_refs":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merge_error":null,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6856f737848-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:32 GMT
+      ETag:
+      - W/"ff435959a5c7e1409d2d1f1e686c28a7"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '2498'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-47-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '8'
+      ratelimit-remaining:
+      - '1992'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6856f737848-CDG","version":"1"}'
+      x-request-id:
+      - a17fb6856f737848-CDG
+      x-runtime:
+      - '0.381300'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests?state=opened
+  response:
+    body:
+      string: '[{"id":459277081,"iid":1,"project_id":79787061,"title":"Add blah","description":"Blah
+        blah blah.","state":"opened","created_at":"2026-02-26T08:48:23.151Z","updated_at":"2026-07-08T14:17:29.497Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":null,"closed_at":null,"target_branch":"main","source_branch":"topics/blah","user_notes_count":91,"upvotes":0,"downvotes":1,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","merge_after":null,"sha":"7497e018d01503b6abc3053b7896266115e631f6","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-02-26T08:48:30.331Z","reference":"!1","references":{"short":"!1","relative":"!1","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!1"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/1","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb68ac9022a4c-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:33 GMT
+      ETag:
+      - W/"0497b489a3473b963abb6bbc43dc1d51"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=opened&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/merge_requests?id=79787061&order_by=created_at&page=1&per_page=20&sort=desc&state=opened&with_labels_details=false&with_merge_status_recheck=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '1772'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-59-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '9'
+      ratelimit-remaining:
+      - '1991'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb68ac9022a4c-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a17fb68ac9022a4c-CDG
+      x-runtime:
+      - '0.310804'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/107
+  response:
+    body:
+      string: '{"id":504927842,"iid":107,"project_id":79787061,"title":"PR from API
+        2026-07-08 12:00:00","description":"Another PR, made through the API.","state":"closed","created_at":"2026-07-08T14:17:30.916Z","updated_at":"2026-07-08T14:17:32.361Z","merged_by":null,"merge_user":null,"merged_at":null,"closed_by":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"closed_at":"2026-07-08T14:17:32.239Z","target_branch":"main","source_branch":"topics/blih","user_notes_count":0,"upvotes":0,"downvotes":0,"author":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"assignees":[],"assignee":null,"reviewers":[],"source_project_id":79787061,"target_project_id":79787061,"labels":[],"draft":false,"imported":false,"imported_from":"none","work_in_progress":false,"milestone":null,"merge_when_pipeline_succeeds":false,"merge_status":"can_be_merged","detailed_merge_status":"not_open","merge_after":null,"sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","merge_commit_sha":null,"squash_commit_sha":null,"discussion_locked":null,"should_remove_source_branch":null,"force_remove_source_branch":true,"prepared_at":"2026-07-08T14:17:32.051Z","reference":"!107","references":{"short":"!107","relative":"!107","full":"jacquev6-sentry/test-sentry-integration-dev-jacquev6!107"},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/merge_requests/107","time_stats":{"time_estimate":0,"total_time_spent":0,"human_time_estimate":null,"human_total_time_spent":null},"squash":false,"squash_on_merge":false,"task_completion_status":{"count":0,"completed_count":0},"has_conflicts":false,"blocking_discussions_resolved":true,"approvals_before_merge":null,"subscribed":true,"changes_count":"1","latest_build_started_at":null,"latest_build_finished_at":null,"first_deployed_to_production_at":null,"pipeline":null,"head_pipeline":null,"diff_refs":{"base_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","head_sha":"6d8ca33dae268d3c5835e721e5702ef9dcb43c8c","start_sha":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merge_error":null,"first_contribution":false,"user":{"can_merge":true}}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb68e1a2c703e-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:33 GMT
+      ETag:
+      - W/"b7441e9a7367b7327da4ed3dda3110d2"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '2552'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-20-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '10'
+      ratelimit-remaining:
+      - '1990'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb68e1a2c703e-CDG","version":"1"}'
+      x-request-id:
+      - a17fb68e1a2c703e-CDG
+      x-runtime:
+      - '0.228361'
+    status:
+      code: 200
+      message: OK
+version: 1

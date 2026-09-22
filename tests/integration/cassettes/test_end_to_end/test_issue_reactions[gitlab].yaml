@@ -1,0 +1,437 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji
+  response:
+    body:
+      string: '[{"id":43923647,"name":"thumbsup","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:52:40.410Z","updated_at":"2026-03-02T14:52:40.410Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":43923656,"name":"dart","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:52:47.638Z","updated_at":"2026-03-02T14:52:47.638Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":43923674,"name":"tada","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:53:00.711Z","updated_at":"2026-03-02T14:53:00.711Z","awardable_id":185129497,"awardable_type":"Issue","url":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a73c23bc699a9e-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 09:24:29 GMT
+      ETag:
+      - W/"8243a33c16e06464630c2914b5f36f95"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji?id=79787061&issue_iid=1&page=1&per_page=20>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji?id=79787061&issue_iid=1&page=1&per_page=20>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1403'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-43-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '6'
+      ratelimit-remaining:
+      - '1994'
+      ratelimit-reset:
+      - '1783934700'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a73c23bc699a9e-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a1a73c23bc699a9e-CDG
+      x-runtime:
+      - '0.096312'
+      x-total:
+      - '3'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"name": "rocket"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '18'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji
+  response:
+    body:
+      string: '{"id":51433708,"name":"rocket","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T09:24:29.869Z","updated_at":"2026-07-13T09:24:29.869Z","awardable_id":185129497,"awardable_type":"Issue","url":null}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a1a73c25afff0b18-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '467'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 09:24:29 GMT
+      ETag:
+      - W/"002c280a56006968206cd9f228c1e957"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-44-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '7'
+      ratelimit-remaining:
+      - '1993'
+      ratelimit-reset:
+      - '1783934700'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a73c25afff0b18-CDG","version":"1"}'
+      x-request-id:
+      - a1a73c25afff0b18-CDG
+      x-runtime:
+      - '0.129087'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji
+  response:
+    body:
+      string: '[{"id":43923647,"name":"thumbsup","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:52:40.410Z","updated_at":"2026-03-02T14:52:40.410Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":43923656,"name":"dart","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:52:47.638Z","updated_at":"2026-03-02T14:52:47.638Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":43923674,"name":"tada","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:53:00.711Z","updated_at":"2026-03-02T14:53:00.711Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":51433708,"name":"rocket","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-07-13T09:24:29.869Z","updated_at":"2026-07-13T09:24:29.869Z","awardable_id":185129497,"awardable_type":"Issue","url":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a73c278a43d5d1-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 09:24:30 GMT
+      ETag:
+      - W/"df1e25f2444f10cad37bd055b95f8e3a"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji?id=79787061&issue_iid=1&page=1&per_page=20>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji?id=79787061&issue_iid=1&page=1&per_page=20>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1871'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-14-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '8'
+      ratelimit-remaining:
+      - '1992'
+      ratelimit-reset:
+      - '1783934700'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a73c278a43d5d1-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a1a73c278a43d5d1-CDG
+      x-runtime:
+      - '0.167832'
+      x-total:
+      - '4'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: DELETE
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji/51433708
+  response:
+    body:
+      string: ''
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a1a73c29ec5b6f0f-CDG
+      Cache-Control:
+      - no-cache
+      Connection:
+      - keep-alive
+      Date:
+      - Mon, 13 Jul 2026 09:24:30 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-25-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '9'
+      ratelimit-remaining:
+      - '1991'
+      ratelimit-reset:
+      - '1783934700'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a73c29ec5b6f0f-CDG","version":"1"}'
+      x-request-id:
+      - a1a73c29ec5b6f0f-CDG
+      x-runtime:
+      - '0.125694'
+    status:
+      code: 204
+      message: No Content
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji
+  response:
+    body:
+      string: '[{"id":43923647,"name":"thumbsup","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:52:40.410Z","updated_at":"2026-03-02T14:52:40.410Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":43923656,"name":"dart","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:52:47.638Z","updated_at":"2026-03-02T14:52:47.638Z","awardable_id":185129497,"awardable_type":"Issue","url":null},{"id":43923674,"name":"tada","user":{"id":150871,"username":"jacquev6","public_email":"","name":"Vincent
+        Jacques","state":"active","locked":false,"avatar_url":"https://secure.gravatar.com/avatar/64b276c831d40984ef60c18f9d8d046cffc9b20292e357df709b929a4dc3c188?s=80\u0026d=identicon","web_url":"https://gitlab.com/jacquev6"},"created_at":"2026-03-02T14:53:00.711Z","updated_at":"2026-03-02T14:53:00.711Z","awardable_id":185129497,"awardable_type":"Issue","url":null}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a73c2c5f342a63-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 09:24:31 GMT
+      ETag:
+      - W/"8243a33c16e06464630c2914b5f36f95"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji?id=79787061&issue_iid=1&page=1&per_page=20>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/issues/1/award_emoji?id=79787061&issue_iid=1&page=1&per_page=20>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '1403'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-29-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '10'
+      ratelimit-remaining:
+      - '1990'
+      ratelimit-reset:
+      - '1783934700'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a73c2c5f342a63-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a1a73c2c5f342a63-CDG
+      x-runtime:
+      - '0.279796'
+      x-total:
+      - '3'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1

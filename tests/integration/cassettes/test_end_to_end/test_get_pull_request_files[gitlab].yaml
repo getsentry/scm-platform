@@ -1,0 +1,202 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/diffs
+  response:
+    body:
+      string: '[{"diff":"@@ -0,0 +1,9 @@\n+1\n+2\n+3\n+4\n+5\n+6\n+7\n+8\n+9\n","collapsed":false,"too_large":false,"new_path":"BLAH.md","old_path":"BLAH.md","a_mode":"0","b_mode":"100644","new_file":true,"renamed_file":false,"deleted_file":false,"generated_file":false}]'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a85fee48c7da68-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jul 2026 12:43:41 GMT
+      ETag:
+      - W/"0675bbbaee7b45103eb590e8ac7572e9"
+      Link:
+      - <https://gitlab.com/api/v4/projects/79787061/merge_requests/1/diffs?id=79787061&merge_request_iid=1&page=1&per_page=20&unidiff=false>;
+        rel="first", <https://gitlab.com/api/v4/projects/79787061/merge_requests/1/diffs?id=79787061&merge_request_iid=1&page=1&per_page=20&unidiff=false>;
+        rel="last"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '256'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-45-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '1'
+      ratelimit-remaining:
+      - '1999'
+      ratelimit-reset:
+      - '1783946640'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a85fee48c7da68-CDG","version":"1"}'
+      x-next-page:
+      - ''
+      x-page:
+      - '1'
+      x-per-page:
+      - '20'
+      x-prev-page:
+      - ''
+      x-request-id:
+      - a1a85fee48c7da68-CDG
+      x-runtime:
+      - '0.298098'
+      x-total:
+      - '1'
+      x-total-pages:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/merge_requests/1/raw_diffs
+  response:
+    body:
+      string: 'diff --git a/BLAH.md b/BLAH.md
+
+        new file mode 100644
+
+        index 0000000000000000000000000000000000000000..07193989308c972f8a2d0f1b3a15c29ea4ac565b
+
+        --- /dev/null
+
+        +++ b/BLAH.md
+
+        @@ -0,0 +1,9 @@
+
+        +1
+
+        +2
+
+        +3
+
+        +4
+
+        +5
+
+        +6
+
+        +7
+
+        +8
+
+        +9
+
+        '
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a1a85ff1d8ebc0a4-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate, no-store, no-cache
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/plain; charset=utf-8
+      Date:
+      - Mon, 13 Jul 2026 12:43:42 GMT
+      ETag:
+      - W/"12ae32cb1ec02d01eda3581b127c1fee"
+      Expires:
+      - Fri, 01 Jan 1990 00:00:00 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '212'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-21-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '2'
+      ratelimit-remaining:
+      - '1998'
+      ratelimit-reset:
+      - '1783946640'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a1a85ff1d8ebc0a4-CDG","version":"1"}'
+      x-request-id:
+      - a1a85ff1d8ebc0a4-CDG
+      x-runtime:
+      - '0.104913'
+    status:
+      code: 200
+      message: OK
+version: 1

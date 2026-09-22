@@ -1,0 +1,402 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/branches/topics%2Fblah
+  response:
+    body:
+      string: '{"name":"topics/blah","commit":{"id":"7497e018d01503b6abc3053b7896266115e631f6","short_id":"7497e018","created_at":"2026-03-05T12:15:50.000+01:00","parent_ids":["6d8ca33dae268d3c5835e721e5702ef9dcb43c8c"],"title":"Add
+        content","message":"Add content\n","author_name":"Vincent Jacques","author_email":"vincent@vincent-jacques.net","authored_date":"2026-03-05T12:15:50.000+01:00","committer_name":"Vincent
+        Jacques","committer_email":"vincent@vincent-jacques.net","committed_date":"2026-03-05T12:15:50.000+01:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/7497e018d01503b6abc3053b7896266115e631f6"},"merged":false,"protected":false,"developers_can_push":false,"developers_can_merge":false,"can_push":true,"default":false,"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/tree/topics/blah"}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6b299362a58-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:39 GMT
+      ETag:
+      - W/"be3a07d6e1d5e13f604b8e41a1bfab1f"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      content-length:
+      - '907'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-16-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-b
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '22'
+      ratelimit-remaining:
+      - '1978'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6b299362a58-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '4'
+      x-request-id:
+      - a17fb6b299362a58-CDG
+      x-runtime:
+      - '0.134299'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"branch": "tests/20260708-120000", "ref": "0941ee0a9eac9914cfddf5adec7a9558a2f1c447"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '86'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/branches
+  response:
+    body:
+      string: '{"name":"tests/20260708-120000","commit":{"id":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","short_id":"0941ee0a","created_at":"2026-02-26T09:01:54.000+01:00","parent_ids":["1403774c82d64068af027d0b5d0cc4f52473b6f2"],"title":"Another","message":"Another\n","author_name":"Vincent
+        Jacques","author_email":"vincent@vincent-jacques.net","authored_date":"2026-02-26T09:01:54.000+01:00","committer_name":"Vincent
+        Jacques","committer_email":"vincent@vincent-jacques.net","committed_date":"2026-02-26T09:01:54.000+01:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merged":false,"protected":false,"developers_can_push":false,"developers_can_merge":false,"can_push":true,"default":false,"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/tree/tests/20260708-120000"}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6b5e9ac22a0-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '919'
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:40 GMT
+      ETag:
+      - W/"dedd84414e72a14134a22b2a44c46351"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-32-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-c
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '23'
+      ratelimit-remaining:
+      - '1977'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6b5e9ac22a0-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '12'
+      x-request-id:
+      - a17fb6b5e9ac22a0-CDG
+      x-runtime:
+      - '1.235451'
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/branches/tests%2F20260708-120000
+  response:
+    body:
+      string: '{"name":"tests/20260708-120000","commit":{"id":"0941ee0a9eac9914cfddf5adec7a9558a2f1c447","short_id":"0941ee0a","created_at":"2026-02-26T09:01:54.000+01:00","parent_ids":["1403774c82d64068af027d0b5d0cc4f52473b6f2"],"title":"Another","message":"Another\n","author_name":"Vincent
+        Jacques","author_email":"vincent@vincent-jacques.net","authored_date":"2026-02-26T09:01:54.000+01:00","committer_name":"Vincent
+        Jacques","committer_email":"vincent@vincent-jacques.net","committed_date":"2026-02-26T09:01:54.000+01:00","trailers":{},"extended_trailers":{},"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/commit/0941ee0a9eac9914cfddf5adec7a9558a2f1c447"},"merged":false,"protected":false,"developers_can_push":false,"developers_can_merge":false,"can_push":true,"default":false,"web_url":"https://gitlab.com/jacquev6-sentry/test-sentry-integration-dev-jacquev6/-/tree/tests/20260708-120000"}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6bfba1c9e8b-CDG
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:41 GMT
+      ETag:
+      - W/"dedd84414e72a14134a22b2a44c46351"
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, Accept-Encoding
+      content-length:
+      - '919'
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-39-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '24'
+      ratelimit-remaining:
+      - '1976'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6bfba1c9e8b-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '4'
+      x-request-id:
+      - a17fb6bfba1c9e8b-CDG
+      x-runtime:
+      - '0.168114'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: DELETE
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/branches/tests%2F20260708-120000
+  response:
+    body:
+      string: ''
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - a17fb6c22e00d14a-CDG
+      Cache-Control:
+      - no-cache
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:42 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-27-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '25'
+      ratelimit-remaining:
+      - '1975'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6c22e00d14a-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '10'
+      x-request-id:
+      - a17fb6c22e00d14a-CDG
+      x-runtime:
+      - '0.573228'
+    status:
+      code: 204
+      message: No Content
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://gitlab.com/api/v4/projects/79787061/repository/branches/tests%2F20260708-120000
+  response:
+    body:
+      string: '{"message":"404 Branch Not Found"}'
+    headers:
+      CF-Cache-Status:
+      - BYPASS
+      CF-Ray:
+      - a17fb6c6e8e0dd09-CDG
+      Cache-Control:
+      - no-cache
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '34'
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 08 Jul 2026 14:17:42 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin, Accept-Encoding
+      content-security-policy:
+      - default-src 'none'
+      gitlab-lb:
+      - haproxy-main-15-lb-gprd
+      gitlab-sv:
+      - api-gke-us-east1-d
+      nel:
+      - '{"max_age": 0}'
+      ratelimit-limit:
+      - '2000'
+      ratelimit-name:
+      - throttle_authenticated_api
+      ratelimit-observed:
+      - '26'
+      ratelimit-remaining:
+      - '1974'
+      ratelimit-reset:
+      - '1783520280'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gitlab-meta:
+      - '{"correlation_id":"a17fb6c6e8e0dd09-CDG","version":"1"}'
+      x-gitlab-namespace:
+      - jacquev6-sentry
+      x-gitlab-score-gitaly:
+      - '2'
+      x-request-id:
+      - a17fb6c6e8e0dd09-CDG
+      x-runtime:
+      - '0.108294'
+    status:
+      code: 404
+      message: Not Found
+version: 1

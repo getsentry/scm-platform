@@ -1,0 +1,654 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments?q=deleted=false
+  response:
+    body:
+      string: '{"values": [{"id": 823492210, "created_on": "2026-07-08T14:49:13.528616+00:00",
+        "updated_on": "2026-07-08T14:49:13.540744+00:00", "content": {"type": "rendered",
+        "raw": "A great comment!", "markup": "markdown", "html": "<p>A great comment!</p>"},
+        "user": {"display_name": "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}, "deleted":
+        false, "pending": false, "type": "pullrequest_comment", "links": {"self":
+        {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823492210"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1/_/diff#comment-823492210"}},
+        "pullrequest": {"type": "pullrequest", "id": 1, "title": "Add blah", "draft":
+        false, "links": {"self": {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1"}},
+        "queued": false}}], "pagelen": 10, "size": 1, "page": 1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 15304b9c-3300-4440-868b-51f7cf3bba60
+      Atl-Traceid:
+      - 15304b9c33004440868b51f7cf3bba60
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:57:20 GMT
+      Etag:
+      - W/"cef296987408a28b7bceaa66661b45fe"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=492,atl-edge;dur=409,atl-edge-internal;dur=20,atl-edge-upstream;dur=390,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG52-P4",cdn-rid;desc="N_Pal6gaYcNAGoT72pJNSHdjECZGAx4cbyoVZtK_ZRRDk3-JWR4GDg==",cdn-downstream-fbl;dur=495
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 f7ed3df0e52b293c6e9c3d70718876fe.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - pullrequest
+      X-Amz-Cf-Id:
+      - N_Pal6gaYcNAGoT72pJNSHdjECZGAx4cbyoVZtK_ZRRDk3-JWR4GDg==
+      X-Amz-Cf-Pop:
+      - CDG52-P4
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - ffc9a46cee6a42a4
+      X-B3-Traceid:
+      - 15304b9c33004440868b51f7cf3bba60
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - write:repository:bitbucket, read:permission:bitbucket, read:gpg-key:bitbucket,
+        write:pullrequest:bitbucket, read:issue:bitbucket, write:test:bitbucket, write:issue:bitbucket,
+        read:workspace:bitbucket, read:pipeline:bitbucket, read:project:bitbucket,
+        read:wiki:bitbucket, read:ssh-key:bitbucket, read:user:bitbucket, read:package:bitbucket,
+        read:snippet:bitbucket, read:webhook:bitbucket, read:repository:bitbucket,
+        read:pullrequest:bitbucket, read:test:bitbucket, read:runner:bitbucket
+      X-Render-Time:
+      - '0.3504018783569336'
+      X-Request-Count:
+      - '3685'
+      X-Served-By:
+      - 55c744a5d913
+      X-Static-Version:
+      - 20825b29ac86
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '8'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.004243'
+      X-Usage-User-Time:
+      - '0.142107'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 20825b29ac86
+      X-View-Name:
+      - bitbucket.apps.pullrequests.api.v20.handlers.PullRequestCommentsV20Handler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '1594'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"content": {"raw": "Another comment, made through the API."}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '62'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: POST
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments
+  response:
+    body:
+      string: '{"id": 823496427, "created_on": "2026-07-08T14:57:21.219658+00:00",
+        "updated_on": "2026-07-08T14:57:21.228634+00:00", "content": {"type": "rendered",
+        "raw": "Another comment, made through the API.", "markup": "markdown", "html":
+        "<p>Another comment, made through the API.</p>"}, "user": {"display_name":
+        "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}, "deleted":
+        false, "pending": false, "type": "pullrequest_comment", "links": {"self":
+        {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823496427"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1/_/diff#comment-823496427"}},
+        "pullrequest": {"type": "pullrequest", "id": 1, "title": "Add blah", "draft":
+        false, "links": {"self": {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1"}},
+        "queued": false}}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - abd76622-c4fa-494a-b292-4bf80dae305c
+      Atl-Traceid:
+      - abd76622c4fa494ab2924bf80dae305c
+      Cache-Control:
+      - max-age=0, no-cache, no-store, must-revalidate, private
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1587'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:57:21 GMT
+      Expires:
+      - Wed, 08 Jul 2026 14:57:21 GMT
+      Location:
+      - https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823496427
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=548,atl-edge;dur=465,atl-edge-internal;dur=8,atl-edge-upstream;dur=458,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG52-P1",cdn-rid;desc="aEKWu2P6Fbvprg_aawv9f-nEm17gv65qo8s3apHUcA35X3-qgsGMOg==",cdn-downstream-fbl;dur=556
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Vary:
+      - Authorization, origin
+      Via:
+      - 1.1 b3c499d6bb51c2f743813fea28eaaf30.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - pullrequest
+      X-Amz-Cf-Id:
+      - aEKWu2P6Fbvprg_aawv9f-nEm17gv65qo8s3apHUcA35X3-qgsGMOg==
+      X-Amz-Cf-Pop:
+      - CDG52-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 246354e2d7273d7c
+      X-B3-Traceid:
+      - abd76622c4fa494ab2924bf80dae305c
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:pipeline:bitbucket, read:workspace:bitbucket, write:pullrequest:bitbucket,
+        read:wiki:bitbucket, read:ssh-key:bitbucket, read:test:bitbucket, read:snippet:bitbucket,
+        read:project:bitbucket, read:webhook:bitbucket, read:runner:bitbucket, read:package:bitbucket,
+        read:repository:bitbucket, read:pullrequest:bitbucket, read:permission:bitbucket,
+        read:issue:bitbucket, write:issue:bitbucket, write:test:bitbucket, read:user:bitbucket,
+        write:repository:bitbucket, read:gpg-key:bitbucket
+      X-Render-Time:
+      - '0.4308922290802002'
+      X-Request-Count:
+      - '2232'
+      X-Served-By:
+      - 3a087b72632e
+      X-Static-Version:
+      - 20825b29ac86
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.012601'
+      X-Usage-User-Time:
+      - '0.168737'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 20825b29ac86
+      X-View-Name:
+      - bitbucket.apps.pullrequests.api.v20.handlers.PullRequestCommentsV20Handler
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments?q=deleted=false
+  response:
+    body:
+      string: '{"values": [{"id": 823492210, "created_on": "2026-07-08T14:49:13.528616+00:00",
+        "updated_on": "2026-07-08T14:49:13.540744+00:00", "content": {"type": "rendered",
+        "raw": "A great comment!", "markup": "markdown", "html": "<p>A great comment!</p>"},
+        "user": {"display_name": "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}, "deleted":
+        false, "pending": false, "type": "pullrequest_comment", "links": {"self":
+        {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823492210"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1/_/diff#comment-823492210"}},
+        "pullrequest": {"type": "pullrequest", "id": 1, "title": "Add blah", "draft":
+        false, "links": {"self": {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1"}},
+        "queued": false}}, {"id": 823496427, "created_on": "2026-07-08T14:57:21.219658+00:00",
+        "updated_on": "2026-07-08T14:57:21.228634+00:00", "content": {"type": "rendered",
+        "raw": "Another comment, made through the API.", "markup": "markdown", "html":
+        "<p>Another comment, made through the API.</p>"}, "user": {"display_name":
+        "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}, "deleted":
+        false, "pending": false, "type": "pullrequest_comment", "links": {"self":
+        {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823496427"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1/_/diff#comment-823496427"}},
+        "pullrequest": {"type": "pullrequest", "id": 1, "title": "Add blah", "draft":
+        false, "links": {"self": {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1"}},
+        "queued": false}}], "pagelen": 10, "size": 2, "page": 1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - eeb8fb8a-ce53-44d5-95fc-8048948b90af
+      Atl-Traceid:
+      - eeb8fb8ace5344d595fc8048948b90af
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:57:21 GMT
+      Etag:
+      - W/"3153246d0e3277b21b138a5149983831"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=434,atl-edge;dur=351,atl-edge-internal;dur=11,atl-edge-upstream;dur=341,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG50-P1",cdn-rid;desc="Hb7sWpRWzzGpg3fmVnEfu6oE4cyS6iWxn9XECJblG1s0PIRYUWsy4Q==",cdn-downstream-fbl;dur=437
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 aca12b6f838410f4b92b0d9603907f30.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - pullrequest
+      X-Amz-Cf-Id:
+      - Hb7sWpRWzzGpg3fmVnEfu6oE4cyS6iWxn9XECJblG1s0PIRYUWsy4Q==
+      X-Amz-Cf-Pop:
+      - CDG50-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - adb826cdbbb71c5b
+      X-B3-Traceid:
+      - eeb8fb8ace5344d595fc8048948b90af
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - write:repository:bitbucket, read:gpg-key:bitbucket, write:pullrequest:bitbucket,
+        read:test:bitbucket, read:runner:bitbucket, read:permission:bitbucket, read:issue:bitbucket,
+        read:workspace:bitbucket, write:issue:bitbucket, read:project:bitbucket, read:wiki:bitbucket,
+        read:user:bitbucket, read:ssh-key:bitbucket, read:package:bitbucket, read:snippet:bitbucket,
+        read:webhook:bitbucket, write:test:bitbucket, read:repository:bitbucket, read:pullrequest:bitbucket,
+        read:pipeline:bitbucket
+      X-Render-Time:
+      - '0.31255006790161133'
+      X-Request-Count:
+      - '3889'
+      X-Served-By:
+      - 1df03d8a2ba0
+      X-Static-Version:
+      - 20825b29ac86
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.003332'
+      X-Usage-User-Time:
+      - '0.114235'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 20825b29ac86
+      X-View-Name:
+      - bitbucket.apps.pullrequests.api.v20.handlers.PullRequestCommentsV20Handler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '3183'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: DELETE
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823496427
+  response:
+    body:
+      string: ''
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - e9840b0d-75c3-46a5-a96c-ebb8d2247f2b
+      Atl-Traceid:
+      - e9840b0d75c346a5a96cebb8d2247f2b
+      Cache-Control:
+      - max-age=0, no-cache, no-store, must-revalidate, private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:57:22 GMT
+      Expires:
+      - Wed, 08 Jul 2026 14:57:22 GMT
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=326,atl-edge;dur=243,atl-edge-internal;dur=8,atl-edge-upstream;dur=235,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG50-P1",cdn-rid;desc="EyBNUhEnrh7wKMKlmJepM2tEX7dp287kSZeaW9gsuD_lndeywiFUew==",cdn-downstream-fbl;dur=329
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Vary:
+      - Authorization, origin, cookie, user-context, Accept-Encoding
+      Via:
+      - 1.1 5321ce1f67b98139d1f43997aea9b44a.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - pullrequest
+      X-Amz-Cf-Id:
+      - EyBNUhEnrh7wKMKlmJepM2tEX7dp287kSZeaW9gsuD_lndeywiFUew==
+      X-Amz-Cf-Pop:
+      - CDG50-P1
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 843c96f3e5cf921e
+      X-B3-Traceid:
+      - e9840b0d75c346a5a96cebb8d2247f2b
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - read:test:bitbucket, read:runner:bitbucket, write:repository:bitbucket, write:pullrequest:bitbucket,
+        read:gpg-key:bitbucket, read:user:bitbucket, read:workspace:bitbucket, read:permission:bitbucket,
+        read:issue:bitbucket, read:project:bitbucket, write:issue:bitbucket, read:wiki:bitbucket,
+        read:package:bitbucket, read:ssh-key:bitbucket, write:test:bitbucket, read:snippet:bitbucket,
+        read:webhook:bitbucket, read:repository:bitbucket, read:pipeline:bitbucket,
+        read:pullrequest:bitbucket
+      X-Render-Time:
+      - '0.2045731544494629'
+      X-Request-Count:
+      - '3401'
+      X-Served-By:
+      - 00f6d63d0424
+      X-Static-Version:
+      - 20825b29ac86
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.008114'
+      X-Usage-User-Time:
+      - '0.089961'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 20825b29ac86
+      X-View-Name:
+      - bitbucket.apps.pullrequests.api.v20.handlers.PullRequestCommentV20Handler
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 204
+      message: No Content
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      authorization:
+      - SCRUBBED
+    method: GET
+    uri: https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments?q=deleted=false
+  response:
+    body:
+      string: '{"values": [{"id": 823492210, "created_on": "2026-07-08T14:49:13.528616+00:00",
+        "updated_on": "2026-07-08T14:49:13.540744+00:00", "content": {"type": "rendered",
+        "raw": "A great comment!", "markup": "markdown", "html": "<p>A great comment!</p>"},
+        "user": {"display_name": "Vincent Jacques", "links": {"self": {"href": "https://api.bitbucket.org/2.0/users/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D"},
+        "avatar": {"href": "https://secure.gravatar.com/avatar/d20cb9a4fcfed3bb0a5f0a2f1ffb51f9?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FVJ-3.png"},
+        "html": {"href": "https://bitbucket.org/%7Bb116ba0e-54b0-48c1-8118-77624b8c8d33%7D/"}},
+        "type": "user", "uuid": "{b116ba0e-54b0-48c1-8118-77624b8c8d33}", "account_id":
+        "557058:657aa95a-39b4-47ed-94ae-643c19a32a3c", "nickname": "jacquev6"}, "deleted":
+        false, "pending": false, "type": "pullrequest_comment", "links": {"self":
+        {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1/comments/823492210"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1/_/diff#comment-823492210"}},
+        "pullrequest": {"type": "pullrequest", "id": 1, "title": "Add blah", "draft":
+        false, "links": {"self": {"href": "https://api.bitbucket.org/2.0/repositories/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pullrequests/1"},
+        "html": {"href": "https://bitbucket.org/jacquev6-sentry/test-sentry-integration-dev-jacquev6/pull-requests/1"}},
+        "queued": false}}], "pagelen": 10, "size": 1, "page": 1}'
+    headers:
+      Age:
+      - '0'
+      Atl-Request-Id:
+      - 9b8e9388-8767-493b-aef9-78490089e551
+      Atl-Traceid:
+      - 9b8e93888767493baef978490089e551
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Jul 2026 14:57:22 GMT
+      Etag:
+      - W/"cef296987408a28b7bceaa66661b45fe"
+      Nel:
+      - '{"failure_fraction": 0.01, "include_subdomains": true, "max_age": 600, "report_to":
+        "endpoint-1"}'
+      Report-To:
+      - '{"endpoints": [{"url": "https://dz8aopenkvv6s.cloudfront.net"}], "group":
+        "endpoint-1", "include_subdomains": true, "max_age": 600}'
+      Server:
+      - AtlassianEdge
+      Server-Timing:
+      - cdn-upstream-layer;desc="EDGE",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=406,atl-edge;dur=322,atl-edge-internal;dur=8,atl-edge-upstream;dur=315,atl-edge-pop;desc="aws-us-east-1",cdn-cache-miss,cdn-pop;desc="CDG50-P3",cdn-rid;desc="J2IRz8FSee7RzxmQs2K_wJCOKq2TzrYNL1nlNYcfEgWoQ_FptWf9xw==",cdn-downstream-fbl;dur=410
+      Strict-Transport-Security:
+      - max-age=63072000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Authorization, origin, cookie, user-context
+      - Accept-Encoding
+      Via:
+      - 1.1 37910e333059cdffb80ed9de884a6ee0.cloudfront.net (CloudFront)
+      X-Accepted-Oauth-Scopes:
+      - pullrequest
+      X-Amz-Cf-Id:
+      - J2IRz8FSee7RzxmQs2K_wJCOKq2TzrYNL1nlNYcfEgWoQ_FptWf9xw==
+      X-Amz-Cf-Pop:
+      - CDG50-P3
+      X-Asap-Succeeded:
+      - 'True'
+      X-B3-Spanid:
+      - 228c84c43bf7147d
+      X-B3-Traceid:
+      - 9b8e93888767493baef978490089e551
+      X-Cache:
+      - Miss from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Credential-Type:
+      - api_token
+      X-Dc-Location:
+      - Micros-3
+      X-Envoy-Attempt-Count:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Oauth-Scopes:
+      - write:repository:bitbucket, read:gpg-key:bitbucket, write:pullrequest:bitbucket,
+        read:test:bitbucket, read:workspace:bitbucket, read:runner:bitbucket, read:project:bitbucket,
+        read:wiki:bitbucket, read:ssh-key:bitbucket, read:package:bitbucket, read:permission:bitbucket,
+        read:snippet:bitbucket, read:issue:bitbucket, read:webhook:bitbucket, write:issue:bitbucket,
+        read:user:bitbucket, read:repository:bitbucket, read:pullrequest:bitbucket,
+        write:test:bitbucket, read:pipeline:bitbucket
+      X-Render-Time:
+      - '0.2875990867614746'
+      X-Request-Count:
+      - '3129'
+      X-Served-By:
+      - a6dd775756ec
+      X-Static-Version:
+      - 20825b29ac86
+      X-Token-Id:
+      - b8861f3e-b291-47f3-8402-af161e75b2ca
+      X-Usage-Input-Ops:
+      - '0'
+      X-Usage-Output-Ops:
+      - '0'
+      X-Usage-System-Time:
+      - '0.003074'
+      X-Usage-User-Time:
+      - '0.101113'
+      X-Used-Mesh:
+      - 'False'
+      X-Version:
+      - 20825b29ac86
+      X-View-Name:
+      - bitbucket.apps.pullrequests.api.v20.handlers.PullRequestCommentsV20Handler
+      X-Xss-Protection:
+      - 1; mode=block
+      content-length:
+      - '1594'
+    status:
+      code: 200
+      message: OK
+version: 1
