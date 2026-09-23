@@ -15,6 +15,7 @@ from scm.errors import (
 )
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
+    map_app_installation,
     map_author,
     map_file_content,
     map_git_ref,
@@ -676,3 +677,112 @@ class TestCreateCommit:
                 author=AUTHOR,
                 expected_head_sha="parent123",
             )
+
+
+class TestGetAppInstallation:
+    def test_the_installation_is_read_with_the_app_credentials(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"id": "inst_01example", "scopes": ["repository:contents:read"]})
+
+        result = provider.get_app_installation()
+
+        assert client.request.call_args.kwargs["path"] == "/app/installations/inst_01example"
+        assert client.request.call_args.kwargs["credentials_set"] == "application"
+        assert result["data"] == {
+            "has_read_access": True,
+            "has_write_access": False,
+            "has_check_run_write_access": False,
+        }
+
+    def test_writing_needs_contents_and_pull_requests(self) -> None:
+        assert map_app_installation({"scopes": ["repository:contents:write", "repository:pull_requests:write"]}) == {
+            "has_read_access": True,
+            "has_write_access": True,
+            "has_check_run_write_access": False,
+        }
+        assert not map_app_installation({"scopes": ["repository:contents:write"]})["has_write_access"]
+
+    def test_check_runs_need_the_checks_write_scope(self) -> None:
+        assert map_app_installation({"scopes": ["repository:checks:write"]}) == {
+            "has_read_access": False,
+            "has_write_access": False,
+            "has_check_run_write_access": True,
+        }
+
+
+class TestGetGitCommit:
+    def test_a_commit_is_read_with_its_tree(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(
+            {
+                "sha": "abc123",
+                "author": {"name": "A", "email": "a@example.com", "date": "2026-01-01T00:00:00Z"},
+                "message": "Fix the thing",
+                "tree": {"sha": "tree123"},
+                "parents": [{"sha": "parent123"}],
+            }
+        )
+
+        result = provider.get_git_commit("abc123")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/commits/abc123"
+        assert result["data"] == {
+            "sha": "abc123",
+            "tree": {"sha": "tree123"},
+            "message": "Fix the thing",
+        }
+
+
+class TestGetFullTree:
+    def test_the_whole_tree_is_read_in_one_response(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(
+            {
+                "sha": "tree123",
+                "tree": [{"path": "a.py", "mode": "100644", "type": "blob", "sha": "b1", "size": "4"}],
+                "truncated": False,
+            }
+        )
+
+        result = provider.get_full_tree("tree123")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/trees/tree123"
+        assert client.request.call_args.kwargs["params"] == {"recursive": "true"}
+        assert result["data"]["tree"][0]["size"] == 4
+        assert "next_cursor" not in result["meta"]
+
+
+class TestWebUrls:
+    def test_a_file_url_links_the_line_range(self, provider: CursorOriginProvider) -> None:
+        assert (
+            provider.get_file_url("src/app.py", "abc123", 5, 9)
+            == f"https://cursor.com/codebase/{REPO}/blob/abc123/src/app.py#L5-L9"
+        )
+
+    def test_a_file_url_without_lines(self, provider: CursorOriginProvider) -> None:
+        assert (
+            provider.get_file_url("docs/read me.md", "abc123")
+            == f"https://cursor.com/codebase/{REPO}/blob/abc123/docs/read%20me.md"
+        )
+
+    def test_a_file_url_at_a_branch_encodes_its_slash(self, provider: CursorOriginProvider) -> None:
+        assert (
+            provider.get_file_url("README.md", "release/test")
+            == f"https://cursor.com/codebase/{REPO}/blob/release%2Ftest/README.md"
+        )
+
+    def test_a_history_url(self, provider: CursorOriginProvider) -> None:
+        assert provider.get_commits_url("release/test") == f"https://cursor.com/codebase/{REPO}/commits/release%2Ftest"
+
+    def test_a_filtered_history_url_is_refused(self, provider: CursorOriginProvider) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.get_commits_url("abc123", file_path="src/app.py")
+
+    def test_a_pull_request_url(self, provider: CursorOriginProvider) -> None:
+        assert provider.get_pull_request_url("7") == f"https://cursor.com/codebase/{REPO}/pull/7"
+
+    def test_a_commit_url(self, provider: CursorOriginProvider) -> None:
+        assert provider.get_commit_url("abc123") == f"https://cursor.com/codebase/{REPO}/commit/abc123"
