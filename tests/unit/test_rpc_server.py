@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock
 
 import msgspec
@@ -22,6 +23,7 @@ def make_repository(**overrides) -> Repository:
         "organization_id": 1,
         "provider_name": "github",
         "web_base_url": None,
+        "installation_id": None,
     }
     return {**defaults, **overrides}  # type: ignore[typeddict-item]
 
@@ -310,6 +312,17 @@ class TestSerializeRepository:
     def test_web_base_url_none_when_not_set(self):
         decoded = deserialize_repository(serialize_repository(make_repository()))
         assert decoded["web_base_url"] is None
+
+    def test_installation_id_round_trips(self):
+        repo = make_repository(provider_name="cursor_origin", installation_id="inst_01example")
+        decoded = deserialize_repository(serialize_repository(repo))
+        assert decoded["installation_id"] == "inst_01example"
+
+    def test_installation_id_none_when_the_server_omits_it(self):
+        payload = json.loads(serialize_repository(make_repository()))
+        del payload["data"]["attributes"]["installation_id"]
+        decoded = deserialize_repository(json.dumps(payload).encode())
+        assert decoded["installation_id"] is None
 
 
 class TestIterResponse:

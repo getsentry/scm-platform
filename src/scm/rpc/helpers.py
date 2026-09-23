@@ -48,6 +48,7 @@ def deserialize_repository(content: bytes) -> Repository:
             "organization_id": repository.attributes.organization_id,
             "provider_name": repository.attributes.provider_name,
             "web_base_url": repository.attributes.web_base_url,
+            "installation_id": repository.attributes.installation_id,
         }
         return result
 
@@ -67,6 +68,7 @@ def serialize_repository(repository: Repository) -> bytes:
                     organization_id=repository["organization_id"],
                     provider_name=repository["provider_name"],
                     web_base_url=repository["web_base_url"],
+                    installation_id=repository["installation_id"],
                 ),
             )
         )

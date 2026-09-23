@@ -94,6 +94,7 @@ def make_fetch_repository(base_url: str):
                 "organization_id": organization_id,
                 "provider_name": provider_name,
                 "web_base_url": None,
+                "installation_id": None,
             }
         return None
 

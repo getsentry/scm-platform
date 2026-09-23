@@ -60,6 +60,7 @@ def _make_gitlab_provider(client: ApiClient, *, name: str = "test-repo") -> GitL
             external_id="gitlab.com:79787061",
             provider_name="gitlab",
             web_base_url=None,
+            installation_id=None,
         ),
     )
 

@@ -92,6 +92,7 @@ def make_repository() -> Repository:
         "external_id": None,
         "provider_name": "github",
         "web_base_url": None,
+        "installation_id": None,
     }
 
 
