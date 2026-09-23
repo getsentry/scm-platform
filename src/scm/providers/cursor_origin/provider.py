@@ -6,12 +6,16 @@ import requests
 from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
+    ResourceBadRequest,
+    UnexpectedResponseFormat,
     error_class_for_status,
 )
 from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    ArchiveFormat,
+    ArchiveLink,
     Author,
     BranchName,
     CredentialsSet,
@@ -213,6 +217,50 @@ class CursorOriginProvider:
             "meta": {"next_cursor": None},
         }
 
+    def get_archive_link(
+        self,
+        ref: str,
+        archive_format: ArchiveFormat = "tarball",
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[ArchiveLink]:
+        """A signed URL for the repository archive at `ref`.
+
+        The first request builds the archive and returns 200 without a body we need.
+        Later requests return a signed URL with a 15-minute expiry.
+        """
+        _require_tarball(archive_format)
+        response = self._archive_response(ref, request_options)
+        if response.status_code == 200:
+            response.close()
+            response = self._archive_response(ref, request_options)
+
+        location = response.headers.get("Location")
+        if response.status_code != 302 or not location:
+            raise UnexpectedResponseFormat(detail="Could not extract 'Location' header.")
+
+        return {
+            "data": ArchiveLink(url=location, headers={}),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": location, "headers": dict(response.headers)},
+            "meta": {},
+        }
+
+    def download_archive(
+        self,
+        ref: str,
+        archive_format: ArchiveFormat = "tarball",
+        request_options: RequestOptions | None = None,
+    ) -> requests.Response:
+        _require_tarball(archive_format)
+        return self.get(f"/repos/{self.repository_path}/tarball/{ref}", request_options=request_options)
+
+    def _archive_response(self, ref: str, request_options: RequestOptions | None) -> requests.Response:
+        return self.get(
+            f"/repos/{self.repository_path}/tarball/{ref}",
+            request_options=request_options,
+            allow_redirects=False,
+        )
+
 
 def map_author(raw: dict[str, Any]) -> Author:
     if user := raw.get("user"):
@@ -266,6 +314,11 @@ def map_git_tree(raw: dict[str, Any]) -> GitTree:
         tree=[map_tree_entry(entry) for entry in raw["tree"]],
         truncated=raw["truncated"],
     )
+
+
+def _require_tarball(archive_format: ArchiveFormat) -> None:
+    if archive_format != "tarball":
+        raise ResourceBadRequest(detail=f"Origin archives are tarballs, not {archive_format}")
 
 
 def map_action[T](

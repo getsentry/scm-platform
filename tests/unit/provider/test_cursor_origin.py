@@ -6,7 +6,9 @@ import pytest
 from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
+    ResourceBadRequest,
     ResourceNotFound,
+    UnexpectedResponseFormat,
 )
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
@@ -246,3 +248,83 @@ class TestGetTree:
 
     def test_a_tree_entry_has_no_size(self) -> None:
         assert map_git_tree(TREE_RAW)["tree"][0]["size"] is None
+
+
+def _redirect(location: str) -> unittest.mock.MagicMock:
+    response = unittest.mock.MagicMock()
+    response.status_code = 302
+    response.headers = {"Location": location}
+    response.content = b""
+    return response
+
+
+def _streamed_archive() -> unittest.mock.MagicMock:
+    response = unittest.mock.MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.content = b""
+    return response
+
+
+SIGNED_URL = "https://artifacts.origin.cursor.com/tarballs/abc.tar.gz?Signature=EXAMPLE"
+
+
+class TestGetArchiveLink:
+    def test_a_cached_archive_answers_with_a_signed_url(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _redirect(SIGNED_URL)
+
+        result = provider.get_archive_link("HEAD", request_options={"timeout": 600.0})
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/tarball/HEAD"
+        assert client.request.call_args.kwargs["allow_redirects"] is False
+        assert client.request.call_args.kwargs["timeout"] == 600.0
+        assert result["data"] == {"url": SIGNED_URL, "headers": {}}
+
+    def test_the_first_request_builds_the_archive_and_the_second_links_it(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """Origin streams the archive inline the first time a commit is asked for."""
+        streamed = _streamed_archive()
+        client.request.side_effect = [streamed, _redirect(SIGNED_URL)]
+
+        result = provider.get_archive_link("HEAD")
+
+        assert client.request.call_count == 2
+        assert streamed.close.called
+        assert result["data"]["url"] == SIGNED_URL
+
+    def test_a_response_with_no_location_is_refused(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        response = _redirect(SIGNED_URL)
+        response.headers = {}
+        client.request.return_value = response
+
+        with pytest.raises(UnexpectedResponseFormat):
+            provider.get_archive_link("HEAD")
+
+    def test_only_tarballs_are_offered(self, provider: CursorOriginProvider) -> None:
+        """Origin has one archive route, and it is a gzipped tarball."""
+        with pytest.raises(ResourceBadRequest):
+            provider.get_archive_link("HEAD", archive_format="zip")
+
+
+class TestDownloadArchive:
+    def test_the_archive_is_streamed_with_redirects_followed(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        archive = _streamed_archive()
+        client.request.return_value = archive
+
+        response = provider.download_archive("abc123", request_options={"timeout": 600.0})
+
+        assert response is archive
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/tarball/abc123"
+        assert client.request.call_args.kwargs["allow_redirects"] is None
+        assert client.request.call_args.kwargs["timeout"] == 600.0
+
+    def test_only_tarballs_are_offered(self, provider: CursorOriginProvider) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.download_archive("abc123", archive_format="zip")
