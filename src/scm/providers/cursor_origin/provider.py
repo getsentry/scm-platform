@@ -4,21 +4,28 @@ from typing import Any
 import requests
 
 from scm.errors import (
+    PathIsDirectory,
+    PathIsNotDirectory,
     error_class_for_status,
 )
 from scm.types import (
+    SHA,
     ActionResult,
     ApiClient,
     Author,
     BranchName,
     CredentialsSet,
+    FileContent,
+    FileContentType,
     GitRef,
     GitRepository,
+    GitTree,
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
     Repository,
     RequestOptions,
+    TreeEntry,
 )
 
 PROVIDER_TYPE: ProviderName = "cursor_origin"
@@ -30,6 +37,9 @@ FIRST_PAGE_CURSOR = "1"
 MAX_PAGE_SIZE = 100
 # Origin's visibilities.
 _PRIVATE_VISIBILITIES = {"internal", "private"}
+
+
+CURSOR_ORIGIN_FILE_TYPE_MAP: dict[str, FileContentType] = {"file": "file", "dir": "directory"}
 
 
 class CursorOriginProvider:
@@ -141,6 +151,68 @@ class CursorOriginProvider:
         )
         return map_action(response, map_git_ref)
 
+    def get_file_content(
+        self,
+        path: str,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        response = self.get(
+            f"/repos/{self.repository_path}/contents",
+            params={"path": path, "ref": ref},
+            request_options=request_options,
+        )
+        raw = response.json()
+        if "entries" in raw:
+            raise PathIsDirectory(detail=path)
+        return map_action(response, map_file_content, raw)
+
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[FileContent]]:
+        params: dict[str, str] = {"path": path}
+        if ref:
+            params["ref"] = ref
+        response = self.get(
+            f"/repos/{self.repository_path}/contents",
+            params=params,
+            request_options=request_options,
+        )
+        raw = response.json()
+        if "entries" not in raw:
+            raise PathIsNotDirectory(detail=path)
+        return {
+            "data": [map_file_content(entry) for entry in raw["entries"]],
+            "type": PROVIDER_TYPE,
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": {"next_cursor": None},
+        }
+
+    def get_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitTree]:
+        params = {"recursive": "true"} if recursive else {}
+        response = self.get(
+            f"/repos/{self.repository_path}/git/trees/{tree_sha}",
+            params=params,
+            request_options=request_options,
+        )
+        raw = response.json()
+        return {
+            "data": map_git_tree(raw),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": {"next_cursor": None},
+        }
+
 
 def map_author(raw: dict[str, Any]) -> Author:
     if user := raw.get("user"):
@@ -166,8 +238,42 @@ def map_git_ref(raw: dict[str, Any]) -> GitRef:
     return GitRef(ref=raw["ref"].removeprefix("refs/heads/"), sha=raw["object"]["sha"])
 
 
-def map_action[T](response: requests.Response, fn: Callable[[dict[str, Any]], T]) -> ActionResult[T]:
-    raw = response.json()
+def map_file_content(raw: dict[str, Any]) -> FileContent:
+    return FileContent(
+        path=raw["path"],
+        sha=raw["sha"],
+        content=raw.get("content", ""),
+        encoding=raw.get("encoding", ""),
+        size=int(raw["size"]),
+        type=CURSOR_ORIGIN_FILE_TYPE_MAP[raw["type"]],
+    )
+
+
+def map_tree_entry(raw: dict[str, Any]) -> TreeEntry:
+    size = raw.get("size")
+    return TreeEntry(
+        path=raw["path"],
+        mode=raw["mode"],
+        type=raw["type"],
+        sha=raw["sha"],
+        size=int(size) if size is not None else None,
+    )
+
+
+def map_git_tree(raw: dict[str, Any]) -> GitTree:
+    return GitTree(
+        sha=raw["sha"],
+        tree=[map_tree_entry(entry) for entry in raw["tree"]],
+        truncated=raw["truncated"],
+    )
+
+
+def map_action[T](
+    response: requests.Response,
+    fn: Callable[[dict[str, Any]], T],
+    raw: dict[str, Any] | None = None,
+) -> ActionResult[T]:
+    raw = response.json() if raw is None else raw
     return {
         "data": fn(raw),
         "type": PROVIDER_TYPE,

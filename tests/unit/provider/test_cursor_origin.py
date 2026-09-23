@@ -4,11 +4,15 @@ from typing import Any
 import pytest
 
 from scm.errors import (
+    PathIsDirectory,
+    PathIsNotDirectory,
     ResourceNotFound,
 )
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
+    map_file_content,
     map_git_ref,
+    map_git_tree,
     map_repository,
 )
 from scm.types import (
@@ -142,3 +146,102 @@ class TestPagination:
         provider.get(f"/repos/{REPO}", pagination={"cursor": "1", "per_page": 30})
 
         assert client.request.call_args.kwargs["params"] == {"pageSize": "30"}
+
+
+FILE_RAW = {
+    "type": "file",
+    "encoding": "base64",
+    "size": "42",
+    "name": "app.py",
+    "path": "src/app.py",
+    "sha": "b10b5ha",
+    "content": "cHJpbnQoImhpIikK",
+}
+
+DIRECTORY_RAW = {
+    "type": "dir",
+    "name": "src",
+    "path": "src",
+    "sha": "7ree5ha",
+    "entries": [
+        {"type": "file", "name": "app.py", "path": "src/app.py", "sha": "b10b5ha", "size": "42"},
+        {"type": "dir", "name": "web", "path": "src/web", "sha": "d1r5ha", "size": "0"},
+    ],
+}
+
+
+class TestGetFileContent:
+    def test_a_file_is_read_at_a_ref(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(FILE_RAW)
+
+        result = provider.get_file_content("src/app.py", "main")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/contents"
+        assert client.request.call_args.kwargs["params"] == {"path": "src/app.py", "ref": "main"}
+        assert result["data"]["content"] == "cHJpbnQoImhpIikK"
+        assert result["data"]["size"] == 42
+
+    def test_the_size_string_becomes_an_integer(self) -> None:
+        """Origin sends 64-bit integers as JSON strings."""
+        assert map_file_content(FILE_RAW)["size"] == 42
+
+    def test_a_directory_asked_for_as_a_file_is_refused(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(DIRECTORY_RAW)
+
+        with pytest.raises(PathIsDirectory):
+            provider.get_file_content("src", "main")
+
+
+class TestGetDirectoryContents:
+    def test_the_children_are_listed(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(DIRECTORY_RAW)
+
+        result = provider.get_directory_contents("src", ref="main")
+
+        assert [entry["path"] for entry in result["data"]] == ["src/app.py", "src/web"]
+        assert result["data"][1]["type"] == "directory"
+        assert result["meta"]["next_cursor"] is None
+
+    def test_a_file_asked_for_as_a_directory_is_refused(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(FILE_RAW)
+
+        with pytest.raises(PathIsNotDirectory):
+            provider.get_directory_contents("src/app.py")
+
+
+TREE_RAW = {
+    "sha": "7ree5ha",
+    "tree": [
+        {"path": "src", "mode": "040000", "type": "tree", "sha": "d1r5ha"},
+        {"path": "src/app.py", "mode": "100644", "type": "blob", "sha": "b10b5ha", "size": 42},
+    ],
+    "truncated": False,
+}
+
+
+class TestGetTree:
+    def test_a_recursive_tree_is_read(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(TREE_RAW)
+
+        result = provider.get_tree("HEAD")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/trees/HEAD"
+        assert client.request.call_args.kwargs["params"] == {"recursive": "true"}
+        assert [entry["path"] for entry in result["data"]["tree"]] == ["src", "src/app.py"]
+        assert result["data"]["truncated"] is False
+
+    def test_immediate_children_only_when_recursion_is_off(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(TREE_RAW)
+
+        provider.get_tree("HEAD", recursive=False)
+
+        assert client.request.call_args.kwargs["params"] == {}
+
+    def test_a_tree_entry_has_no_size(self) -> None:
+        assert map_git_tree(TREE_RAW)["tree"][0]["size"] is None
