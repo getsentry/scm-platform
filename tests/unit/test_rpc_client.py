@@ -6,6 +6,7 @@ import pytest
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from scm.errors import ErrorCode, ResourceServiceUnavailable, SCMCodedError
+from scm.providers.cursor_origin.provider import CURSOR_ORIGIN_WEB_BASE_URL, CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
@@ -139,6 +140,21 @@ class TestFetchProvider:
         repo = make_repository(provider_name="gitlab", external_id="gitlab.com:12345")
         provider = fetch_provider(client, 1, repo)
         assert isinstance(provider, GitLabProvider)
+
+    def test_cursor_origin_forwards_the_stored_web_base_url(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="cursor_origin", web_base_url="https://origin.example.com/codebase")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, CursorOriginProvider)
+        assert provider.get_pull_request_url("7") == "https://origin.example.com/codebase/org/repo/pull/7"
+
+    def test_cursor_origin_without_a_web_base_url_falls_back_to_the_default(self):
+        """Unlike github_enterprise this is not an error -- Origin is single-tenant."""
+        client = MagicMock()
+        repo = make_repository(provider_name="cursor_origin")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, CursorOriginProvider)
+        assert provider.get_pull_request_url("7") == f"{CURSOR_ORIGIN_WEB_BASE_URL}/org/repo/pull/7"
 
     def test_unknown_provider_returns_none(self):
         client = MagicMock()
