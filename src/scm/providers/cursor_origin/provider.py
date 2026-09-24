@@ -228,12 +228,10 @@ class CursorOriginProvider:
         since: date | None = None,
         until: date | None = None,
     ) -> str:
-        """
-        Only the unfiltered history page is supported.
+        """Only the unfiltered history page is supported.
 
         The ref is one path segment, so branch slashes must be encoded.
         """
-
         if file_path is not None or since is not None or until is not None:
             raise ResourceBadRequest(detail="Origin's commit history page takes no file or date filter.")
         return f"{self._web_base_url}/{self.repository_path}/commits/{quote(commit_sha, safe='')}"
