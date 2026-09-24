@@ -70,6 +70,9 @@ _PRIVATE_VISIBILITIES = {"internal", "private"}
 CURSOR_ORIGIN_FILE_TYPE_MAP: dict[str, FileContentType] = {"file": "file", "dir": "directory"}
 
 
+# GitHub's compare returns at most 300 files; read as many when the caller asks for no page.
+COMPARE_MAX_PAGES = 3
+
 CURSOR_ORIGIN_FILE_STATUS_MAP: dict[str, FileStatus] = {
     "added": "added",
     "removed": "removed",
@@ -584,23 +587,38 @@ class CursorOriginProvider:
     ) -> PaginatedActionResult[CommitComparison]:
         """Origin counts commits in a comparison but does not list them, so ``commits`` is empty.
 
-        Changed files are returned separately and paginated by ``pagination``. ``include_behind``
-        has no effect because Origin always returns ``behind_by``.
+        Changed files are returned separately and paginated by ``pagination``; without it, up to
+        300 files are read, as GitHub returns. ``include_behind`` has no effect because Origin
+        always returns ``behind_by``.
         """
         path = f"/repos/{self.repository_path}/compare/{start_sha}...{end_sha}"
         summary = self.get(path, request_options=request_options).json()
-        response = self.get(f"{path}/files", pagination=pagination, request_options=request_options)
-        raw = response.json()
+        if pagination is not None:
+            response = self.get(f"{path}/files", pagination=pagination, request_options=request_options)
+            raw = response.json()
+            files = raw["files"]
+            next_cursor = raw["nextPageToken"] or None
+        else:
+            files = []
+            page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+            for _ in range(COMPARE_MAX_PAGES):
+                response = self.get(f"{path}/files", pagination=page, request_options=request_options)
+                raw = response.json()
+                files.extend(raw["files"])
+                if not raw["nextPageToken"]:
+                    break
+                page = {"per_page": MAX_PAGE_SIZE, "cursor": raw["nextPageToken"]}
+            next_cursor = None
         return {
             "data": CommitComparison(
                 ahead_by=summary["aheadBy"],
                 behind_by=summary["behindBy"],
                 commits=[],
-                diff=[map_commit_file(file) for file in raw["files"]],
+                diff=[map_commit_file(file) for file in files],
             ),
             "type": PROVIDER_TYPE,
-            "raw": {"data": {**summary, **raw}, "headers": dict(response.headers)},
-            "meta": {"next_cursor": raw["nextPageToken"] or None},
+            "raw": {"data": {**summary, "files": files}, "headers": dict(response.headers)},
+            "meta": {"next_cursor": next_cursor},
         }
 
 

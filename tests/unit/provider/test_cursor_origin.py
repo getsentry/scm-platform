@@ -860,6 +860,38 @@ COMPARISON_RAW = {"status": "ahead", "aheadBy": 2, "behindBy": 0, "baseCommit": 
 
 
 class TestCompareCommits:
+    def test_without_a_page_up_to_three_pages_of_files_are_read(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """Origin's pages hold at most 100 files; GitHub's compare returns up to 300."""
+        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        client.request.side_effect = [
+            _response(COMPARISON_RAW),
+            _response({"files": [file], "nextPageToken": "t2"}),
+            _response({"files": [file], "nextPageToken": "t3"}),
+            _response({"files": [file], "nextPageToken": "t4"}),
+        ]
+
+        result = provider.compare_commits("base123", "head123")
+
+        _, first, second, third = client.request.call_args_list
+        assert first.kwargs["params"] == {"pageSize": "100"}
+        assert second.kwargs["params"] == {"pageSize": "100", "pageToken": "t2"}
+        assert third.kwargs["params"] == {"pageSize": "100", "pageToken": "t3"}
+        assert len(result["data"]["diff"]) == 3
+        assert result["meta"]["next_cursor"] is None
+
+    def test_without_a_page_reading_stops_at_the_last_page(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        client.request.side_effect = [_response(COMPARISON_RAW), _response({"files": [file], "nextPageToken": ""})]
+
+        result = provider.compare_commits("base123", "head123")
+
+        assert client.request.call_count == 2
+        assert len(result["data"]["diff"]) == 1
+
     def test_the_counts_and_the_changed_files_are_read(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
