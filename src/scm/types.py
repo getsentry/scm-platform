@@ -10,10 +10,10 @@ type EventTypeHint = Literal["check_run", "check_suite", "comment", "pull_reques
 type HybridCloudSilo = Literal["control", "region"]
 
 
-type ProviderName = Literal["bitbucket", "github", "github_enterprise", "gitlab"]
+type ProviderName = Literal["bitbucket", "cursor_origin", "github", "github_enterprise", "gitlab"]
 """The SCM provider that owns an integration or repository."""
 
-PROVIDER_SET: set[ProviderName] = set(["bitbucket", "github", "github_enterprise", "gitlab"])
+PROVIDER_SET: set[ProviderName] = set(["bitbucket", "cursor_origin", "github", "github_enterprise", "gitlab"])
 
 type ExternalId = str
 """
@@ -349,7 +349,7 @@ class GitRepository(TypedDict):
     default_branch: str
     clone_url: str
     private: bool
-    size: int
+    size: int | None
     description: str | None
     topics: list[str]
 
