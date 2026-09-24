@@ -31,6 +31,7 @@ class RepositoryAttributes(msgspec.Struct):
     organization_id: int
     provider_name: ProviderName
     web_base_url: str | None = None
+    installation_id: str | None = None
 
 
 class JsonApiData[Type, Attributes](msgspec.Struct):

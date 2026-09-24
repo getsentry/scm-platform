@@ -340,6 +340,8 @@ class Repository(TypedDict):
     organization_id: int
     provider_name: ProviderName
     web_base_url: str | None
+    # The SCM app's external id.
+    installation_id: str | None
 
 
 class GitRepository(TypedDict):

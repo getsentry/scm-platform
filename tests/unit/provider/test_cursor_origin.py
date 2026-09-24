@@ -37,6 +37,7 @@ def provider(client: unittest.mock.MagicMock) -> CursorOriginProvider:
             external_id="r_01example",
             provider_name="cursor_origin",
             web_base_url=None,
+            installation_id="inst_01example",
         ),
         installation_id="inst_01example",
     )

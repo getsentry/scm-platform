@@ -6,6 +6,7 @@ import pytest
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from scm.errors import ErrorCode, ResourceServiceUnavailable, SCMCodedError
+from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
@@ -28,6 +29,7 @@ def make_repository(**overrides):
         "organization_id": 1,
         "provider_name": "github",
         "web_base_url": None,
+        "installation_id": None,
     }
     return {**defaults, **overrides}
 
@@ -139,6 +141,20 @@ class TestFetchProvider:
         repo = make_repository(provider_name="gitlab", external_id="gitlab.com:12345")
         provider = fetch_provider(client, 1, repo)
         assert isinstance(provider, GitLabProvider)
+
+    def test_cursor_origin_returns_cursor_origin_provider(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="cursor_origin", installation_id="inst_01example")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, CursorOriginProvider)
+        assert provider.installation_id == "inst_01example"
+
+    def test_cursor_origin_without_installation_id_raises(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="cursor_origin")
+        with pytest.raises(SCMCodedError) as exc_info:
+            fetch_provider(client, 1, repo)
+        assert exc_info.value.code == "rpc_invalid_grant"
 
     def test_unknown_provider_returns_none(self):
         client = MagicMock()

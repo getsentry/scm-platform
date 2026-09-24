@@ -116,6 +116,7 @@ def fetch_repository(oid, rid) -> Repository:
         "external_id": None,
         "provider_name": "github",
         "web_base_url": None,
+        "installation_id": None,
     }
 
 
@@ -1026,6 +1027,7 @@ class MinimalProvider:
         "external_id": None,
         "provider_name": "github",
         "web_base_url": None,
+        "installation_id": None,
     }
 
     def request(
