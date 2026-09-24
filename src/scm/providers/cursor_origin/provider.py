@@ -584,10 +584,6 @@ class CursorOriginProvider:
         *,
         include_behind: bool = False,
     ) -> PaginatedActionResult[CommitComparison]:
-        """Origin counts commits in a comparison but does not list them, so ``commits`` is empty.
-
-        ``include_behind`` has no effect because Origin always returns ``behind_by``.
-        """
         path = f"/repos/{self.repository_path}/compare/{start_sha}...{end_sha}"
         summary = self.get(path, request_options=request_options).json()
         if pagination is not None:
