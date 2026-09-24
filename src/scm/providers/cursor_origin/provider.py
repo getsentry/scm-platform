@@ -70,7 +70,6 @@ _PRIVATE_VISIBILITIES = {"internal", "private"}
 CURSOR_ORIGIN_FILE_TYPE_MAP: dict[str, FileContentType] = {"file": "file", "dir": "directory"}
 
 
-# GitHub's compare returns at most 300 files; read as many when the caller asks for no page.
 COMPARE_MAX_PAGES = 3
 
 CURSOR_ORIGIN_FILE_STATUS_MAP: dict[str, FileStatus] = {
