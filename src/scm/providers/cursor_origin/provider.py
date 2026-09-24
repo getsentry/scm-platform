@@ -50,10 +50,14 @@ from scm.types import (
     ProviderName,
     PullRequest,
     PullRequestBranch,
+    PullRequestReviewState,
     PullRequestState,
     Repository,
     RequestOptions,
+    Review,
     ReviewComment,
+    ReviewCommentInput,
+    ReviewEvent,
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
@@ -84,6 +88,17 @@ CURSOR_ORIGIN_FILE_STATUS_MAP: dict[str, FileStatus] = {
     "modified": "modified",
     "renamed": "renamed",
     "copied": "copied",
+}
+
+CURSOR_ORIGIN_REVIEW_EVENT_MAP: dict[ReviewEvent, str] = {
+    "approve": "approve",
+    "change_request": "request_changes",
+    "comment": "comment",
+}
+CURSOR_ORIGIN_REVIEW_STATE_MAP: dict[str, PullRequestReviewState] = {
+    "approve": "approved",
+    "request_changes": "changes_requested",
+    "comment": "commented",
 }
 
 
@@ -660,6 +675,64 @@ class CursorOriginProvider:
     def update_review_comment(self, pull_request_id: str, comment_id: str, body: str) -> ActionResult[ReviewComment]:
         response = self.patch(f"/repos/{self.repository_path}/pulls/comments/{comment_id}", data={"body": body})
         return map_action(response, map_review_comment)
+
+    def create_review(
+        self,
+        pull_request_id: str,
+        commit_sha: SHA,
+        event: ReviewEvent,
+        comments: list[ReviewCommentInput],
+        body: str | None = None,
+    ) -> ActionResult[Review]:
+        """Submit a review and its comments in one request.
+
+        Origin reviews the pull request's latest version, ignoring ``commit_sha``. If any
+        comment cannot be anchored, the entire request is rejected.
+        """
+        data: dict[str, Any] = {
+            "verdict": CURSOR_ORIGIN_REVIEW_EVENT_MAP[event],
+            "comments": [self._review_comment(comment) for comment in comments],
+        }
+        if body is not None:
+            data["body"] = body
+        response = self.post(f"/repos/{self.repository_path}/pulls/{pull_request_id}/reviews", data=data)
+        return map_action(response, lambda raw: self._map_review(raw, pull_request_id))
+
+    def _review_comment(self, comment: ReviewCommentInput) -> dict[str, Any]:
+        """A comment with no line anchors the whole file."""
+        line = comment.get("line")
+        if line is None:
+            return {"body": comment["body"], "file": {"path": comment["path"]}}
+        return {"body": comment["body"], "inline": inline_anchor(comment["path"], line, comment.get("start_line"))}
+
+    def list_pull_request_reviews(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Review]]:
+        """Submitted reviews, oldest first."""
+        response = self.get(
+            f"/repos/{self.repository_path}/pulls/{pull_request_id}/reviews",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(
+            response,
+            lambda raw: [self._map_review(review, pull_request_id) for review in raw["reviews"]],
+        )
+
+    def _map_review(self, raw: dict[str, Any], pull_request_id: str) -> Review:
+        """Origin has no per-review web link, so the pull request's stands in."""
+        return Review(
+            id=raw["id"],
+            html_url=f"{self._web_base_url}/{self.repository_path}/pull/{pull_request_id}",
+            state="dismissed" if raw.get("dismissal") else CURSOR_ORIGIN_REVIEW_STATE_MAP[raw["verdict"]],
+            author=map_author(raw["author"]),
+            body=raw["body"] or None,
+            submitted_at=raw["submittedAt"],
+            commit_id=raw["pullRequestVersion"]["headSha"],
+        )
 
     def collapse_pull_request_comment(
         self,
