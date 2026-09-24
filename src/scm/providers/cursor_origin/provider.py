@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -29,10 +29,13 @@ from scm.types import (
     Commit,
     CommitAuthor,
     CommitAuthorParam,
+    CommitComparison,
+    CommitFile,
     CredentialsSet,
     DeleteCommitAction,
     FileContent,
     FileContentType,
+    FileStatus,
     GitCommitObject,
     GitCommitTree,
     GitRef,
@@ -65,6 +68,17 @@ _PRIVATE_VISIBILITIES = {"internal", "private"}
 
 
 CURSOR_ORIGIN_FILE_TYPE_MAP: dict[str, FileContentType] = {"file": "file", "dir": "directory"}
+
+
+COMPARE_MAX_PAGES = 3
+
+CURSOR_ORIGIN_FILE_STATUS_MAP: dict[str, FileStatus] = {
+    "added": "added",
+    "removed": "removed",
+    "modified": "modified",
+    "renamed": "renamed",
+    "copied": "copied",
+}
 
 
 class CursorOriginProvider:
@@ -543,6 +557,57 @@ class CursorOriginProvider:
         )
         return map_action(response, map_git_commit_object)
 
+    def get_commits(
+        self,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Commit]]:
+        if since or until:
+            raise ResourceBadRequest(detail="Origin cannot list commits by date")
+        response = self.get(
+            f"/repos/{self.repository_path}/commits",
+            params={"sha": ref} if ref else {},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, lambda raw: [map_commit(commit) for commit in raw["commits"]])
+
+    def compare_commits(
+        self,
+        start_sha: SHA,
+        end_sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
+    ) -> PaginatedActionResult[CommitComparison]:
+        path = f"/repos/{self.repository_path}/compare/{start_sha}...{end_sha}"
+        summary = self.get(path, request_options=request_options).json()
+        page: PaginationParams = pagination or {"per_page": MAX_PAGE_SIZE}
+        max_pages = 1 if pagination else COMPARE_MAX_PAGES
+        files: list[dict[str, Any]] = []
+        for _ in range(max_pages):
+            response = self.get(f"{path}/files", pagination=page, request_options=request_options)
+            raw = response.json()
+            files.extend(raw["files"])
+            if not raw["nextPageToken"]:
+                break
+            page = {**page, "cursor": raw["nextPageToken"]}
+        return {
+            "data": CommitComparison(
+                ahead_by=summary["aheadBy"],
+                behind_by=summary["behindBy"],
+                commits=[],
+                diff=[map_commit_file(file) for file in files],
+            ),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": {**summary, "files": files}, "headers": dict(response.headers)},
+            "meta": {"next_cursor": raw["nextPageToken"] or None},
+        }
+
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     """A write scope also grants its read scope."""
@@ -622,6 +687,35 @@ def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
         sha=raw["sha"],
         tree=GitCommitTree(sha=raw["tree"]["sha"]),
         message=raw["message"],
+    )
+
+
+def map_commit_author(raw: dict[str, Any]) -> CommitAuthor:
+    return CommitAuthor(
+        name=raw["name"],
+        email=raw["email"],
+        date=datetime.fromisoformat(raw["date"]) if raw["date"] else None,
+    )
+
+
+def map_commit(raw: dict[str, Any]) -> Commit:
+    return Commit(
+        id=raw["sha"],
+        message=raw["commit"]["message"],
+        author=map_commit_author(raw["commit"]["author"]),
+        additions=None,
+        deletions=None,
+    )
+
+
+def map_commit_file(raw: dict[str, Any]) -> CommitFile:
+    return CommitFile(
+        filename=raw["filename"],
+        status=CURSOR_ORIGIN_FILE_STATUS_MAP.get(raw["status"], "unknown"),
+        patch=raw["patch"] or None,
+        additions=raw["additions"],
+        deletions=raw["deletions"],
+        previous_filename=raw.get("previousFilename"),
     )
 
 

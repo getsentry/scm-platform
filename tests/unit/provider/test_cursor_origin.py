@@ -1,4 +1,5 @@
 import unittest.mock
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,10 +14,12 @@ from scm.errors import (
     StaleBranchHead,
     UnexpectedResponseFormat,
 )
+from scm.helpers import iter_all_pages
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
     map_app_installation,
     map_author,
+    map_commit,
     map_file_content,
     map_git_ref,
     map_git_tree,
@@ -786,3 +789,167 @@ class TestWebUrls:
 
     def test_a_commit_url(self, provider: CursorOriginProvider) -> None:
         assert provider.get_commit_url("abc123") == f"https://cursor.com/codebase/{REPO}/commit/abc123"
+
+
+def _commit_raw(sha: str, date: str = "2026-08-01T09:30:00Z") -> dict[str, Any]:
+    identity = {"name": "Jane Doe", "email": "jane@example.com", "date": date}
+    return {
+        "sha": sha,
+        "commit": {
+            "author": identity,
+            "committer": identity,
+            "message": "Add launch telemetry",
+            "tree": {"sha": "tree123"},
+        },
+        "parents": [],
+    }
+
+
+class TestGetCommits:
+    def test_commits_are_listed_from_a_ref(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"commits": [_commit_raw("abc123")], "nextPageToken": "t2"})
+
+        result = provider.get_commits(ref="main", pagination={"cursor": "1", "per_page": 30})
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/commits"
+        assert client.request.call_args.kwargs["params"] == {"sha": "main", "pageSize": "30"}
+        assert result["data"] == [
+            {
+                "id": "abc123",
+                "message": "Add launch telemetry",
+                "author": {
+                    "name": "Jane Doe",
+                    "email": "jane@example.com",
+                    "date": datetime(2026, 8, 1, 9, 30, tzinfo=UTC),
+                },
+                "additions": None,
+                "deletions": None,
+            }
+        ]
+        assert result["meta"]["next_cursor"] == "t2"
+
+    def test_an_empty_date_is_absent(self) -> None:
+        assert map_commit(_commit_raw("abc123", date=""))["author"] == {
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+            "date": None,
+        }
+
+    def test_every_page_is_followed_by_its_token(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"commits": [_commit_raw("a")], "nextPageToken": "t2"}),
+            _response({"commits": [_commit_raw("b")], "nextPageToken": ""}),
+        ]
+
+        pages = list(iter_all_pages(lambda p: provider.get_commits(pagination=p), per_page=1))
+
+        assert [page["data"][0]["id"] for page in pages] == ["a", "b"]
+        assert client.request.call_args_list[1].kwargs["params"] == {"pageSize": "1", "pageToken": "t2"}
+        assert pages[1]["meta"]["next_cursor"] is None
+
+    def test_a_date_range_is_refused(self, provider: CursorOriginProvider) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.get_commits(since=datetime(2026, 1, 1, tzinfo=UTC))
+
+
+COMPARISON_RAW = {"status": "ahead", "aheadBy": 2, "behindBy": 0, "baseCommit": {}, "headCommit": {}}
+
+
+class TestCompareCommits:
+    def test_without_a_page_up_to_three_pages_of_files_are_read(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """Origin's pages hold at most 100 files; GitHub's compare returns up to 300."""
+        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        client.request.side_effect = [
+            _response(COMPARISON_RAW),
+            _response({"files": [file], "nextPageToken": "t2"}),
+            _response({"files": [file], "nextPageToken": "t3"}),
+            _response({"files": [file], "nextPageToken": "t4"}),
+        ]
+
+        result = provider.compare_commits("base123", "head123")
+
+        _, first, second, third = client.request.call_args_list
+        assert first.kwargs["params"] == {"pageSize": "100"}
+        assert second.kwargs["params"] == {"pageSize": "100", "pageToken": "t2"}
+        assert third.kwargs["params"] == {"pageSize": "100", "pageToken": "t3"}
+        assert len(result["data"]["diff"]) == 3
+        assert result["meta"]["next_cursor"] == "t4"
+
+    def test_without_a_page_reading_stops_at_the_last_page(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        client.request.side_effect = [_response(COMPARISON_RAW), _response({"files": [file], "nextPageToken": ""})]
+
+        result = provider.compare_commits("base123", "head123")
+
+        assert client.request.call_count == 2
+        assert len(result["data"]["diff"]) == 1
+
+    def test_the_counts_and_the_changed_files_are_read(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response(COMPARISON_RAW),
+            _response(
+                {
+                    "files": [
+                        {
+                            "filename": "src/new.py",
+                            "status": "renamed",
+                            "additions": 1,
+                            "deletions": 0,
+                            "changes": 1,
+                            "patch": "@@ -1 +1 @@",
+                            "previousFilename": "src/old.py",
+                        },
+                        {
+                            "filename": "logo.png",
+                            "status": "added",
+                            "additions": 0,
+                            "deletions": 0,
+                            "changes": 0,
+                            "patch": "",
+                        },
+                    ],
+                    "nextPageToken": "t2",
+                }
+            ),
+        ]
+
+        result = provider.compare_commits("base123", "head123", pagination={"cursor": "1", "per_page": 50})
+
+        summary, files = client.request.call_args_list
+        assert summary.kwargs["path"] == f"/repos/{REPO}/compare/base123...head123"
+        assert files.kwargs["path"] == f"/repos/{REPO}/compare/base123...head123/files"
+        assert files.kwargs["params"] == {"pageSize": "50"}
+        assert result["data"] == {
+            "ahead_by": 2,
+            "behind_by": 0,
+            "commits": [],
+            "diff": [
+                {
+                    "filename": "src/new.py",
+                    "status": "renamed",
+                    "patch": "@@ -1 +1 @@",
+                    "additions": 1,
+                    "deletions": 0,
+                    "previous_filename": "src/old.py",
+                },
+                {
+                    "filename": "logo.png",
+                    "status": "added",
+                    "patch": None,
+                    "additions": 0,
+                    "deletions": 0,
+                    "previous_filename": None,
+                },
+            ],
+        }
+        assert result["meta"]["next_cursor"] == "t2"
