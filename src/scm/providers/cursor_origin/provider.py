@@ -1,5 +1,7 @@
 from collections.abc import Callable
+from datetime import date
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -18,6 +20,7 @@ from scm.types import (
     SHA,
     ActionResult,
     ApiClient,
+    AppInstallation,
     ArchiveFormat,
     ArchiveLink,
     Author,
@@ -30,6 +33,8 @@ from scm.types import (
     DeleteCommitAction,
     FileContent,
     FileContentType,
+    GitCommitObject,
+    GitCommitTree,
     GitRef,
     GitRepository,
     GitTree,
@@ -156,6 +161,10 @@ class CursorOriginProvider:
     def delete(self, path: str) -> requests.Response:
         return self.request("DELETE", path=path)
 
+    def get_app_installation(self) -> ActionResult[AppInstallation]:
+        response = self.get(f"/app/installations/{self.installation_id}", credentials_set="application")
+        return map_action(response, map_app_installation)
+
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository_path}")
         return map_action(response, map_repository)
@@ -191,6 +200,44 @@ class CursorOriginProvider:
 
     def delete_branch(self, branch: BranchName) -> None:
         self.delete(f"/repos/{self.repository_path}/git/refs/heads/{branch}")
+
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: SHA,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str:
+        url = f"{self._web_base_url}/{self.repository_path}/blob/{quote(sha, safe='')}/{quote(file_path)}"
+        if start_line:
+            url += f"#L{start_line}"
+        if start_line and end_line:
+            url += f"-L{end_line}"
+        elif end_line:
+            url += f"#L{end_line}"
+        return url
+
+    def get_commit_url(self, commit_sha: SHA) -> str:
+        return f"{self._web_base_url}/{self.repository_path}/commit/{commit_sha}"
+
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str:
+        """Only the unfiltered history page is supported.
+
+        The ref is one path segment, so branch slashes must be encoded.
+        """
+        if file_path is not None or since is not None or until is not None:
+            raise ResourceBadRequest(detail="Origin's commit history page takes no file or date filter.")
+        return f"{self._web_base_url}/{self.repository_path}/commits/{quote(commit_sha, safe='')}"
+
+    def get_pull_request_url(self, pull_request_id: str) -> str:
+        return f"{self._web_base_url}/{self.repository_path}/pull/{pull_request_id}"
 
     def get_file_content(
         self,
@@ -346,6 +393,13 @@ class CursorOriginProvider:
             }
         ]
 
+    def _fetch_tree(self, tree_sha: SHA, recursive: bool, request_options: RequestOptions | None) -> requests.Response:
+        return self.get(
+            f"/repos/{self.repository_path}/git/trees/{tree_sha}",
+            params={"recursive": "true"} if recursive else {},
+            request_options=request_options,
+        )
+
     def get_tree(
         self,
         tree_sha: SHA,
@@ -353,12 +407,7 @@ class CursorOriginProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[GitTree]:
-        params = {"recursive": "true"} if recursive else {}
-        response = self.get(
-            f"/repos/{self.repository_path}/git/trees/{tree_sha}",
-            params=params,
-            request_options=request_options,
-        )
+        response = self._fetch_tree(tree_sha, recursive, request_options)
         raw = response.json()
         return {
             "data": map_git_tree(raw),
@@ -474,6 +523,36 @@ class CursorOriginProvider:
             author=map_author(raw["author"]),
         )
 
+    def get_full_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitTree]:
+        response = self._fetch_tree(tree_sha, recursive, request_options)
+        return map_action(response, map_git_tree)
+
+    def get_git_commit(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitCommitObject]:
+        response = self.get(
+            f"/repos/{self.repository_path}/git/commits/{sha}",
+            request_options=request_options,
+        )
+        return map_action(response, map_git_commit_object)
+
+
+def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
+    """A write scope also grants its read scope."""
+    scopes = set(raw["scopes"])
+    return AppInstallation(
+        has_read_access=bool(scopes & {"repository:contents:read", "repository:contents:write"}),
+        has_write_access={"repository:contents:write", "repository:pull_requests:write"} <= scopes,
+        has_check_run_write_access="repository:checks:write" in scopes,
+    )
+
 
 def map_author(raw: dict[str, Any]) -> Author:
     if user := raw.get("user"):
@@ -536,6 +615,14 @@ def _require_tarball(archive_format: ArchiveFormat) -> None:
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
     return PullRequestBranch(sha=raw["sha"] or None, ref=raw["ref"].removeprefix("refs/heads/"))
+
+
+def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
+    return GitCommitObject(
+        sha=raw["sha"],
+        tree=GitCommitTree(sha=raw["tree"]["sha"]),
+        message=raw["message"],
+    )
 
 
 def map_action[T](
