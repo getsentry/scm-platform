@@ -8,6 +8,7 @@ from scm.errors import (
     PathIsNotDirectory,
     ResourceBadRequest,
     ResourceConflict,
+    ResourceGatewayTimeout,
     ResourceNotFound,
     StaleBranchHead,
     UnexpectedResponseFormat,
@@ -566,6 +567,7 @@ class TestCreateCommit:
             _response({"message": "not found"}, status_code=404),
             _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
             _response({"message": "unchanged tree"}, status_code=400),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
             _response({}, status_code=204),
         ]
 
@@ -576,6 +578,25 @@ class TestCreateCommit:
 
         assert client.request.call_args.kwargs["method"] == "DELETE"
         assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/refs/heads/fix"
+
+    def test_a_branch_a_commit_reached_is_kept(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """A timeout can hide a commit that landed, so a branch past the parent is left alone."""
+        client.request.side_effect = [
+            _response({"message": "not found"}, status_code=404),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
+            _response({"message": "gateway timeout"}, status_code=504),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "new123", "type": "commit"}}),
+        ]
+
+        with pytest.raises(ResourceGatewayTimeout):
+            provider.create_commit(
+                "fix", "parent123", "m", [DeleteCommitAction(filename="b.py")], create_branch=True, author=AUTHOR
+            )
+
+        assert client.request.call_count == 4
+        assert client.request.call_args.kwargs["method"] == "GET"
 
     def test_a_move_and_a_mode_change_rewrite_the_file(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock

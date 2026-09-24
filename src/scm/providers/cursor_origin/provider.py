@@ -275,7 +275,9 @@ class CursorOriginProvider:
         try:
             return self._commit_files(branch, parent_sha, message, author, files, expected_head_sha)
         except SCMCodedError:
-            self.delete_branch(branch)
+            # A timeout can hide a commit that landed, and a second writer can share the branch.
+            if self.get_branch(branch)["data"]["sha"] == parent_sha:
+                self.delete_branch(branch)
             raise
 
     def _commit_files(
