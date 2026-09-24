@@ -26,6 +26,7 @@ from scm.types import (
     Author,
     BranchName,
     ChmodCommitAction,
+    Comment,
     Commit,
     CommitAuthor,
     CommitAuthorParam,
@@ -50,6 +51,8 @@ from scm.types import (
     PullRequestState,
     Repository,
     RequestOptions,
+    ReviewThread,
+    ReviewThreadComment,
     TreeEntry,
     WriteCommitAction,
 )
@@ -193,6 +196,21 @@ class CursorOriginProvider:
             request_options=request_options,
         )
         return map_action(response, self._map_pull_request)
+
+    def get_pull_request_comments(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Comment]]:
+        """Return general discussion comments from the pull request.
+
+        Origin returns general discussion and review threads together, so all pages must be
+        read even when a page has no general comments. ``pagination`` is unused.
+        """
+        comments, response = self._all_comments(pull_request_id, request_options)
+        general = [map_comment(comment) for comment in comments if _is_general_discussion(comment)]
+        return map_comments_page(response, comments, general)
 
     def get_branch(
         self,
@@ -608,6 +626,37 @@ class CursorOriginProvider:
             "meta": {"next_cursor": raw["nextPageToken"] or None},
         }
 
+    def get_pull_request_review_threads(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
+    ) -> PaginatedActionResult[list[ReviewThread]]:
+        """Return review threads from the pull request.
+
+        Origin returns comments in a flat list, so a thread can span pages and all
+        pages must be read. ``pagination`` and ``include_reactions`` are unused
+        because Origin provides neither.
+        """
+        comments, response = self._all_comments(pull_request_id, request_options)
+        return map_comments_page(response, comments, map_review_threads(comments))
+
+    def _all_comments(
+        self, pull_request_id: str, request_options: RequestOptions | None
+    ) -> tuple[list[dict[str, Any]], requests.Response]:
+        path = f"/repos/{self.repository_path}/pulls/{pull_request_id}/comments"
+        comments: list[dict[str, Any]] = []
+        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+        while True:
+            response = self.get(path, pagination=page, request_options=request_options)
+            raw = response.json()
+            comments.extend(raw["comments"])
+            if not raw["nextPageToken"]:
+                return comments, response
+            page = {"per_page": MAX_PAGE_SIZE, "cursor": raw["nextPageToken"]}
+
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     """A write scope also grants its read scope."""
@@ -719,6 +768,62 @@ def map_commit_file(raw: dict[str, Any]) -> CommitFile:
     )
 
 
+def map_comment(raw: dict[str, Any]) -> Comment:
+    return Comment(
+        id=raw["id"],
+        body=raw["body"],
+        author=map_author(raw["author"]),
+        created_at=raw["createdAt"],
+        author_association=None,
+    )
+
+
+def _is_general_discussion(raw: dict[str, Any]) -> bool:
+    return not raw["thread"]["path"]
+
+
+def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+    return ReviewThreadComment(
+        id=raw["id"],
+        unique_id=raw["id"],
+        body=raw["body"],
+        author=map_author(raw["author"]),
+        is_bot="user" not in raw["author"],
+        created_at=raw["createdAt"],
+        updated_at=raw["updatedAt"],
+        is_minimized=False,
+        commit_sha=raw["thread"]["version"]["headSha"],
+    )
+
+
+def map_review_threads(comments: list[dict[str, Any]]) -> list[ReviewThread]:
+    """Map Origin's flat comments into review threads.
+
+    The first comment contains the thread state.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for raw in comments:
+        if not _is_general_discussion(raw):
+            grouped.setdefault(raw["thread"]["id"], []).append(raw)
+
+    threads = []
+    for thread_id, thread_comments in grouped.items():
+        thread = thread_comments[0]["thread"]
+        start, end = thread["startLine"], thread["endLine"]
+        threads.append(
+            ReviewThread(
+                id=thread_id,
+                is_resolved=bool(thread.get("resolvedAt")),
+                is_outdated=False,
+                file_path=thread["path"],
+                line=(end or start) or None,
+                start_line=start if end else None,
+                comments=[map_review_thread_comment(raw) for raw in thread_comments],
+            )
+        )
+    return threads
+
+
 def map_action[T](
     response: requests.Response,
     fn: Callable[[dict[str, Any]], T],
@@ -740,4 +845,16 @@ def map_paginated_action[T](response: requests.Response, fn: Callable[[dict[str,
         "type": PROVIDER_TYPE,
         "raw": {"data": raw, "headers": dict(response.headers)},
         "meta": {"next_cursor": raw["nextPageToken"] or None},
+    }
+
+
+def map_comments_page[T](
+    response: requests.Response, comments: list[dict[str, Any]], data: T
+) -> PaginatedActionResult[T]:
+    """Build a paginated result containing all comments read for the pull request."""
+    return {
+        "data": data,
+        "type": PROVIDER_TYPE,
+        "raw": {"data": {"comments": comments}, "headers": dict(response.headers)},
+        "meta": {"next_cursor": None},
     }

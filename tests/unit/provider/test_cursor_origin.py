@@ -24,6 +24,7 @@ from scm.providers.cursor_origin.provider import (
     map_git_ref,
     map_git_tree,
     map_repository,
+    map_review_threads,
 )
 from scm.types import (
     ChmodCommitAction,
@@ -953,3 +954,108 @@ class TestCompareCommits:
             ],
         }
         assert result["meta"]["next_cursor"] == "t2"
+
+
+VERSION = {"number": "1", "headSha": "head123", "baseSha": "base123", "createdAt": "2026-08-01T09:30:00Z"}
+USER = {"user": {"id": "user_01", "email": "jane@example.com", "handle": "jane"}}
+APP = {"app": {"id": "app_01", "displayName": "Sentry"}}
+
+
+def _comment_raw(
+    comment_id: str, thread_id: str, path: str = "", author: dict[str, Any] = USER, **thread: Any
+) -> dict[str, Any]:
+    return {
+        "id": comment_id,
+        "thread": {
+            "id": thread_id,
+            "version": VERSION,
+            "path": path,
+            "startLine": 0,
+            "endLine": 0,
+            "createdAt": "2026-08-01T09:30:00Z",
+            "updatedAt": "2026-08-01T09:30:00Z",
+            **thread,
+        },
+        "body": f"Comment {comment_id}",
+        "author": author,
+        "createdAt": "2026-08-01T09:30:00Z",
+        "updatedAt": "2026-08-01T09:31:00Z",
+    }
+
+
+class TestPullRequestComments:
+    def test_only_the_general_discussion_is_listed_from_every_page(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """A first page of inline comments alone must not end the listing."""
+        client.request.side_effect = [
+            _response(
+                {
+                    "comments": [_comment_raw("c1", "t1", path="src/app.py", side="right", startLine=3)],
+                    "nextPageToken": "p2",
+                }
+            ),
+            _response({"comments": [_comment_raw("c2", "g1")], "nextPageToken": ""}),
+        ]
+
+        result = provider.get_pull_request_comments("7", pagination={"cursor": "1", "per_page": 30})
+
+        first, second = client.request.call_args_list
+        assert first.kwargs["path"] == f"/repos/{REPO}/pulls/7/comments"
+        assert second.kwargs["params"] == {"pageSize": "100", "pageToken": "p2"}
+        assert result["data"] == [
+            {
+                "id": "c2",
+                "body": "Comment c2",
+                "author": {"id": "user_01", "username": "jane"},
+                "created_at": "2026-08-01T09:30:00Z",
+                "author_association": None,
+            }
+        ]
+        assert result["meta"]["next_cursor"] is None
+
+
+class TestReviewThreads:
+    def test_comments_are_grouped_into_threads_across_pages(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        anchor: dict[str, Any] = {"path": "src/app.py", "side": "right", "startLine": 3, "endLine": 5}
+        client.request.side_effect = [
+            _response(
+                {"comments": [_comment_raw("c1", "t1", **anchor), _comment_raw("c2", "g1")], "nextPageToken": "p2"}
+            ),
+            _response({"comments": [_comment_raw("c3", "t1", author=APP, **anchor)], "nextPageToken": ""}),
+        ]
+
+        result = provider.get_pull_request_review_threads("7")
+
+        first, second = client.request.call_args_list
+        assert first.kwargs["params"] == {"pageSize": "100"}
+        assert second.kwargs["params"] == {"pageSize": "100", "pageToken": "p2"}
+        assert result["meta"]["next_cursor"] is None
+        [thread] = result["data"]
+        assert thread["id"] == "t1"
+        assert thread["file_path"] == "src/app.py"
+        assert (thread["start_line"], thread["line"]) == (3, 5)
+        assert thread["is_resolved"] is False
+        assert [(c["id"], c["is_bot"], c["commit_sha"]) for c in thread["comments"]] == [
+            ("c1", False, "head123"),
+            ("c3", True, "head123"),
+        ]
+
+    def test_a_single_line_thread(self) -> None:
+        [thread] = map_review_threads([_comment_raw("c1", "t1", path="a.py", side="right", startLine=3)])
+
+        assert (thread["start_line"], thread["line"]) == (None, 3)
+
+    def test_a_file_thread_has_no_lines(self) -> None:
+        [thread] = map_review_threads([_comment_raw("c1", "t1", path="a.py", side="right")])
+
+        assert (thread["start_line"], thread["line"]) == (None, None)
+
+    def test_a_resolved_thread(self) -> None:
+        [thread] = map_review_threads(
+            [_comment_raw("c1", "t1", path="a.py", side="right", resolvedAt="2026-08-02T00:00:00Z")]
+        )
+
+        assert thread["is_resolved"] is True
