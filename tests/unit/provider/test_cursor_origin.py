@@ -7,7 +7,10 @@ from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
     ResourceBadRequest,
+    ResourceConflict,
+    ResourceGatewayTimeout,
     ResourceNotFound,
+    StaleBranchHead,
     UnexpectedResponseFormat,
 )
 from scm.providers.cursor_origin.provider import (
@@ -19,7 +22,12 @@ from scm.providers.cursor_origin.provider import (
     map_repository,
 )
 from scm.types import (
+    ChmodCommitAction,
+    CommitAuthorParam,
+    DeleteCommitAction,
+    MoveCommitAction,
     Repository,
+    WriteCommitAction,
 )
 
 REPO = "acme/rocket"
@@ -451,3 +459,220 @@ class TestMapAuthor:
 
     def test_a_service_account(self) -> None:
         assert map_author({"serviceAccount": {"id": "sa_01"}}) == {"id": "sa_01", "username": ""}
+
+
+AUTHOR = CommitAuthorParam(name="Jane Doe", email="jane@example.com")
+CREATED = {"sha": "new123", "treeSha": "tree456", "previousHeadSha": "parent123"}
+
+
+class TestCreateBranch:
+    def test_a_branch_is_created_as_a_ref(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(
+            {"ref": "refs/heads/fix", "object": {"sha": "abc123", "type": "commit"}}
+        )
+
+        result = provider.create_branch("fix", "abc123")
+
+        assert client.request.call_args.kwargs["method"] == "POST"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/refs"
+        assert client.request.call_args.kwargs["data"] == {"ref": "refs/heads/fix", "sha": "abc123"}
+        assert result["data"] == {"ref": "fix", "sha": "abc123"}
+
+
+class TestDeleteBranch:
+    def test_a_branch_is_deleted_by_its_ref(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({}, status_code=204)
+
+        provider.delete_branch("fix")
+
+        assert client.request.call_args.kwargs["method"] == "DELETE"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/refs/heads/fix"
+
+
+class TestCreateCommit:
+    def test_files_are_committed_onto_the_parent(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(CREATED)
+
+        result = provider.create_commit(
+            "fix",
+            "parent123",
+            "Fix the thing",
+            [
+                WriteCommitAction(action="update", filename="a.py", content="print(1)", encoding="utf-8"),
+                DeleteCommitAction(filename="b.py"),
+            ],
+            author=AUTHOR,
+        )
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/commits:createFromFiles"
+        assert client.request.call_args.kwargs["data"] == {
+            "targetBranch": "fix",
+            "expectedHeadSha": "parent123",
+            "message": "Fix the thing",
+            "author": AUTHOR,
+            "files": [
+                {"path": "a.py", "content": "print(1)", "encoding": "utf-8"},
+                {"path": "b.py", "delete": True},
+            ],
+        }
+        assert result["data"] == {
+            "id": "new123",
+            "message": "Fix the thing",
+            "author": {**AUTHOR, "date": None},
+            "additions": None,
+            "deletions": None,
+        }
+
+    def test_a_new_branch_is_created_at_the_parent_first(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"message": "not found"}, status_code=404),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
+            _response(CREATED),
+        ]
+
+        provider.create_commit(
+            "fix", "parent123", "m", [DeleteCommitAction(filename="b.py")], create_branch=True, author=AUTHOR
+        )
+
+        lookup, create, commit = client.request.call_args_list
+        assert lookup.kwargs["path"] == f"/repos/{REPO}/git/ref/heads/fix"
+        assert create.kwargs["data"] == {"ref": "refs/heads/fix", "sha": "parent123"}
+        assert commit.kwargs["data"]["expectedHeadSha"] == "parent123"
+
+    def test_a_branch_that_already_exists_is_a_conflict(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """Origin would accept a branch already at the parent; GitHub refuses any existing one."""
+        client.request.return_value = _response({"ref": "refs/heads/fix", "object": {"sha": "parent123"}})
+
+        with pytest.raises(ResourceConflict):
+            provider.create_commit(
+                "fix", "parent123", "m", [DeleteCommitAction(filename="b.py")], create_branch=True, author=AUTHOR
+            )
+
+        assert client.request.call_count == 1
+
+    def test_a_failed_commit_removes_the_branch_it_created(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"message": "not found"}, status_code=404),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
+            _response({"message": "unchanged tree"}, status_code=400),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
+            _response({}, status_code=204),
+        ]
+
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit(
+                "fix", "parent123", "m", [DeleteCommitAction(filename="b.py")], create_branch=True, author=AUTHOR
+            )
+
+        assert client.request.call_args.kwargs["method"] == "DELETE"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/git/refs/heads/fix"
+
+    def test_a_branch_a_commit_reached_is_kept(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """A timeout can hide a commit that landed, so a branch past the parent is left alone."""
+        client.request.side_effect = [
+            _response({"message": "not found"}, status_code=404),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
+            _response({"message": "gateway timeout"}, status_code=504),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "new123", "type": "commit"}}),
+        ]
+
+        with pytest.raises(ResourceGatewayTimeout):
+            provider.create_commit(
+                "fix", "parent123", "m", [DeleteCommitAction(filename="b.py")], create_branch=True, author=AUTHOR
+            )
+
+        assert client.request.call_count == 4
+        assert client.request.call_args.kwargs["method"] == "GET"
+
+    def test_a_move_and_a_mode_change_rewrite_the_file(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [_response(FILE_RAW), _response(FILE_RAW), _response(CREATED)]
+
+        provider.create_commit(
+            "fix",
+            "parent123",
+            "m",
+            [
+                MoveCommitAction(old_filename="src/app.py", new_filename="src/main.py"),
+                ChmodCommitAction(executable=True, filename="src/app.py"),
+            ],
+            author=AUTHOR,
+        )
+
+        assert client.request.call_args_list[0].kwargs["params"] == {"path": "src/app.py", "ref": "parent123"}
+        assert client.request.call_args.kwargs["data"]["files"] == [
+            {"path": "src/app.py", "delete": True},
+            {"path": "src/main.py", "content": FILE_RAW["content"], "encoding": "base64"},
+            {"path": "src/app.py", "content": FILE_RAW["content"], "encoding": "base64", "mode": "executable"},
+        ]
+
+    def test_a_commit_without_an_author_is_the_apps(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [_response({"id": "app_01example", "displayName": "Sentry"}), _response(CREATED)]
+
+        provider.create_commit("fix", "parent123", "m", [DeleteCommitAction(filename="b.py")])
+
+        app_call, commit_call = client.request.call_args_list
+        assert app_call.kwargs["path"] == "/app"
+        assert app_call.kwargs["credentials_set"] == "application"
+        assert commit_call.kwargs["data"]["author"] == {"name": "Sentry", "email": "noreply@sentry.io"}
+
+    def test_a_branch_cannot_be_forced(self, provider: CursorOriginProvider) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit("fix", "parent123", "m", [], force=True, author=AUTHOR)
+
+    def test_the_expected_head_must_be_the_parent(self, provider: CursorOriginProvider) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit("fix", "parent123", "m", [], author=AUTHOR, expected_head_sha="other")
+
+    def test_a_moved_head_is_a_stale_branch(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"message": "branch moved"}, status_code=400),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "moved123", "type": "commit"}}),
+        ]
+
+        with pytest.raises(StaleBranchHead):
+            provider.create_commit(
+                "fix",
+                "parent123",
+                "m",
+                [DeleteCommitAction(filename="b.py")],
+                author=AUTHOR,
+                expected_head_sha="parent123",
+            )
+
+    def test_a_refusal_at_the_expected_head_is_not_stale(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"message": "unchanged tree"}, status_code=400),
+            _response({"ref": "refs/heads/fix", "object": {"sha": "parent123", "type": "commit"}}),
+        ]
+
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit(
+                "fix",
+                "parent123",
+                "m",
+                [DeleteCommitAction(filename="b.py")],
+                author=AUTHOR,
+                expected_head_sha="parent123",
+            )

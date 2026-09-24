@@ -7,6 +7,10 @@ from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
     ResourceBadRequest,
+    ResourceConflict,
+    ResourceNotFound,
+    SCMCodedError,
+    StaleBranchHead,
     UnexpectedResponseFormat,
     error_class_for_status,
 )
@@ -18,12 +22,18 @@ from scm.types import (
     ArchiveLink,
     Author,
     BranchName,
+    ChmodCommitAction,
+    Commit,
+    CommitAuthor,
+    CommitAuthorParam,
     CredentialsSet,
+    DeleteCommitAction,
     FileContent,
     FileContentType,
     GitRef,
     GitRepository,
     GitTree,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
@@ -33,10 +43,13 @@ from scm.types import (
     Repository,
     RequestOptions,
     TreeEntry,
+    WriteCommitAction,
 )
 
 PROVIDER_TYPE: ProviderName = "cursor_origin"
 CURSOR_ORIGIN_WEB_BASE_URL = "https://cursor.com/codebase"
+# Origin has no no-reply address for an app.
+CURSOR_ORIGIN_APP_COMMIT_EMAIL = "noreply@sentry.io"
 PAGE_TOKEN_PARAM = "pageToken"
 PAGE_SIZE_PARAM = "pageSize"
 # The cursor `iter_all_pages` sends for the first page. The first page takes no token.
@@ -169,6 +182,16 @@ class CursorOriginProvider:
         )
         return map_action(response, map_git_ref)
 
+    def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
+        response = self.post(
+            f"/repos/{self.repository_path}/git/refs",
+            data={"ref": f"refs/heads/{branch}", "sha": sha},
+        )
+        return map_action(response, map_git_ref)
+
+    def delete_branch(self, branch: BranchName) -> None:
+        self.delete(f"/repos/{self.repository_path}/git/refs/heads/{branch}")
+
     def get_file_content(
         self,
         path: str,
@@ -209,6 +232,119 @@ class CursorOriginProvider:
             "raw": {"data": raw, "headers": dict(response.headers)},
             "meta": {"next_cursor": None},
         }
+
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+        create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
+    ) -> ActionResult[Commit]:
+        """Commit ``actions`` onto ``branch``. See :func:`scm.actions.create_commit`.
+
+        Origin only commits at the branch head, so ``parent_sha`` must match it. New branches are
+        created at ``parent_sha`` first.
+        """
+        if force:
+            raise ResourceBadRequest(detail="Origin cannot force a branch to a new commit.")
+        if expected_head_sha is not None:
+            if create_branch:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            if expected_head_sha != parent_sha:
+                raise ResourceBadRequest(detail="Origin commits onto the branch head, so it must be 'parent_sha'.")
+        author = author or self._app_author()
+
+        files = [change for action in actions for change in self._file_changes(action, parent_sha)]
+        if not create_branch:
+            return self._commit_files(branch, parent_sha, message, author, files, expected_head_sha)
+
+        try:
+            self.get_branch(branch)
+        except ResourceNotFound:
+            pass
+        else:
+            raise ResourceConflict(detail=f"Branch '{branch}' already exists.")
+        self.create_branch(branch, parent_sha)
+        try:
+            return self._commit_files(branch, parent_sha, message, author, files, expected_head_sha)
+        except SCMCodedError:
+            # A timeout can hide a commit that landed, and a second writer can share the branch.
+            if self.get_branch(branch)["data"]["sha"] == parent_sha:
+                self.delete_branch(branch)
+            raise
+
+    def _commit_files(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        author: CommitAuthorParam,
+        files: list[dict[str, Any]],
+        expected_head_sha: SHA | None,
+    ) -> ActionResult[Commit]:
+        try:
+            response = self.post(
+                f"/repos/{self.repository_path}/git/commits:createFromFiles",
+                data={
+                    "targetBranch": branch,
+                    "expectedHeadSha": parent_sha,
+                    "message": message,
+                    "author": {"name": author["name"], "email": author["email"]},
+                    "files": files,
+                },
+            )
+        except ResourceBadRequest as e:
+            if expected_head_sha is None:
+                raise
+            current_head = self.get_branch(branch)["data"]["sha"]
+            if current_head == expected_head_sha:
+                raise
+            raise StaleBranchHead(
+                detail=f"Branch '{branch}' is at {current_head}, expected {expected_head_sha}.",
+            ) from e
+
+        commit_author = CommitAuthor(name=author["name"], email=author["email"], date=None)
+        return map_action(
+            response,
+            lambda raw: Commit(id=raw["sha"], message=message, author=commit_author, additions=None, deletions=None),
+        )
+
+    def _app_author(self) -> CommitAuthorParam:
+        app = self.get("/app", credentials_set="application").json()
+        return CommitAuthorParam(name=app["displayName"], email=CURSOR_ORIGIN_APP_COMMIT_EMAIL)
+
+    def _file_changes(
+        self,
+        action: ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction,
+        parent_sha: SHA,
+    ) -> list[dict[str, Any]]:
+        """Origin takes whole files, so a move or a mode change rewrites the file."""
+        if isinstance(action, WriteCommitAction):
+            return [{"path": action.filename, "content": action.content, "encoding": action.encoding}]
+        if isinstance(action, DeleteCommitAction):
+            return [{"path": action.filename, "delete": True}]
+        if isinstance(action, MoveCommitAction):
+            existing = self.get_file_content(action.old_filename, ref=parent_sha)["data"]
+            return [
+                {"path": action.old_filename, "delete": True},
+                {"path": action.new_filename, "content": existing["content"], "encoding": existing["encoding"]},
+            ]
+        existing = self.get_file_content(action.filename, ref=parent_sha)["data"]
+        return [
+            {
+                "path": action.filename,
+                "content": existing["content"],
+                "encoding": existing["encoding"],
+                "mode": "executable" if action.executable else "file",
+            }
+        ]
 
     def get_tree(
         self,
