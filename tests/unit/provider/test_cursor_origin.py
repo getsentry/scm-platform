@@ -879,7 +879,7 @@ class TestCompareCommits:
         assert second.kwargs["params"] == {"pageSize": "100", "pageToken": "t2"}
         assert third.kwargs["params"] == {"pageSize": "100", "pageToken": "t3"}
         assert len(result["data"]["diff"]) == 3
-        assert result["meta"]["next_cursor"] is None
+        assert result["meta"]["next_cursor"] == "t4"
 
     def test_without_a_page_reading_stops_at_the_last_page(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock

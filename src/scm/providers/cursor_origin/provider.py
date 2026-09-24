@@ -586,22 +586,16 @@ class CursorOriginProvider:
     ) -> PaginatedActionResult[CommitComparison]:
         path = f"/repos/{self.repository_path}/compare/{start_sha}...{end_sha}"
         summary = self.get(path, request_options=request_options).json()
-        if pagination is not None:
-            response = self.get(f"{path}/files", pagination=pagination, request_options=request_options)
+        page: PaginationParams = pagination or {"per_page": MAX_PAGE_SIZE}
+        max_pages = 1 if pagination else COMPARE_MAX_PAGES
+        files: list[dict[str, Any]] = []
+        for _ in range(max_pages):
+            response = self.get(f"{path}/files", pagination=page, request_options=request_options)
             raw = response.json()
-            files = raw["files"]
-            next_cursor = raw["nextPageToken"] or None
-        else:
-            files = []
-            page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
-            for _ in range(COMPARE_MAX_PAGES):
-                response = self.get(f"{path}/files", pagination=page, request_options=request_options)
-                raw = response.json()
-                files.extend(raw["files"])
-                if not raw["nextPageToken"]:
-                    break
-                page = {"per_page": MAX_PAGE_SIZE, "cursor": raw["nextPageToken"]}
-            next_cursor = None
+            files.extend(raw["files"])
+            if not raw["nextPageToken"]:
+                break
+            page = {**page, "cursor": raw["nextPageToken"]}
         return {
             "data": CommitComparison(
                 ahead_by=summary["aheadBy"],
@@ -611,7 +605,7 @@ class CursorOriginProvider:
             ),
             "type": PROVIDER_TYPE,
             "raw": {"data": {**summary, "files": files}, "headers": dict(response.headers)},
-            "meta": {"next_cursor": next_cursor},
+            "meta": {"next_cursor": raw["nextPageToken"] or None},
         }
 
 
