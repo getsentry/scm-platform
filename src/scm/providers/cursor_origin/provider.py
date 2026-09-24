@@ -252,11 +252,16 @@ class CursorOriginProvider:
         request_options: RequestOptions | None = None,
     ) -> requests.Response:
         _require_tarball(archive_format)
-        return self.get(f"/repos/{self.repository_path}/tarball/{ref}", request_options=request_options)
+        return self.get(
+            f"/repos/{self.repository_path}/tarball",
+            params={"ref": ref},
+            request_options=request_options,
+        )
 
     def _archive_response(self, ref: str, request_options: RequestOptions | None) -> requests.Response:
         return self.get(
-            f"/repos/{self.repository_path}/tarball/{ref}",
+            f"/repos/{self.repository_path}/tarball",
+            params={"ref": ref},
             request_options=request_options,
             allow_redirects=False,
         )

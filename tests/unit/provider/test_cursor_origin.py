@@ -275,9 +275,10 @@ class TestGetArchiveLink:
     ) -> None:
         client.request.return_value = _redirect(SIGNED_URL)
 
-        result = provider.get_archive_link("HEAD", request_options={"timeout": 600.0})
+        result = provider.get_archive_link("release/test", request_options={"timeout": 600.0})
 
-        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/tarball/HEAD"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/tarball"
+        assert client.request.call_args.kwargs["params"] == {"ref": "release/test"}
         assert client.request.call_args.kwargs["allow_redirects"] is False
         assert client.request.call_args.kwargs["timeout"] == 600.0
         assert result["data"] == {"url": SIGNED_URL, "headers": {}}
@@ -321,7 +322,8 @@ class TestDownloadArchive:
         response = provider.download_archive("abc123", request_options={"timeout": 600.0})
 
         assert response is archive
-        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/tarball/abc123"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/tarball"
+        assert client.request.call_args.kwargs["params"] == {"ref": "abc123"}
         assert client.request.call_args.kwargs["allow_redirects"] is None
         assert client.request.call_args.kwargs["timeout"] == 600.0
 
