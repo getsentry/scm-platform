@@ -281,6 +281,7 @@ class TestGetArchiveLink:
         assert client.request.call_args.kwargs["params"] == {"ref": "release/test"}
         assert client.request.call_args.kwargs["allow_redirects"] is False
         assert client.request.call_args.kwargs["timeout"] == 600.0
+        assert client.request.return_value.close.called
         assert result["data"] == {"url": SIGNED_URL, "headers": {}}
 
     def test_the_first_request_builds_the_archive_and_the_second_links_it(

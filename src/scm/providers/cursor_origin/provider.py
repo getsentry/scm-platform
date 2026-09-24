@@ -229,10 +229,11 @@ class CursorOriginProvider:
         Later requests return a signed URL with a 15-minute expiry.
         """
         _require_tarball(archive_format)
-        response = self._archive_response(ref, request_options)
+        response = self._get_archive_location(ref, request_options)
         if response.status_code == 200:
             response.close()
-            response = self._archive_response(ref, request_options)
+            response = self._get_archive_location(ref, request_options)
+        response.close()
 
         location = response.headers.get("Location")
         if response.status_code != 302 or not location:
@@ -258,7 +259,7 @@ class CursorOriginProvider:
             request_options=request_options,
         )
 
-    def _archive_response(self, ref: str, request_options: RequestOptions | None) -> requests.Response:
+    def _get_archive_location(self, ref: str, request_options: RequestOptions | None) -> requests.Response:
         return self.get(
             f"/repos/{self.repository_path}/tarball",
             params={"ref": ref},
