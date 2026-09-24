@@ -586,9 +586,7 @@ class CursorOriginProvider:
     ) -> PaginatedActionResult[CommitComparison]:
         """Origin counts commits in a comparison but does not list them, so ``commits`` is empty.
 
-        Changed files are returned separately and paginated by ``pagination``; without it, up to
-        300 files are read, as GitHub returns. ``include_behind`` has no effect because Origin
-        always returns ``behind_by``.
+        ``include_behind`` has no effect because Origin always returns ``behind_by``.
         """
         path = f"/repos/{self.repository_path}/compare/{start_sha}...{end_sha}"
         summary = self.get(path, request_options=request_options).json()
