@@ -27,6 +27,9 @@ from scm.types import (
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
+    PullRequest,
+    PullRequestBranch,
+    PullRequestState,
     Repository,
     RequestOptions,
     TreeEntry,
@@ -143,6 +146,17 @@ class CursorOriginProvider:
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository_path}")
         return map_action(response, map_repository)
+
+    def get_pull_request(
+        self,
+        pull_request_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[PullRequest]:
+        response = self.get(
+            f"/repos/{self.repository_path}/pulls/{pull_request_id}",
+            request_options=request_options,
+        )
+        return map_action(response, self._map_pull_request)
 
     def get_branch(
         self,
@@ -267,6 +281,63 @@ class CursorOriginProvider:
             allow_redirects=False,
         )
 
+    def get_pull_requests(
+        self,
+        state: PullRequestState | None = "open",
+        head: BranchName | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequest]]:
+        params: dict[str, str] = {"state": state or "all"}
+        if head:
+            params["head"] = head.split(":", 1)[-1].removeprefix("refs/heads/")
+        response = self.get(
+            f"/repos/{self.repository_path}/pulls",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, lambda raw: [self._map_pull_request(pr) for pr in raw["pullRequests"]])
+
+    def create_pull_request(self, title: str, body: str, head: str, base: str) -> ActionResult[PullRequest]:
+        return self._create_pull_request({"title": title, "body": body, "head": head, "base": base})
+
+    def create_pull_request_draft(self, title: str, body: str, head: str, base: str) -> ActionResult[PullRequest]:
+        return self._create_pull_request({"title": title, "body": body, "head": head, "base": base, "draft": True})
+
+    def _create_pull_request(self, data: dict[str, Any]) -> ActionResult[PullRequest]:
+        response = self.post(f"/repos/{self.repository_path}/pulls", data=data)
+        return map_action(response, self._map_pull_request)
+
+    def update_pull_request(
+        self,
+        pull_request_id: str,
+        title: str | None = None,
+        body: str | None = None,
+        state: PullRequestState | None = None,
+    ) -> ActionResult[PullRequest]:
+        data = {"title": title, "body": body, "state": state}
+        response = self.patch(
+            f"/repos/{self.repository_path}/pulls/{pull_request_id}",
+            data={key: value for key, value in data.items() if value is not None},
+        )
+        return map_action(response, self._map_pull_request)
+
+    def _map_pull_request(self, raw: dict[str, Any]) -> PullRequest:
+        """Origin sends no web link, so it is built from the number."""
+        return PullRequest(
+            id=raw["number"],
+            internal_id=raw["id"],
+            title=raw["title"],
+            body=raw["body"] or None,
+            state=raw["state"],
+            merged=raw["merged"],
+            html_url=f"{self._web_base_url}/{self.repository_path}/pull/{raw['number']}",
+            head=map_pull_request_branch(raw["head"]),
+            base=map_pull_request_branch(raw["base"]),
+            author=map_author(raw["author"]),
+        )
+
 
 def map_author(raw: dict[str, Any]) -> Author:
     if user := raw.get("user"):
@@ -325,6 +396,10 @@ def map_git_tree(raw: dict[str, Any]) -> GitTree:
 def _require_tarball(archive_format: ArchiveFormat) -> None:
     if archive_format != "tarball":
         raise ResourceBadRequest(detail=f"Origin archives are tarballs, not {archive_format}")
+
+
+def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
+    return PullRequestBranch(sha=raw["sha"] or None, ref=raw["ref"].removeprefix("refs/heads/"))
 
 
 def map_action[T](

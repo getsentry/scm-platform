@@ -12,6 +12,7 @@ from scm.errors import (
 )
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
+    map_author,
     map_file_content,
     map_git_ref,
     map_git_tree,
@@ -331,3 +332,122 @@ class TestDownloadArchive:
     def test_only_tarballs_are_offered(self, provider: CursorOriginProvider) -> None:
         with pytest.raises(ResourceBadRequest):
             provider.download_archive("abc123", archive_format="zip")
+
+
+def _pull_request_raw(**overrides: Any) -> dict[str, Any]:
+    return {
+        "id": "pr_01example",
+        "number": "7",
+        "state": "open",
+        "draft": False,
+        "merged": False,
+        "title": "Fix the thing",
+        "body": "Details",
+        "head": {"ref": "refs/heads/fix", "sha": "head123"},
+        "base": {"ref": "main", "sha": "base123"},
+        "author": {"user": {"id": "user_01example", "email": "jane@example.com", "handle": "jane"}},
+        "additions": 1,
+        "deletions": 0,
+        "changedFiles": 1,
+        **overrides,
+    }
+
+
+PULL_REQUEST = {
+    "id": "7",
+    "internal_id": "pr_01example",
+    "title": "Fix the thing",
+    "body": "Details",
+    "state": "open",
+    "merged": False,
+    "html_url": f"https://cursor.com/codebase/{REPO}/pull/7",
+    "head": {"sha": "head123", "ref": "fix"},
+    "base": {"sha": "base123", "ref": "main"},
+    "author": {"id": "user_01example", "username": "jane"},
+}
+
+
+class TestPullRequests:
+    def test_a_pull_request_is_read_by_number(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_pull_request_raw())
+
+        result = provider.get_pull_request("7")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7"
+        assert result["data"] == PULL_REQUEST
+
+    def test_an_empty_body_is_absent(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(_pull_request_raw(body=""))
+
+        assert provider.get_pull_request("7")["data"]["body"] is None
+
+    def test_open_pull_requests_are_listed_by_head_branch(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"pullRequests": [_pull_request_raw()], "nextPageToken": ""})
+
+        result = provider.get_pull_requests(state="open", head="acme:refs/heads/fix")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls"
+        assert client.request.call_args.kwargs["params"] == {"state": "open", "head": "fix"}
+        assert result["data"] == [PULL_REQUEST]
+        assert result["meta"]["next_cursor"] is None
+
+    def test_no_state_lists_every_pull_request(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"pullRequests": [], "nextPageToken": ""})
+
+        provider.get_pull_requests(state=None)
+
+        assert client.request.call_args.kwargs["params"] == {"state": "all"}
+
+    def test_a_pull_request_is_created(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(_pull_request_raw())
+
+        result = provider.create_pull_request("Fix the thing", "Details", "fix", "main")
+
+        assert client.request.call_args.kwargs["method"] == "POST"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls"
+        assert client.request.call_args.kwargs["data"] == {
+            "title": "Fix the thing",
+            "body": "Details",
+            "head": "fix",
+            "base": "main",
+        }
+        assert result["data"] == PULL_REQUEST
+
+    def test_a_draft_is_created(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(_pull_request_raw(draft=True))
+
+        provider.create_pull_request_draft("Fix the thing", "Details", "fix", "main")
+
+        assert client.request.call_args.kwargs["data"]["draft"] is True
+
+    def test_only_the_given_fields_are_updated(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_pull_request_raw(state="closed"))
+
+        result = provider.update_pull_request("7", body="", state="closed")
+
+        assert client.request.call_args.kwargs["method"] == "PATCH"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7"
+        assert client.request.call_args.kwargs["data"] == {"body": "", "state": "closed"}
+        assert result["data"]["state"] == "closed"
+
+
+class TestMapAuthor:
+    def test_a_user_without_a_public_handle_is_named(self) -> None:
+        assert map_author({"user": {"id": "user_01", "email": "j@example.com", "displayName": "Jane Doe"}}) == {
+            "id": "user_01",
+            "username": "Jane Doe",
+        }
+
+    def test_an_app(self) -> None:
+        assert map_author({"app": {"id": "app_01", "displayName": "Sentry"}}) == {"id": "app_01", "username": "Sentry"}
+
+    def test_a_service_account(self) -> None:
+        assert map_author({"serviceAccount": {"id": "sa_01"}}) == {"id": "sa_01", "username": ""}
