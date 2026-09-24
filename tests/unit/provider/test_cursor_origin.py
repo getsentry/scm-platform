@@ -17,6 +17,7 @@ from scm.errors import (
 from scm.helpers import iter_all_pages
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
+    inline_anchor,
     map_app_installation,
     map_author,
     map_commit,
@@ -1059,3 +1060,108 @@ class TestReviewThreads:
         )
 
         assert thread["is_resolved"] is True
+
+
+class TestCommentWrites:
+    def test_a_general_comment_opens_a_discussion(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_comment_raw("c1", "t1"))
+
+        result = provider.create_pull_request_comment("7", "Looks good")
+
+        assert client.request.call_args.kwargs["method"] == "POST"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7/comments"
+        assert client.request.call_args.kwargs["data"] == {"body": "Looks good"}
+        assert result["data"]["id"] == "c1"
+
+    def test_a_review_comment_anchors_a_line_range(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(
+            _comment_raw("c1", "t1", path="src/app.py", side="right", startLine=3, endLine=5)
+        )
+
+        result = provider.create_review_comment(
+            "7", "head123", "Fix this", "src/app.py", line={"head": 5}, start_line={"base": 2, "head": 3}
+        )
+
+        assert client.request.call_args.kwargs["data"] == {
+            "body": "Fix this",
+            "inline": {"path": "src/app.py", "side": "right", "startLine": 3, "endLine": 5},
+        }
+        assert result["data"]["file_path"] == "src/app.py"
+        assert result["data"]["line"] == {"head": 5}
+        assert result["data"]["start_line"] == {"head": 3}
+        assert result["data"]["thread_id"] == "t1"
+        assert result["data"]["commit_sha"] == "head123"
+
+    def test_a_removed_line_anchors_the_left_side(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_comment_raw("c1", "t1", path="src/app.py", side="left", startLine=17))
+
+        result = provider.create_review_comment("7", "head123", "Why?", "src/app.py", line={"base": 17})
+
+        assert client.request.call_args.kwargs["data"]["inline"] == {
+            "path": "src/app.py",
+            "side": "left",
+            "startLine": 17,
+        }
+        assert result["data"]["line"] == {"base": 17}
+        assert result["data"]["start_line"] is None
+
+    def test_a_comment_is_updated_by_its_id(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({**_comment_raw("c1", "t1"), "thread": {"id": "t1"}})
+
+        result = provider.update_review_comment("7", "c1", "Edited")
+
+        assert client.request.call_args.kwargs["method"] == "PATCH"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/comments/c1"
+        assert client.request.call_args.kwargs["data"] == {"body": "Edited"}
+        assert result["data"]["thread_id"] == "t1"
+        assert result["data"]["line"] is None
+        assert result["data"]["commit_sha"] is None
+
+    def test_collapsing_resolves_the_thread(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({**_comment_raw("c1", "t1"), "thread": {"id": "t1"}}),
+            _response({"id": "t1"}),
+        ]
+
+        provider.update_and_collapse_pull_request_comment("7", "t1", "c1", "c1", "Outdated")
+
+        update, resolve = client.request.call_args_list
+        assert update.kwargs["path"] == f"/repos/{REPO}/pulls/comments/c1"
+        assert resolve.kwargs["method"] == "PATCH"
+        assert resolve.kwargs["path"] == f"/repos/{REPO}/pulls/threads/t1"
+        assert resolve.kwargs["data"] == {"resolved": True}
+
+
+class TestInlineAnchor:
+    def test_a_range_on_one_side(self) -> None:
+        assert inline_anchor("a.py", {"head": 5}, {"head": 3}) == {
+            "path": "a.py",
+            "side": "right",
+            "startLine": 3,
+            "endLine": 5,
+        }
+
+    def test_the_start_is_read_on_the_end_side(self) -> None:
+        """A context line carries both numbers; the range uses the one on the end's side."""
+        assert inline_anchor("a.py", {"base": 17}, {"base": 15, "head": 20}) == {
+            "path": "a.py",
+            "side": "left",
+            "startLine": 15,
+            "endLine": 17,
+        }
+
+    def test_a_start_on_the_other_side_anchors_the_end_alone(self) -> None:
+        assert inline_anchor("a.py", {"head": 5}, {"base": 3}) == {"path": "a.py", "side": "right", "startLine": 5}
+
+    def test_a_single_line(self) -> None:
+        assert inline_anchor("a.py", {"base": 9}, None) == {"path": "a.py", "side": "left", "startLine": 9}

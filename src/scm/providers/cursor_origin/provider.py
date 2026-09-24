@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import requests
@@ -32,8 +32,10 @@ from scm.types import (
     CommitAuthorParam,
     CommitComparison,
     CommitFile,
+    CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
+    DiffLine,
     FileContent,
     FileContentType,
     FileStatus,
@@ -51,6 +53,7 @@ from scm.types import (
     PullRequestState,
     Repository,
     RequestOptions,
+    ReviewComment,
     ReviewThread,
     ReviewThreadComment,
     TreeEntry,
@@ -82,6 +85,9 @@ CURSOR_ORIGIN_FILE_STATUS_MAP: dict[str, FileStatus] = {
     "renamed": "renamed",
     "copied": "copied",
 }
+
+
+type DiffSide = Literal["left", "right"]
 
 
 class CursorOriginProvider:
@@ -211,6 +217,16 @@ class CursorOriginProvider:
         comments, response = self._all_comments(pull_request_id, request_options)
         general = [map_comment(comment) for comment in comments if _is_general_discussion(comment)]
         return map_comments_page(response, comments, general)
+
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list[CoPilotChatExtension] | None = None,
+    ) -> ActionResult[Comment]:
+        """Opens a general-discussion thread"""
+        response = self.post(f"/repos/{self.repository_path}/pulls/{pull_request_id}/comments", data={"body": body})
+        return map_action(response, map_comment)
 
     def get_branch(
         self,
@@ -626,6 +642,48 @@ class CursorOriginProvider:
             "meta": {"next_cursor": raw["nextPageToken"] or None},
         }
 
+    def create_review_comment(
+        self,
+        pull_request_id: str,
+        commit_id: SHA,
+        body: str,
+        path: str,
+        line: DiffLine,
+        start_line: DiffLine | None = None,
+    ) -> ActionResult[ReviewComment]:
+        response = self.post(
+            f"/repos/{self.repository_path}/pulls/{pull_request_id}/comments",
+            data={"body": body, "inline": inline_anchor(path, line, start_line)},
+        )
+        return map_action(response, map_review_comment)
+
+    def update_review_comment(self, pull_request_id: str, comment_id: str, body: str) -> ActionResult[ReviewComment]:
+        response = self.patch(f"/repos/{self.repository_path}/pulls/comments/{comment_id}", data={"body": body})
+        return map_action(response, map_review_comment)
+
+    def collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_node_id: str,
+        reason: str = "OUTDATED",
+    ) -> None:
+        """Origin cannot minimize a comment, so we resolve instead."""
+        self.patch(f"/repos/{self.repository_path}/pulls/threads/{thread_id}", data={"resolved": True})
+
+    def update_and_collapse_pull_request_comment(
+        self,
+        pull_request_id: str,
+        thread_id: str,
+        comment_id: str,
+        comment_node_id: str,
+        body: str,
+        reason: str = "OUTDATED",
+    ) -> ActionResult[ReviewComment]:
+        result = self.update_review_comment(pull_request_id, comment_id, body)
+        self.collapse_pull_request_comment(pull_request_id, thread_id, comment_node_id, reason)
+        return result
+
     def get_pull_request_review_threads(
         self,
         pull_request_id: str,
@@ -780,6 +838,54 @@ def map_comment(raw: dict[str, Any]) -> Comment:
 
 def _is_general_discussion(raw: dict[str, Any]) -> bool:
     return not raw["thread"]["path"]
+
+
+def map_diff_line(side: DiffSide, line: int) -> DiffLine:
+    return DiffLine(head=line) if side == "right" else DiffLine(base=line)
+
+
+def map_review_comment(raw: dict[str, Any]) -> ReviewComment:
+    thread = raw["thread"]
+    line = start_line = None
+    start = thread.get("startLine", 0)
+    if start:
+        end = thread["endLine"]
+        line = map_diff_line(thread["side"], end or start)
+        start_line = map_diff_line(thread["side"], start) if end else None
+    return ReviewComment(
+        id=raw["id"],
+        unique_id=raw["id"],
+        url=None,
+        file_path=thread.get("path") or None,
+        body=raw["body"],
+        author=map_author(raw["author"]),
+        created_at=raw["createdAt"],
+        diff_hunk=None,
+        line=line,
+        start_line=start_line,
+        review_id=None,
+        author_association=None,
+        commit_sha=thread["version"]["headSha"] if "version" in thread else None,
+        head=None,
+        thread_id=thread["id"],
+    )
+
+
+def _diff_anchor(line: DiffLine) -> tuple[DiffSide, int]:
+    if "head" in line:
+        return "right", line["head"]
+    return "left", line["base"]
+
+
+def inline_anchor(path: str, line: DiffLine, start_line: DiffLine | None) -> dict[str, Any]:
+    side, end = _diff_anchor(line)
+    anchor: dict[str, Any] = {"path": path, "side": side, "startLine": end}
+    if start_line is not None:
+        start = start_line.get("head") if side == "right" else start_line.get("base")
+        if start is not None and start < end:
+            anchor["startLine"] = start
+            anchor["endLine"] = end
+    return anchor
 
 
 def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
