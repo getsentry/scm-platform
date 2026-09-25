@@ -17,6 +17,7 @@ from scm.errors import (
 from scm.helpers import iter_all_pages
 from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
+    inline_anchor,
     map_app_installation,
     map_author,
     map_check_run,
@@ -1274,3 +1275,191 @@ class TestReviewThreads:
         )
 
         assert thread["is_resolved"] is True
+
+
+class TestCommentWrites:
+    def test_a_general_comment_opens_a_discussion(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_comment_raw("c1", "t1"))
+
+        result = provider.create_pull_request_comment("7", "Looks good")
+
+        assert client.request.call_args.kwargs["method"] == "POST"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7/comments"
+        assert client.request.call_args.kwargs["data"] == {"body": "Looks good"}
+        assert result["data"]["id"] == "c1"
+
+    def test_a_review_comment_anchors_a_line_range(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(
+            _comment_raw("c1", "t1", path="src/app.py", side="right", startLine=3, endLine=5)
+        )
+
+        result = provider.create_review_comment(
+            "7", "head123", "Fix this", "src/app.py", line={"head": 5}, start_line={"base": 2, "head": 3}
+        )
+
+        assert client.request.call_args.kwargs["data"] == {
+            "body": "Fix this",
+            "inline": {"path": "src/app.py", "side": "right", "startLine": 3, "endLine": 5},
+        }
+        assert result["data"]["file_path"] == "src/app.py"
+        assert result["data"]["line"] == {"head": 5}
+        assert result["data"]["start_line"] == {"head": 3}
+        assert result["data"]["thread_id"] == "t1"
+        assert result["data"]["commit_sha"] == "head123"
+
+    def test_a_removed_line_anchors_the_left_side(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_comment_raw("c1", "t1", path="src/app.py", side="left", startLine=17))
+
+        result = provider.create_review_comment("7", "head123", "Why?", "src/app.py", line={"base": 17})
+
+        assert client.request.call_args.kwargs["data"]["inline"] == {
+            "path": "src/app.py",
+            "side": "left",
+            "startLine": 17,
+        }
+        assert result["data"]["line"] == {"base": 17}
+        assert result["data"]["start_line"] is None
+
+    def test_a_comment_is_updated_by_its_id(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({**_comment_raw("c1", "t1"), "thread": {"id": "t1"}})
+
+        result = provider.update_review_comment("7", "c1", "Edited")
+
+        assert client.request.call_args.kwargs["method"] == "PATCH"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/comments/c1"
+        assert client.request.call_args.kwargs["data"] == {"body": "Edited"}
+        assert result["data"]["thread_id"] == "t1"
+        assert result["data"]["line"] is None
+        assert result["data"]["commit_sha"] is None
+
+    def test_collapsing_resolves_the_thread(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({**_comment_raw("c1", "t1"), "thread": {"id": "t1"}}),
+            _response({"id": "t1"}),
+        ]
+
+        provider.update_and_collapse_pull_request_comment("7", "t1", "c1", "c1", "Outdated")
+
+        update, resolve = client.request.call_args_list
+        assert update.kwargs["path"] == f"/repos/{REPO}/pulls/comments/c1"
+        assert resolve.kwargs["method"] == "PATCH"
+        assert resolve.kwargs["path"] == f"/repos/{REPO}/pulls/threads/t1"
+        assert resolve.kwargs["data"] == {"resolved": True}
+
+
+class TestInlineAnchor:
+    def test_a_range_on_one_side(self) -> None:
+        assert inline_anchor("a.py", {"head": 5}, {"head": 3}) == {
+            "path": "a.py",
+            "side": "right",
+            "startLine": 3,
+            "endLine": 5,
+        }
+
+    def test_the_start_is_read_on_the_end_side(self) -> None:
+        """A context line carries both numbers; the range uses the one on the end's side."""
+        assert inline_anchor("a.py", {"base": 17}, {"base": 15, "head": 20}) == {
+            "path": "a.py",
+            "side": "left",
+            "startLine": 15,
+            "endLine": 17,
+        }
+
+    def test_a_start_on_the_other_side_anchors_the_end_alone(self) -> None:
+        assert inline_anchor("a.py", {"head": 5}, {"base": 3}) == {"path": "a.py", "side": "right", "startLine": 5}
+
+    def test_a_single_line(self) -> None:
+        assert inline_anchor("a.py", {"base": 9}, None) == {"path": "a.py", "side": "left", "startLine": 9}
+
+
+def _review_raw(**overrides: Any) -> dict[str, Any]:
+    return {
+        "id": "rev_01example",
+        "author": USER,
+        "verdict": "approve",
+        "body": "Looks good",
+        "submittedAt": "2026-08-01T09:30:00Z",
+        "pullRequestVersion": {"number": "1", "headSha": "head123", "baseSha": "base123"},
+        **overrides,
+    }
+
+
+class TestReviews:
+    def test_submitted_reviews_are_listed(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"reviews": [_review_raw()], "nextPageToken": ""})
+
+        result = provider.list_pull_request_reviews("7")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7/reviews"
+        assert result["data"] == [
+            {
+                "id": "rev_01example",
+                "html_url": f"https://cursor.com/codebase/{REPO}/pull/7",
+                "state": "approved",
+                "author": {"id": "user_01", "username": "jane"},
+                "body": "Looks good",
+                "submitted_at": "2026-08-01T09:30:00Z",
+                "commit_id": "head123",
+            }
+        ]
+
+    def test_a_dismissed_review(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(
+            {"reviews": [_review_raw(dismissal={"dismissedBy": USER})], "nextPageToken": ""}
+        )
+
+        assert provider.list_pull_request_reviews("7")["data"][0]["state"] == "dismissed"
+
+    def test_a_review_carries_its_comments(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_review_raw(verdict="request_changes"))
+
+        result = provider.create_review(
+            "7",
+            "head123",
+            "change_request",
+            [
+                {"path": "src/app.py", "body": "Fix this", "line": {"head": 5}, "start_line": {"head": 3}},
+                {"path": "src/other.py", "body": "And this", "line": {"base": 9}},
+                {"path": "src/whole.py", "body": "This file"},
+            ],
+            body="Some changes needed",
+        )
+
+        assert client.request.call_args.kwargs["method"] == "POST"
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7/reviews"
+        assert client.request.call_args.kwargs["data"] == {
+            "verdict": "request_changes",
+            "body": "Some changes needed",
+            "comments": [
+                {
+                    "body": "Fix this",
+                    "inline": {"path": "src/app.py", "side": "right", "startLine": 3, "endLine": 5},
+                },
+                {"body": "And this", "inline": {"path": "src/other.py", "side": "left", "startLine": 9}},
+                {"body": "This file", "file": {"path": "src/whole.py"}},
+            ],
+        }
+        assert result["data"]["state"] == "changes_requested"
+
+    def test_a_review_without_a_body(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(_review_raw(verdict="comment", body=""))
+
+        result = provider.create_review("7", "head123", "comment", [])
+
+        assert client.request.call_args.kwargs["data"] == {"verdict": "comment", "comments": []}
+        assert result["data"]["body"] is None
+        assert result["data"]["state"] == "commented"
