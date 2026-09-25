@@ -1111,3 +1111,60 @@ class TestCompareCommits:
             ],
         }
         assert result["meta"]["next_cursor"] == "t2"
+
+
+class TestPullRequestDiff:
+    def test_the_changed_files_are_listed(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(
+            {
+                "files": [
+                    {
+                        "filename": "src/new.py",
+                        "status": "renamed",
+                        "additions": 1,
+                        "deletions": 1,
+                        "changes": 2,
+                        "patch": "@@ -1 +1 @@",
+                        "previousFilename": "src/old.py",
+                    }
+                ],
+                "nextPageToken": "t2",
+            }
+        )
+
+        result = provider.get_pull_request_files("7", pagination={"cursor": "1", "per_page": 100})
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7/files"
+        assert client.request.call_args.kwargs["params"] == {"pageSize": "100"}
+        assert result["data"] == [
+            {
+                "filename": "src/new.py",
+                "status": "renamed",
+                "patch": "@@ -1 +1 @@",
+                "changes": 2,
+                "sha": "",
+                "previous_filename": "src/old.py",
+            }
+        ]
+        assert result["meta"]["next_cursor"] == "t2"
+
+    def test_the_commits_are_listed(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response({"commits": [_commit_raw("abc123")], "nextPageToken": ""})
+
+        result = provider.get_pull_request_commits("7")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/pulls/7/commits"
+        assert result["data"] == [
+            {
+                "sha": "abc123",
+                "message": "Add launch telemetry",
+                "author": {
+                    "name": "Jane Doe",
+                    "email": "jane@example.com",
+                    "date": datetime(2026, 8, 1, 9, 30, tzinfo=UTC),
+                },
+            }
+        ]
+        assert result["meta"]["next_cursor"] is None

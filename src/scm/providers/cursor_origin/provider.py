@@ -51,6 +51,8 @@ from scm.types import (
     ProviderName,
     PullRequest,
     PullRequestBranch,
+    PullRequestCommit,
+    PullRequestFile,
     PullRequestState,
     Repository,
     RequestOptions,
@@ -777,6 +779,34 @@ class CursorOriginProvider:
             "meta": {"next_cursor": raw["nextPageToken"] or None},
         }
 
+    def get_pull_request_files(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequestFile]]:
+        response = self.get(
+            f"/repos/{self.repository_path}/pulls/{pull_request_id}/files",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, lambda raw: [map_pull_request_file(file) for file in raw["files"]])
+
+    def get_pull_request_commits(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequestCommit]]:
+        response = self.get(
+            f"/repos/{self.repository_path}/pulls/{pull_request_id}/commits",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(
+            response, lambda raw: [map_pull_request_commit(commit) for commit in raw["commits"]]
+        )
+
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:
     """A write scope also grants its read scope."""
@@ -896,6 +926,25 @@ def map_commit_file(raw: dict[str, Any]) -> CommitFile:
         additions=raw["additions"],
         deletions=raw["deletions"],
         previous_filename=raw.get("previousFilename"),
+    )
+
+
+def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
+    return PullRequestFile(
+        filename=raw["filename"],
+        status=CURSOR_ORIGIN_FILE_STATUS_MAP.get(raw["status"], "unknown"),
+        patch=raw["patch"] or None,
+        changes=raw["changes"],
+        sha="",
+        previous_filename=raw.get("previousFilename"),
+    )
+
+
+def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
+    return PullRequestCommit(
+        sha=raw["sha"],
+        message=raw["commit"]["message"],
+        author=map_commit_author(raw["commit"]["author"]),
     )
 
 
