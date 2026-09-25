@@ -1,6 +1,6 @@
 from collections.abc import Callable
-from datetime import date, datetime
-from typing import Any
+from datetime import UTC, date, datetime
+from typing import Any, Literal
 from urllib.parse import quote
 
 import requests
@@ -25,6 +25,10 @@ from scm.types import (
     ArchiveLink,
     Author,
     BranchName,
+    BuildConclusion,
+    BuildStatus,
+    CheckRun,
+    CheckRunOutput,
     ChmodCommitAction,
     Commit,
     CommitAuthor,
@@ -50,6 +54,7 @@ from scm.types import (
     PullRequestState,
     Repository,
     RequestOptions,
+    ResourceId,
     TreeEntry,
     WriteCommitAction,
 )
@@ -68,6 +73,35 @@ _PRIVATE_VISIBILITIES = {"internal", "private"}
 
 
 CURSOR_ORIGIN_FILE_TYPE_MAP: dict[str, FileContentType] = {"file": "file", "dir": "directory"}
+
+
+CURSOR_ORIGIN_STATUS_WRITE_MAP: dict[BuildStatus, str] = {
+    "pending": "queued",
+    "running": "in_progress",
+    "completed": "completed",
+}
+CURSOR_ORIGIN_STATUS_MAP: dict[str, BuildStatus] = {
+    **{origin: status for status, origin in CURSOR_ORIGIN_STATUS_WRITE_MAP.items()},
+    "rerequested": "pending",
+}
+CURSOR_ORIGIN_CONCLUSION_WRITE_MAP: dict[BuildConclusion, str] = {
+    "success": "success",
+    "failure": "failure",
+    "neutral": "neutral",
+    "cancelled": "cancelled",
+    "skipped": "skipped",
+    "timed_out": "timed_out",
+    "action_required": "action_required",
+    "unknown": "neutral",
+}
+CURSOR_ORIGIN_CONCLUSION_MAP: dict[str, BuildConclusion] = {
+    **{
+        origin: conclusion
+        for conclusion, origin in CURSOR_ORIGIN_CONCLUSION_WRITE_MAP.items()
+        if conclusion != "unknown"
+    },
+    "stale": "unknown",
+}
 
 
 COMPARE_MAX_PAGES = 3
@@ -480,6 +514,141 @@ class CursorOriginProvider:
             allow_redirects=False,
         )
 
+    def create_check_run(
+        self,
+        name: str,
+        head_sha: SHA,
+        status: BuildStatus | None = None,
+        conclusion: BuildConclusion | None = None,
+        external_id: str | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        output: CheckRunOutput | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Create or update a check run for a commit.
+
+        Origin keys runs by repository, commit, suite key, and run key. The run name is used
+        for both keys, so posting the same name for a commit updates the existing run.
+        """
+        return self._post_check_run(
+            head_sha,
+            key=name,
+            name=name,
+            external_id=external_id or f"{name}:{head_sha}",
+            status=CURSOR_ORIGIN_STATUS_WRITE_MAP[status or "pending"],
+            conclusion=CURSOR_ORIGIN_CONCLUSION_WRITE_MAP[conclusion] if conclusion else None,
+            started_at=started_at,
+            completed_at=completed_at,
+            output=output,
+            details_url=None,
+        )
+
+    def get_check_run(
+        self,
+        check_run_id: ResourceId,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[CheckRun]:
+        response = self.get(
+            f"/repos/{self.repository_path}/check-runs/{check_run_id}",
+            request_options=request_options,
+        )
+        return map_action(response, map_check_run)
+
+    def update_check_run(
+        self,
+        check_run_id: ResourceId,
+        status: BuildStatus | None = None,
+        conclusion: BuildConclusion | None = None,
+        output: CheckRunOutput | None = None,
+    ) -> ActionResult[CheckRun]:
+        """Update a check run by replacing it with a new post.
+
+        Origin has no update route, so read the existing run and carry over fields the caller
+        does not provide. Rerequested runs cannot be posted, so they are posted as queued.
+        """
+        stored = self.get(f"/repos/{self.repository_path}/check-runs/{check_run_id}").json()
+        posted_status = CURSOR_ORIGIN_STATUS_WRITE_MAP[status or CURSOR_ORIGIN_STATUS_MAP[stored["status"]]]
+        if conclusion:
+            posted_conclusion: str | None = CURSOR_ORIGIN_CONCLUSION_WRITE_MAP[conclusion]
+        elif posted_status == "completed" and stored["status"] == "completed":
+            posted_conclusion = stored["conclusion"]
+        else:
+            posted_conclusion = None
+
+        return self._post_check_run(
+            stored["sha"],
+            key=stored["key"],
+            name=stored["name"],
+            external_id=stored["externalId"],
+            status=posted_status,
+            conclusion=posted_conclusion,
+            started_at=stored.get("startedAt"),
+            completed_at=stored.get("completedAt"),
+            output=output if output is not None else stored.get("output"),
+            details_url=stored["detailsUrl"],
+        )
+
+    def _post_check_run(
+        self,
+        head_sha: SHA,
+        *,
+        key: str,
+        name: str,
+        external_id: str,
+        status: str,
+        conclusion: str | None,
+        started_at: str | None,
+        completed_at: str | None,
+        output: CheckRunOutput | None,
+        details_url: str | None,
+    ) -> ActionResult[CheckRun]:
+        check_run: dict[str, Any] = {
+            "key": key,
+            "name": name,
+            "status": status,
+            "externalId": external_id,
+            "externalUpdatedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        }
+        optional = {
+            "conclusion": conclusion,
+            "startedAt": started_at,
+            "completedAt": completed_at,
+            "output": output,
+            "detailsUrl": details_url,
+        }
+        check_run.update({field: value for field, value in optional.items() if value})
+        response = self.post(
+            f"/repos/{self.repository_path}/check-runs",
+            data={
+                "headSha": head_sha,
+                "checkSuite": {"key": key, "name": name, "externalId": external_id},
+                "checkRun": check_run,
+            },
+        )
+        return map_action(response, lambda raw: map_check_run(raw["checkRun"]))
+
+    def list_check_runs_for_ref(
+        self,
+        ref: str,
+        check_name: str | None = None,
+        status: Literal["queued", "in_progress", "completed"] | None = None,
+        timestamp_filter: Literal["latest", "all"] = "latest",
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CheckRun]]:
+        params: dict[str, str] = {}
+        if check_name:
+            params["checkName"] = check_name
+        if status:
+            params["status"] = status
+        response = self.get(
+            f"/repos/{self.repository_path}/commits/{ref}/check-runs",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, lambda raw: [map_check_run(run) for run in raw["checkRuns"]])
+
     def get_pull_requests(
         self,
         state: PullRequestState | None = "open",
@@ -676,6 +845,17 @@ def map_git_tree(raw: dict[str, Any]) -> GitTree:
 def _require_tarball(archive_format: ArchiveFormat) -> None:
     if archive_format != "tarball":
         raise ResourceBadRequest(detail=f"Origin archives are tarballs, not {archive_format}")
+
+
+def map_check_run(raw: dict[str, Any]) -> CheckRun:
+    completed = raw["status"] == "completed"
+    return CheckRun(
+        id=raw["id"],
+        name=raw["name"],
+        status=CURSOR_ORIGIN_STATUS_MAP[raw["status"]],
+        conclusion=CURSOR_ORIGIN_CONCLUSION_MAP[raw["conclusion"]] if completed else None,
+        html_url=raw["detailsUrl"],
+    )
 
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:

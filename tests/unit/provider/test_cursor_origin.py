@@ -19,6 +19,7 @@ from scm.providers.cursor_origin.provider import (
     CursorOriginProvider,
     map_app_installation,
     map_author,
+    map_check_run,
     map_commit,
     map_file_content,
     map_git_ref,
@@ -344,6 +345,163 @@ class TestDownloadArchive:
     def test_only_tarballs_are_offered(self, provider: CursorOriginProvider) -> None:
         with pytest.raises(ResourceBadRequest):
             provider.download_archive("abc123", archive_format="zip")
+
+
+def _check_run_raw(**overrides: Any) -> dict[str, Any]:
+    return {
+        "id": "cr_01example",
+        "checkSuite": {"id": "crg_01example"},
+        "sha": "head123",
+        "key": "Seer",
+        "name": "Seer",
+        "status": "in_progress",
+        "detailsUrl": "https://sentry.io/seer/run/1",
+        "externalId": "Seer:head123",
+        "startedAt": "2026-08-01T09:30:00Z",
+        **overrides,
+    }
+
+
+class TestCheckRuns:
+    def test_a_check_run_is_read_by_its_id(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response(_check_run_raw(status="completed", conclusion="success"))
+
+        result = provider.get_check_run("cr_01example")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/check-runs/cr_01example"
+        assert result["data"] == {
+            "id": "cr_01example",
+            "name": "Seer",
+            "status": "completed",
+            "conclusion": "success",
+            "html_url": "https://sentry.io/seer/run/1",
+        }
+
+    def test_a_rerequested_run_is_pending_again(self) -> None:
+        assert map_check_run(_check_run_raw(status="rerequested"))["status"] == "pending"
+
+    def test_a_rerequested_run_hides_the_superseded_conclusion(self) -> None:
+        assert map_check_run(_check_run_raw(status="rerequested", conclusion="failure"))["conclusion"] is None
+
+    def test_a_stale_conclusion_is_unknown(self) -> None:
+        assert map_check_run(_check_run_raw(status="completed", conclusion="stale"))["conclusion"] == "unknown"
+
+    def test_a_run_is_posted_with_its_suite(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"checkRun": _check_run_raw(), "checkSuite": {}})
+
+        provider.create_check_run(
+            "Seer",
+            "head123",
+            status="running",
+            started_at="2026-08-01T09:30:00Z",
+            output={"title": "Seer", "summary": "Reviewing"},
+        )
+
+        data = client.request.call_args.kwargs["data"]
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/check-runs"
+        assert data["headSha"] == "head123"
+        assert data["checkSuite"] == {"key": "Seer", "name": "Seer", "externalId": "Seer:head123"}
+        assert data["checkRun"]["status"] == "in_progress"
+        assert data["checkRun"]["key"] == "Seer"
+        assert data["checkRun"]["externalId"] == "Seer:head123"
+        assert data["checkRun"]["startedAt"] == "2026-08-01T09:30:00Z"
+        assert data["checkRun"]["output"] == {"title": "Seer", "summary": "Reviewing"}
+        assert data["checkRun"]["externalUpdatedAt"].endswith("Z")
+
+    def test_an_unknown_conclusion_is_posted_as_neutral(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"checkRun": _check_run_raw(), "checkSuite": {}})
+
+        provider.create_check_run("Seer", "head123", status="completed", conclusion="unknown")
+
+        assert client.request.call_args.kwargs["data"]["checkRun"]["conclusion"] == "neutral"
+
+    def test_a_neutral_conclusion_is_read_as_neutral(self) -> None:
+        assert map_check_run(_check_run_raw(status="completed", conclusion="neutral"))["conclusion"] == "neutral"
+
+    def test_a_queued_run_is_the_default(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response({"checkRun": _check_run_raw(), "checkSuite": {}})
+
+        provider.create_check_run("Seer", "head123")
+
+        assert client.request.call_args.kwargs["data"]["checkRun"]["status"] == "queued"
+
+    def test_an_update_reads_the_run_and_posts_it_again(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response(_check_run_raw()),
+            _response({"checkRun": _check_run_raw(status="completed", conclusion="success"), "checkSuite": {}}),
+        ]
+
+        result = provider.update_check_run(
+            "cr_01example", status="completed", conclusion="success", output={"title": "Seer", "summary": "Done"}
+        )
+
+        read, post = client.request.call_args_list
+        assert read.kwargs["path"] == f"/repos/{REPO}/check-runs/cr_01example"
+        assert post.kwargs["data"]["headSha"] == "head123"
+        assert post.kwargs["data"]["checkSuite"]["externalId"] == "Seer:head123"
+        assert post.kwargs["data"]["checkRun"]["status"] == "completed"
+        assert post.kwargs["data"]["checkRun"]["conclusion"] == "success"
+        assert post.kwargs["data"]["checkRun"]["startedAt"] == "2026-08-01T09:30:00Z"
+        assert post.kwargs["data"]["checkRun"]["detailsUrl"] == "https://sentry.io/seer/run/1"
+        assert result["data"]["conclusion"] == "success"
+
+    def test_an_update_keeps_what_it_does_not_change(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """Origin's post replaces the run, so an output-only update must not drop the rest."""
+        stored = _check_run_raw(
+            status="completed",
+            conclusion="failure",
+            completedAt="2026-08-01T09:40:00Z",
+            output={"title": "Seer", "summary": "Found 2 issues"},
+        )
+        client.request.side_effect = [
+            _response(stored),
+            _response({"checkRun": stored, "checkSuite": {}}),
+        ]
+
+        provider.update_check_run("cr_01example")
+
+        posted = client.request.call_args.kwargs["data"]["checkRun"]
+        assert posted["status"] == "completed"
+        assert posted["conclusion"] == "failure"
+        assert posted["completedAt"] == "2026-08-01T09:40:00Z"
+        assert posted["output"] == {"title": "Seer", "summary": "Found 2 issues"}
+        assert posted["detailsUrl"] == "https://sentry.io/seer/run/1"
+
+    def test_a_rerequested_run_is_posted_as_queued(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        """Only Origin sets `rerequested`, and it refuses it on a post."""
+        stored = _check_run_raw(status="rerequested", conclusion="failure")
+        client.request.side_effect = [
+            _response(stored),
+            _response({"checkRun": _check_run_raw(status="queued"), "checkSuite": {}}),
+        ]
+
+        provider.update_check_run("cr_01example", output={"title": "Seer", "summary": "Re-running"})
+
+        posted = client.request.call_args.kwargs["data"]["checkRun"]
+        assert posted["status"] == "queued"
+        assert "conclusion" not in posted
+
+    def test_a_commits_runs_are_listed(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response({"checkRuns": [_check_run_raw()], "nextPageToken": ""})
+
+        result = provider.list_check_runs_for_ref("head123", check_name="Seer", status="in_progress")
+
+        assert client.request.call_args.kwargs["path"] == f"/repos/{REPO}/commits/head123/check-runs"
+        assert client.request.call_args.kwargs["params"] == {"checkName": "Seer", "status": "in_progress"}
+        assert [run["id"] for run in result["data"]] == ["cr_01example"]
+        assert result["meta"]["next_cursor"] is None
 
 
 def _pull_request_raw(**overrides: Any) -> dict[str, Any]:
