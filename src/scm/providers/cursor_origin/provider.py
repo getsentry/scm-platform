@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 from urllib.parse import quote
@@ -8,6 +8,7 @@ import requests
 from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
+    ReadmeNotFound,
     ResourceBadRequest,
     ResourceConflict,
     ResourceNotFound,
@@ -72,6 +73,10 @@ from scm.types import (
 )
 
 PROVIDER_TYPE: ProviderName = "cursor_origin"
+VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
+PULL_REQUEST_TEMPLATE_PARENT_DIRS = ("", "docs")
+PULL_REQUEST_TEMPLATE_FILENAME = "pull_request_template.md"
+PULL_REQUEST_TEMPLATE_DIRNAME = "pull_request_template"
 CURSOR_ORIGIN_WEB_BASE_URL = "https://cursor.com/codebase"
 # Origin has no no-reply address for an app.
 CURSOR_ORIGIN_APP_COMMIT_EMAIL = "noreply@sentry.io"
@@ -235,6 +240,10 @@ class CursorOriginProvider:
     def delete(self, path: str) -> requests.Response:
         return self.request("DELETE", path=path)
 
+    def get_authenticated_actor(self) -> ActionResult[Author]:
+        response = self.get("/app", credentials_set="application")
+        return map_action(response, map_authenticated_actor)
+
     def get_app_installation(self) -> ActionResult[AppInstallation]:
         response = self.get(f"/app/installations/{self.installation_id}", credentials_set="application")
         return map_action(response, map_app_installation)
@@ -242,6 +251,12 @@ class CursorOriginProvider:
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/repos/{self.repository_path}")
         return map_action(response, map_repository)
+
+    def get_repository_topics(
+        self,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[list[str]]:
+        return {"data": [], "type": PROVIDER_TYPE, "raw": {"data": [], "headers": {}}, "meta": {}}
 
     def get_pull_request(
         self,
@@ -353,6 +368,45 @@ class CursorOriginProvider:
         if "entries" in raw:
             raise PathIsDirectory(detail=path)
         return map_action(response, map_file_content, raw)
+
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        for entry in self._directory("", ref, request_options):
+            if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
+                return self.get_file_content(entry["path"], ref=ref, request_options=request_options)
+        raise ReadmeNotFound()
+
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]:
+        for parent in PULL_REQUEST_TEMPLATE_PARENT_DIRS:
+            for path in self._template_paths(parent, ref, request_options):
+                yield self.get_file_content(path, ref=ref, request_options=request_options)
+
+    def _template_paths(self, parent: str, ref: str, request_options: RequestOptions | None) -> Iterator[str]:
+        for entry in self._directory(parent, ref, request_options):
+            basename = entry["path"].rsplit("/", 1)[-1].lower()
+            if entry["type"] == "file" and basename == PULL_REQUEST_TEMPLATE_FILENAME:
+                yield entry["path"]
+            elif entry["type"] == "directory" and basename == PULL_REQUEST_TEMPLATE_DIRNAME:
+                for child in self._directory(entry["path"], ref, request_options):
+                    if child["type"] == "file" and child["path"].lower().endswith(".md"):
+                        yield child["path"]
+
+    def _directory(self, path: str, ref: str, request_options: RequestOptions | None) -> list[FileContent]:
+        try:
+            return self.get_directory_contents(path, ref=ref, request_options=request_options)["data"]
+        except SCMCodedError as e:
+            if e.code in ("resource_not_found", "path_is_not_directory"):
+                return []
+            raise
 
     def get_directory_contents(
         self,
@@ -986,6 +1040,10 @@ class CursorOriginProvider:
             if not raw["nextPageToken"]:
                 return comments, response
             page = {"per_page": MAX_PAGE_SIZE, "cursor": raw["nextPageToken"]}
+
+
+def map_authenticated_actor(raw: dict[str, Any]) -> Author:
+    return Author(id=raw["id"], username=raw["displayName"])
 
 
 def map_app_installation(raw: dict[str, Any]) -> AppInstallation:

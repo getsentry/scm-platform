@@ -7,10 +7,12 @@ import pytest
 from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
+    ReadmeNotFound,
     ResourceBadRequest,
     ResourceConflict,
     ResourceGatewayTimeout,
     ResourceNotFound,
+    ResourceServerError,
     StaleBranchHead,
     UnexpectedResponseFormat,
 )
@@ -347,6 +349,102 @@ class TestDownloadArchive:
     def test_only_tarballs_are_offered(self, provider: CursorOriginProvider) -> None:
         with pytest.raises(ResourceBadRequest):
             provider.download_archive("abc123", archive_format="zip")
+
+
+def _entry(path: str, entry_type: str = "file") -> dict[str, Any]:
+    return {"type": entry_type, "name": path.rsplit("/", 1)[-1], "path": path, "sha": "s", "size": "1"}
+
+
+class TestAuthenticatedActor:
+    def test_the_app_is_read_with_its_own_credentials(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"id": "app_01example", "displayName": "Sentry"})
+
+        result = provider.get_authenticated_actor()
+
+        assert client.request.call_args.kwargs["path"] == "/app"
+        assert client.request.call_args.kwargs["credentials_set"] == "application"
+        assert result["data"] == {"id": "app_01example", "username": "Sentry"}
+
+
+class TestPullRequestTemplate:
+    def test_a_template_in_the_root_is_read(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"entries": [_entry("PULL_REQUEST_TEMPLATE.md"), _entry("README.md")]}),
+            _response({**FILE_RAW, "path": "PULL_REQUEST_TEMPLATE.md"}),
+            _response({"entries": []}),
+        ]
+
+        templates = list(provider.get_pull_request_template("main"))
+
+        assert [template["data"]["path"] for template in templates] == ["PULL_REQUEST_TEMPLATE.md"]
+        assert client.request.call_args_list[0].kwargs["params"] == {"path": "", "ref": "main"}
+        assert client.request.call_args_list[2].kwargs["params"] == {"path": "docs", "ref": "main"}
+
+    def test_every_template_in_a_template_directory_is_read(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"entries": []}),
+            _response({"entries": [_entry("docs/PULL_REQUEST_TEMPLATE", "dir")]}),
+            _response(
+                {
+                    "entries": [
+                        _entry("docs/PULL_REQUEST_TEMPLATE/bug.md"),
+                        _entry("docs/PULL_REQUEST_TEMPLATE/notes.txt"),
+                    ]
+                }
+            ),
+            _response({**FILE_RAW, "path": "docs/PULL_REQUEST_TEMPLATE/bug.md"}),
+        ]
+
+        templates = list(provider.get_pull_request_template("main"))
+
+        assert [template["data"]["path"] for template in templates] == ["docs/PULL_REQUEST_TEMPLATE/bug.md"]
+
+    def test_a_repository_with_no_template_yields_nothing(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"message": "not found"}, status_code=404)
+
+        assert list(provider.get_pull_request_template("main")) == []
+
+    def test_a_failure_that_is_not_a_missing_path_is_raised(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"message": "boom"}, status_code=500)
+
+        with pytest.raises(ResourceServerError):
+            list(provider.get_pull_request_template("main"))
+
+
+class TestReadme:
+    def test_the_readme_is_found_in_the_root(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({"entries": [_entry("src", "dir"), _entry("README.md")]}),
+            _response({**FILE_RAW, "path": "README.md"}),
+        ]
+
+        result = provider.get_readme("main")
+
+        assert client.request.call_args_list[0].kwargs["params"] == {"path": "", "ref": "main"}
+        assert result["data"]["path"] == "README.md"
+
+    def test_a_repository_without_one_is_refused(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = _response({"entries": [_entry("src/app.py")]})
+
+        with pytest.raises(ReadmeNotFound):
+            provider.get_readme("main")
+
+    def test_a_repository_has_no_topics(self, provider: CursorOriginProvider) -> None:
+        assert provider.get_repository_topics()["data"] == []
 
 
 def _check_run_raw(**overrides: Any) -> dict[str, Any]:
