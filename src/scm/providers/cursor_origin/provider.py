@@ -37,6 +37,7 @@ from scm.types import (
     CommitAuthorParam,
     CommitComparison,
     CommitFile,
+    CommitWithChanges,
     CoPilotChatExtension,
     CredentialsSet,
     DeleteCommitAction,
@@ -618,6 +619,46 @@ class CursorOriginProvider:
             request_options=request_options,
             allow_redirects=False,
         )
+
+    def get_commit(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[CommitWithChanges]:
+        """Return a commit with its changed files."""
+        response = self.get(
+            f"/repos/{self.repository_path}/commits/{sha}",
+            request_options=request_options,
+        )
+        files = self.get_commit_changes(
+            sha,
+            pagination={"per_page": MAX_PAGE_SIZE},
+            request_options=request_options,
+        )["data"]
+        return map_action(
+            response,
+            lambda raw: CommitWithChanges(
+                id=raw["sha"],
+                message=raw["commit"]["message"],
+                author=map_commit_author(raw["commit"]["author"]),
+                additions=raw["stats"]["additions"],
+                deletions=raw["stats"]["deletions"],
+                files=files,
+            ),
+        )
+
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CommitFile]]:
+        response = self.get(
+            f"/repos/{self.repository_path}/commits/{sha}/files",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, lambda raw: [map_commit_file(file) for file in raw["files"]])
 
     def create_check_run(
         self,

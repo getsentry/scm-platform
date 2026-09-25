@@ -1213,6 +1213,72 @@ class TestCompareCommits:
         assert result["meta"]["next_cursor"] == "t2"
 
 
+class TestCommitDetail:
+    def test_a_commit_is_read_with_its_changed_files(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            _response({**_commit_raw("abc123"), "stats": {"additions": 6, "deletions": 3, "total": 9}}),
+            _response(
+                {
+                    "files": [
+                        {
+                            "filename": "src/app.py",
+                            "status": "modified",
+                            "additions": 6,
+                            "deletions": 3,
+                            "changes": 9,
+                            "patch": "@@ -1 +1 @@",
+                        }
+                    ],
+                    "nextPageToken": "",
+                }
+            ),
+        ]
+
+        result = provider.get_commit("abc123")
+
+        commit, files = client.request.call_args_list
+        assert commit.kwargs["path"] == f"/repos/{REPO}/commits/abc123"
+        assert files.kwargs["path"] == f"/repos/{REPO}/commits/abc123/files"
+        assert files.kwargs["params"] == {"pageSize": "100"}
+        assert result["data"]["id"] == "abc123"
+        assert (result["data"]["additions"], result["data"]["deletions"]) == (6, 3)
+        assert result["data"]["files"] == [
+            {
+                "filename": "src/app.py",
+                "status": "modified",
+                "patch": "@@ -1 +1 @@",
+                "additions": 6,
+                "deletions": 3,
+                "previous_filename": None,
+            }
+        ]
+
+    def test_the_changed_files_are_paged(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(
+            {
+                "files": [
+                    {
+                        "filename": "logo.png",
+                        "status": "added",
+                        "additions": 0,
+                        "deletions": 0,
+                        "changes": 0,
+                        "patch": "",
+                    }
+                ],
+                "nextPageToken": "t2",
+            }
+        )
+
+        result = provider.get_commit_changes("abc123", pagination={"cursor": "1", "per_page": 30})
+
+        assert client.request.call_args.kwargs["params"] == {"pageSize": "30"}
+        assert result["data"][0]["patch"] is None
+        assert result["meta"]["next_cursor"] == "t2"
+
+
 class TestPullRequestDiff:
     def test_the_changed_files_are_listed(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
