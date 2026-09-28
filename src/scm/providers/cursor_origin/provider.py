@@ -366,7 +366,7 @@ class CursorOriginProvider:
             request_options=request_options,
         )
         raw = response.json()
-        if "entries" in raw:
+        if raw["type"] == "dir":
             raise PathIsDirectory(detail=path)
         return map_action(response, map_file_content, raw)
 
@@ -425,7 +425,7 @@ class CursorOriginProvider:
             request_options=request_options,
         )
         raw = response.json()
-        if "entries" not in raw:
+        if raw["type"] != "dir":
             raise PathIsNotDirectory(detail=path)
         return {
             "data": [map_file_content(entry) for entry in raw["entries"]],
@@ -1204,7 +1204,7 @@ def map_commit_file(raw: dict[str, Any]) -> CommitFile:
         patch=raw["patch"] or None,
         additions=raw["additions"],
         deletions=raw["deletions"],
-        previous_filename=raw.get("previousFilename"),
+        previous_filename=raw["previousFilename"] or None,
     )
 
 
@@ -1215,7 +1215,7 @@ def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
         patch=raw["patch"] or None,
         changes=raw["changes"],
         sha="",
-        previous_filename=raw.get("previousFilename"),
+        previous_filename=raw["previousFilename"] or None,
     )
 
 

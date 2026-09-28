@@ -177,6 +177,8 @@ FILE_RAW = {
     "path": "src/app.py",
     "sha": "b10b5ha",
     "content": "cHJpbnQoImhpIikK",
+    # Origin sends an empty list for files too, so only `type` tells them apart.
+    "entries": [],
 }
 
 DIRECTORY_RAW = {
@@ -373,9 +375,9 @@ class TestPullRequestTemplate:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         client.request.side_effect = [
-            _response({"entries": [_entry("PULL_REQUEST_TEMPLATE.md"), _entry("README.md")]}),
+            _response({"type": "dir", "entries": [_entry("PULL_REQUEST_TEMPLATE.md"), _entry("README.md")]}),
             _response({**FILE_RAW, "path": "PULL_REQUEST_TEMPLATE.md"}),
-            _response({"entries": []}),
+            _response({"type": "dir", "entries": []}),
         ]
 
         templates = list(provider.get_pull_request_template("main"))
@@ -388,14 +390,15 @@ class TestPullRequestTemplate:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         client.request.side_effect = [
-            _response({"entries": []}),
-            _response({"entries": [_entry("docs/PULL_REQUEST_TEMPLATE", "dir")]}),
+            _response({"type": "dir", "entries": []}),
+            _response({"type": "dir", "entries": [_entry("docs/PULL_REQUEST_TEMPLATE", "dir")]}),
             _response(
                 {
+                    "type": "dir",
                     "entries": [
                         _entry("docs/PULL_REQUEST_TEMPLATE/bug.md"),
                         _entry("docs/PULL_REQUEST_TEMPLATE/notes.txt"),
-                    ]
+                    ],
                 }
             ),
             _response({**FILE_RAW, "path": "docs/PULL_REQUEST_TEMPLATE/bug.md"}),
@@ -426,7 +429,7 @@ class TestReadme:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         client.request.side_effect = [
-            _response({"entries": [_entry("src", "dir"), _entry("README.md")]}),
+            _response({"type": "dir", "entries": [_entry("src", "dir"), _entry("README.md")]}),
             _response({**FILE_RAW, "path": "README.md"}),
         ]
 
@@ -438,7 +441,7 @@ class TestReadme:
     def test_a_repository_without_one_is_refused(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
-        client.request.return_value = _response({"entries": [_entry("src/app.py")]})
+        client.request.return_value = _response({"type": "dir", "entries": [_entry("src/app.py")]})
 
         with pytest.raises(ReadmeNotFound):
             provider.get_readme("main")
@@ -1122,7 +1125,15 @@ class TestCompareCommits:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         """Origin's pages hold at most 100 files; GitHub's compare returns up to 300."""
-        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        file = {
+            "filename": "a.py",
+            "status": "modified",
+            "additions": 1,
+            "deletions": 0,
+            "changes": 1,
+            "patch": "@@",
+            "previousFilename": "",
+        }
         client.request.side_effect = [
             _response(COMPARISON_RAW),
             _response({"files": [file], "nextPageToken": "t2"}),
@@ -1142,7 +1153,15 @@ class TestCompareCommits:
     def test_without_a_page_reading_stops_at_the_last_page(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
-        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        file = {
+            "filename": "a.py",
+            "status": "modified",
+            "additions": 1,
+            "deletions": 0,
+            "changes": 1,
+            "patch": "@@",
+            "previousFilename": "",
+        }
         client.request.side_effect = [_response(COMPARISON_RAW), _response({"files": [file], "nextPageToken": ""})]
 
         result = provider.compare_commits("base123", "head123")
@@ -1174,6 +1193,7 @@ class TestCompareCommits:
                             "deletions": 0,
                             "changes": 0,
                             "patch": "",
+                            "previousFilename": "",
                         },
                     ],
                     "nextPageToken": "t2",
@@ -1229,6 +1249,7 @@ class TestCommitDetail:
                             "deletions": 3,
                             "changes": 9,
                             "patch": "@@ -1 +1 @@",
+                            "previousFilename": "",
                         }
                     ],
                     "nextPageToken": "",
@@ -1266,6 +1287,7 @@ class TestCommitDetail:
                         "deletions": 0,
                         "changes": 0,
                         "patch": "",
+                        "previousFilename": "",
                     }
                 ],
                 "nextPageToken": "t2",
@@ -1294,7 +1316,16 @@ class TestPullRequestDiff:
                         "changes": 2,
                         "patch": "@@ -1 +1 @@",
                         "previousFilename": "src/old.py",
-                    }
+                    },
+                    {
+                        "filename": "README.md",
+                        "status": "modified",
+                        "additions": 1,
+                        "deletions": 0,
+                        "changes": 1,
+                        "patch": "@@ -1 +1 @@",
+                        "previousFilename": "",
+                    },
                 ],
                 "nextPageToken": "t2",
             }
@@ -1312,7 +1343,15 @@ class TestPullRequestDiff:
                 "changes": 2,
                 "sha": "",
                 "previous_filename": "src/old.py",
-            }
+            },
+            {
+                "filename": "README.md",
+                "status": "modified",
+                "patch": "@@ -1 +1 @@",
+                "changes": 1,
+                "sha": "",
+                "previous_filename": None,
+            },
         ]
         assert result["meta"]["next_cursor"] == "t2"
 
