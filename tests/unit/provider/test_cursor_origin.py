@@ -177,6 +177,8 @@ FILE_RAW = {
     "path": "src/app.py",
     "sha": "b10b5ha",
     "content": "cHJpbnQoImhpIikK",
+    # Origin sends an empty list for files too, so only `type` tells them apart.
+    "entries": [],
 }
 
 DIRECTORY_RAW = {
@@ -373,9 +375,9 @@ class TestPullRequestTemplate:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         client.request.side_effect = [
-            _response({"entries": [_entry("PULL_REQUEST_TEMPLATE.md"), _entry("README.md")]}),
+            _response({"type": "dir", "entries": [_entry("PULL_REQUEST_TEMPLATE.md"), _entry("README.md")]}),
             _response({**FILE_RAW, "path": "PULL_REQUEST_TEMPLATE.md"}),
-            _response({"entries": []}),
+            _response({"type": "dir", "entries": []}),
         ]
 
         templates = list(provider.get_pull_request_template("main"))
@@ -388,14 +390,15 @@ class TestPullRequestTemplate:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         client.request.side_effect = [
-            _response({"entries": []}),
-            _response({"entries": [_entry("docs/PULL_REQUEST_TEMPLATE", "dir")]}),
+            _response({"type": "dir", "entries": []}),
+            _response({"type": "dir", "entries": [_entry("docs/PULL_REQUEST_TEMPLATE", "dir")]}),
             _response(
                 {
+                    "type": "dir",
                     "entries": [
                         _entry("docs/PULL_REQUEST_TEMPLATE/bug.md"),
                         _entry("docs/PULL_REQUEST_TEMPLATE/notes.txt"),
-                    ]
+                    ],
                 }
             ),
             _response({**FILE_RAW, "path": "docs/PULL_REQUEST_TEMPLATE/bug.md"}),
@@ -426,7 +429,7 @@ class TestReadme:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         client.request.side_effect = [
-            _response({"entries": [_entry("src", "dir"), _entry("README.md")]}),
+            _response({"type": "dir", "entries": [_entry("src", "dir"), _entry("README.md")]}),
             _response({**FILE_RAW, "path": "README.md"}),
         ]
 
@@ -438,7 +441,7 @@ class TestReadme:
     def test_a_repository_without_one_is_refused(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
-        client.request.return_value = _response({"entries": [_entry("src/app.py")]})
+        client.request.return_value = _response({"type": "dir", "entries": [_entry("src/app.py")]})
 
         with pytest.raises(ReadmeNotFound):
             provider.get_readme("main")

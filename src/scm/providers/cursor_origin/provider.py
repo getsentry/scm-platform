@@ -366,7 +366,7 @@ class CursorOriginProvider:
             request_options=request_options,
         )
         raw = response.json()
-        if "entries" in raw:
+        if raw.get("type") == "dir":
             raise PathIsDirectory(detail=path)
         return map_action(response, map_file_content, raw)
 
@@ -425,10 +425,10 @@ class CursorOriginProvider:
             request_options=request_options,
         )
         raw = response.json()
-        if "entries" not in raw:
+        if raw.get("type") != "dir":
             raise PathIsNotDirectory(detail=path)
         return {
-            "data": [map_file_content(entry) for entry in raw["entries"]],
+            "data": [map_file_content(entry) for entry in raw.get("entries", [])],
             "type": PROVIDER_TYPE,
             "raw": {"data": raw, "headers": dict(response.headers)},
             "meta": {"next_cursor": None},
