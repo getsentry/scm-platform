@@ -1125,7 +1125,15 @@ class TestCompareCommits:
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
         """Origin's pages hold at most 100 files; GitHub's compare returns up to 300."""
-        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        file = {
+            "filename": "a.py",
+            "status": "modified",
+            "additions": 1,
+            "deletions": 0,
+            "changes": 1,
+            "patch": "@@",
+            "previousFilename": "",
+        }
         client.request.side_effect = [
             _response(COMPARISON_RAW),
             _response({"files": [file], "nextPageToken": "t2"}),
@@ -1145,7 +1153,15 @@ class TestCompareCommits:
     def test_without_a_page_reading_stops_at_the_last_page(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
     ) -> None:
-        file = {"filename": "a.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@"}
+        file = {
+            "filename": "a.py",
+            "status": "modified",
+            "additions": 1,
+            "deletions": 0,
+            "changes": 1,
+            "patch": "@@",
+            "previousFilename": "",
+        }
         client.request.side_effect = [_response(COMPARISON_RAW), _response({"files": [file], "nextPageToken": ""})]
 
         result = provider.compare_commits("base123", "head123")
@@ -1177,6 +1193,7 @@ class TestCompareCommits:
                             "deletions": 0,
                             "changes": 0,
                             "patch": "",
+                            "previousFilename": "",
                         },
                     ],
                     "nextPageToken": "t2",
@@ -1232,6 +1249,7 @@ class TestCommitDetail:
                             "deletions": 3,
                             "changes": 9,
                             "patch": "@@ -1 +1 @@",
+                            "previousFilename": "",
                         }
                     ],
                     "nextPageToken": "",
@@ -1269,6 +1287,7 @@ class TestCommitDetail:
                         "deletions": 0,
                         "changes": 0,
                         "patch": "",
+                        "previousFilename": "",
                     }
                 ],
                 "nextPageToken": "t2",
@@ -1297,7 +1316,16 @@ class TestPullRequestDiff:
                         "changes": 2,
                         "patch": "@@ -1 +1 @@",
                         "previousFilename": "src/old.py",
-                    }
+                    },
+                    {
+                        "filename": "README.md",
+                        "status": "modified",
+                        "additions": 1,
+                        "deletions": 0,
+                        "changes": 1,
+                        "patch": "@@ -1 +1 @@",
+                        "previousFilename": "",
+                    },
                 ],
                 "nextPageToken": "t2",
             }
@@ -1315,7 +1343,15 @@ class TestPullRequestDiff:
                 "changes": 2,
                 "sha": "",
                 "previous_filename": "src/old.py",
-            }
+            },
+            {
+                "filename": "README.md",
+                "status": "modified",
+                "patch": "@@ -1 +1 @@",
+                "changes": 1,
+                "sha": "",
+                "previous_filename": None,
+            },
         ]
         assert result["meta"]["next_cursor"] == "t2"
 
