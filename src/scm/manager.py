@@ -24,6 +24,7 @@ class SourceCodeManager(Facade):
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         fetch_provider: Callable[[int, Repository], Provider | None],
         record_count: Callable[[str, int, dict[str, str]], None],
+        passthrough: tuple[type[BaseException], ...] = (),
     ) -> "SourceCodeManager":
         return cls(
             initialize_provider(
@@ -34,6 +35,7 @@ class SourceCodeManager(Facade):
             ),
             referrer=referrer,
             record_count=record_count,
+            passthrough=passthrough,
         )
 
     @classmethod
@@ -47,6 +49,7 @@ class SourceCodeManager(Facade):
         signing_secret: str,
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
         retry: RetryConfig | None = None,
+        passthrough: tuple[type[BaseException], ...] = (),
     ):
         full_url = SCM_API_URL.format(base_url=base_url)
 
@@ -73,6 +76,7 @@ class SourceCodeManager(Facade):
             ),
             fetch_provider=lambda oid, repo: fetch_proxy_provider(client, oid, repo),
             record_count=record_count,
+            passthrough=passthrough,
         )
 
 
