@@ -698,7 +698,7 @@ class CursorOriginProvider:
             f"/repos/{self.repository_path}/check-runs/{check_run_id}",
             request_options=request_options,
         )
-        return map_action(response, map_check_run)
+        return map_action(response, lambda raw: map_check_run(raw, self.get_commit_url(raw["sha"])))
 
     def update_check_run(
         self,
@@ -731,7 +731,7 @@ class CursorOriginProvider:
             started_at=stored.get("startedAt"),
             completed_at=stored.get("completedAt"),
             output=output if output is not None else stored.get("output"),
-            details_url=stored["detailsUrl"],
+            details_url=None,
         )
 
     def _post_check_run(
@@ -771,7 +771,7 @@ class CursorOriginProvider:
                 "checkRun": check_run,
             },
         )
-        return map_action(response, lambda raw: map_check_run(raw["checkRun"]))
+        return map_action(response, lambda raw: map_check_run(raw["checkRun"], self.get_commit_url(head_sha)))
 
     def list_check_runs_for_ref(
         self,
@@ -793,7 +793,9 @@ class CursorOriginProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(response, lambda raw: [map_check_run(run) for run in raw["checkRuns"]])
+        return map_paginated_action(
+            response, lambda raw: [map_check_run(run, self.get_commit_url(run["sha"])) for run in raw["checkRuns"]]
+        )
 
     def get_pull_requests(
         self,
@@ -1156,14 +1158,15 @@ def _require_tarball(archive_format: ArchiveFormat) -> None:
         raise ResourceBadRequest(detail=f"Origin archives are tarballs, not {archive_format}")
 
 
-def map_check_run(raw: dict[str, Any]) -> CheckRun:
+def map_check_run(raw: dict[str, Any], commit_url: str) -> CheckRun:
     completed = raw["status"] == "completed"
     return CheckRun(
         id=raw["id"],
         name=raw["name"],
         status=CURSOR_ORIGIN_STATUS_MAP[raw["status"]],
         conclusion=CURSOR_ORIGIN_CONCLUSION_MAP[raw["conclusion"]] if completed else None,
-        html_url=raw["detailsUrl"],
+        # Origin has no page per check run, so a run without a details link points at its commit
+        html_url=raw.get("detailsUrl") or commit_url,
     )
 
 
