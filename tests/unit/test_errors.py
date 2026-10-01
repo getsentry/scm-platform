@@ -5,6 +5,7 @@ import pytest
 
 from scm.errors import (
     ERROR_CODES,
+    ClientClosedRequest,
     ErrorCode,
     RateLimitExceeded,
     RepositoryNotFound,
@@ -13,6 +14,7 @@ from scm.errors import (
     ResourceConflict,
     ResourceForbidden,
     ResourceGatewayTimeout,
+    ResourceGone,
     ResourceNotFound,
     ResourceServerError,
     ResourceServiceUnavailable,
@@ -91,6 +93,8 @@ class TestErrorClassForStatus:
             (403, ResourceForbidden),
             (404, ResourceNotFound),
             (409, ResourceConflict),
+            (410, ResourceGone),
+            (499, ClientClosedRequest),
             (422, ResourceUnprocessableContent),
             (429, RateLimitExceeded),
             (500, ResourceServerError),
