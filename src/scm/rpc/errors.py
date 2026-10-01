@@ -15,6 +15,8 @@ SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
     "resource_forbidden": 403,
     "resource_not_found": 404,
     "resource_conflict": 409,
+    "resource_gone": 410,
+    "client_closed_request": 499,
     "resource_unprocessable_content": 422,
     "resource_server_error": 500,
     "resource_bad_gateway": 502,
