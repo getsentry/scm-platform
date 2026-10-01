@@ -32,6 +32,8 @@ type ErrorCode = Literal[
     "draft_pull_request_not_supported",
     "invalid_check_run_state_transition",
     "stale_branch_head",
+    "resource_gone",
+    "client_closed_request",
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
@@ -66,6 +68,8 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "draft_pull_request_not_supported": "Draft pull requests are not supported for this repository",
     "invalid_check_run_state_transition": "The requested check run state is not reachable from its current state.",
     "stale_branch_head": "The branch head is not the expected commit; a concurrent update moved it.",
+    "resource_gone": "The target resource is no longer available at the origin server.",
+    "client_closed_request": "The client closed the connection before the server answered the request.",
 }
 
 
@@ -203,6 +207,14 @@ class ResourceConflict(SCMCodedError):
     code = "resource_conflict"
 
 
+class ResourceGone(SCMCodedError):
+    code = "resource_gone"
+
+
+class ClientClosedRequest(SCMCodedError):
+    code = "client_closed_request"
+
+
 class ResourceUnprocessableContent(SCMCodedError):
     code = "resource_unprocessable_content"
 
@@ -257,6 +269,8 @@ _STATUS_TO_ERROR: dict[int, type[SCMCodedError]] = {
     403: ResourceForbidden,
     404: ResourceNotFound,
     409: ResourceConflict,
+    410: ResourceGone,
+    499: ClientClosedRequest,
     422: ResourceUnprocessableContent,
     429: RateLimitExceeded,
     500: ResourceServerError,
