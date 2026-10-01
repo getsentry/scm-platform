@@ -450,6 +450,9 @@ class TestReadme:
         assert provider.get_repository_topics()["data"] == []
 
 
+COMMIT_URL = "https://cursor.com/acme/rocket/commit/head123"
+
+
 def _check_run_raw(**overrides: Any) -> dict[str, Any]:
     return {
         "id": "cr_01example",
@@ -482,14 +485,40 @@ class TestCheckRuns:
             "html_url": "https://sentry.io/seer/run/1",
         }
 
+    def test_a_run_without_a_details_url_links_to_its_commit(self) -> None:
+        """Origin omits detailsUrl unless the run was posted with one."""
+        raw = _check_run_raw()
+        del raw["detailsUrl"]
+
+        assert map_check_run(raw, COMMIT_URL)["html_url"] == COMMIT_URL
+
+    def test_a_run_without_a_details_url_is_updated(
+        self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        stored = _check_run_raw()
+        del stored["detailsUrl"]
+        client.request.side_effect = [
+            _response(stored),
+            _response({"checkRun": stored, "checkSuite": {}}),
+        ]
+
+        result = provider.update_check_run("cr_01example", status="completed", conclusion="success")
+
+        assert "detailsUrl" not in client.request.call_args.kwargs["data"]["checkRun"]
+        assert result["data"]["html_url"] == provider.get_commit_url("head123")
+
     def test_a_rerequested_run_is_pending_again(self) -> None:
-        assert map_check_run(_check_run_raw(status="rerequested"))["status"] == "pending"
+        assert map_check_run(_check_run_raw(status="rerequested"), COMMIT_URL)["status"] == "pending"
 
     def test_a_rerequested_run_hides_the_superseded_conclusion(self) -> None:
-        assert map_check_run(_check_run_raw(status="rerequested", conclusion="failure"))["conclusion"] is None
+        assert (
+            map_check_run(_check_run_raw(status="rerequested", conclusion="failure"), COMMIT_URL)["conclusion"] is None
+        )
 
     def test_a_stale_conclusion_is_unknown(self) -> None:
-        assert map_check_run(_check_run_raw(status="completed", conclusion="stale"))["conclusion"] == "unknown"
+        assert (
+            map_check_run(_check_run_raw(status="completed", conclusion="stale"), COMMIT_URL)["conclusion"] == "unknown"
+        )
 
     def test_a_run_is_posted_with_its_suite(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
@@ -525,7 +554,10 @@ class TestCheckRuns:
         assert client.request.call_args.kwargs["data"]["checkRun"]["conclusion"] == "neutral"
 
     def test_a_neutral_conclusion_is_read_as_neutral(self) -> None:
-        assert map_check_run(_check_run_raw(status="completed", conclusion="neutral"))["conclusion"] == "neutral"
+        assert (
+            map_check_run(_check_run_raw(status="completed", conclusion="neutral"), COMMIT_URL)["conclusion"]
+            == "neutral"
+        )
 
     def test_a_queued_run_is_the_default(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = _response({"checkRun": _check_run_raw(), "checkSuite": {}})
@@ -553,7 +585,7 @@ class TestCheckRuns:
         assert post.kwargs["data"]["checkRun"]["status"] == "completed"
         assert post.kwargs["data"]["checkRun"]["conclusion"] == "success"
         assert post.kwargs["data"]["checkRun"]["startedAt"] == "2026-08-01T09:30:00Z"
-        assert post.kwargs["data"]["checkRun"]["detailsUrl"] == "https://sentry.io/seer/run/1"
+        assert "detailsUrl" not in post.kwargs["data"]["checkRun"]
         assert result["data"]["conclusion"] == "success"
 
     def test_an_update_keeps_what_it_does_not_change(
@@ -578,7 +610,7 @@ class TestCheckRuns:
         assert posted["conclusion"] == "failure"
         assert posted["completedAt"] == "2026-08-01T09:40:00Z"
         assert posted["output"] == {"title": "Seer", "summary": "Found 2 issues"}
-        assert posted["detailsUrl"] == "https://sentry.io/seer/run/1"
+        assert "detailsUrl" not in posted
 
     def test_a_rerequested_run_is_posted_as_queued(
         self, provider: CursorOriginProvider, client: unittest.mock.MagicMock
