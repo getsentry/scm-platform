@@ -22,10 +22,12 @@ from scm.errors import (
     UnhandledException,
 )
 from scm.providers.github.provider import (
+    ADD_REACTION_MUTATION,
     CONVERT_PULL_REQUEST_TO_DRAFT_MUTATION,
     GITHUB_CONCLUSION_MAP,
     MARK_PULL_REQUEST_READY_FOR_REVIEW_MUTATION,
     MINIMIZE_COMMENT_MUTATION,
+    REMOVE_REACTION_MUTATION,
     RESOLVE_REVIEW_THREAD_MUTATION,
     REVIEW_THREAD_BY_COMMENT_QUERY,
     THREAD_COMMENTS_QUERY,
@@ -2543,6 +2545,75 @@ def _thread_node(
     }
 
 
+_GET_REVIEW_CALL = {
+    "operation": "get",
+    "path": "/repos/test-org/test-repo/pulls/1/reviews/7",
+    "params": None,
+    "pagination": None,
+    "request_options": None,
+    "extra_headers": None,
+    "credentials_set": "installation",
+    "timeout": None,
+}
+
+
+def test_create_pull_request_review_reaction_via_graphql() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 7, "node_id": "PRR_kwDOReview"}))
+    client.queue(
+        "graphql",
+        {
+            "addReaction": {
+                "reaction": {
+                    "databaseId": 55,
+                    "content": "HOORAY",
+                    "user": {"__typename": "Bot", "login": "sentry[bot]", "databaseId": 9},
+                }
+            }
+        },
+    )
+
+    result = provider.create_pull_request_review_reaction("1", "7", "hooray")
+
+    assert result["data"] == {"id": "55", "content": "hooray", "author": {"id": "9", "username": "sentry[bot]"}}
+    assert client.calls == [
+        _GET_REVIEW_CALL,
+        {
+            "operation": "graphql",
+            "query": ADD_REACTION_MUTATION,
+            "variables": {"subjectId": "PRR_kwDOReview", "content": "HOORAY"},
+        },
+    ]
+
+
+def test_delete_pull_request_review_reaction_via_graphql() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 7, "node_id": "PRR_kwDOReview"}))
+    client.queue("graphql", {"removeReaction": {"reaction": {"content": "EYES"}}})
+
+    provider.delete_pull_request_review_reaction("1", "7", "eyes")
+
+    assert client.calls == [
+        _GET_REVIEW_CALL,
+        {
+            "operation": "graphql",
+            "query": REMOVE_REACTION_MUTATION,
+            "variables": {"subjectId": "PRR_kwDOReview", "content": "EYES"},
+        },
+    ]
+
+
+def test_pull_request_review_reaction_raises_when_node_id_missing() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 7}))
+
+    with pytest.raises(SCMCodedError) as exc_info:
+        provider.create_pull_request_review_reaction("1", "7", "hooray")
+
+    assert exc_info.value.code == "unexpected_response_format"
+    assert client.calls == [_GET_REVIEW_CALL]
+
+
 def test_deserialize_review_comment_populates_line_anchor() -> None:
     raw = make_github_review_comment(
         user={"id": 42, "login": "testuser"}, line=12, start_line=9, side="RIGHT", start_side="RIGHT"
@@ -3556,6 +3627,8 @@ def test_public_methods_are_accounted_for() -> None:
         "get_authenticated_actor",
         "mark_pull_request_ready_for_review",
         "mark_pull_request_as_draft",
+        "create_pull_request_review_reaction",
+        "delete_pull_request_review_reaction",
         *{case["name"] for case in PAGINATED_CASES},
         *{case["name"] for case in ACTION_CASES},
         *{case["name"] for case in VOID_CASES},

@@ -223,6 +223,26 @@ mutation ResolveReviewThread($threadId: ID!) {
 }
 """
 
+ADD_REACTION_MUTATION = """
+mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
+    addReaction(input: {subjectId: $subjectId, content: $content}) {
+        reaction {
+            databaseId
+            content
+            user { __typename login databaseId }
+        }
+    }
+}
+"""
+
+REMOVE_REACTION_MUTATION = """
+mutation RemoveReaction($subjectId: ID!, $content: ReactionContent!) {
+    removeReaction(input: {subjectId: $subjectId, content: $content}) {
+        reaction { content }
+    }
+}
+"""
+
 _GRAPHQL_PULL_REQUEST_REVIEW_COMMENT_FIELDS = """
         id
         fullDatabaseId
@@ -821,6 +841,43 @@ class GitHubProvider:
 
     def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         self.delete(f"/repos/{self.repository['name']}/pulls/comments/{comment_id}/reactions/{reaction_id}")
+
+    def _get_pull_request_review_node_id(self, pull_request_id: str, review_id: str) -> str:
+        response = self.get(f"/repos/{self.repository['name']}/pulls/{pull_request_id}/reviews/{review_id}")
+        node_id = response.json().get("node_id")
+        if not node_id:
+            raise UnexpectedResponseFormat(detail="Pull request review response missing node_id")
+        return node_id
+
+    def create_pull_request_review_reaction(
+        self, pull_request_id: str, review_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]:
+        # REST has no reactions endpoint for reviews, so this goes through GraphQL.
+        node_id = self._get_pull_request_review_node_id(pull_request_id, review_id)
+        data = self.graphql(
+            ADD_REACTION_MUTATION,
+            {"subjectId": node_id, "content": _REACTION_TO_GRAPHQL_REACTION_CONTENT[reaction]},
+        )
+        raw_reaction = data["addReaction"]["reaction"]
+        author, _ = map_graphql_author(raw_reaction.get("user"))
+        raw_id = raw_reaction.get("databaseId")
+        return ActionResult(
+            data=ReactionResult(
+                id=str(raw_id) if raw_id is not None else "",
+                content=_GRAPHQL_REACTION_CONTENT_TO_REACTION[raw_reaction["content"]],
+                author=author,
+            ),
+            type="github",
+            raw={"data": data, "headers": None},
+            meta={},
+        )
+
+    def delete_pull_request_review_reaction(self, pull_request_id: str, review_id: str, reaction: Reaction) -> None:
+        node_id = self._get_pull_request_review_node_id(pull_request_id, review_id)
+        self.graphql(
+            REMOVE_REACTION_MUTATION,
+            {"subjectId": node_id, "content": _REACTION_TO_GRAPHQL_REACTION_CONTENT[reaction]},
+        )
 
     def get_issue_reactions(
         self,
@@ -2505,6 +2562,9 @@ _GRAPHQL_REACTION_CONTENT_TO_REACTION: dict[str, Reaction] = {
     "HEART": "heart",
     "ROCKET": "rocket",
     "EYES": "eyes",
+}
+_REACTION_TO_GRAPHQL_REACTION_CONTENT: dict[Reaction, str] = {
+    reaction: content for content, reaction in _GRAPHQL_REACTION_CONTENT_TO_REACTION.items()
 }
 
 

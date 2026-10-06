@@ -922,6 +922,22 @@ MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list |
             ),
         ],
     ),
+    (
+        "create_pull_request_review_reaction",
+        lambda scm: actions.create_pull_request_review_reaction(scm, "1", "7", "hooray"),
+        [
+            ({"id": 7, "node_id": "PRR_abc123"}, 200, None),
+            ({"data": {"addReaction": {"reaction": {"databaseId": 99, "content": "HOORAY", "user": None}}}}, 200, None),
+        ],
+    ),
+    (
+        "delete_pull_request_review_reaction",
+        lambda scm: actions.delete_pull_request_review_reaction(scm, "1", "7", "eyes"),
+        [
+            ({"id": 7, "node_id": "PRR_abc123"}, 200, None),
+            ({"data": {"removeReaction": {"reaction": {"content": "EYES"}}}}, 200, None),
+        ],
+    ),
 ]
 
 

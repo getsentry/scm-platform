@@ -957,6 +957,23 @@ class DeleteReviewCommentReactionProtocol(Protocol):
     def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None: ...
 
 
+# Pull Request Review Reaction Protocols
+
+
+@runtime_checkable
+class CreatePullRequestReviewReactionProtocol(Protocol):
+    def create_pull_request_review_reaction(
+        self, pull_request_id: str, review_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]: ...
+
+
+@runtime_checkable
+class DeletePullRequestReviewReactionProtocol(Protocol):
+    def delete_pull_request_review_reaction(self, pull_request_id: str, review_id: str, reaction: Reaction) -> None:
+        """Remove the authenticated actor's own ``reaction`` from the review."""
+        ...
+
+
 # Issue Reaction Protocols
 
 
@@ -1623,6 +1640,7 @@ ALL_PROTOCOLS = (
     CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
+    CreatePullRequestReviewReactionProtocol,
     CreateReviewCommentFileProtocol,
     CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
@@ -1635,6 +1653,7 @@ ALL_PROTOCOLS = (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DeletePullRequestReviewReactionProtocol,
     DeleteReviewCommentReactionProtocol,
     DownloadArchiveProtocol,
     GetAppInstallationProtocol,
