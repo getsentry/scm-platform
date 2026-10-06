@@ -2557,50 +2557,89 @@ _GET_REVIEW_CALL = {
 }
 
 
-def test_create_pull_request_review_reaction_via_graphql() -> None:
-    provider, client = make_provider()
+def _graphql_post_call(query: str, variables: dict[str, Any]) -> dict[str, Any]:
+    return {"operation": "post", "path": "/graphql", "data": {"query": query, "variables": variables}, "headers": {}}
+
+
+def _queue_add_reaction(client: RecordingClient, user: dict[str, Any] | None) -> None:
     client.queue("get", FakeResponse({"id": 7, "node_id": "PRR_kwDOReview"}))
     client.queue(
-        "graphql",
-        {
-            "addReaction": {
-                "reaction": {
-                    "databaseId": 55,
-                    "content": "HOORAY",
-                    "user": {"__typename": "Bot", "login": "sentry[bot]", "databaseId": 9},
-                }
-            }
-        },
+        "post",
+        FakeResponse({"data": {"addReaction": {"reaction": {"databaseId": 55, "content": "HOORAY", "user": user}}}}),
     )
+
+
+def test_create_pull_request_review_reaction_via_graphql() -> None:
+    provider, client = make_provider()
+    _queue_add_reaction(client, {"__typename": "User", "login": "octocat", "databaseId": 9})
 
     result = provider.create_pull_request_review_reaction("1", "7", "hooray")
 
-    assert result["data"] == {"id": "55", "content": "hooray", "author": {"id": "9", "username": "sentry[bot]"}}
+    assert result["data"] == {"id": "55", "content": "hooray", "author": {"id": "9", "username": "octocat"}}
     assert client.calls == [
         _GET_REVIEW_CALL,
-        {
-            "operation": "graphql",
-            "query": ADD_REACTION_MUTATION,
-            "variables": {"subjectId": "PRR_kwDOReview", "content": "HOORAY"},
-        },
+        _graphql_post_call(ADD_REACTION_MUTATION, {"subjectId": "PRR_kwDOReview", "content": "HOORAY"}),
     ]
+
+
+def test_create_pull_request_review_reaction_has_no_author_for_bot() -> None:
+    provider, client = make_provider()
+    _queue_add_reaction(client, None)
+
+    result = provider.create_pull_request_review_reaction("1", "7", "hooray")
+
+    assert result["data"] == {"id": "55", "content": "hooray", "author": None}
 
 
 def test_delete_pull_request_review_reaction_via_graphql() -> None:
     provider, client = make_provider()
     client.queue("get", FakeResponse({"id": 7, "node_id": "PRR_kwDOReview"}))
-    client.queue("graphql", {"removeReaction": {"reaction": {"content": "EYES"}}})
+    client.queue("post", FakeResponse({"data": {"removeReaction": {"reaction": {"content": "EYES"}}}}))
 
     provider.delete_pull_request_review_reaction("1", "7", "eyes")
 
     assert client.calls == [
         _GET_REVIEW_CALL,
-        {
-            "operation": "graphql",
-            "query": REMOVE_REACTION_MUTATION,
-            "variables": {"subjectId": "PRR_kwDOReview", "content": "EYES"},
-        },
+        _graphql_post_call(REMOVE_REACTION_MUTATION, {"subjectId": "PRR_kwDOReview", "content": "EYES"}),
     ]
+
+
+@pytest.mark.parametrize(
+    ("method", "field"),
+    [
+        ("create_pull_request_review_reaction", "addReaction"),
+        ("delete_pull_request_review_reaction", "removeReaction"),
+    ],
+)
+def test_pull_request_review_reaction_raises_when_mutation_rejected(method: str, field: str) -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 7, "node_id": "PRR_kwDOReview"}))
+    errors = [{"type": "FORBIDDEN", "path": [field], "message": "Resource not accessible by integration"}]
+    client.queue("post", FakeResponse({"data": {field: None}, "errors": errors}))
+
+    with pytest.raises(ResourceBadRequest) as exc_info:
+        getattr(provider, method)("1", "7", "eyes")
+
+    assert exc_info.value.detail == "Resource not accessible by integration"
+
+
+def test_pull_request_review_reaction_raises_on_error_under_non_null_payload() -> None:
+    provider, client = make_provider()
+    client.queue("get", FakeResponse({"id": 7, "node_id": "PRR_kwDOReview"}))
+    client.queue(
+        "post",
+        FakeResponse(
+            {
+                "data": {"addReaction": {"reaction": None}},
+                "errors": [{"path": ["addReaction", "reaction"], "message": "Could not add reaction"}],
+            }
+        ),
+    )
+
+    with pytest.raises(ResourceBadRequest) as exc_info:
+        provider.create_pull_request_review_reaction("1", "7", "hooray")
+
+    assert exc_info.value.detail == "Could not add reaction"
 
 
 def test_pull_request_review_reaction_raises_when_node_id_missing() -> None:
