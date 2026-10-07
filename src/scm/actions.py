@@ -41,6 +41,7 @@ from scm.types import (
     CreatePullRequestDraftProtocol,
     CreatePullRequestProtocol,
     CreatePullRequestReactionProtocol,
+    CreatePullRequestReviewReactionProtocol,
     CreateReviewCommentFileProtocol,
     CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
@@ -54,6 +55,7 @@ from scm.types import (
     DeletePullRequestCommentProtocol,
     DeletePullRequestCommentReactionProtocol,
     DeletePullRequestReactionProtocol,
+    DeletePullRequestReviewReactionProtocol,
     DeleteReviewCommentReactionProtocol,
     DiffLine,
     DownloadArchiveProtocol,
@@ -388,6 +390,26 @@ def delete_review_comment_reaction(
 ) -> None:
     """Delete a reaction on a pull request review comment."""
     return scm.delete_review_comment_reaction(pull_request_id, comment_id, reaction_id)
+
+
+def create_pull_request_review_reaction(
+    scm: CreatePullRequestReviewReactionProtocol,
+    pull_request_id: str,
+    review_id: str,
+    reaction: Reaction,
+) -> ActionResult[ReactionResult]:
+    """Create a reaction on a pull request review."""
+    return scm.create_pull_request_review_reaction(pull_request_id, review_id, reaction)
+
+
+def delete_pull_request_review_reaction(
+    scm: DeletePullRequestReviewReactionProtocol,
+    pull_request_id: str,
+    review_id: str,
+    reaction: Reaction,
+) -> None:
+    """Remove the authenticated actor's own reaction from a pull request review."""
+    return scm.delete_pull_request_review_reaction(pull_request_id, review_id, reaction)
 
 
 def get_issue_reactions(
@@ -1150,6 +1172,7 @@ __all__ = (
     "create_pull_request_comment",
     "create_pull_request_draft",
     "create_pull_request_reaction",
+    "create_pull_request_review_reaction",
     "create_pull_request",
     "create_review_comment",
     "create_review_comment_file",
@@ -1162,6 +1185,7 @@ __all__ = (
     "delete_pull_request_comment_reaction",
     "delete_pull_request_comment",
     "delete_pull_request_reaction",
+    "delete_pull_request_review_reaction",
     "download_archive",
     "get_archive_link",
     "get_app_installation",

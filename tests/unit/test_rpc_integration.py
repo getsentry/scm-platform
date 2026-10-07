@@ -10,6 +10,7 @@ import pytest
 import requests
 
 from scm import actions
+from scm.errors import ResourceBadRequest
 from scm.manager import SourceCodeManager
 from scm.rpc.client import RpcApiClient, deserialize_repository
 from scm.rpc.client import fetch_provider as fetch_proxy_provider
@@ -922,6 +923,22 @@ MULTI_CALL_ACTION_TEST_CASES: list[tuple[str, Callable, list[tuple[dict | list |
             ),
         ],
     ),
+    (
+        "create_pull_request_review_reaction",
+        lambda scm: actions.create_pull_request_review_reaction(scm, "1", "7", "hooray"),
+        [
+            ({"id": 7, "node_id": "PRR_abc123"}, 200, None),
+            ({"data": {"addReaction": {"reaction": {"databaseId": 99, "content": "HOORAY", "user": None}}}}, 200, None),
+        ],
+    ),
+    (
+        "delete_pull_request_review_reaction",
+        lambda scm: actions.delete_pull_request_review_reaction(scm, "1", "7", "eyes"),
+        [
+            ({"id": 7, "node_id": "PRR_abc123"}, 200, None),
+            ({"data": {"removeReaction": {"reaction": {"content": "EYES"}}}}, 200, None),
+        ],
+    ),
 ]
 
 
@@ -1031,6 +1048,35 @@ class TestRpcIntegration:
 
         assert action_fn(scm) == expected_result
         server_provider.request.assert_not_called()
+
+    def test_rejected_graphql_mutation_message_reaches_client(self):
+        repo = make_repository()
+        server_provider = MagicMock()
+        server_provider.repository = repo
+        server_provider.__class__.__name__ = "GitHubProvider"
+        server_provider.request.side_effect = [
+            make_github_api_response({"id": 7, "node_id": "PRR_abc123"}),
+            make_github_api_response(
+                {
+                    "data": {"addReaction": None},
+                    "errors": [
+                        {
+                            "type": "FORBIDDEN",
+                            "path": ["addReaction"],
+                            "message": "Resource not accessible by integration",
+                        }
+                    ],
+                }
+            ),
+        ]
+
+        server = make_rpc_server(repo, server_provider)
+        scm = make_client_scm(1, 1, server)
+
+        with pytest.raises(ResourceBadRequest) as exc_info:
+            actions.create_pull_request_review_reaction(scm, "1", "7", "hooray")
+
+        assert exc_info.value.detail == "Resource not accessible by integration"
 
     @pytest.mark.parametrize(
         "action_name, action_fn, responses",

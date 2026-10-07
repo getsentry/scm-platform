@@ -22,6 +22,7 @@ from scm.actions import (
     create_pull_request_comment_reaction,
     create_pull_request_draft,
     create_pull_request_reaction,
+    create_pull_request_review_reaction,
     create_review,
     create_review_comment,
     create_review_comment_file,
@@ -34,6 +35,7 @@ from scm.actions import (
     delete_pull_request_comment,
     delete_pull_request_comment_reaction,
     delete_pull_request_reaction,
+    delete_pull_request_review_reaction,
     delete_review_comment_reaction,
     download_archive,
     get_authenticated_actor,
@@ -162,6 +164,15 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (
         delete_review_comment_reaction,
         {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
+    ),
+    # Pull request review reactions
+    (
+        create_pull_request_review_reaction,
+        {"pull_request_id": "1", "review_id": "1", "reaction": "eyes"},
+    ),
+    (
+        delete_pull_request_review_reaction,
+        {"pull_request_id": "1", "review_id": "1", "reaction": "eyes"},
     ),
     # Issue reactions
     (get_issue_reactions, {"issue_id": "1"}),
@@ -777,6 +788,16 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (
         delete_review_comment_reaction,
         {"pull_request_id": "1", "comment_id": "1", "reaction_id": "123"},
+        _check_none,
+    ),
+    (
+        create_pull_request_review_reaction,
+        {"pull_request_id": "1", "review_id": "1", "reaction": "eyes"},
+        _check_created_reaction,
+    ),
+    (
+        delete_pull_request_review_reaction,
+        {"pull_request_id": "1", "review_id": "1", "reaction": "eyes"},
         _check_none,
     ),
     (get_issue_reactions, {"issue_id": "1"}, _check_issue_reactions),

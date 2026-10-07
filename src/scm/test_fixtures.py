@@ -1026,6 +1026,21 @@ class BaseTestProvider(Provider):
     def delete_review_comment_reaction(self, pull_request_id: str, comment_id: str, reaction_id: str) -> None:
         return None
 
+    # Pull request review reactions
+
+    def create_pull_request_review_reaction(
+        self, pull_request_id: str, review_id: str, reaction: Reaction
+    ) -> ActionResult[ReactionResult]:
+        return ActionResult(
+            data=ReactionResult(id="1", content=reaction, author=None),
+            type="github",
+            raw={"headers": None, "data": None},
+            meta={},
+        )
+
+    def delete_pull_request_review_reaction(self, pull_request_id: str, review_id: str, reaction: Reaction) -> None:
+        return None
+
     # Issue reactions
 
     def get_issue_reactions(

@@ -38,6 +38,8 @@ Commands:
     get-review-comment-reactions <pr_id> <comment_id> [--cursor <n>] [--per-page <n>]
     create-review-comment-reaction <pr_id> <comment_id> <reaction>
     delete-review-comment-reaction <pr_id> <comment_id> <reaction_id>
+    create-pull-request-review-reaction <pr_id> <review_id> <reaction>
+    delete-pull-request-review-reaction <pr_id> <review_id> <reaction>
     collapse-pull-request-comment <pr_id> <thread_id> <comment_node_id> [--reason OUTDATED]
     update-and-collapse-pull-request-comment <pr_id> <thread_id> <comment_id> <comment_node_id> <body>
         [--reason OUTDATED]
@@ -104,10 +106,12 @@ from scm.types import (
     CreateIssueCommentProtocol,
     CreateIssueProtocol,
     CreatePullRequestCommentProtocol,
+    CreatePullRequestReviewReactionProtocol,
     CreateReviewCommentProtocol,
     CreateReviewCommentReactionProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
+    DeletePullRequestReviewReactionProtocol,
     DeleteReviewCommentReactionProtocol,
     DiffLine,
     DownloadArchiveProtocol,
@@ -344,6 +348,16 @@ def main() -> None:
     p.add_argument("pr_id")
     p.add_argument("comment_id")
     p.add_argument("reaction_id")
+
+    p = sub.add_parser("create-pull-request-review-reaction")
+    p.add_argument("pr_id")
+    p.add_argument("review_id")
+    p.add_argument("reaction", choices=REACTION_CHOICES)
+
+    p = sub.add_parser("delete-pull-request-review-reaction")
+    p.add_argument("pr_id")
+    p.add_argument("review_id")
+    p.add_argument("reaction", choices=REACTION_CHOICES)
 
     p = sub.add_parser("collapse-pull-request-comment")
     p.add_argument("pr_id")
@@ -624,6 +638,14 @@ def main() -> None:
     elif args.command == "delete-review-comment-reaction":
         assert isinstance(scm, DeleteReviewCommentReactionProtocol)
         scm.delete_review_comment_reaction(args.pr_id, args.comment_id, args.reaction_id)
+
+    elif args.command == "create-pull-request-review-reaction":
+        assert isinstance(scm, CreatePullRequestReviewReactionProtocol)
+        dump(scm.create_pull_request_review_reaction(args.pr_id, args.review_id, args.reaction))
+
+    elif args.command == "delete-pull-request-review-reaction":
+        assert isinstance(scm, DeletePullRequestReviewReactionProtocol)
+        scm.delete_pull_request_review_reaction(args.pr_id, args.review_id, args.reaction)
 
     elif args.command == "collapse-pull-request-comment":
         assert isinstance(scm, CollapsePullRequestCommentProtocol)
