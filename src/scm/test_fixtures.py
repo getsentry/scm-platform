@@ -2334,10 +2334,12 @@ class SourceCodeManager(Facade):
         *,
         referrer: Referrer = "shared",
         record_count: Callable[[str, int, dict[str, str]], None] = lambda key, amount, tags: None,
+        passthrough: tuple[type[BaseException], ...] = (),
     ) -> None:
         self.provider = provider
         self.referrer = referrer
         self.record_count = record_count
+        self.passthrough = passthrough
 
     @staticmethod
     def delegator(name: str) -> Callable[..., Any]:
@@ -2349,6 +2351,7 @@ class SourceCodeManager(Facade):
                 referrer=self.referrer,
                 provider_fn=lambda: getattr(self.provider, name)(*args, **kwargs),
                 record_count=self.record_count,
+                passthrough=self.passthrough,
             )
 
         return method
