@@ -10,6 +10,7 @@ from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.client import (
+    RequestsSession,
     RpcApiClient,
     deserialize_repository,
     fetch_provider,
@@ -40,6 +41,21 @@ def make_serialized_repository(**overrides):
 
 def make_error_response(*codes: ErrorCode) -> bytes:
     return msgspec.json.encode(ErrorResponse(errors=[Error(code=code) for code in codes]))
+
+
+class TestRequestsSession:
+    @patch("scm.rpc.client.requests.post")
+    def test_post_streams_response(self, mock_post):
+        """Proxied responses must stream so large bodies (e.g. archives) are not buffered in memory."""
+        RequestsSession().post("https://sentry.example/rpc", b"{}", {"X-Test": "1"})
+
+        mock_post.assert_called_once_with(
+            "https://sentry.example/rpc",
+            data=b"{}",
+            headers={"X-Test": "1"},
+            allow_redirects=False,
+            stream=True,
+        )
 
 
 class TestFetchRepository:
@@ -283,6 +299,9 @@ class TestRpcApiClientTransportRetry:
 
         assert result is ok
         assert client.session.post.call_count == 2
+        # The discarded streamed response releases its connection; the returned one stays open.
+        unavailable.close.assert_called_once()
+        ok.close.assert_not_called()
         retry_tags = client.record_count.call_args_list[0].args[2]  # type: ignore[attr-defined]
         assert retry_tags == {"method": "GET", "reason": "status_503"}
         assert self._metric_names(client) == [

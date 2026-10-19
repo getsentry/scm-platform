@@ -68,7 +68,10 @@ class RequestsSession:
         return requests.get(url, headers=headers)
 
     def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response:
-        return requests.post(url, data=data, headers=headers, allow_redirects=False)
+        # ``RpcApiClient`` asks the proxy to stream the provider response, so stream it locally
+        # too. Without ``stream=True`` requests reads the whole body into memory before returning,
+        # which buffers e.g. an entire repository archive from ``download_archive``.
+        return requests.post(url, data=data, headers=headers, allow_redirects=False, stream=True)
 
 
 def fetch_repository(
@@ -249,6 +252,8 @@ class RpcApiClient(ApiClient):
             if idempotent and response.status_code in status_codes:
                 if attempt < max_retries:
                     last_reason = f"status_{response.status_code}"
+                    # The response is streamed, so release its connection before discarding it.
+                    response.close()
                     self._retry(last_reason, method, attempt, backoff_seconds)
                     attempt += 1
                     continue
