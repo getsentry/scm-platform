@@ -204,7 +204,6 @@ class TestRpcApiClient:
 
         call_args = client.session.post.call_args
         assert call_args.kwargs["url"] == "http://base/api/0/internal/scm-rpc"
-        # Streams by default so large bodies (e.g. archives) are not buffered in memory.
         assert call_args.kwargs["stream"] is True
 
         headers = call_args.kwargs["headers"]
@@ -318,7 +317,6 @@ class TestRpcApiClientTransportRetry:
 
         assert result is ok
         assert client.session.post.call_count == 2
-        # The discarded streamed response releases its connection; the returned one stays open.
         unavailable.close.assert_called_once()
         ok.close.assert_not_called()
         retry_tags = client.record_count.call_args_list[0].args[2]  # type: ignore[attr-defined]
