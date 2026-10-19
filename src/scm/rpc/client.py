@@ -68,9 +68,6 @@ class RequestsSession:
         return requests.get(url, headers=headers)
 
     def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response:
-        # ``RpcApiClient`` asks the proxy to stream the provider response, so stream it locally
-        # too. Without ``stream=True`` requests reads the whole body into memory before returning,
-        # which buffers e.g. an entire repository archive from ``download_archive``.
         return requests.post(url, data=data, headers=headers, allow_redirects=False, stream=True)
 
 
