@@ -44,17 +44,17 @@ def make_error_response(*codes: ErrorCode) -> bytes:
 
 
 class TestRequestsSession:
+    @pytest.mark.parametrize("stream", [True, False])
     @patch("scm.rpc.client.requests.post")
-    def test_post_streams_response(self, mock_post):
-        """Proxied responses must stream so large bodies (e.g. archives) are not buffered in memory."""
-        RequestsSession().post("https://sentry.example/rpc", b"{}", {"X-Test": "1"})
+    def test_post_forwards_stream(self, mock_post, stream):
+        RequestsSession().post("https://sentry.example/rpc", b"{}", {"X-Test": "1"}, stream=stream)
 
         mock_post.assert_called_once_with(
             "https://sentry.example/rpc",
             data=b"{}",
             headers={"X-Test": "1"},
             allow_redirects=False,
-            stream=True,
+            stream=stream,
         )
 
 
@@ -204,6 +204,8 @@ class TestRpcApiClient:
 
         call_args = client.session.post.call_args
         assert call_args.kwargs["url"] == "http://base/api/0/internal/scm-rpc"
+        # Streams by default so large bodies (e.g. archives) are not buffered in memory.
+        assert call_args.kwargs["stream"] is True
 
         headers = call_args.kwargs["headers"]
         assert headers["Authorization"].startswith("rpcsignature rpc0:")
@@ -235,6 +237,23 @@ class TestRpcApiClient:
 
         headers = client.session.post.call_args.kwargs["headers"]
         assert headers["X-Repository-Id"] == '["github","ext-123"]'
+
+    def test_request_forwards_stream_opt_out(self):
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret="secret",
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+        )
+        client.session = MagicMock()
+        client.session.post.return_value = MagicMock()
+
+        client.request(method="GET", path="/test", stream=False)
+
+        call_args = client.session.post.call_args
+        assert call_args.kwargs["stream"] is False
+        assert msgspec.json.decode(call_args.kwargs["data"])["data"]["stream"] is False
 
 
 class TestRpcApiClientTransportRetry:
