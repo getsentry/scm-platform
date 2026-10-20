@@ -29,6 +29,7 @@ class Recorder:
         self.repository_lookups: list[tuple[int, RepositoryId]] = []
         self.token_lookups: list[tuple[Repository, GitOperation]] = []
         self.counts: list[tuple[str, dict[str, str]]] = []
+        self.bytes: dict[tuple[str, str], int] = {}
 
     def fetch_repository(self, organization_id: int, repository_id: RepositoryId) -> Repository | None:
         self.repository_lookups.append((organization_id, repository_id))
@@ -39,7 +40,11 @@ class Recorder:
         return self.token
 
     def record_count(self, name: str, value: int, tags: dict[str, str]) -> None:
-        self.counts.append((name, tags))
+        if name.endswith("_bytes"):
+            key = (name, tags["operation"])
+            self.bytes[key] = self.bytes.get(key, 0) + value
+        else:
+            self.counts.append((name, tags))
 
 
 def make_server(recorder: Recorder, relay: GitRelay | None = None) -> GitServer:
@@ -200,6 +205,51 @@ class TestRelay:
             ("sentry.scm.git.request.succeeded", {"operation": "fetch", "provider": "github", "status": "200"})
         ]
 
+    def test_counted_when_the_response_ends_not_when_it_starts(self):
+        recorder = Recorder()
+        response = request(make_server(recorder), signed_grant())
+        assert recorder.counts == []
+        assert b"".join(response.content) == b"refs"
+        response.content.close()  # type: ignore[attr-defined]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.succeeded", {"operation": "fetch", "provider": "github", "status": "200"})
+        ]
+        assert recorder.bytes == {("sentry.scm.git.response_bytes", "fetch"): 4}
+
+    def test_provider_stream_breaking_is_a_failure(self):
+        def broken_stream():
+            yield b"half a pack"
+            raise ConnectionError("provider went away")
+
+        relay = MagicMock(spec=GitRelay)
+        relay.forward.return_value = StreamResponse(status_code=200, headers={}, content=broken_stream())
+        recorder = Recorder()
+        content = request(make_server(recorder, relay), signed_grant()).content
+        assert next(content) == b"half a pack"
+        with pytest.raises(ConnectionError):
+            next(content)
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "stream_interrupted"})]
+        assert recorder.bytes == {("sentry.scm.git.response_bytes", "fetch"): 11}
+
+    def test_client_leaving_early_is_a_failure_and_closes_the_provider_stream(self):
+        closed = []
+
+        def provider_stream():
+            try:
+                yield b"first"
+                yield b"second"
+            finally:
+                closed.append(True)
+
+        relay = MagicMock(spec=GitRelay)
+        relay.forward.return_value = StreamResponse(status_code=200, headers={}, content=provider_stream())
+        recorder = Recorder()
+        content = request(make_server(recorder, relay), signed_grant()).content
+        assert next(content) == b"first"
+        content.close()  # type: ignore[attr-defined]
+        assert closed == [True]
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "client_closed_request"})]
+
     def test_upstream_unavailable(self):
         recorder = Recorder(
             repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
@@ -240,6 +290,28 @@ class TestRelay:
         with pytest.raises(HostRefused):
             request(make_server(recorder, relay), signed_grant())
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "unhandled_exception"})]
+
+    def test_counts_bytes_each_way_end_to_end(self, monkeypatch):
+        with running_upstream() as upstream:
+            monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
+            recorder = Recorder(
+                repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
+            )
+            with closing(GitRelay()) as relay:
+                response = request(
+                    make_server(recorder, relay),
+                    signed_grant(operation="push"),
+                    method="POST",
+                    route="git-receive-pack",
+                    query="",
+                    headers={"Content-Length": "8"},
+                    body=io.BytesIO(b"00000000"),
+                )
+                assert b"".join(response.content) == b"00000000"  # The fake upstream echoes the body.
+        assert recorder.bytes == {
+            ("sentry.scm.git.request_bytes", "push"): 8,
+            ("sentry.scm.git.response_bytes", "push"): 8,
+        }
 
     def test_relays_end_to_end(self, monkeypatch):
         with running_upstream() as upstream:

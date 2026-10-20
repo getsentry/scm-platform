@@ -1,4 +1,4 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 
 from requests.structures import CaseInsensitiveDict
 
@@ -25,6 +25,10 @@ class GitServer:
     Refusals and provider failures come back as plain-text responses. Any other exception, such as an adapter
     refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer it the
     way it answers the same error elsewhere.
+
+    A relayed request is counted when its response stream ends, not when its headers arrive, so a clone that
+    fails halfway is counted as failed: ``stream_interrupted`` when the provider's stream breaks and
+    ``client_closed_request`` when the client goes away first. The bytes sent each way are counted then too.
     """
 
     def __init__(
@@ -59,6 +63,7 @@ class GitServer:
         ``route`` is the path below ``<repo>.git/`` and ``query`` the raw query string. ``body`` is read only
         while the request is sent upstream, so pass the unread request stream.
         """
+        counted_body = _CountingReader(body) if body is not None else None
         try:
             grant = verify_grant(self.secrets, CaseInsensitiveDict(headers).get(GRANT_HEADER, ""))
             operation = check_request(grant, repository_id, method, route, query)
@@ -70,7 +75,7 @@ class GitServer:
             if token is None:
                 raise ProviderNotFound(detail="No git credentials are available for this repository.")
             response = self.relay.forward(
-                remote, token, method=method, route=route, query=query, headers=headers, body=body
+                remote, token, method=method, route=route, query=query, headers=headers, body=counted_body
             )
             if response.status_code == 401:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
@@ -84,16 +89,73 @@ class GitServer:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"})
             raise
 
-        self.record_count(
-            "sentry.scm.git.request.succeeded",
-            1,
-            {
-                "operation": operation,
-                "provider": repository["provider_name"],
-                "status": str(response.status_code),
-            },
+        tags: dict[str, str] = {"operation": operation, "provider": repository["provider_name"]}
+
+        def finish(failure: str | None, response_bytes: int) -> None:
+            if failure is None:
+                self.record_count("sentry.scm.git.request.succeeded", 1, tags | {"status": str(response.status_code)})
+            else:
+                self.record_count("sentry.scm.git.request.failed", 1, {"code": failure})
+            if counted_body is not None and counted_body.bytes_read:
+                self.record_count("sentry.scm.git.request_bytes", counted_body.bytes_read, tags)
+            if response_bytes:
+                self.record_count("sentry.scm.git.response_bytes", response_bytes, tags)
+
+        return StreamResponse(
+            status_code=response.status_code,
+            headers=response.headers,
+            content=_MeteredStream(response.content, finish),
         )
-        return response
+
+
+class _CountingReader:
+    """The client's request body, counting the bytes the relay reads from it."""
+
+    def __init__(self, body: Readable) -> None:
+        self.body = body
+        self.bytes_read = 0
+
+    def read(self, size: int = -1, /) -> bytes:
+        data = self.body.read(size)
+        self.bytes_read += len(data)
+        return data
+
+
+class _MeteredStream:
+    """The relay's response stream, reporting once how it ended and how many bytes it passed on."""
+
+    def __init__(self, content: Iterator[bytes], finish: Callable[[str | None, int], None]) -> None:
+        self.content = content
+        self.finish = finish
+        self.bytes_sent = 0
+        self.finished = False
+
+    def __iter__(self) -> "_MeteredStream":
+        return self
+
+    def __next__(self) -> bytes:
+        try:
+            chunk = next(self.content)
+        except StopIteration:
+            self._end(None)
+            raise
+        except Exception:
+            self._end("stream_interrupted")
+            raise
+        self.bytes_sent += len(chunk)
+        return chunk
+
+    def close(self) -> None:
+        # The server calls this after the last chunk too, when the stream has already ended.
+        self._end("client_closed_request")
+        close = getattr(self.content, "close", None)
+        if close is not None:
+            close()
+
+    def _end(self, failure: str | None) -> None:
+        if not self.finished:
+            self.finished = True
+            self.finish(failure, self.bytes_sent)
 
 
 def _close(response: StreamResponse) -> None:
