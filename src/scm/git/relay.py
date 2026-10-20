@@ -1,5 +1,4 @@
-from collections.abc import Iterator, Mapping
-from http.cookiejar import DefaultCookiePolicy
+from collections.abc import Callable, Iterator, Mapping
 from urllib.parse import urlsplit
 
 import requests
@@ -46,18 +45,21 @@ _RESPONSE_HEADERS = frozenset(
 class GitRelay:
     """Forwards git smart-HTTP requests to a provider with a token, streaming the body in both directions.
 
-    Nothing buffers a request or a response, and neither body is parsed. Build one per process and reuse it: it
-    keeps a pool of keep-alive connections per provider host, because a clone makes three requests and opening a
-    new connection for each added hundreds of milliseconds per clone in the prototype.
+    Nothing buffers a request or a response, and neither body is parsed.
+
+    Each request opens its own connection and closes it when the response ends, so nothing one organization's
+    request leaves behind, such as a cookie or an unread response, can reach another's. A clone's three requests
+    each pay a TCP and TLS handshake. Over the prototype's slow local link that added hundreds of milliseconds per
+    clone; from Sentry's servers it should be small.
 
     Only https remotes are accepted, because every request carries a provider token.
 
-    ``adapter`` sends every upstream request and holds the connection pools. Pass one that refuses internal
-    addresses: a GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay
-    connects wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients. Errors the adapter
-    raises for a refused host reach the caller unchanged. The adapter must not retry, because a retry cannot
-    resend a body that has already been streamed. Without one, the relay pools connections with a plain adapter
-    that checks nothing.
+    ``adapter`` builds the adapter that sends each upstream request. Pass one that refuses internal addresses: a
+    GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay connects
+    wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients, and the class itself can be
+    passed. Errors the adapter raises for a refused host reach the caller unchanged. The adapter must not retry,
+    because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
+    ``HTTPAdapter``, which checks nothing.
 
     The relay takes no settings from the environment. Through a proxy from ``HTTPS_PROXY``, the adapter would
     check the proxy's address rather than the provider's. ``ca_bundle`` names a CA file to trust instead of the
@@ -67,23 +69,15 @@ class GitRelay:
     def __init__(
         self,
         *,
-        adapter: HTTPAdapter | None = None,
+        adapter: Callable[[], HTTPAdapter] = HTTPAdapter,
         ca_bundle: str | None = None,
         timeout: tuple[float, float] = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> None:
+        self.adapter = adapter
+        self.ca_bundle = ca_bundle
         self.timeout = timeout
         self.chunk_size = chunk_size
-        self.session = requests.Session()
-        # Without this, requests reads proxies, CA files and .netrc credentials from the environment.
-        self.session.trust_env = False
-        self.session.verify = ca_bundle or True
-        # Every organization's requests share this session, so a cookie a provider sets on one request must not
-        # be sent with the next.
-        self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
-        # The default keeps pools for up to 32 provider hosts and up to 64 idle connections per host. These are
-        # guesses for one Sentry worker's concurrent clones, not measurements.
-        self.session.mount("https://", adapter or HTTPAdapter(pool_connections=32, pool_maxsize=64, max_retries=0))
 
     def forward(
         self,
@@ -119,8 +113,10 @@ class GitRelay:
         # on, it would go upstream as an empty chunked body.
         data = _request_body(body, _content_length(client_headers), self.chunk_size) if method == "POST" else None
         url = f"{remote.url}/{route}?{query}" if query else f"{remote.url}/{route}"
+        session = self._session()
+        upstream = None
         try:
-            upstream = self.session.request(
+            upstream = session.request(
                 method,
                 url,
                 headers=upstream_headers,
@@ -141,20 +137,29 @@ class GitRelay:
             raise ResourceCertificateInvalid(detail=f"The TLS certificate of {host} could not be verified.") from None
         except requests.ConnectionError:
             raise ResourceServiceUnavailable(detail=f"Could not connect to {remote.url}.") from None
+        finally:
+            # Once a response arrives, _stream closes the session when the response ends.
+            if upstream is None:
+                session.close()
 
         return StreamResponse(
             status_code=upstream.status_code,
             headers={name: value for name, value in upstream.headers.items() if name.lower() in _RESPONSE_HEADERS},
-            content=self._stream(upstream),
+            content=self._stream(session, upstream),
         )
 
-    def close(self) -> None:
-        self.session.close()
+    def _session(self) -> requests.Session:
+        session = requests.Session()
+        # Without this, requests reads proxies, CA files and .netrc credentials from the environment.
+        session.trust_env = False
+        session.verify = self.ca_bundle or True
+        session.mount("https://", self.adapter())
+        return session
 
-    def _stream(self, upstream: requests.Response) -> Iterator[bytes]:
-        # Once the response is read to the end its connection goes back to the pool. Closing it before then,
-        # because the client went away, drops the connection instead, since it is mid-response.
-        with upstream:
+    def _stream(self, session: requests.Session, upstream: requests.Response) -> Iterator[bytes]:
+        # Closing the response first drops its connection if the client went away mid-response; closing the
+        # session then closes a connection the finished response returned to it.
+        with session, upstream:
             yield from filter(bool, upstream.raw.stream(self.chunk_size, decode_content=False))
 
 

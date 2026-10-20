@@ -1,7 +1,6 @@
 import io
 import time
 from collections.abc import Iterator
-from contextlib import closing
 from unittest.mock import MagicMock
 
 import pytest
@@ -257,8 +256,7 @@ class TestRelay:
         recorder = Recorder(
             repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
         )
-        with closing(GitRelay(timeout=(1, 1))) as relay:
-            response = request(make_server(recorder, relay), signed_grant())
+        response = request(make_server(recorder, GitRelay(timeout=(1, 1))), signed_grant())
         assert_refused(response, 503, "Could not connect")
         assert TOKEN not in b"".join(response.content).decode()
 
@@ -297,17 +295,17 @@ class TestRelay:
             recorder = Recorder(
                 repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
             )
-            with closing(GitRelay(ca_bundle=upstream.ca_bundle)) as relay:
-                response = request(
-                    make_server(recorder, relay),
-                    signed_grant(operation="push"),
-                    method="POST",
-                    route="git-receive-pack",
-                    query="",
-                    headers={"Content-Length": "8"},
-                    body=io.BytesIO(b"00000000"),
-                )
-                assert b"".join(response.content) == b"00000000"  # The fake upstream echoes the body.
+            relay = GitRelay(ca_bundle=upstream.ca_bundle)
+            response = request(
+                make_server(recorder, relay),
+                signed_grant(operation="push"),
+                method="POST",
+                route="git-receive-pack",
+                query="",
+                headers={"Content-Length": "8"},
+                body=io.BytesIO(b"00000000"),
+            )
+            assert b"".join(response.content) == b"00000000"  # The fake upstream echoes the body.
         assert recorder.bytes == {
             ("sentry.scm.git.request_bytes", "push"): 8,
             ("sentry.scm.git.response_bytes", "push"): 8,
@@ -318,10 +316,10 @@ class TestRelay:
             recorder = Recorder(
                 repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
             )
-            with closing(GitRelay(ca_bundle=upstream.ca_bundle)) as relay:
-                response = request(make_server(recorder, relay), signed_grant())
-                assert response.status_code == 200
-                b"".join(response.content)
+            relay = GitRelay(ca_bundle=upstream.ca_bundle)
+            response = request(make_server(recorder, relay), signed_grant())
+            assert response.status_code == 200
+            b"".join(response.content)
         [received] = upstream.requests
         assert received.path == "/getsentry/sentry.git/info/refs?service=git-upload-pack"
         assert received.headers["Authorization"] == basic_auth("x-access-token", TOKEN)

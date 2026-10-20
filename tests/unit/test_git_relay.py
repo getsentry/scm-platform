@@ -4,7 +4,6 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
-from contextlib import closing
 
 import pytest
 from requests.adapters import HTTPAdapter
@@ -33,9 +32,7 @@ def upstream():
 
 @pytest.fixture
 def relay():
-    relay = GitRelay(ca_bundle=ca_bundle())
-    yield relay
-    relay.close()
+    return GitRelay(ca_bundle=ca_bundle())
 
 
 def remote_for(upstream) -> GitRemote:
@@ -210,10 +207,8 @@ class TestRequest:
                 return b"first"
 
         headers = {"Content-Length": "100"} if known_length else {}
-        with (
-            closing(GitRelay(ca_bundle=ca_bundle(), timeout=(1, 2))) as relay,
-            pytest.raises(SCMCodedError) as exc_info,
-        ):
+        relay = GitRelay(ca_bundle=ca_bundle(), timeout=(1, 2))
+        with pytest.raises(SCMCodedError) as exc_info:
             upload_pack(relay, upstream, ResettingClient(), headers=headers)
         assert exc_info.value.code == "client_closed_request"
 
@@ -332,13 +327,49 @@ class TestStreaming:
         assert b"".join(received) == b"firstsecond"
 
 
+class ClosingAdapter(HTTPAdapter):
+    """An adapter that records whether it was closed, which closes every connection it opened."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+        super().close()
+
+
 class TestConnections:
-    def test_reuses_the_upstream_connection(self, relay, upstream):
+    def test_opens_a_connection_per_request(self, relay, upstream):
         b"".join(fetch_refs(relay, upstream).content)
         b"".join(upload_pack(relay, upstream, io.BytesIO(b"0000"), headers={"Content-Length": "4"}).content)
         b"".join(upload_pack(relay, upstream, io.BytesIO(b"0000")).content)
         assert len(upstream.requests) == 3
-        assert upstream.connections == 1
+        assert upstream.connections == 3
+
+    def test_closes_the_connection_when_the_response_ends(self, upstream):
+        adapters: list[ClosingAdapter] = []
+
+        def adapter() -> ClosingAdapter:
+            adapters.append(ClosingAdapter())
+            return adapters[-1]
+
+        response = fetch_refs(GitRelay(adapter=adapter, ca_bundle=ca_bundle()), upstream)
+        assert [a.closed for a in adapters] == [False]
+        b"".join(response.content)
+        assert [a.closed for a in adapters] == [True]
+
+    def test_closes_the_connection_when_the_request_fails(self):
+        adapters: list[ClosingAdapter] = []
+
+        def adapter() -> ClosingAdapter:
+            adapters.append(ClosingAdapter())
+            return adapters[-1]
+
+        remote = GitRemote(url="https://127.0.0.1:1/getsentry/sentry.git", username="x-access-token")
+        with pytest.raises(ResourceServiceUnavailable):
+            fetch_refs(GitRelay(adapter=adapter, timeout=(1, 1)), remote=remote)
+        assert [a.closed for a in adapters] == [True]
 
     def test_does_not_carry_cookies_between_requests(self, relay, upstream):
         def handler(h: UpstreamHandler) -> None:
@@ -361,15 +392,9 @@ class TestAdapter:
             def send(self, request, *args, **kwargs):
                 raise HostRefused(request.url)
 
-        with closing(GitRelay(adapter=RefusingAdapter(), ca_bundle=ca_bundle())) as relay, pytest.raises(HostRefused):
-            fetch_refs(relay, upstream)
+        with pytest.raises(HostRefused):
+            fetch_refs(GitRelay(adapter=RefusingAdapter, ca_bundle=ca_bundle()), upstream)
         assert upstream.requests == []
-
-    def test_given_adapter_also_pools_connections(self, upstream):
-        with closing(GitRelay(adapter=HTTPAdapter(max_retries=0), ca_bundle=ca_bundle())) as relay:
-            b"".join(fetch_refs(relay, upstream).content)
-            b"".join(fetch_refs(relay, upstream).content)
-        assert upstream.connections == 1
 
 
 class TestEnvironment:
@@ -383,8 +408,8 @@ class TestEnvironment:
 
     def test_ignores_ca_settings(self, upstream, monkeypatch):
         monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
-        with closing(GitRelay()) as relay, pytest.raises(ResourceCertificateInvalid):
-            fetch_refs(relay, upstream)
+        with pytest.raises(ResourceCertificateInvalid):
+            fetch_refs(GitRelay(), upstream)
 
 
 class TestUpstreamFailures:
@@ -399,11 +424,8 @@ class TestUpstreamFailures:
         assert_token_not_in(exc_info.value)
 
     def test_untrusted_certificate(self, upstream):
-        with (
-            closing(GitRelay()) as relay,
-            pytest.raises(ResourceCertificateInvalid, match="TLS certificate of 127.0.0.1") as exc_info,
-        ):
-            fetch_refs(relay, upstream)
+        with pytest.raises(ResourceCertificateInvalid, match="TLS certificate of 127.0.0.1") as exc_info:
+            fetch_refs(GitRelay(), upstream)
         assert_token_not_in(exc_info.value)
         assert upstream.requests == []
 
@@ -416,11 +438,8 @@ class TestUpstreamFailures:
 
         upstream.handler = handler
         try:
-            with (
-                closing(GitRelay(ca_bundle=ca_bundle(), timeout=(1, 0.1))) as relay,
-                pytest.raises(ResourceGatewayTimeout) as exc_info,
-            ):
-                fetch_refs(relay, upstream)
+            with pytest.raises(ResourceGatewayTimeout) as exc_info:
+                fetch_refs(GitRelay(ca_bundle=ca_bundle(), timeout=(1, 0.1)), upstream)
             assert_token_not_in(exc_info.value)
         finally:
             release.set()
