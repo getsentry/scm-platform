@@ -3,22 +3,7 @@ import pytest
 from scm.errors import GitProviderNotSupported, InvalidWebBaseUrl
 from scm.git.remote import git_remote
 from scm.git.types import GitRemote
-from scm.types import Repository
-
-
-def make_repository(**overrides) -> Repository:
-    defaults: Repository = {
-        "id": 1,
-        "external_id": "123",
-        "integration_id": 1,
-        "is_active": True,
-        "name": "getsentry/sentry",
-        "organization_id": 1,
-        "provider_name": "github",
-        "web_base_url": None,
-        "installation_id": None,
-    }
-    return {**defaults, **overrides}  # type: ignore[typeddict-item]
+from tests.unit.git_builders import make_repository
 
 
 def test_github():

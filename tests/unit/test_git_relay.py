@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
+from contextlib import closing
 
 import pytest
 from requests.adapters import HTTPAdapter
@@ -42,9 +43,10 @@ def remote_for(upstream) -> GitRemote:
     return GitRemote(url=f"{upstream.url}/getsentry/sentry.git", username="x-access-token")
 
 
-def fetch_refs(relay: GitRelay, upstream, headers: dict[str, str] | None = None):
+def fetch_refs(relay: GitRelay, upstream=None, headers: dict[str, str] | None = None, *, remote=None):
+    """Fetch the refs advertisement from the fake upstream, or from ``remote`` when given."""
     return relay.forward(
-        remote_for(upstream),
+        remote or remote_for(upstream),
         TOKEN,
         method="GET",
         route="info/refs",
@@ -133,9 +135,7 @@ class TestRequest:
     def test_refuses_plain_http(self, relay, upstream):
         remote = GitRemote(url=upstream.url.replace("https://", "http://") + "/repo.git", username="x-access-token")
         with pytest.raises(ValueError, match="not https"):
-            relay.forward(
-                remote, TOKEN, method="GET", route="info/refs", query="service=git-upload-pack", headers={}, body=None
-            )
+            fetch_refs(relay, remote=remote)
         assert upstream.requests == []
 
     def test_refuses_routes_that_are_not_git(self, relay, upstream):
@@ -175,7 +175,7 @@ class TestRequest:
             upload_pack(relay, upstream, io.BytesIO(b"00"), headers={"Content-Length": "4"})
         assert exc_info.value.code == "client_closed_request"
 
-    @pytest.mark.parametrize("content_length", ["abc", "-1", "1.5"])
+    @pytest.mark.parametrize("content_length", ["abc", "-1", "1.5", "²", "٣"])
     def test_malformed_content_length(self, relay, upstream, content_length):
         with pytest.raises(SCMCodedError) as exc_info:
             upload_pack(relay, upstream, io.BytesIO(b"0000"), headers={"Content-Length": content_length})
@@ -319,21 +319,14 @@ class TestAdapter:
             def send(self, request, *args, **kwargs):
                 raise HostRefused(request.url)
 
-        relay = GitRelay(adapter=RefusingAdapter())
-        try:
-            with pytest.raises(HostRefused):
-                fetch_refs(relay, upstream)
-        finally:
-            relay.close()
+        with closing(GitRelay(adapter=RefusingAdapter())) as relay, pytest.raises(HostRefused):
+            fetch_refs(relay, upstream)
         assert upstream.requests == []
 
     def test_given_adapter_also_pools_connections(self, upstream):
-        relay = GitRelay(adapter=HTTPAdapter(max_retries=0))
-        try:
+        with closing(GitRelay(adapter=HTTPAdapter(max_retries=0))) as relay:
             b"".join(fetch_refs(relay, upstream).content)
             b"".join(fetch_refs(relay, upstream).content)
-        finally:
-            relay.close()
         assert upstream.connections == 1
 
 
@@ -345,9 +338,7 @@ class TestUpstreamFailures:
         remote = GitRemote(url=f"https://127.0.0.1:{port}/getsentry/sentry.git", username="x-access-token")
 
         with pytest.raises(ResourceServiceUnavailable) as exc_info:
-            relay.forward(
-                remote, TOKEN, method="GET", route="info/refs", query="service=git-upload-pack", headers={}, body=None
-            )
+            fetch_refs(relay, remote=remote)
         assert_token_not_in(exc_info.value)
 
     def test_untrusted_certificate(self, relay, upstream, monkeypatch):
@@ -365,14 +356,12 @@ class TestUpstreamFailures:
             h.respond(200, b"")
 
         upstream.handler = handler
-        relay = GitRelay(timeout=(1, 0.1))
         try:
-            with pytest.raises(ResourceGatewayTimeout) as exc_info:
+            with closing(GitRelay(timeout=(1, 0.1))) as relay, pytest.raises(ResourceGatewayTimeout) as exc_info:
                 fetch_refs(relay, upstream)
             assert_token_not_in(exc_info.value)
         finally:
             release.set()
-            relay.close()
 
 
 def assert_token_not_in(error: Exception) -> None:

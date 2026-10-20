@@ -22,6 +22,14 @@ def route_operation(method: str, route: str, query: str) -> GitOperation | None:
     return _ROUTES.get((method, route, query))
 
 
+def require_route(method: str, route: str, query: str) -> GitOperation:
+    """Return the operation a git smart-HTTP request belongs to, refusing any other request."""
+    operation = route_operation(method, route, query)
+    if operation is None:
+        raise GitRouteNotAllowed(detail=f"{method} {route} is not a git fetch or push route.")
+    return operation
+
+
 def check_request(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
     """Refuse a request the grant does not reach, before anything is sent to the provider.
 
@@ -29,9 +37,7 @@ def check_request(grant: Grant, repository_id: RepositoryId, method: str, route:
     the grant in the same form the request uses: a database id does not match the same repository's
     ``(provider, external id)`` pair.
     """
-    operation = route_operation(method, route, query)
-    if operation is None:
-        raise GitRouteNotAllowed(detail=f"{method} {route} is not a git fetch or push route.")
+    operation = require_route(method, route, query)
     if operation != grant.operation:
         raise GitRouteNotAllowed(detail=f"The git grant allows {grant.operation}, not {operation}.")
     if repository_id not in grant.repositories:

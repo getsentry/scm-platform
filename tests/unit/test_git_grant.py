@@ -8,23 +8,13 @@ import pytest
 from scm.errors import GitInvalidGrant
 from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
 from scm.git.types import Grant
+from tests.unit.git_builders import FAR_FUTURE, make_grant
 
 NOW = 1_800_000_000
 # HS256 secrets of at least 32 bytes, as PyJWT recommends.
 SECRET = "test-secret-0000000000000000000000"
 OLD_SECRET = "test-secret-old-000000000000000000"
 NEW_SECRET = "test-secret-new-000000000000000000"
-
-
-def make_grant(**overrides) -> Grant:
-    fields = {
-        "organization_id": 1,
-        "operation": "fetch",
-        "repositories": (5, ("github", "123")),
-        "expires_at": NOW + 600,
-    }
-    fields.update(overrides)
-    return Grant(**fields)  # type: ignore[arg-type]
 
 
 def key_id(secret: str) -> str:
@@ -65,7 +55,7 @@ class TestRoundTrip:
             "operation": "fetch",
             "repositories": [5, ["github", "123"]],
             "version": 1,
-            "exp": NOW + 600,
+            "exp": FAR_FUTURE,
             "iat": NOW,
             "aud": GRANT_AUDIENCE,
         }

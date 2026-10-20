@@ -20,7 +20,11 @@ class GitServer:
     The order of the checks matters. The grant is verified, and the request's route and repository checked
     against it, before the repository is looked up or a token fetched, so a request the grant does not allow
     never reaches the database, the token supplier or the provider. Build one per process: its relay pools
-    upstream connections. Pass a relay whose adapter refuses internal addresses; see ``GitRelay``.
+    upstream connections. Give it a relay whose adapter refuses internal addresses; see ``GitRelay``.
+
+    Refusals and provider failures come back as plain-text responses. Any other exception, such as an adapter
+    refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer it the
+    way it answers the same error elsewhere.
     """
 
     def __init__(
@@ -29,15 +33,13 @@ class GitServer:
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         get_token: GetToken,
         record_count: Callable[[str, int, dict[str, str]], None],
-        emit_error: Callable[[Exception], None],
-        relay: GitRelay | None = None,
+        relay: GitRelay,
     ) -> None:
         self.secrets = secrets
         self.fetch_repository = fetch_repository
         self.get_token = get_token
         self.record_count = record_count
-        self.emit_error = emit_error
-        self.relay = relay or GitRelay()
+        self.relay = relay
 
     def handle(
         self,
@@ -74,8 +76,6 @@ class GitServer:
                 raise ResourceBadGateway(detail="The provider rejected Sentry's credentials for this repository.")
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
-            if e.code == "unhandled_exception":
-                self.emit_error(e)
             return _error_response(e)
 
         self.record_count(

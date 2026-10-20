@@ -9,13 +9,12 @@ from requests.structures import CaseInsensitiveDict
 
 from scm.errors import (
     ClientClosedRequest,
-    GitRouteNotAllowed,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
     RpcMalformedRequestHeaders,
 )
-from scm.git.operations import route_operation
+from scm.git.operations import require_route
 from scm.git.types import GitRemote, Readable
 from scm.rpc.types import StreamResponse
 
@@ -98,8 +97,7 @@ class GitRelay:
             raise ValueError(f"Refusing to send a token to {remote.url}, which is not https.")
         # Callers check the request against a grant first; this only makes sure the token never goes to anything
         # but a git route.
-        if route_operation(method, route, query) is None:
-            raise GitRouteNotAllowed(detail=f"{method} {route} is not a git fetch or push route.")
+        require_route(method, route, query)
 
         client_headers = CaseInsensitiveDict(headers)
         upstream_headers = CaseInsensitiveDict(
@@ -154,7 +152,8 @@ def _content_length(headers: CaseInsensitiveDict[str]) -> int | None:
     raw = headers.get("Content-Length")
     if raw is None:
         return None
-    if not raw.isdigit():
+    # isdigit alone also accepts digits such as "²", which int() refuses, and "٣", which it reads as 3.
+    if not (raw.isascii() and raw.isdigit()):
         raise RpcMalformedRequestHeaders(detail="Could not parse Content-Length header")
     return int(raw)
 

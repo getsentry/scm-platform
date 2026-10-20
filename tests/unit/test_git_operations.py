@@ -1,14 +1,11 @@
 import pytest
 
 from scm.errors import GitRouteNotAllowed
-from scm.git.operations import check_request, route_operation
-from scm.git.types import Grant
+from scm.git.operations import check_request, require_route, route_operation
+from tests.unit.git_builders import make_grant
 
-
-def make_grant(**overrides) -> Grant:
-    fields = {"organization_id": 1, "operation": "fetch", "repositories": (5,), "expires_at": 0}
-    fields.update(overrides)
-    return Grant(**fields)  # type: ignore[arg-type]
+FETCH_ROUTES = [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-upload-pack", "")]
+PUSH_ROUTES = [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")]
 
 
 class TestRouteOperation:
@@ -46,32 +43,31 @@ class TestRouteOperation:
         assert route_operation(method, route, query) is None
 
 
+class TestRequireRoute:
+    def test_returns_the_operation(self):
+        assert require_route("POST", "git-receive-pack", "") == "push"
+
+    def test_refuses_other_routes(self):
+        with pytest.raises(GitRouteNotAllowed, match="not a git fetch or push route"):
+            require_route("POST", "info/lfs/objects/batch", "")
+
+
 class TestCheckRequest:
-    def test_fetch_grant_reaches_fetch_routes(self):
-        grant = make_grant()
-        assert check_request(grant, 5, "GET", "info/refs", "service=git-upload-pack") == "fetch"
-        assert check_request(grant, 5, "POST", "git-upload-pack", "") == "fetch"
-
-    def test_push_grant_reaches_push_routes(self):
-        grant = make_grant(operation="push")
-        assert check_request(grant, 5, "GET", "info/refs", "service=git-receive-pack") == "push"
-        assert check_request(grant, 5, "POST", "git-receive-pack", "") == "push"
+    @pytest.mark.parametrize(
+        "operation,route",
+        [("fetch", route) for route in FETCH_ROUTES] + [("push", route) for route in PUSH_ROUTES],
+    )
+    def test_grant_reaches_its_operations_routes(self, operation, route):
+        assert check_request(make_grant(operation=operation), 5, *route) == operation
 
     @pytest.mark.parametrize(
-        "method,route,query",
-        [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")],
+        "operation,route",
+        [("fetch", route) for route in PUSH_ROUTES] + [("push", route) for route in FETCH_ROUTES],
     )
-    def test_fetch_grant_cannot_push(self, method, route, query):
-        with pytest.raises(GitRouteNotAllowed, match="allows fetch, not push"):
-            check_request(make_grant(), 5, method, route, query)
-
-    @pytest.mark.parametrize(
-        "method,route,query",
-        [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-upload-pack", "")],
-    )
-    def test_push_grant_cannot_fetch(self, method, route, query):
-        with pytest.raises(GitRouteNotAllowed, match="allows push, not fetch"):
-            check_request(make_grant(operation="push"), 5, method, route, query)
+    def test_grant_cannot_reach_the_other_operations_routes(self, operation, route):
+        other = "push" if operation == "fetch" else "fetch"
+        with pytest.raises(GitRouteNotAllowed, match=f"allows {operation}, not {other}"):
+            check_request(make_grant(operation=operation), 5, *route)
 
     def test_unknown_route(self):
         with pytest.raises(GitRouteNotAllowed, match="not a git fetch or push route"):
