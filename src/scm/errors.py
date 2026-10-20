@@ -5,6 +5,7 @@ type ErrorCode = Literal[
     "git_provider_not_supported",
     "git_remote_not_https",
     "git_route_not_allowed",
+    "git_token_unavailable",
     "malformed_external_id",
     "missing_repository_path",
     "path_is_directory",
@@ -47,6 +48,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "git_provider_not_supported": "The repository's provider has no git remote.",
     "git_remote_not_https": "The repository's git remote is not an https URL.",
     "git_route_not_allowed": "The git grant does not allow this request.",
+    "git_token_unavailable": "No provider token could be obtained for the repository.",
     "malformed_external_id": "The repository's external ID was malformed.",
     "missing_repository_path": "The repository's path on its provider is unknown.",
     "path_is_directory": "The requested path is a directory, not a file.",
@@ -149,6 +151,10 @@ class GitRemoteNotHttps(SCMCodedError):
 
 class GitRouteNotAllowed(SCMCodedError):
     code = "git_route_not_allowed"
+
+
+class GitTokenUnavailable(SCMCodedError):
+    code = "git_token_unavailable"
 
 
 class MalformedExternalId(SCMCodedError):

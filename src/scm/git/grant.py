@@ -21,6 +21,9 @@ GRANT_AUDIENCE = "scm-git-grant"
 _ALGORITHM = "HS256"
 # Claims the JWT layer owns. Every other claim must be a Grant field.
 _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
+# How far in the future a grant's iat may be. Seer signs grants on other hosts than the one verifying them, and a
+# clock running a little ahead should not get its grants refused.
+_CLOCK_SKEW = 60
 
 
 def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
@@ -39,6 +42,7 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     switch to it and the old one removed after their grants expire.
     """
     _check_secrets(secrets)
+    now = time.time() if now is None else now
     if not token:
         raise GitInvalidGrant(detail="The git grant is missing.")
     try:
@@ -55,7 +59,7 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
             secret,
             algorithms=[_ALGORITHM],
             audience=GRANT_AUDIENCE,
-            # Expiry is checked below against an injectable clock, so tests can pin it.
+            # exp and iat are checked below against an injectable clock, so tests can pin it.
             options={"require": sorted(_JWT_CLAIMS), "verify_exp": False, "verify_iat": False},
         )
     except jwt.InvalidSignatureError:
@@ -74,8 +78,13 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
         # gives nothing away.
         raise GitInvalidGrant(detail=f"The git grant's payload is invalid: {e}") from None
 
-    if grant.expires_at <= (time.time() if now is None else now):
+    if grant.expires_at <= now:
         raise GitInvalidGrant(detail="The git grant has expired.")
+    # bool is an int to isinstance, and PyJWT would refuse it as an iat.
+    if not isinstance(claims["iat"], int) or isinstance(claims["iat"], bool):
+        raise GitInvalidGrant(detail="The git grant's iat is not an integer.")
+    if claims["iat"] > now + _CLOCK_SKEW:
+        raise GitInvalidGrant(detail="The git grant was issued in the future.")
     if not grant.repositories:
         raise GitInvalidGrant(detail="The git grant names no repositories.")
     return grant

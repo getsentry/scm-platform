@@ -21,6 +21,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
+from requests.adapters import HTTPAdapter
 from requests.structures import CaseInsensitiveDict
 
 
@@ -123,6 +124,18 @@ class _Server(ThreadingHTTPServer):
         if isinstance(sys.exc_info()[1], ConnectionError):
             return
         super().handle_error(request, client_address)  # type: ignore[arg-type]
+
+
+class ClosingAdapter(HTTPAdapter):
+    """An adapter that records whether it was closed, which closes every connection it opened."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+        super().close()
 
 
 def echo(handler: UpstreamHandler) -> None:

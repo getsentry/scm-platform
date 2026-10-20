@@ -6,14 +6,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from scm.errors import RateLimitExceeded
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay
-from scm.git.server import GitServer
+from scm.git.server import _STATUS, GitServer
 from scm.git.types import GRANT_HEADER, GitOperation, Readable
 from scm.rpc.types import StreamResponse
 from scm.types import GitRemote, Provider, Repository, RepositoryId
 from tests.unit.git_builders import make_grant, make_provider, make_repository
-from tests.unit.git_upstream import basic_auth, running_upstream
+from tests.unit.git_upstream import ClosingAdapter, basic_auth, running_upstream
 
 SECRET = "test-secret-0000000000000000000000"
 TOKEN = "ghs_secrettoken"
@@ -183,7 +184,7 @@ class TestRepository:
         recorder.fetch_provider = lambda organization_id, repository: SimpleNamespace(  # type: ignore[method-assign]
             organization_id=organization_id, repository=repository
         )
-        assert_refused(request(make_server(recorder), signed_grant()), 400, "github provider has no git remote")
+        assert_refused(request(make_server(recorder), signed_grant()), 404, "github provider has no git remote")
         assert recorder.token_lookups == []
 
     def test_remote_comes_from_the_provider(self):
@@ -201,7 +202,7 @@ class TestRepository:
             (make_repository(organization_id=2), 404, "did not belong"),
             (make_repository(is_active=False), 404, "inactive"),
             (make_repository(provider_name="bitbucket"), 404, "unsupported integration provider"),
-            (make_repository(provider_name="gitlab", external_id="gitlab.com:7"), 400, "has no path"),
+            (make_repository(provider_name="gitlab", external_id="gitlab.com:7"), 500, "has no path"),
         ],
     )
     def test_refused_before_the_token(self, repository, status, detail):
@@ -213,7 +214,10 @@ class TestRepository:
 
 class TestRelay:
     def test_no_token(self):
-        assert_refused(request(make_server(Recorder(token=None)), signed_grant()), 404, "No git credentials")
+        recorder = Recorder(token=None)
+        response = request(make_server(recorder), signed_grant())
+        assert_refused(response, 502, "could not get a github token")
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_unavailable"})]
 
     def test_token_asked_for_the_grants_operation(self):
         recorder = Recorder()
@@ -260,7 +264,12 @@ class TestRelay:
         assert next(content) == b"half a pack"
         with pytest.raises(ConnectionError):
             next(content)
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "stream_interrupted"})]
+        assert recorder.counts == [
+            (
+                "sentry.scm.git.request.failed",
+                {"operation": "fetch", "provider": "github", "code": "stream_interrupted"},
+            )
+        ]
         assert recorder.bytes == {("sentry.scm.git.response_bytes", "fetch"): 11}
 
     def test_client_leaving_early_is_a_failure_and_closes_the_provider_stream(self):
@@ -278,7 +287,12 @@ class TestRelay:
         assert next(content) == b"first"
         content.close()  # type: ignore[attr-defined]
         assert closed == [True]
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "client_closed_request"})]
+        assert recorder.counts == [
+            (
+                "sentry.scm.git.request.failed",
+                {"operation": "fetch", "provider": "github", "code": "client_closed_request"},
+            )
+        ]
 
     def test_upstream_unavailable(self):
         recorder = Recorder(
@@ -294,26 +308,37 @@ class TestRelay:
             repository=make_repository(provider_name="github_enterprise", web_base_url="http://127.0.0.1:1")
         )
         response = request(make_server(recorder, GitRelay()), signed_grant())
-        assert_refused(response, 400, "not https")
+        assert_refused(response, 502, "not https")
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_remote_not_https"})]
 
     def test_provider_rejecting_the_token_is_a_gateway_error(self):
         # Passed on, a 401 would make git ask the sandboxed client for credentials.
-        closed = []
+        adapters: list[ClosingAdapter] = []
 
-        def provider_body():
-            try:
-                yield b"Bad credentials"
-            finally:
-                closed.append(True)
+        def adapter() -> ClosingAdapter:
+            adapters.append(ClosingAdapter())
+            return adapters[-1]
 
-        content = provider_body()
-        next(content)  # Started, as a relay's stream is once its first chunk is read.
-        recorder = Recorder()
-        response = request(make_server(recorder, relay_returning(content, status_code=401)), signed_grant())
+        with running_upstream() as upstream:
+            upstream.handler = lambda h: h.respond(401, b"Bad credentials")
+            recorder = Recorder(
+                repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
+            )
+            relay = GitRelay(adapter=adapter, ca_bundle=upstream.ca_bundle)
+            response = request(make_server(recorder, relay), signed_grant())
         assert_refused(response, 502, "rejected Sentry's credentials")
-        assert closed == [True]
+        # The provider's unread response is closed with its connection.
+        assert [a.closed for a in adapters] == [True]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "resource_bad_gateway"})]
+
+    def test_unexpected_error_code_is_a_server_error(self):
+        relay = MagicMock(spec=GitRelay)
+        relay.forward.side_effect = RateLimitExceeded()
+        assert_refused(request(make_server(Recorder(), relay), signed_grant()), 500, "")
+
+    def test_no_refusal_is_a_401(self):
+        # On a 401 git asks the sandboxed client for credentials.
+        assert 401 not in _STATUS.values()
 
     def test_other_errors_reach_the_caller(self):
         # Sentry's view answers these the way it answers them elsewhere, e.g. a refused host as ApiHostError.

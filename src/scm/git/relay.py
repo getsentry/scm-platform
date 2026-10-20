@@ -9,6 +9,7 @@ from requests.structures import CaseInsensitiveDict
 from scm.errors import (
     ClientClosedRequest,
     GitRemoteNotHttps,
+    ResourceBadGateway,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
@@ -59,8 +60,9 @@ class GitRelay:
     ``adapter`` builds the adapter that sends each upstream request. Pass one that refuses internal addresses: a
     GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay connects
     wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients, and the class itself can be
-    passed. Errors the adapter raises for a refused host reach the caller unchanged. The adapter must not retry,
-    because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
+    passed. An error the adapter raises for a refused host reaches the caller unchanged, unless it is a requests
+    exception, which the relay replaces like any other so that it cannot carry the token. The adapter must not
+    retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
     ``HTTPAdapter``, which checks nothing.
 
     The relay takes no settings from the environment. Through a proxy from ``HTTPS_PROXY``, the adapter would
@@ -139,6 +141,9 @@ class GitRelay:
             raise ResourceCertificateInvalid(detail=f"The TLS certificate of {host} could not be verified.") from None
         except requests.ConnectionError:
             raise ResourceServiceUnavailable(detail=f"Could not connect to {remote['url']}.") from None
+        except requests.RequestException:
+            # Any other failure of the request, e.g. a malformed response. Like those above, it holds the request.
+            raise ResourceBadGateway(detail=f"The request to {remote['url']} failed.") from None
         finally:
             # Once a response arrives, _stream closes the session when the response ends.
             if upstream is None:
@@ -147,22 +152,59 @@ class GitRelay:
         return StreamResponse(
             status_code=upstream.status_code,
             headers={name: value for name, value in upstream.headers.items() if name.lower() in _RESPONSE_HEADERS},
-            content=self._stream(session, upstream),
+            content=_UpstreamStream(session, upstream, self.chunk_size),
         )
 
     def _session(self) -> requests.Session:
-        session = requests.Session()
+        session = _NoRedirectSession()
         # Without this, requests reads proxies, CA files and .netrc credentials from the environment.
         session.trust_env = False
         session.verify = self.ca_bundle or True
         session.mount("https://", self.adapter())
         return session
 
-    def _stream(self, session: requests.Session, upstream: requests.Response) -> Iterator[bytes]:
-        # Closing the response first drops its connection if the client went away mid-response; closing the
-        # session then closes a connection the finished response returned to it.
-        with session, upstream:
-            yield from filter(bool, upstream.raw.stream(self.chunk_size, decode_content=False))
+
+class _NoRedirectSession(requests.Session):
+    """A session that never looks for a redirect.
+
+    Even with redirects off, requests prepares the next request of a redirect response for ``Response.next``, and
+    reads the whole response body into memory first, however large the provider makes it.
+    """
+
+    def get_redirect_target(self, resp: requests.Response) -> None:
+        return None
+
+
+class _UpstreamStream:
+    """The provider's response body, which closes the response and its session when it ends or is closed.
+
+    A generator holding them in a ``with`` would not do: closing a generator that never started does not run its
+    body, so a response nobody read, such as a 401 that GitServer replaces, would keep its connection open.
+    """
+
+    def __init__(self, session: requests.Session, upstream: requests.Response, chunk_size: int) -> None:
+        self.session = session
+        self.upstream = upstream
+        self.chunks = upstream.raw.stream(chunk_size, decode_content=False)
+
+    def __iter__(self) -> "_UpstreamStream":
+        return self
+
+    def __next__(self) -> bytes:
+        try:
+            while not (chunk := next(self.chunks)):
+                pass
+        except BaseException:
+            # The end of the body, or the provider's stream breaking.
+            self.close()
+            raise
+        return chunk
+
+    def close(self) -> None:
+        # Closing the response first drops its connection if the body was not read to the end; closing the session
+        # then closes a connection the finished response returned to it.
+        self.upstream.close()
+        self.session.close()
 
 
 def _content_length(headers: CaseInsensitiveDict[str]) -> int | None:

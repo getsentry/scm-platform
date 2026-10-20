@@ -4,8 +4,6 @@ from scm.errors import ErrorCode, SCMCodedError
 from scm.rpc.types import Error, ErrorResponse
 
 SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
-    "git_invalid_grant": 403,
-    "git_route_not_allowed": 403,
     "provider_not_found": 404,
     "rate_limit_exceeded": 429,
     "repository_inactive": 404,
@@ -22,7 +20,6 @@ SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
     "resource_unprocessable_content": 422,
     "resource_server_error": 500,
     "resource_bad_gateway": 502,
-    "resource_certificate_invalid": 502,
     "resource_service_unavailable": 503,
     "resource_gateway_timeout": 504,
     "unexpected_response_format": 500,

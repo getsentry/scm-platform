@@ -6,11 +6,13 @@ import time
 from collections.abc import Iterator
 
 import pytest
+import requests
 from requests.adapters import HTTPAdapter
 
 from scm.errors import (
     GitRemoteNotHttps,
     GitRouteNotAllowed,
+    ResourceBadGateway,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
@@ -18,7 +20,7 @@ from scm.errors import (
 )
 from scm.git.relay import GitRelay
 from scm.types import GitRemote
-from tests.unit.git_upstream import UpstreamHandler, basic_auth, ca_bundle, running_upstream
+from tests.unit.git_upstream import ClosingAdapter, UpstreamHandler, basic_auth, ca_bundle, running_upstream
 
 TOKEN = "ghs_secrettoken"
 # Long enough that a relay that buffers fails the test instead of hanging it.
@@ -273,6 +275,15 @@ class TestResponse:
         b"".join(response.content)
         assert len(upstream.requests) == 1
 
+    def test_redirect_body_streams(self, relay, upstream):
+        # requests reads a redirect's whole body into memory to prepare the next request, even when it will not
+        # follow it.
+        body = b"x" * 1024 * 1024
+        upstream.handler = lambda h: h.respond(302, body, {"Location": "https://elsewhere.example.com/"})
+        response = fetch_refs(relay, upstream)
+        assert response.content.upstream._content is False  # type: ignore[attr-defined]
+        assert b"".join(response.content) == body
+
 
 class TestStreaming:
     def test_response_streams_before_the_upstream_finishes(self, relay, upstream):
@@ -328,18 +339,6 @@ class TestStreaming:
         assert b"".join(received) == b"firstsecond"
 
 
-class ClosingAdapter(HTTPAdapter):
-    """An adapter that records whether it was closed, which closes every connection it opened."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.closed = False
-
-    def close(self) -> None:
-        self.closed = True
-        super().close()
-
-
 class TestConnections:
     def test_opens_a_connection_per_request(self, relay, upstream):
         b"".join(fetch_refs(relay, upstream).content)
@@ -358,6 +357,19 @@ class TestConnections:
         response = fetch_refs(GitRelay(adapter=adapter, ca_bundle=ca_bundle()), upstream)
         assert [a.closed for a in adapters] == [False]
         b"".join(response.content)
+        assert [a.closed for a in adapters] == [True]
+
+    def test_closes_the_connection_when_an_unread_response_is_closed(self, upstream):
+        # As GitServer does with a 401 it replaces.
+        adapters: list[ClosingAdapter] = []
+
+        def adapter() -> ClosingAdapter:
+            adapters.append(ClosingAdapter())
+            return adapters[-1]
+
+        upstream.handler = lambda h: h.respond(401, b"Bad credentials")
+        response = fetch_refs(GitRelay(adapter=adapter, ca_bundle=ca_bundle()), upstream)
+        response.content.close()  # type: ignore[attr-defined]
         assert [a.closed for a in adapters] == [True]
 
     def test_closes_the_connection_when_the_request_fails(self):
@@ -444,6 +456,15 @@ class TestUpstreamFailures:
             assert_token_not_in(exc_info.value)
         finally:
             release.set()
+
+    def test_other_request_failures(self, upstream):
+        class FailingAdapter(HTTPAdapter):
+            def send(self, request, *args, **kwargs):
+                raise requests.exceptions.InvalidHeader("bad header", request=request)
+
+        with pytest.raises(ResourceBadGateway, match="failed") as exc_info:
+            fetch_refs(GitRelay(adapter=FailingAdapter, ca_bundle=ca_bundle()), upstream)
+        assert_token_not_in(exc_info.value)
 
 
 def assert_token_not_in(error: Exception) -> None:

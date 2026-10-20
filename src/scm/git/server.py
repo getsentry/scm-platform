@@ -2,15 +2,41 @@ from collections.abc import Callable, Iterator, Mapping
 
 from requests.structures import CaseInsensitiveDict
 
-from scm.errors import GitProviderNotSupported, ProviderNotFound, ResourceBadGateway, SCMCodedError
+from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenUnavailable, ResourceBadGateway, SCMCodedError
 from scm.git.grant import verify_grant
 from scm.git.operations import check_request
 from scm.git.relay import GitRelay
 from scm.git.types import GRANT_HEADER, GetToken, Readable
 from scm.helpers import initialize_provider
-from scm.rpc.errors import SPECIAL_STATUS_MAP
 from scm.rpc.types import StreamResponse
 from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
+
+# The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
+# which a sandboxed client must never have and which would not help.
+_STATUS: dict[ErrorCode, int] = {
+    # The client's own request is malformed.
+    "rpc_malformed_request_headers": 400,
+    # The grant does not allow the request.
+    "git_invalid_grant": 403,
+    "git_route_not_allowed": 403,
+    # The grant allows it, but there is no repository to serve.
+    "repository_not_found": 404,
+    "repository_inactive": 404,
+    "repository_organization_mismatch": 404,
+    "provider_not_found": 404,
+    "git_provider_not_supported": 404,
+    "client_closed_request": 499,
+    # Sentry's record of the repository is incomplete.
+    "malformed_external_id": 500,
+    "missing_repository_path": 500,
+    # The provider cannot be reached safely, or failed.
+    "git_remote_not_https": 502,
+    "git_token_unavailable": 502,
+    "resource_bad_gateway": 502,
+    "resource_certificate_invalid": 502,
+    "resource_service_unavailable": 503,
+    "resource_gateway_timeout": 504,
+}
 
 
 class GitServer:
@@ -83,7 +109,9 @@ class GitServer:
             remote = provider.get_git_remote()
             token = self.get_token(repository, operation)
             if token is None:
-                raise ProviderNotFound(detail="No git credentials are available for this repository.")
+                raise GitTokenUnavailable(
+                    detail=f"Sentry could not get a {repository['provider_name']} token for this repository."
+                )
             response = self.relay.forward(
                 remote, token, method=method, route=route, query=query, headers=headers, body=counted_body
             )
@@ -105,7 +133,7 @@ class GitServer:
             if failure is None:
                 self.record_count("sentry.scm.git.request.succeeded", 1, tags | {"status": str(response.status_code)})
             else:
-                self.record_count("sentry.scm.git.request.failed", 1, {"code": failure})
+                self.record_count("sentry.scm.git.request.failed", 1, tags | {"code": failure})
             if counted_body is not None and counted_body.bytes_read:
                 self.record_count("sentry.scm.git.request_bytes", counted_body.bytes_read, tags)
             if response_bytes:
@@ -174,10 +202,8 @@ def _close_stream(content: Iterator[bytes]) -> None:
 
 
 def _error_response(error: SCMCodedError) -> StreamResponse:
-    # On a 401 git asks the user for credentials, which a sandboxed client must never have, so refuse with a 403.
-    status = SPECIAL_STATUS_MAP.get(error.code, 400)
-    if status == 401:
-        status = 403
+    # A code missing from the map comes from a failure nobody planned for, which is the server's fault.
+    status = _STATUS.get(error.code, 500)
     # When its first request fails, git shows a text/plain body to the user as "remote: <line>".
     content = f"{error.detail}\n".encode()
     return StreamResponse(

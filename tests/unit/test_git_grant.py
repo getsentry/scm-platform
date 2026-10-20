@@ -63,14 +63,25 @@ class TestRoundTrip:
 
 class TestExpiry:
     def test_expired(self):
-        assert_invalid(sign_grant(SECRET, make_grant(expires_at=NOW - 1)), "expired")
+        assert_invalid(sign_grant(SECRET, make_grant(expires_at=NOW - 1), now=NOW), "expired")
 
     def test_expires_at_its_expiry_time(self):
-        assert_invalid(sign_grant(SECRET, make_grant(expires_at=NOW)), "expired")
+        assert_invalid(sign_grant(SECRET, make_grant(expires_at=NOW), now=NOW), "expired")
 
     def test_valid_until_its_expiry_time(self):
-        token = sign_grant(SECRET, make_grant(expires_at=NOW + 1))
+        token = sign_grant(SECRET, make_grant(expires_at=NOW + 1), now=NOW)
         assert verify_grant([SECRET], token, now=NOW).expires_at == NOW + 1
+
+    def test_issued_in_the_future(self):
+        assert_invalid(sign_grant(SECRET, make_grant(), now=NOW + 61), "issued in the future")
+
+    def test_issued_slightly_in_the_future(self):
+        # The signer's clock may run a little ahead of the verifier's.
+        assert verify_grant([SECRET], sign_grant(SECRET, make_grant(), now=NOW + 60), now=NOW) == make_grant()
+
+    @pytest.mark.parametrize("iat", [float(NOW), str(NOW), True])
+    def test_iat_must_be_an_integer(self, iat):
+        assert_invalid(sign_claims(claims_of(make_grant()) | {"iat": iat}), "iat is not an integer")
 
     @pytest.mark.parametrize("claim", ["exp", "iat", "aud"])
     def test_jwt_claims_are_required(self, claim):
@@ -81,19 +92,21 @@ class TestExpiry:
 
 class TestTampering:
     def test_changed_payload(self):
-        header, _, signature = sign_grant(SECRET, make_grant()).split(".")
+        header, _, signature = sign_grant(SECRET, make_grant(), now=NOW).split(".")
         forged = base64.urlsafe_b64encode(msgspec.json.encode(claims_of(make_grant(organization_id=2))))
         assert_invalid(f"{header}.{forged.rstrip(b'=').decode()}.{signature}", "signature does not match")
 
     def test_changed_signature(self):
-        header, payload, signature = sign_grant(SECRET, make_grant()).split(".")
+        header, payload, signature = sign_grant(SECRET, make_grant(), now=NOW).split(".")
         flipped = bytearray(base64.urlsafe_b64decode(signature + "="))
         flipped[0] ^= 1
         resigned = base64.urlsafe_b64encode(bytes(flipped)).rstrip(b"=").decode()
         assert_invalid(f"{header}.{payload}.{resigned}", "signature does not match")
 
     def test_unknown_secret(self):
-        assert_invalid(sign_grant("other-secret-0000000000000000000000", make_grant()), "not signed with a known")
+        assert_invalid(
+            sign_grant("other-secret-0000000000000000000000", make_grant(), now=NOW), "not signed with a known"
+        )
 
     def test_other_secret_claiming_a_known_key_id(self):
         token = sign_claims(claims_of(make_grant()), secret="other-secret-0000000000000000000000", kid=key_id(SECRET))
@@ -101,7 +114,7 @@ class TestTampering:
 
     def test_no_secrets(self):
         with pytest.raises(GitInvalidGrant):
-            verify_grant([], sign_grant(SECRET, make_grant()), now=NOW)
+            verify_grant([], sign_grant(SECRET, make_grant(), now=NOW), now=NOW)
 
     def test_token_without_an_audience(self):
         # A viewer context, for one, is an HS256 JWT signed with a shared secret and carries no audience.
@@ -125,7 +138,7 @@ class TestSecrets:
     # PyJWT signs with an empty key, so an empty secret would let anyone sign grants.
     def test_refuses_to_sign_with_an_empty_secret(self):
         with pytest.raises(ValueError, match="empty"):
-            sign_grant("", make_grant())
+            sign_grant("", make_grant(), now=NOW)
 
     @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
     def test_refuses_to_verify_with_an_empty_secret(self):
@@ -137,10 +150,12 @@ class TestSecrets:
 class TestRotatedSecrets:
     @pytest.mark.parametrize("signer", [OLD_SECRET, NEW_SECRET])
     def test_both_secrets_verify_during_rotation(self, signer):
-        assert verify_grant([NEW_SECRET, OLD_SECRET], sign_grant(signer, make_grant()), now=NOW) == make_grant()
+        assert (
+            verify_grant([NEW_SECRET, OLD_SECRET], sign_grant(signer, make_grant(), now=NOW), now=NOW) == make_grant()
+        )
 
     def test_old_secret_refused_after_rotation(self):
-        assert_invalid(sign_grant(OLD_SECRET, make_grant()), "not signed with a known", secrets=[NEW_SECRET])
+        assert_invalid(sign_grant(OLD_SECRET, make_grant(), now=NOW), "not signed with a known", secrets=[NEW_SECRET])
 
 
 class TestMalformed:
@@ -168,4 +183,4 @@ class TestMalformed:
         assert_invalid(sign_claims(claims_of(make_grant()) | change), "payload is invalid")
 
     def test_no_repositories(self):
-        assert_invalid(sign_grant(SECRET, make_grant(repositories=())), "names no repositories")
+        assert_invalid(sign_grant(SECRET, make_grant(repositories=()), now=NOW), "names no repositories")
