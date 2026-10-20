@@ -965,6 +965,11 @@ LOCAL_ACTION_TEST_CASES: list[tuple[str, Callable, Any]] = [
         lambda scm: actions.get_pull_request_url(scm, "42"),
         "https://github.com/org/repo/pull/42",
     ),
+    (
+        "get_git_remote",
+        lambda scm: actions.get_git_remote(scm),
+        {"url": "https://github.com/org/repo.git", "username": "x-access-token"},
+    ),
 ]
 
 

@@ -8,10 +8,10 @@ import pytest
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
-from scm.git.types import GRANT_HEADER, GitOperation, GitRemote, Readable
+from scm.git.types import GRANT_HEADER, GitOperation, Readable
 from scm.rpc.types import StreamResponse
-from scm.types import Repository, RepositoryId
-from tests.unit.git_builders import make_grant, make_repository
+from scm.types import GitRemote, Provider, Repository, RepositoryId
+from tests.unit.git_builders import make_grant, make_provider, make_repository
 from tests.unit.git_upstream import basic_auth, running_upstream
 
 SECRET = "test-secret-0000000000000000000000"
@@ -27,6 +27,7 @@ class Recorder:
         self.repository = make_repository() if repository is None else repository
         self.token = token
         self.repository_lookups: list[tuple[int, RepositoryId]] = []
+        self.provider_lookups: list[tuple[int, Repository]] = []
         self.token_lookups: list[tuple[Repository, GitOperation]] = []
         self.counts: list[tuple[str, dict[str, str]]] = []
         self.bytes: dict[tuple[str, str], int] = {}
@@ -34,6 +35,10 @@ class Recorder:
     def fetch_repository(self, organization_id: int, repository_id: RepositoryId) -> Repository | None:
         self.repository_lookups.append((organization_id, repository_id))
         return self.repository
+
+    def fetch_provider(self, organization_id: int, repository: Repository) -> Provider | None:
+        self.provider_lookups.append((organization_id, repository))
+        return make_provider(organization_id, repository)
 
     def get_token(self, repository: Repository, operation: GitOperation) -> str | None:
         self.token_lookups.append((repository, operation))
@@ -60,6 +65,7 @@ def make_server(recorder: Recorder, relay: GitRelay | None = None) -> GitServer:
     return GitServer(
         secrets=[SECRET],
         fetch_repository=recorder.fetch_repository,
+        fetch_provider=recorder.fetch_provider,
         get_token=recorder.get_token,
         record_count=recorder.record_count,
         relay=relay,
@@ -107,6 +113,7 @@ def test_requires_a_relay():
         GitServer(  # type: ignore[call-arg]
             secrets=[SECRET],
             fetch_repository=lambda organization_id, repository_id: None,
+            fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
             record_count=lambda name, value, tags: None,
         )
@@ -118,6 +125,7 @@ def test_requires_non_empty_secrets(secrets):
         GitServer(
             secrets=secrets,
             fetch_repository=lambda organization_id, repository_id: None,
+            fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
             record_count=lambda name, value, tags: None,
             relay=MagicMock(spec=GitRelay),
@@ -141,6 +149,7 @@ class TestRefusedBeforeTheProvider:
         server = make_server(recorder)
         assert_refused(request(server, grant), 403, detail)
         assert recorder.repository_lookups == []
+        assert recorder.provider_lookups == []
         assert recorder.token_lookups == []
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_invalid_grant"})]
@@ -166,6 +175,15 @@ class TestRepository:
         recorder = Recorder()
         request(make_server(recorder), signed_grant(organization_id=1))
         assert recorder.repository_lookups == [(1, 5)]
+        assert recorder.provider_lookups == [(1, make_repository())]
+
+    def test_remote_comes_from_the_provider(self):
+        repository = make_repository(provider_name="gitlab", external_id="gitlab.example.com:7", path="group/project")
+        recorder = Recorder(repository=repository)
+        server = make_server(recorder)
+        request(server, signed_grant())
+        remote = server.relay.forward.call_args.args[0]  # type: ignore[attr-defined]
+        assert remote == GitRemote(url="https://gitlab.example.com/group/project.git", username="oauth2")
 
     @pytest.mark.parametrize(
         "repository,status,detail",
@@ -173,7 +191,9 @@ class TestRepository:
             (None, 404, "could not be found"),
             (make_repository(organization_id=2), 404, "did not belong"),
             (make_repository(is_active=False), 404, "inactive"),
-            (make_repository(provider_name="bitbucket"), 400, "no git remote"),
+            (make_repository(provider_name="bitbucket"), 404, "unsupported integration provider"),
+            (make_repository(provider_name="cursor_origin"), 400, "cursor_origin provider has no git remote"),
+            (make_repository(provider_name="gitlab", external_id="gitlab.com:7"), 400, "has no path"),
         ],
     )
     def test_refused_before_the_token(self, repository, status, detail):
@@ -259,6 +279,15 @@ class TestRelay:
         response = request(make_server(recorder, GitRelay(timeout=(1, 1))), signed_grant())
         assert_refused(response, 503, "Could not connect")
         assert TOKEN not in b"".join(response.content).decode()
+
+    def test_plain_http_remote(self):
+        # A self-managed instance served over http; the token must not cross the network in the clear.
+        recorder = Recorder(
+            repository=make_repository(provider_name="github_enterprise", web_base_url="http://127.0.0.1:1")
+        )
+        response = request(make_server(recorder, GitRelay()), signed_grant())
+        assert_refused(response, 400, "not https")
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_remote_not_https"})]
 
     def test_provider_rejecting_the_token_is_a_gateway_error(self):
         # Passed on, a 401 would make git ask the sandboxed client for credentials.

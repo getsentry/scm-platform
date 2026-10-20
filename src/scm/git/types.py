@@ -1,4 +1,3 @@
-import dataclasses
 from collections.abc import Callable
 from typing import Literal, Protocol
 
@@ -35,16 +34,6 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
     """Unix time in seconds. Every grant expires."""
     version: Literal[1] = GRANT_VERSION
     """The format version. A verifier refuses a version it does not know."""
-
-
-@dataclasses.dataclass(frozen=True)
-class GitRemote:
-    """Where a repository's git smart-HTTP endpoint lives and how a token authenticates against it."""
-
-    url: str
-    """The repository's clone URL, e.g. ``https://github.com/getsentry/sentry.git``."""
-    username: str
-    """The basic-auth username the provider pairs with a token, e.g. ``x-access-token`` on GitHub."""
 
 
 type GetToken = Callable[[Repository, GitOperation], str | None]

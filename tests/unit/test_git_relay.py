@@ -9,6 +9,7 @@ import pytest
 from requests.adapters import HTTPAdapter
 
 from scm.errors import (
+    GitRemoteNotHttps,
     GitRouteNotAllowed,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
@@ -16,7 +17,7 @@ from scm.errors import (
     SCMCodedError,
 )
 from scm.git.relay import GitRelay
-from scm.git.types import GitRemote
+from scm.types import GitRemote
 from tests.unit.git_upstream import UpstreamHandler, basic_auth, ca_bundle, running_upstream
 
 TOKEN = "ghs_secrettoken"
@@ -130,7 +131,7 @@ class TestRequest:
 
     def test_refuses_plain_http(self, relay, upstream):
         remote = GitRemote(url=upstream.url.replace("https://", "http://") + "/repo.git", username="x-access-token")
-        with pytest.raises(ValueError, match="not https"):
+        with pytest.raises(GitRemoteNotHttps, match="not https"):
             fetch_refs(relay, remote=remote)
         assert upstream.requests == []
 

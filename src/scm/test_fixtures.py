@@ -28,6 +28,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRemote,
     GitTree,
     InputTreeEntry,
     Issue,
@@ -1189,6 +1190,9 @@ class BaseTestProvider(Provider):
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"https://github.com/test-org/test-repo/pull/{pull_request_id}"
+
+    def get_git_remote(self) -> GitRemote:
+        return GitRemote(url="https://github.com/test-org/test-repo.git", username="x-access-token")
 
     # Git blob operations
 

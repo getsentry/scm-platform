@@ -3,8 +3,8 @@ from typing import ClassVar, Literal
 type ErrorCode = Literal[
     "git_invalid_grant",
     "git_provider_not_supported",
+    "git_remote_not_https",
     "git_route_not_allowed",
-    "invalid_web_base_url",
     "malformed_external_id",
     "missing_repository_path",
     "path_is_directory",
@@ -45,8 +45,8 @@ type ErrorCode = Literal[
 ERROR_CODES: dict[ErrorCode, str] = {
     "git_invalid_grant": "The git grant was missing, malformed, forged or expired.",
     "git_provider_not_supported": "The repository's provider has no git remote.",
+    "git_remote_not_https": "The repository's git remote is not an https URL.",
     "git_route_not_allowed": "The git grant does not allow this request.",
-    "invalid_web_base_url": "The repository's web_base_url is missing or is not an https URL.",
     "malformed_external_id": "The repository's external ID was malformed.",
     "missing_repository_path": "The repository's path on its provider is unknown.",
     "path_is_directory": "The requested path is a directory, not a file.",
@@ -143,12 +143,12 @@ class GitProviderNotSupported(SCMCodedError):
     code = "git_provider_not_supported"
 
 
+class GitRemoteNotHttps(SCMCodedError):
+    code = "git_remote_not_https"
+
+
 class GitRouteNotAllowed(SCMCodedError):
     code = "git_route_not_allowed"
-
-
-class InvalidWebBaseUrl(SCMCodedError):
-    code = "invalid_web_base_url"
 
 
 class MalformedExternalId(SCMCodedError):

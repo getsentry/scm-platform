@@ -54,6 +54,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRemote,
     GitRepository,
     GitTree,
     InputTreeEntry,
@@ -437,12 +438,14 @@ class GitHubProvider:
         client: ApiClient,
         organization_id: int,
         repository: Repository,
-        web_base_url: str = GITHUB_WEB_BASE_URL,
+        web_base_url: str | None = None,
     ) -> None:
         self.client = client
         self.organization_id = organization_id
         self.repository = repository
-        self._web_base_url = web_base_url
+        # A GitHub Enterprise repository carries its instance's URL. Falling back to it keeps a caller that builds
+        # the provider without one from pointing web links, and the git remote a token is sent to, at github.com.
+        self._web_base_url = web_base_url or repository["web_base_url"] or GITHUB_WEB_BASE_URL
 
     def request(
         self,
@@ -1030,6 +1033,9 @@ class GitHubProvider:
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self._web_base_url}/{self.repository['name']}/pull/{pull_request_id}"
+
+    def get_git_remote(self) -> GitRemote:
+        return GitRemote(url=f"{self._web_base_url}/{self.repository['name']}.git", username="x-access-token")
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
         response = self.post(

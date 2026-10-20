@@ -8,14 +8,16 @@ from requests.structures import CaseInsensitiveDict
 
 from scm.errors import (
     ClientClosedRequest,
+    GitRemoteNotHttps,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
     RpcMalformedRequestHeaders,
 )
 from scm.git.operations import require_route
-from scm.git.types import GitRemote, Readable
+from scm.git.types import Readable
 from scm.rpc.types import StreamResponse
+from scm.types import GitRemote
 
 # The most bytes the relay reads at once, from the client's body or from the provider's response, so also the
 # most it holds per request in each direction. Smaller chunks cost more Python per byte of a multi-gigabyte pack;
@@ -94,9 +96,9 @@ class GitRelay:
 
         ``route`` is the path below ``<repo>.git/``. Check the request against a grant before calling this.
         """
-        if not remote.url.startswith("https://"):
-            # git_remote only builds https URLs, so this is a caller's bug rather than a request to refuse.
-            raise ValueError(f"Refusing to send a token to {remote.url}, which is not https.")
+        if not remote["url"].startswith("https://"):
+            # The token would cross the network in the clear, e.g. to a self-managed instance served over http.
+            raise GitRemoteNotHttps(detail=f"Refusing to send a token to {remote['url']}, which is not https.")
         # Callers check the request against a grant first; this only makes sure the token never goes to anything
         # but a git route.
         require_route(method, route, query)
@@ -112,7 +114,7 @@ class GitRelay:
         # Of the git routes only the POSTs carry a body. A caller may pass its request stream for a GET too, and sent
         # on, it would go upstream as an empty chunked body.
         data = _request_body(body, _content_length(client_headers), self.chunk_size) if method == "POST" else None
-        url = f"{remote.url}/{route}?{query}" if query else f"{remote.url}/{route}"
+        url = f"{remote['url']}/{route}?{query}" if query else f"{remote['url']}/{route}"
         session = self._session()
         upstream = None
         try:
@@ -121,7 +123,7 @@ class GitRelay:
                 url,
                 headers=upstream_headers,
                 data=data,
-                auth=HTTPBasicAuth(remote.username, token),
+                auth=HTTPBasicAuth(remote["username"], token),
                 stream=True,
                 # Following a redirect would send the request somewhere other than the repository's remote.
                 allow_redirects=False,
@@ -129,14 +131,14 @@ class GitRelay:
             )
         # "from None" drops requests' exception, whose request holds the Authorization header.
         except requests.Timeout:
-            raise ResourceGatewayTimeout(detail=f"{remote.url} did not respond in time.") from None
+            raise ResourceGatewayTimeout(detail=f"{remote['url']} did not respond in time.") from None
         # SSLError is a kind of ConnectionError, so catch it before that one, or a bad certificate would be
         # reported as an unreachable host.
         except requests.exceptions.SSLError:
-            host = urlsplit(remote.url).netloc
+            host = urlsplit(remote["url"]).netloc
             raise ResourceCertificateInvalid(detail=f"The TLS certificate of {host} could not be verified.") from None
         except requests.ConnectionError:
-            raise ResourceServiceUnavailable(detail=f"Could not connect to {remote.url}.") from None
+            raise ResourceServiceUnavailable(detail=f"Could not connect to {remote['url']}.") from None
         finally:
             # Once a response arrives, _stream closes the session when the response ends.
             if upstream is None:

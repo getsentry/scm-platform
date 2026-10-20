@@ -2,25 +2,27 @@ from collections.abc import Callable, Iterator, Mapping
 
 from requests.structures import CaseInsensitiveDict
 
-from scm.errors import ProviderNotFound, ResourceBadGateway, SCMCodedError
+from scm.errors import GitProviderNotSupported, ProviderNotFound, ResourceBadGateway, SCMCodedError
 from scm.git.grant import verify_grant
 from scm.git.operations import check_request
 from scm.git.relay import GitRelay
-from scm.git.remote import git_remote
 from scm.git.types import GRANT_HEADER, GetToken, Readable
-from scm.helpers import resolve_repository
+from scm.helpers import initialize_provider
 from scm.rpc.errors import SPECIAL_STATUS_MAP
 from scm.rpc.types import StreamResponse
-from scm.types import Repository, RepositoryId
+from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 
 
 class GitServer:
     """Serves a git endpoint: checks each request against its grant, then relays it with a provider token.
 
     The order of the checks matters. The grant is verified, and the request's route and repository checked
-    against it, before the repository is looked up or a token fetched, so a request the grant does not allow
-    never reaches the database, the token supplier or the provider. Give it a relay whose adapter refuses internal
-    addresses; see ``GitRelay``.
+    against it, before the repository and its provider are looked up or a token fetched, so a request the grant
+    does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
+    refuses internal addresses; see ``GitRelay``.
+
+    The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
+    provider has no git remote, such as Cursor Origin's, is refused.
 
     Refusals and provider failures come back as plain-text responses. Any other exception, such as an adapter
     refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer it the
@@ -35,6 +37,7 @@ class GitServer:
         self,
         secrets: list[str],
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
+        fetch_provider: Callable[[int, Repository], Provider | None],
         get_token: GetToken,
         record_count: Callable[[str, int, dict[str, str]], None],
         relay: GitRelay,
@@ -44,6 +47,7 @@ class GitServer:
             raise ValueError("GitServer needs at least one secret, and none may be empty.")
         self.secrets = secrets
         self.fetch_repository = fetch_repository
+        self.fetch_provider = fetch_provider
         self.get_token = get_token
         self.record_count = record_count
         self.relay = relay
@@ -67,10 +71,16 @@ class GitServer:
         try:
             grant = verify_grant(self.secrets, CaseInsensitiveDict(headers).get(GRANT_HEADER, ""))
             operation = check_request(grant, repository_id, method, route, query)
-            repository = resolve_repository(
-                grant.organization_id, repository_id, fetch_repository=self.fetch_repository
+            provider = initialize_provider(
+                grant.organization_id,
+                repository_id,
+                fetch_repository=self.fetch_repository,
+                fetch_provider=self.fetch_provider,
             )
-            remote = git_remote(repository)
+            repository = provider.repository
+            if not isinstance(provider, GetGitRemoteProtocol):
+                raise GitProviderNotSupported(detail=f"The {repository['provider_name']} provider has no git remote.")
+            remote = provider.get_git_remote()
             token = self.get_token(repository, operation)
             if token is None:
                 raise ProviderNotFound(detail="No git credentials are available for this repository.")
