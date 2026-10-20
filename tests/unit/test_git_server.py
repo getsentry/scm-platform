@@ -228,7 +228,7 @@ class TestRelay:
 
     def test_upstream_unavailable(self):
         recorder = Recorder(
-            repository=make_repository(provider_name="github_enterprise", web_base_url="http://127.0.0.1:1")
+            repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
         )
         relay = GitRelay(timeout=(1, 1))
         try:
@@ -239,8 +239,9 @@ class TestRelay:
         assert TOKEN not in b"".join(response.content).decode()
         assert recorder.errors == []
 
-    def test_relays_end_to_end(self):
+    def test_relays_end_to_end(self, monkeypatch):
         with running_upstream() as upstream:
+            monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
             recorder = Recorder(
                 repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
             )

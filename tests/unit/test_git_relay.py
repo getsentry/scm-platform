@@ -18,8 +18,9 @@ WAIT = 5
 
 
 @pytest.fixture
-def upstream():
+def upstream(monkeypatch):
     with running_upstream() as upstream:
+        monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
         yield upstream
 
 
@@ -108,7 +109,7 @@ class TestRequest:
         )
         [request] = upstream.requests
         assert request.headers["Authorization"] == basic_auth("x-access-token", TOKEN)
-        assert request.headers["Host"] == upstream.url.removeprefix("http://")
+        assert request.headers["Host"] == upstream.url.removeprefix("https://")
         for name in ("X-Scm-Git-Grant", "Cookie", "X-Forwarded-For"):
             assert name not in request.headers
 
@@ -121,6 +122,14 @@ class TestRequest:
     def test_asks_for_an_unencoded_response_unless_the_client_says_otherwise(self, relay, upstream):
         b"".join(fetch_refs(relay, upstream).content)
         assert upstream.requests[0].headers["Accept-Encoding"] == "identity"
+
+    def test_refuses_plain_http(self, relay, upstream):
+        remote = GitRemote(url=upstream.url.replace("https://", "http://") + "/repo.git", username="x-access-token")
+        with pytest.raises(ValueError, match="not https"):
+            relay.forward(
+                remote, TOKEN, method="GET", route="info/refs", query="service=git-upload-pack", headers={}, body=None
+            )
+        assert upstream.requests == []
 
     def test_refuses_routes_that_are_not_git(self, relay, upstream):
         with pytest.raises(GitRouteNotAllowed):
@@ -298,7 +307,7 @@ class TestUpstreamFailures:
         with socket.socket() as s:
             s.bind(("127.0.0.1", 0))
             port = s.getsockname()[1]
-        remote = GitRemote(url=f"http://127.0.0.1:{port}/getsentry/sentry.git", username="x-access-token")
+        remote = GitRemote(url=f"https://127.0.0.1:{port}/getsentry/sentry.git", username="x-access-token")
 
         with pytest.raises(ResourceServiceUnavailable) as exc_info:
             relay.forward(
@@ -311,10 +320,7 @@ class TestUpstreamFailures:
 
         def handler(h: UpstreamHandler) -> None:
             release.wait(WAIT)
-            try:
-                h.respond(200, b"")
-            except OSError:  # The relay stopped waiting and closed the connection.
-                h.close_connection = True
+            h.respond(200, b"")
 
         upstream.handler = handler
         relay = GitRelay(timeout=(1, 0.1))

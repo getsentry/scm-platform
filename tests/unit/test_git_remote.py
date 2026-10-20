@@ -1,6 +1,6 @@
 import pytest
 
-from scm.errors import GitProviderNotSupported, MalformedExternalId
+from scm.errors import GitProviderNotSupported, InvalidWebBaseUrl, MalformedExternalId
 from scm.git.remote import git_remote
 from scm.git.types import GitRemote
 from scm.types import Repository
@@ -35,9 +35,34 @@ def test_github_enterprise(web_base_url):
     )
 
 
-def test_github_enterprise_without_host():
-    with pytest.raises(GitProviderNotSupported, match="no web_base_url"):
+def test_github_enterprise_without_web_base_url():
+    with pytest.raises(InvalidWebBaseUrl, match="no web_base_url"):
         git_remote(make_repository(provider_name="github_enterprise"))
+
+
+@pytest.mark.parametrize(
+    "web_base_url",
+    ["http://ghe.example.com", "ghe.example.com", "https://", "https://ghe.example.com?x=1", ""],
+)
+@pytest.mark.parametrize("provider_name", ["github_enterprise", "gitlab"])
+def test_web_base_url_must_be_https(provider_name, web_base_url):
+    repository = make_repository(provider_name=provider_name, external_id="gitlab.com:42", web_base_url=web_base_url)
+    with pytest.raises(InvalidWebBaseUrl, match="not an https URL"):
+        git_remote(repository)
+
+
+@pytest.mark.parametrize(
+    "web_base_url,url",
+    [
+        ("https://git.example.com", "https://git.example.com/team/app.git"),
+        ("https://example.com/gitlab/", "https://example.com/gitlab/team/app.git"),
+    ],
+)
+def test_gitlab_prefers_web_base_url(web_base_url, url):
+    repository = make_repository(
+        provider_name="gitlab", external_id="ignored.example.com:42", name="team / app", web_base_url=web_base_url
+    )
+    assert git_remote(repository) == GitRemote(url=url, username="oauth2")
 
 
 def test_gitlab():
@@ -51,7 +76,7 @@ def test_self_hosted_gitlab_with_port():
 
 
 @pytest.mark.parametrize("external_id", [None, "42"])
-def test_gitlab_malformed_external_id(external_id):
+def test_gitlab_without_web_base_url_needs_a_host_in_the_external_id(external_id):
     with pytest.raises(MalformedExternalId):
         git_remote(make_repository(provider_name="gitlab", external_id=external_id))
 

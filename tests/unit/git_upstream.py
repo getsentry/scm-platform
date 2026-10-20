@@ -1,11 +1,26 @@
-"""A local HTTP/1.1 server standing in for a provider's git endpoint in relay tests."""
+"""A local HTTPS server standing in for a provider's git endpoint in relay tests.
+
+The relay only sends tokens over https, so the server uses a self-signed certificate made for the test run. Point
+requests at it with ``REQUESTS_CA_BUNDLE=<Upstream.ca_bundle>``.
+"""
 
 import base64
+import datetime
+import functools
+import ipaddress
+import ssl
+import sys
+import tempfile
 import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 from requests.structures import CaseInsensitiveDict
 
 
@@ -23,6 +38,7 @@ type Handler = Callable[["UpstreamHandler"], None]
 @dataclass
 class Upstream:
     url: str
+    ca_bundle: str
     requests: list[ReceivedRequest] = field(default_factory=list)
     connections: int = 0
     handler: Handler | None = None
@@ -94,6 +110,13 @@ class _Server(ThreadingHTTPServer):
     daemon_threads = True
     upstream: Upstream
 
+    def handle_error(self, request: object, client_address: object) -> None:
+        # Some tests have the relay drop the connection mid-request on purpose (a timeout, a short body), and the
+        # assertions are on the relay's side, so a reset here is expected rather than worth a traceback.
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)  # type: ignore[arg-type]
+
 
 def echo(handler: UpstreamHandler) -> None:
     body = b"".join(handler.body_chunks())
@@ -105,13 +128,44 @@ def basic_auth(username: str, password: str) -> str:
     return "Basic " + base64.b64encode(f"{username}:{password}".encode()).decode()
 
 
+@functools.cache
+def _certificate() -> tuple[str, str]:
+    """Return the paths of a self-signed certificate for 127.0.0.1 and its key, made once per test run."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "127.0.0.1")])
+    now = datetime.datetime.now(datetime.UTC)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=1))
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), critical=False)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(key, hashes.SHA256())
+    )
+    directory = Path(tempfile.mkdtemp(prefix="scm-git-upstream-"))
+    cert_path, key_path = directory / "cert.pem", directory / "key.pem"
+    cert_path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(
+        key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    )
+    return str(cert_path), str(key_path)
+
+
 class running_upstream:
     """Context manager that serves an ``Upstream`` on a free local port."""
 
     def __enter__(self) -> Upstream:
+        cert_path, key_path = _certificate()
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_cert_chain(cert_path, key_path)
         self._server = _Server(("127.0.0.1", 0), UpstreamHandler)
+        self._server.socket = context.wrap_socket(self._server.socket, server_side=True)
         host, port = self._server.server_address[:2]
-        self._server.upstream = Upstream(url=f"http://{host!s}:{port}")
+        self._server.upstream = Upstream(url=f"https://{host!s}:{port}", ca_bundle=cert_path)
         self._thread = threading.Thread(target=self._server.serve_forever, args=(0.01,), daemon=True)
         self._thread.start()
         return self._server.upstream

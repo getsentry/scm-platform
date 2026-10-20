@@ -17,9 +17,10 @@ from scm.types import Repository, RepositoryId
 class GitServer:
     """Serves a git endpoint: checks each request against its grant, then relays it with a provider token.
 
-    The order is the security boundary. The grant is verified and the request's route and repository checked
-    against it before the repository is looked up or a token fetched, so a request the grant does not reach
-    never touches the provider. Build one per process: its relay pools upstream connections.
+    The order of the checks matters. The grant is verified, and the request's route and repository checked
+    against it, before the repository is looked up or a token fetched, so a request the grant does not allow
+    never reaches the database, the token supplier or the provider. Build one per process: its relay pools
+    upstream connections.
     """
 
     def __init__(
@@ -85,7 +86,7 @@ class GitServer:
 
 
 def _error_response(error: SCMCodedError) -> StreamResponse:
-    # git asks for credentials on a 401, which a sandboxed client must never have, so a refusal is a 403.
+    # On a 401 git asks the user for credentials, which a sandboxed client must never have, so refuse with a 403.
     status = SPECIAL_STATUS_MAP.get(error.code, 400)
     if status == 401:
         status = 403

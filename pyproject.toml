@@ -43,6 +43,7 @@ select = [
 
 [dependency-groups]
 dev = [
+    "cryptography>=48.0.1",
     "mypy>=1.20.0",
     "prek>=0.3.6",
     "pyjwt[crypto]>=2.9.0",

@@ -17,17 +17,26 @@ from scm.git.operations import route_operation
 from scm.git.types import GitRemote, Readable
 from scm.rpc.types import StreamResponse
 
+# The most bytes the relay reads at once, from the client's body or from the provider's response, so also the
+# most it holds per request in each direction. Smaller chunks cost more Python per byte of a multi-gigabyte pack;
+# larger ones hold more memory per request. 64 KiB is what RpcServer streams with and what the prototype ran; no
+# other size was measured.
 DEFAULT_CHUNK_SIZE = 64 * 1024
-# A large clone streams its pack for minutes, but the provider sends something well within the read timeout.
+# (connect, read) in seconds. The read timeout bounds a silence, not a transfer: it is the longest the provider may
+# go without sending a byte, so a clone that streams for minutes never hits it. 300s leaves room for a provider that
+# assembles a large pack before it sends anything. Both values come from the prototype.
 DEFAULT_TIMEOUT = (10.0, 300.0)
 
-# What git sends that the provider needs: protocol v2 is negotiated with Git-Protocol, and git gzips large fetch
-# requests. Everything else stays behind, including the caller's own credentials and the grant.
+# The headers git sends that the provider needs. Accept and Content-Type name the git service, Git-Protocol
+# negotiates protocol v2, Content-Encoding marks a gzipped request body (git gzips large fetch requests),
+# Accept-Encoding says what the client can decode, and User-Agent names the git client. Everything else stays
+# behind, including the caller's own credentials and the grant.
 _REQUEST_HEADERS = frozenset(
     {"accept", "accept-encoding", "content-encoding", "content-type", "git-protocol", "user-agent"}
 )
-# Bodies pass through still encoded, so Content-Encoding and Content-Length describe what the client receives.
-# Location is left out because a redirect would send the client to the provider directly.
+# Response bodies are passed on without decoding, so Content-Encoding and Content-Length still describe the bytes
+# the client receives. Location is dropped because following a redirect would take the client to the provider
+# directly, past the relay.
 _RESPONSE_HEADERS = frozenset(
     {"cache-control", "content-encoding", "content-length", "content-type", "expires", "pragma"}
 )
@@ -37,8 +46,10 @@ class GitRelay:
     """Forwards git smart-HTTP requests to a provider with a token, streaming the body in both directions.
 
     Nothing buffers a request or a response, and neither body is parsed. Build one per process and reuse it: it
-    keeps a pool of keep-alive connections per provider host, because a clone makes three requests and a new
-    connection for each cost 0.4-0.8s per clone in the prototype.
+    keeps a pool of keep-alive connections per provider host, because a clone makes three requests and opening a
+    new connection for each added hundreds of milliseconds per clone in the prototype.
+
+    Only https remotes are accepted, because every request carries a provider token.
     """
 
     def __init__(
@@ -52,12 +63,11 @@ class GitRelay:
         self.timeout = timeout
         self.chunk_size = chunk_size
         self.session = requests.Session()
-        # The session is shared by every organization's requests, so it must not carry a provider's cookies from
-        # one request to the next.
+        # Every organization's requests share this session, so a cookie a provider sets on one request must not
+        # be sent with the next.
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
         adapter = HTTPAdapter(pool_connections=max_hosts, pool_maxsize=max_connections_per_host, max_retries=0)
         self.session.mount("https://", adapter)
-        self.session.mount("http://", adapter)
 
     def forward(
         self,
@@ -74,7 +84,11 @@ class GitRelay:
 
         ``route`` is the path below ``<repo>.git/``. Check the request against a grant before calling this.
         """
-        # The caller has checked the operation; this only keeps anything but a git route away from the token.
+        if not remote.url.startswith("https://"):
+            # git_remote only builds https URLs, so this is a caller's bug rather than a request to refuse.
+            raise ValueError(f"Refusing to send a token to {remote.url}, which is not https.")
+        # Callers check the request against a grant first; this only makes sure the token never goes to anything
+        # but a git route.
         if route_operation(method, route, query) is None:
             raise GitRouteNotAllowed(detail=f"{method} {route} is not a git fetch or push route.")
 
@@ -82,7 +96,8 @@ class GitRelay:
         upstream_headers = CaseInsensitiveDict(
             {name: value for name, value in client_headers.items() if name.lower() in _REQUEST_HEADERS}
         )
-        # requests asks for gzip and more by default, which the client may not decode once the body is passed on.
+        # Otherwise requests asks for gzip, deflate and more, and since the response is passed on undecoded the
+        # client could get an encoding it cannot read.
         upstream_headers.setdefault("Accept-Encoding", "identity")
 
         url = f"{remote.url}/{route}?{query}" if query else f"{remote.url}/{route}"
@@ -95,7 +110,7 @@ class GitRelay:
                 # Passing auth also stops requests from replacing it with credentials from a .netrc file.
                 auth=HTTPBasicAuth(remote.username, token),
                 stream=True,
-                # A redirect would carry the token to wherever the provider points.
+                # Following a redirect would send the request somewhere other than the repository's remote.
                 allow_redirects=False,
                 timeout=self.timeout,
             )
@@ -115,8 +130,8 @@ class GitRelay:
         self.session.close()
 
     def _stream(self, upstream: requests.Response) -> Iterator[bytes]:
-        # Closing the response once it is read to the end returns its connection to the pool; closing it early,
-        # because the client went away, drops the connection instead.
+        # Once the response is read to the end its connection goes back to the pool. Closing it before then,
+        # because the client went away, drops the connection instead, since it is mid-response.
         with upstream:
             yield from filter(bool, upstream.raw.stream(self.chunk_size, decode_content=False))
 

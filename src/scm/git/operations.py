@@ -2,8 +2,13 @@ from scm.errors import GitRouteNotAllowed
 from scm.git.types import GitOperation, Grant
 from scm.types import RepositoryId
 
-# The git smart-HTTP routes, keyed by (method, path below <repo>.git/, query string). git sends these exact query
-# strings, so an exact match leaves nothing for the provider to read differently than this table does.
+# The git smart-HTTP routes and the operation each belongs to, keyed by (method, path below <repo>.git/, query
+# string). git names its two services from the server's side: in a fetch the server uploads a pack to the client
+# (git-upload-pack), and in a push it receives a pack from the client (git-receive-pack). Each service has a GET
+# that lists the refs and a POST that does the transfer.
+#
+# The query string is compared whole instead of parsed. git sends exactly these strings, so a request with extra
+# or repeated parameters is refused rather than passed on to a provider that might read them differently.
 _ROUTES: dict[tuple[str, str, str], GitOperation] = {
     ("GET", "info/refs", "service=git-upload-pack"): "fetch",
     ("POST", "git-upload-pack", ""): "fetch",
@@ -20,8 +25,9 @@ def route_operation(method: str, route: str, query: str) -> GitOperation | None:
 def check_request(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
     """Refuse a request the grant does not reach, before anything is sent to the provider.
 
-    A fetch grant reaches only upload-pack and a push grant only receive-pack, and the repository must be one the
-    grant lists, named the same way.
+    A fetch grant reaches only upload-pack and a push grant only receive-pack. The repository must be listed in
+    the grant in the same form the request uses: a database id does not match the same repository's
+    ``(provider, external id)`` pair.
     """
     operation = route_operation(method, route, query)
     if operation is None:

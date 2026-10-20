@@ -1,8 +1,8 @@
 """Signing and verifying git grants.
 
 The wire format is ``<base64url(payload)>.<base64url(signature)>``, where the payload is the grant's JSON and the
-signature is an HMAC-SHA256 over a fixed prefix and the payload. The prefix keeps a grant signature from ever
-matching a signature the RPC endpoint makes with the same secret over some other message.
+signature is an HMAC-SHA256 over a fixed prefix and the payload. Because of the prefix, a signature the RPC
+endpoint makes with the same secret can never pass as a grant signature.
 """
 
 import base64
@@ -37,7 +37,7 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
         payload_b64, signature_b64 = token.split(".")
         payload = _b64decode(payload_b64)
         signature = _b64decode(signature_b64)
-    except ValueError:  # binascii.Error is a ValueError too
+    except ValueError:  # Raised both for the wrong number of parts and for bad base64 (binascii.Error).
         raise GitInvalidGrant(detail="The git grant is malformed.") from None
 
     # Check every secret, not just until one matches, so the time taken does not reveal which one signed it.
@@ -48,7 +48,8 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     try:
         grant = msgspec.json.decode(payload, type=Grant)
     except msgspec.ValidationError as e:
-        # Only a holder of the secret can get here, so the reason is safe to return and saves a debugging round.
+        # The signature matched, so a holder of the secret wrote this payload; telling them why it is invalid
+        # gives nothing away.
         raise GitInvalidGrant(detail=f"The git grant's payload is invalid: {e}") from None
     except msgspec.DecodeError:
         raise GitInvalidGrant(detail="The git grant's payload is not JSON.") from None
@@ -69,7 +70,8 @@ def _b64encode(data: bytes) -> str:
 
 
 def _b64decode(data: str) -> bytes:
-    # urlsafe_b64decode skips characters outside its alphabet; refusing them keeps one token to one decoding.
+    # urlsafe_b64decode silently drops characters outside its alphabet. Refuse them instead, so a grant has only
+    # one valid spelling.
     if not _BASE64URL.fullmatch(data):
         raise ValueError("not base64url")
     return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
