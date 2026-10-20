@@ -52,13 +52,19 @@ class GitRelay:
     new connection for each added hundreds of milliseconds per clone in the prototype.
 
     Only https remotes are accepted, because every request carries a provider token.
+
+    ``adapter`` sends every upstream request and holds the connection pools. Pass one that refuses internal
+    addresses: a GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay
+    connects wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients. Errors the adapter
+    raises for a refused host reach the caller unchanged. The adapter must not retry, because a retry cannot
+    resend a body that has already been streamed. Without one, the relay pools connections with a plain adapter
+    that checks nothing.
     """
 
     def __init__(
         self,
         *,
-        max_hosts: int = 32,
-        max_connections_per_host: int = 64,
+        adapter: HTTPAdapter | None = None,
         timeout: tuple[float, float] = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> None:
@@ -68,8 +74,9 @@ class GitRelay:
         # Every organization's requests share this session, so a cookie a provider sets on one request must not
         # be sent with the next.
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
-        adapter = HTTPAdapter(pool_connections=max_hosts, pool_maxsize=max_connections_per_host, max_retries=0)
-        self.session.mount("https://", adapter)
+        # The default keeps pools for up to 32 provider hosts and up to 64 idle connections per host. These are
+        # guesses for one Sentry worker's concurrent clones, not measurements.
+        self.session.mount("https://", adapter or HTTPAdapter(pool_connections=32, pool_maxsize=64, max_retries=0))
 
     def forward(
         self,

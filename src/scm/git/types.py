@@ -20,8 +20,9 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
 
     Seer signs a grant per coding job and Sentry's git endpoint verifies it on every request. Each repository is
     a ``RepositoryId`` under the grant's organization, as in the RPC endpoint: Sentry's repository id or a
-    ``(provider, external id)`` pair. A fetch grant holds one repository today; the list leaves room for
-    submodules and git-based dependencies without a new format.
+    ``(provider, external id)`` pair. A fetch grant holds one repository today. The list leaves room for
+    submodules and git-based dependencies, but only from repositories Sentry has connected for the organization:
+    naming any other repository, such as a public dependency, would need a new kind of entry and a new version.
 
     A grant with a field this version does not know is refused rather than read without it. If a later version
     adds a field that restricts a grant, a verifier that ignored the field would allow more than the grant does.

@@ -6,6 +6,7 @@ import time
 from collections.abc import Iterator
 
 import pytest
+from requests.adapters import HTTPAdapter
 
 from scm.errors import (
     GitRouteNotAllowed,
@@ -306,6 +307,34 @@ class TestConnections:
         b"".join(fetch_refs(relay, upstream).content)
         b"".join(fetch_refs(relay, upstream).content)
         assert [r.headers.get("Cookie") for r in upstream.requests] == [None, None]
+
+
+class TestAdapter:
+    def test_uses_the_adapter_it_is_given(self, upstream):
+        # Sentry passes an adapter that refuses internal addresses; the relay must send through it.
+        class HostRefused(Exception):
+            pass
+
+        class RefusingAdapter(HTTPAdapter):
+            def send(self, request, *args, **kwargs):
+                raise HostRefused(request.url)
+
+        relay = GitRelay(adapter=RefusingAdapter())
+        try:
+            with pytest.raises(HostRefused):
+                fetch_refs(relay, upstream)
+        finally:
+            relay.close()
+        assert upstream.requests == []
+
+    def test_given_adapter_also_pools_connections(self, upstream):
+        relay = GitRelay(adapter=HTTPAdapter(max_retries=0))
+        try:
+            b"".join(fetch_refs(relay, upstream).content)
+            b"".join(fetch_refs(relay, upstream).content)
+        finally:
+            relay.close()
+        assert upstream.connections == 1
 
 
 class TestUpstreamFailures:

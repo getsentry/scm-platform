@@ -20,7 +20,7 @@ class GitServer:
     The order of the checks matters. The grant is verified, and the request's route and repository checked
     against it, before the repository is looked up or a token fetched, so a request the grant does not allow
     never reaches the database, the token supplier or the provider. Build one per process: its relay pools
-    upstream connections.
+    upstream connections. Pass a relay whose adapter refuses internal addresses; see ``GitRelay``.
     """
 
     def __init__(
