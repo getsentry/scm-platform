@@ -13970,6 +13970,13 @@ def test_web_repository_path_used_in_commit_and_mr_urls(client: ApiClient) -> No
     )
 
 
+def test_web_links_keep_the_instances_path_prefix(client: ApiClient) -> None:
+    repository = {**_make_gitlab_provider(client).repository, "web_base_url": "https://example.com/gitlab"}
+    provider = GitLabProvider(client=client, organization_id=1, repository=repository)  # type: ignore[arg-type]
+
+    assert provider.get_commit_url("abc123") == "https://example.com/gitlab/test-repo/-/commit/abc123"
+
+
 def test_get_git_remote_is_the_repository_path_on_its_instance(client: ApiClient) -> None:
     provider = _make_gitlab_provider(client, name="GitLab.org / GitLab FOSS", path="gitlab-org/gitlab-foss")
 
@@ -13995,7 +14002,6 @@ def test_get_git_remote_keeps_the_instances_path_prefix(client: ApiClient) -> No
     provider = GitLabProvider(client=client, organization_id=1, repository=repository)  # type: ignore[arg-type]
 
     assert provider.get_git_remote()["url"] == "https://example.com/gitlab/test-repo.git"
-    assert provider.get_commit_url("abc123") == "https://example.com/gitlab/test-repo/-/commit/abc123"
 
 
 @pytest.mark.parametrize("path", [None, ""])
