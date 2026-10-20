@@ -115,17 +115,16 @@ class GitRelay:
         # client could get an encoding it cannot read.
         upstream_headers.setdefault("Accept-Encoding", "identity")
 
+        # Of the git routes only the POSTs carry a body. A caller may pass its request stream for a GET too, and sent
+        # on, it would go upstream as an empty chunked body.
+        data = _request_body(body, _content_length(client_headers), self.chunk_size) if method == "POST" else None
         url = f"{remote.url}/{route}?{query}" if query else f"{remote.url}/{route}"
         try:
             upstream = self.session.request(
                 method,
                 url,
                 headers=upstream_headers,
-                # Of the git routes only the POSTs carry a body. A caller may pass its request stream for a GET too,
-                # and sent on, it would go upstream as an empty chunked body.
-                data=_request_body(body, _content_length(client_headers), self.chunk_size)
-                if method == "POST"
-                else None,
+                data=data,
                 auth=HTTPBasicAuth(remote.username, token),
                 stream=True,
                 # Following a redirect would send the request somewhere other than the repository's remote.

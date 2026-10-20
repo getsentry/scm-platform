@@ -80,7 +80,7 @@ class GitServer:
             if response.status_code == 401:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
                 # for credentials, which it must never have and which would not help.
-                _close(response)
+                _close_stream(response.content)
                 raise ResourceBadGateway(detail="The provider rejected Sentry's credentials for this repository.")
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
@@ -148,9 +148,7 @@ class _MeteredStream:
     def close(self) -> None:
         # The server calls this after the last chunk too, when the stream has already ended.
         self._end("client_closed_request")
-        close = getattr(self.content, "close", None)
-        if close is not None:
-            close()
+        _close_stream(self.content)
 
     def _end(self, failure: str | None) -> None:
         if not self.finished:
@@ -158,9 +156,9 @@ class _MeteredStream:
             self.finish(failure, self.bytes_sent)
 
 
-def _close(response: StreamResponse) -> None:
+def _close_stream(content: Iterator[bytes]) -> None:
     # Closing the relay's stream before it is read to the end drops the upstream connection.
-    close = getattr(response.content, "close", None)
+    close = getattr(content, "close", None)
     if close is not None:
         close()
 

@@ -1,5 +1,6 @@
 import io
 import time
+from collections.abc import Iterator
 from contextlib import closing
 from unittest.mock import MagicMock
 
@@ -47,10 +48,16 @@ class Recorder:
             self.counts.append((name, tags))
 
 
+def relay_returning(content: Iterator[bytes], status_code: int = 200) -> GitRelay:
+    """A stand-in relay whose every forward returns ``content`` as the provider's response."""
+    relay = MagicMock(spec=GitRelay)
+    relay.forward.return_value = StreamResponse(status_code=status_code, headers={}, content=content)
+    return relay
+
+
 def make_server(recorder: Recorder, relay: GitRelay | None = None) -> GitServer:
     if relay is None:
-        relay = MagicMock(spec=GitRelay)
-        relay.forward.return_value = StreamResponse(status_code=200, headers={}, content=iter([b"refs"]))
+        relay = relay_returning(iter([b"refs"]))
     return GitServer(
         secrets=[SECRET],
         fetch_repository=recorder.fetch_repository,
@@ -221,10 +228,8 @@ class TestRelay:
             yield b"half a pack"
             raise ConnectionError("provider went away")
 
-        relay = MagicMock(spec=GitRelay)
-        relay.forward.return_value = StreamResponse(status_code=200, headers={}, content=broken_stream())
         recorder = Recorder()
-        content = request(make_server(recorder, relay), signed_grant()).content
+        content = request(make_server(recorder, relay_returning(broken_stream())), signed_grant()).content
         assert next(content) == b"half a pack"
         with pytest.raises(ConnectionError):
             next(content)
@@ -241,10 +246,8 @@ class TestRelay:
             finally:
                 closed.append(True)
 
-        relay = MagicMock(spec=GitRelay)
-        relay.forward.return_value = StreamResponse(status_code=200, headers={}, content=provider_stream())
         recorder = Recorder()
-        content = request(make_server(recorder, relay), signed_grant()).content
+        content = request(make_server(recorder, relay_returning(provider_stream())), signed_grant()).content
         assert next(content) == b"first"
         content.close()  # type: ignore[attr-defined]
         assert closed == [True]
@@ -271,10 +274,8 @@ class TestRelay:
 
         content = provider_body()
         next(content)  # Started, as a relay's stream is once its first chunk is read.
-        relay = MagicMock(spec=GitRelay)
-        relay.forward.return_value = StreamResponse(status_code=401, headers={}, content=content)
         recorder = Recorder()
-        response = request(make_server(recorder, relay), signed_grant())
+        response = request(make_server(recorder, relay_returning(content, status_code=401)), signed_grant())
         assert_refused(response, 502, "rejected Sentry's credentials")
         assert closed == [True]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "resource_bad_gateway"})]
