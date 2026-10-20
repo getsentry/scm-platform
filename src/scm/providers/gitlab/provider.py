@@ -240,7 +240,9 @@ class GitLabProvider:
             raise MalformedExternalId()
 
         netloc, self.project_id = repository["external_id"].rsplit(":", maxsplit=1)
-        self.web_base_url = f"https://{netloc}"
+        # Sentry sends the instance's URL with the scheme and any path prefix it is served under. The external ID
+        # holds only the host, which is enough for an instance served at the root over https.
+        self.web_base_url = repository["web_base_url"] or f"https://{netloc}"
 
     @property
     def web_repository_path(self) -> str:

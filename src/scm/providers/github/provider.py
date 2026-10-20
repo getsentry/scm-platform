@@ -437,12 +437,14 @@ class GitHubProvider:
         client: ApiClient,
         organization_id: int,
         repository: Repository,
-        web_base_url: str = GITHUB_WEB_BASE_URL,
+        web_base_url: str | None = None,
     ) -> None:
         self.client = client
         self.organization_id = organization_id
         self.repository = repository
-        self._web_base_url = web_base_url
+        # A GitHub Enterprise repository carries its instance's URL. Falling back to it keeps a caller that builds
+        # the provider without one from pointing web links at github.com.
+        self._web_base_url = web_base_url or repository["web_base_url"] or GITHUB_WEB_BASE_URL
 
     def request(
         self,

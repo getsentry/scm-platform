@@ -2081,6 +2081,18 @@ def test_get_pull_request_url_builds_pr_url() -> None:
     assert provider.get_pull_request_url("42") == "https://github.com/test-org/test-repo/pull/42"
 
 
+def test_ghe_web_base_url_defaults_to_the_repositorys() -> None:
+    # Sentry's provider factory builds GitHub Enterprise providers without a web_base_url.
+    repository = {
+        **make_repository(),
+        "provider_name": "github_enterprise",
+        "web_base_url": "https://github.example.com",
+    }
+    provider = GitHubProvider(MagicMock(spec=ApiClient), organization_id=1, repository=repository)  # type: ignore[arg-type]
+
+    assert provider.get_pull_request_url("42") == "https://github.example.com/test-org/test-repo/pull/42"
+
+
 def test_ghe_web_base_url_used_in_url_methods() -> None:
     provider = GitHubProvider(
         MagicMock(spec=ApiClient),

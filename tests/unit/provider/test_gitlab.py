@@ -13969,6 +13969,13 @@ def test_web_repository_path_used_in_commit_and_mr_urls(client: ApiClient) -> No
     )
 
 
+def test_web_links_keep_the_instances_path_prefix(client: ApiClient) -> None:
+    repository = {**_make_gitlab_provider(client).repository, "web_base_url": "https://example.com/gitlab"}
+    provider = GitLabProvider(client=client, organization_id=1, repository=repository)  # type: ignore[arg-type]
+
+    assert provider.get_commit_url("abc123") == "https://example.com/gitlab/test-repo/-/commit/abc123"
+
+
 def test_get_file_url_builds_blob_url(provider: GitLabProvider):
     assert provider.get_file_url("src/main.py", "abc123") == ("https://gitlab.com/test-repo/-/blob/abc123/src/main.py")
     assert provider.get_file_url("src/main.py", "abc123", start_line=10) == (
