@@ -291,13 +291,12 @@ class TestRelay:
             request(make_server(recorder, relay), signed_grant())
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "unhandled_exception"})]
 
-    def test_counts_bytes_each_way_end_to_end(self, monkeypatch):
+    def test_counts_bytes_each_way_end_to_end(self):
         with running_upstream() as upstream:
-            monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
             recorder = Recorder(
                 repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
             )
-            with closing(GitRelay()) as relay:
+            with closing(GitRelay(ca_bundle=upstream.ca_bundle)) as relay:
                 response = request(
                     make_server(recorder, relay),
                     signed_grant(operation="push"),
@@ -313,13 +312,12 @@ class TestRelay:
             ("sentry.scm.git.response_bytes", "push"): 8,
         }
 
-    def test_relays_end_to_end(self, monkeypatch):
+    def test_relays_end_to_end(self):
         with running_upstream() as upstream:
-            monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
             recorder = Recorder(
                 repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
             )
-            with closing(GitRelay()) as relay:
+            with closing(GitRelay(ca_bundle=upstream.ca_bundle)) as relay:
                 response = request(make_server(recorder, relay), signed_grant())
                 assert response.status_code == 200
                 b"".join(response.content)

@@ -58,18 +58,26 @@ class GitRelay:
     raises for a refused host reach the caller unchanged. The adapter must not retry, because a retry cannot
     resend a body that has already been streamed. Without one, the relay pools connections with a plain adapter
     that checks nothing.
+
+    The relay takes no settings from the environment. Through a proxy from ``HTTPS_PROXY``, the adapter would
+    check the proxy's address rather than the provider's. ``ca_bundle`` names a CA file to trust instead of the
+    system's, in place of ``REQUESTS_CA_BUNDLE``.
     """
 
     def __init__(
         self,
         *,
         adapter: HTTPAdapter | None = None,
+        ca_bundle: str | None = None,
         timeout: tuple[float, float] = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> None:
         self.timeout = timeout
         self.chunk_size = chunk_size
         self.session = requests.Session()
+        # Without this, requests reads proxies, CA files and .netrc credentials from the environment.
+        self.session.trust_env = False
+        self.session.verify = ca_bundle or True
         # Every organization's requests share this session, so a cookie a provider sets on one request must not
         # be sent with the next.
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
@@ -118,7 +126,6 @@ class GitRelay:
                 data=_request_body(body, _content_length(client_headers), self.chunk_size)
                 if method == "POST"
                 else None,
-                # Passing auth also stops requests from replacing it with credentials from a .netrc file.
                 auth=HTTPBasicAuth(remote.username, token),
                 stream=True,
                 # Following a redirect would send the request somewhere other than the repository's remote.

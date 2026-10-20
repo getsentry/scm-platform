@@ -1,7 +1,7 @@
 """A local HTTPS server standing in for a provider's git endpoint in relay tests.
 
-The relay only sends tokens over https, so the server uses a self-signed certificate made for the test run. Point
-requests at it with ``REQUESTS_CA_BUNDLE=<Upstream.ca_bundle>``.
+The relay only sends tokens over https, so the server uses a self-signed certificate made for the test run. A relay
+trusts it with ``GitRelay(ca_bundle=ca_bundle())``.
 """
 
 import base64
@@ -160,6 +160,11 @@ def _certificate() -> tuple[str, str]:
         key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
     )
     return str(cert_path), str(key_path)
+
+
+def ca_bundle() -> str:
+    """The path of the certificate every fake upstream in this test run serves."""
+    return _certificate()[0]
 
 
 class running_upstream:

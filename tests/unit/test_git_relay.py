@@ -18,7 +18,7 @@ from scm.errors import (
 )
 from scm.git.relay import GitRelay
 from scm.git.types import GitRemote
-from tests.unit.git_upstream import UpstreamHandler, basic_auth, running_upstream
+from tests.unit.git_upstream import UpstreamHandler, basic_auth, ca_bundle, running_upstream
 
 TOKEN = "ghs_secrettoken"
 # Long enough that a relay that buffers fails the test instead of hanging it.
@@ -26,15 +26,14 @@ WAIT = 5
 
 
 @pytest.fixture
-def upstream(monkeypatch):
+def upstream():
     with running_upstream() as upstream:
-        monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
         yield upstream
 
 
 @pytest.fixture
 def relay():
-    relay = GitRelay()
+    relay = GitRelay(ca_bundle=ca_bundle())
     yield relay
     relay.close()
 
@@ -211,7 +210,10 @@ class TestRequest:
                 return b"first"
 
         headers = {"Content-Length": "100"} if known_length else {}
-        with closing(GitRelay(timeout=(1, 2))) as relay, pytest.raises(SCMCodedError) as exc_info:
+        with (
+            closing(GitRelay(ca_bundle=ca_bundle(), timeout=(1, 2))) as relay,
+            pytest.raises(SCMCodedError) as exc_info,
+        ):
             upload_pack(relay, upstream, ResettingClient(), headers=headers)
         assert exc_info.value.code == "client_closed_request"
 
@@ -359,15 +361,30 @@ class TestAdapter:
             def send(self, request, *args, **kwargs):
                 raise HostRefused(request.url)
 
-        with closing(GitRelay(adapter=RefusingAdapter())) as relay, pytest.raises(HostRefused):
+        with closing(GitRelay(adapter=RefusingAdapter(), ca_bundle=ca_bundle())) as relay, pytest.raises(HostRefused):
             fetch_refs(relay, upstream)
         assert upstream.requests == []
 
     def test_given_adapter_also_pools_connections(self, upstream):
-        with closing(GitRelay(adapter=HTTPAdapter(max_retries=0))) as relay:
+        with closing(GitRelay(adapter=HTTPAdapter(max_retries=0), ca_bundle=ca_bundle())) as relay:
             b"".join(fetch_refs(relay, upstream).content)
             b"".join(fetch_refs(relay, upstream).content)
         assert upstream.connections == 1
+
+
+class TestEnvironment:
+    # Behind a proxy, an adapter that refuses internal addresses would check the proxy's address rather than the
+    # provider's, so the relay takes nothing from the environment.
+    @pytest.mark.parametrize("variable", ["HTTPS_PROXY", "https_proxy", "ALL_PROXY"])
+    def test_ignores_proxy_settings(self, relay, upstream, monkeypatch, variable):
+        monkeypatch.setenv(variable, "http://127.0.0.1:1")
+        b"".join(fetch_refs(relay, upstream).content)
+        assert len(upstream.requests) == 1
+
+    def test_ignores_ca_settings(self, upstream, monkeypatch):
+        monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)
+        with closing(GitRelay()) as relay, pytest.raises(ResourceCertificateInvalid):
+            fetch_refs(relay, upstream)
 
 
 class TestUpstreamFailures:
@@ -381,9 +398,11 @@ class TestUpstreamFailures:
             fetch_refs(relay, remote=remote)
         assert_token_not_in(exc_info.value)
 
-    def test_untrusted_certificate(self, relay, upstream, monkeypatch):
-        monkeypatch.delenv("REQUESTS_CA_BUNDLE")
-        with pytest.raises(ResourceCertificateInvalid, match="TLS certificate of 127.0.0.1") as exc_info:
+    def test_untrusted_certificate(self, upstream):
+        with (
+            closing(GitRelay()) as relay,
+            pytest.raises(ResourceCertificateInvalid, match="TLS certificate of 127.0.0.1") as exc_info,
+        ):
             fetch_refs(relay, upstream)
         assert_token_not_in(exc_info.value)
         assert upstream.requests == []
@@ -397,7 +416,10 @@ class TestUpstreamFailures:
 
         upstream.handler = handler
         try:
-            with closing(GitRelay(timeout=(1, 0.1))) as relay, pytest.raises(ResourceGatewayTimeout) as exc_info:
+            with (
+                closing(GitRelay(ca_bundle=ca_bundle(), timeout=(1, 0.1))) as relay,
+                pytest.raises(ResourceGatewayTimeout) as exc_info,
+            ):
                 fetch_refs(relay, upstream)
             assert_token_not_in(exc_info.value)
         finally:
