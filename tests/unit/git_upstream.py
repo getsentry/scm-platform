@@ -65,7 +65,7 @@ class UpstreamHandler(BaseHTTPRequestHandler):
     def body_chunks(self) -> Iterator[bytes]:
         """Yield the request body as it arrives, one HTTP chunk or one read at a time."""
         if self.headers.get("Transfer-Encoding") == "chunked":
-            while (size := int(self.rfile.readline().strip(), 16)) > 0:
+            while (size := int(self._chunk_size_line(), 16)) > 0:
                 yield self.rfile.read(size)
                 self.rfile.readline()
             self.rfile.readline()
@@ -75,6 +75,13 @@ class UpstreamHandler(BaseHTTPRequestHandler):
                 chunk = self.rfile.read1(remaining)  # type: ignore[attr-defined]
                 remaining -= len(chunk)
                 yield chunk
+
+    def _chunk_size_line(self) -> bytes:
+        line = self.rfile.readline()
+        if not line:
+            # The relay gave up on the request partway through its body, as some tests make it do.
+            raise ConnectionResetError("the client closed the connection mid-body")
+        return line.strip()
 
     def record(self, body: bytes) -> None:
         self.server.upstream.requests.append(
