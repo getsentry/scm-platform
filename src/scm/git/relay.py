@@ -1,5 +1,6 @@
 from collections.abc import Iterator, Mapping
 from http.cookiejar import DefaultCookiePolicy
+from urllib.parse import urlsplit
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -9,6 +10,7 @@ from requests.structures import CaseInsensitiveDict
 from scm.errors import (
     ClientClosedRequest,
     GitRouteNotAllowed,
+    ResourceCertificateInvalid,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
     RpcMalformedRequestHeaders,
@@ -117,6 +119,11 @@ class GitRelay:
         # "from None" drops requests' exception, whose request holds the Authorization header.
         except requests.Timeout:
             raise ResourceGatewayTimeout(detail=f"{remote.url} did not respond in time.") from None
+        # SSLError is a kind of ConnectionError, so catch it before that one, or a bad certificate would be
+        # reported as an unreachable host.
+        except requests.exceptions.SSLError:
+            host = urlsplit(remote.url).netloc
+            raise ResourceCertificateInvalid(detail=f"The TLS certificate of {host} could not be verified.") from None
         except requests.ConnectionError:
             raise ResourceServiceUnavailable(detail=f"Could not connect to {remote.url}.") from None
 

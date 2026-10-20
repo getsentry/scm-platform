@@ -22,6 +22,7 @@ SPECIAL_STATUS_MAP: dict[ErrorCode, int] = {
     "resource_unprocessable_content": 422,
     "resource_server_error": 500,
     "resource_bad_gateway": 502,
+    "resource_certificate_invalid": 502,
     "resource_service_unavailable": 503,
     "resource_gateway_timeout": 504,
     "unexpected_response_format": 500,

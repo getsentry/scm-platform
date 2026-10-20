@@ -29,6 +29,7 @@ type ErrorCode = Literal[
     "resource_unprocessable_content",
     "resource_server_error",
     "resource_bad_gateway",
+    "resource_certificate_invalid",
     "resource_service_unavailable",
     "resource_gateway_timeout",
     "unexpected_response_format",
@@ -69,6 +70,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_unprocessable_content": "Request could not be processed.",
     "resource_server_error": "The service-provider encountered an internal error.",
     "resource_bad_gateway": "The service-provider returned an invalid response from an upstream gateway.",
+    "resource_certificate_invalid": "The service-provider's TLS certificate could not be verified.",
     "resource_service_unavailable": "The service-provider is temporarily unavailable. The request can be retried.",
     "resource_gateway_timeout": "The service-provider did not respond in time. The request can be retried.",
     "unexpected_response_format": "The response format was in an unexpected format.",
@@ -249,6 +251,10 @@ class ResourceServerError(SCMCodedError):
 
 class ResourceBadGateway(SCMCodedError):
     code = "resource_bad_gateway"
+
+
+class ResourceCertificateInvalid(SCMCodedError):
+    code = "resource_certificate_invalid"
 
 
 class ResourceServiceUnavailable(SCMCodedError):

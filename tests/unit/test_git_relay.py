@@ -7,7 +7,13 @@ from collections.abc import Iterator
 
 import pytest
 
-from scm.errors import GitRouteNotAllowed, ResourceGatewayTimeout, ResourceServiceUnavailable, SCMCodedError
+from scm.errors import (
+    GitRouteNotAllowed,
+    ResourceCertificateInvalid,
+    ResourceGatewayTimeout,
+    ResourceServiceUnavailable,
+    SCMCodedError,
+)
 from scm.git.relay import GitRelay
 from scm.git.types import GitRemote
 from tests.unit.git_upstream import UpstreamHandler, basic_auth, running_upstream
@@ -314,6 +320,13 @@ class TestUpstreamFailures:
                 remote, TOKEN, method="GET", route="info/refs", query="service=git-upload-pack", headers={}, body=None
             )
         assert_token_not_in(exc_info.value)
+
+    def test_untrusted_certificate(self, relay, upstream, monkeypatch):
+        monkeypatch.delenv("REQUESTS_CA_BUNDLE")
+        with pytest.raises(ResourceCertificateInvalid, match="TLS certificate of 127.0.0.1") as exc_info:
+            fetch_refs(relay, upstream)
+        assert_token_not_in(exc_info.value)
+        assert upstream.requests == []
 
     def test_read_timeout(self, upstream):
         release = threading.Event()
