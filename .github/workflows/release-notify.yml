@@ -1,0 +1,48 @@
+name: release-notify
+
+# Posts a Slack message when a new release is published by craft (via
+# getsentry/publish). The message includes the version and the changelog
+# since the previous release.
+#
+# Requires the `SLACK_RELEASE_WEBHOOK_URL` secret: a Slack incoming webhook
+# URL for the channel that should receive release announcements.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to announce (e.g. 1.10.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Post release to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          RELEASE_URL: ${{ github.event.release.html_url || format('{0}/{1}/releases/tag/{2}', github.server_url, github.repository, inputs.tag) }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::error::SLACK_RELEASE_WEBHOOK_URL secret is not set"
+            exit 1
+          fi
+          bash scripts/release-notify.sh "$TAG" "$RELEASE_URL" "$REPO_URL" > payload.json
+          curl --fail-with-body -sS -X POST -H 'Content-Type: application/json' \
+            --data @payload.json "$SLACK_WEBHOOK_URL"
