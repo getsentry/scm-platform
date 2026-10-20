@@ -60,15 +60,15 @@ class RetryConfig(TypedDict):
 
 class Session(Protocol):
     def get(self, url: str, headers: dict[str, str]) -> requests.Response: ...
-    def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response: ...
+    def post(self, url: str, data: bytes, headers: dict[str, str], stream: bool = False) -> requests.Response: ...
 
 
 class RequestsSession:
     def get(self, url: str, headers: dict[str, str]) -> requests.Response:
         return requests.get(url, headers=headers)
 
-    def post(self, url: str, data: bytes, headers: dict[str, str]) -> requests.Response:
-        return requests.post(url, data=data, headers=headers, allow_redirects=False)
+    def post(self, url: str, data: bytes, headers: dict[str, str], stream: bool = False) -> requests.Response:
+        return requests.post(url, data=data, headers=headers, allow_redirects=False, stream=stream)
 
 
 def fetch_repository(
@@ -225,7 +225,7 @@ class RpcApiClient(ApiClient):
         last_reason = ""  # trigger of the most recent retry; tags the recovery metric on success
         while True:
             try:
-                response = self.session.post(url=self.full_url, data=body, headers=request_headers)
+                response = self.session.post(url=self.full_url, data=body, headers=request_headers, stream=stream)
             except _RETRIABLE_TRANSPORT_ERRORS as exc:
                 # Only intercept connection errors when the caller opted in, and only for reads: a
                 # write that died at the transport layer may already have landed upstream, so it is
@@ -249,6 +249,7 @@ class RpcApiClient(ApiClient):
             if idempotent and response.status_code in status_codes:
                 if attempt < max_retries:
                     last_reason = f"status_{response.status_code}"
+                    response.close()
                     self._retry(last_reason, method, attempt, backoff_seconds)
                     attempt += 1
                     continue
