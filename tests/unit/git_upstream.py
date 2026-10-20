@@ -161,6 +161,7 @@ class running_upstream:
     def __enter__(self) -> Upstream:
         cert_path, key_path = _certificate()
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(cert_path, key_path)
         self._server = _Server(("127.0.0.1", 0), UpstreamHandler)
         self._server.socket = context.wrap_socket(self._server.socket, server_side=True)

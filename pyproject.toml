@@ -12,6 +12,9 @@ requires-python = ">=3.13"
 dependencies = [
     "msgspec>=0.19.0",
     "requests>=2.32.4",
+    # The git relay streams responses through urllib3 directly. Before 2.8.0, a server could make its chunked
+    # reader buffer without limit (GHSA-vxq7-64xx-v4gw).
+    "urllib3>=2.8.0",
 ]
 
 [build-system]
