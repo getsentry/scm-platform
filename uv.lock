@@ -545,6 +545,7 @@ version = "1.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "msgspec" },
+    { name = "pyjwt" },
     { name = "requests" },
     { name = "urllib3" },
 ]
@@ -564,6 +565,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "msgspec", specifier = ">=0.19.0" },
+    { name = "pyjwt", specifier = ">=2.9.0" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "urllib3", specifier = ">=2.8.0" },
 ]

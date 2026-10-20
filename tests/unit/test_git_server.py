@@ -12,7 +12,7 @@ from scm.rpc.types import StreamResponse
 from scm.types import Repository, RepositoryId
 from tests.unit.git_upstream import basic_auth, running_upstream
 
-SECRET = "secret"
+SECRET = "test-secret-0000000000000000000000"
 TOKEN = "ghs_secrettoken"
 
 
@@ -105,8 +105,11 @@ class TestRefusedBeforeTheProvider:
             (None, "missing"),
             ("garbage", "malformed"),
             (
-                sign_grant("other", Grant(organization_id=1, operation="fetch", repositories=(5,), expires_at=2**40)),
-                "signature",
+                sign_grant(
+                    "other-secret-0000000000000000000000",
+                    Grant(organization_id=1, operation="fetch", repositories=(5,), expires_at=2**40),
+                ),
+                "not signed with a known secret",
             ),
             (make_grant(expires_at=int(time.time()) - 1), "expired"),
         ],

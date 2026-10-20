@@ -1,32 +1,38 @@
 """Signing and verifying git grants.
 
-The wire format is ``<base64url(payload)>.<base64url(signature)>``, where the payload is the grant's JSON and the
-signature is an HMAC-SHA256 over a fixed prefix and the payload. Because of the prefix, a signature the RPC
-endpoint makes with the same secret can never pass as a grant signature.
+A grant travels as an HS256 JWT, the format Sentry and Seer already sign viewer contexts with. The grant's fields
+are claims, alongside ``exp``, ``iat`` and an ``aud`` of ``scm-git-grant``. The verifier requires that audience,
+so no other token signed with the same secret, such as a viewer context, passes as a grant. A ``kid`` header
+names the secret that signed the grant, as in Sentry's viewer contexts, so the verifier can hold several secrets
+while they rotate.
 """
 
-import base64
 import hashlib
-import hmac
-import re
 import time
+from typing import Any
 
+import jwt
 import msgspec
 
 from scm.errors import GitInvalidGrant
 from scm.git.types import Grant
 
-_SIGNATURE_DOMAIN = b"scm-git-grant."
-_BASE64URL = re.compile(r"[A-Za-z0-9_-]+")
+GRANT_AUDIENCE = "scm-git-grant"
+_ALGORITHM = "HS256"
+# Claims the JWT layer owns. Every other claim must be a Grant field.
+_JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
-def sign_grant(secret: str, grant: Grant) -> str:
-    payload = msgspec.json.encode(grant)
-    return f"{_b64encode(payload)}.{_b64encode(_signature(secret, payload))}"
+def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
+    claims: dict[str, Any] = msgspec.to_builtins(grant)
+    claims["exp"] = claims.pop("expires_at")
+    claims["iat"] = int(time.time() if now is None else now)
+    claims["aud"] = GRANT_AUDIENCE
+    return jwt.encode(claims, secret, algorithm=_ALGORITHM, headers={"kid": _key_id(secret)})
 
 
 def verify_grant(secrets: list[str], token: str, *, now: float | None = None) -> Grant:
-    """Return the grant if any of ``secrets`` signed it and it has not expired.
+    """Return the grant if one of ``secrets`` signed it and it has not expired.
 
     Verification takes a list of secrets, as ``RpcServer`` does, so a new secret can be added before signers
     switch to it and the old one removed after their grants expire.
@@ -34,25 +40,37 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     if not token:
         raise GitInvalidGrant(detail="The git grant is missing.")
     try:
-        payload_b64, signature_b64 = token.split(".")
-        payload = _b64decode(payload_b64)
-        signature = _b64decode(signature_b64)
-    except ValueError:  # Raised both for the wrong number of parts and for bad base64 (binascii.Error).
+        kid = jwt.get_unverified_header(token).get("kid")
+    except jwt.DecodeError:
         raise GitInvalidGrant(detail="The git grant is malformed.") from None
-
-    # Check every secret, not just until one matches, so the time taken does not reveal which one signed it.
-    matches = [hmac.compare_digest(signature, _signature(secret, payload)) for secret in secrets]
-    if not any(matches):
-        raise GitInvalidGrant(detail="The git grant's signature does not match.")
+    secret = next((secret for secret in secrets if _key_id(secret) == kid), None)
+    if secret is None:
+        raise GitInvalidGrant(detail="The git grant was not signed with a known secret.")
 
     try:
-        grant = msgspec.json.decode(payload, type=Grant)
+        claims = jwt.decode(
+            token,
+            secret,
+            algorithms=[_ALGORITHM],
+            audience=GRANT_AUDIENCE,
+            # Expiry is checked below against an injectable clock, so tests can pin it.
+            options={"require": sorted(_JWT_CLAIMS), "verify_exp": False, "verify_iat": False},
+        )
+    except jwt.InvalidSignatureError:
+        raise GitInvalidGrant(detail="The git grant's signature does not match.") from None
+    except jwt.DecodeError:
+        raise GitInvalidGrant(detail="The git grant is malformed.") from None
+    except jwt.InvalidTokenError as e:
+        # The signature matched or was never reached, and PyJWT's reasons name only claims, not values.
+        raise GitInvalidGrant(detail=f"The git grant is invalid: {e}") from None
+
+    fields = {name: value for name, value in claims.items() if name not in _JWT_CLAIMS}
+    try:
+        grant = msgspec.convert({**fields, "expires_at": claims["exp"]}, type=Grant, strict=True)
     except msgspec.ValidationError as e:
-        # The signature matched, so a holder of the secret wrote this payload; telling them why it is invalid
+        # The signature matched, so a holder of the secret wrote these claims; telling them why they are invalid
         # gives nothing away.
         raise GitInvalidGrant(detail=f"The git grant's payload is invalid: {e}") from None
-    except msgspec.DecodeError:
-        raise GitInvalidGrant(detail="The git grant's payload is not JSON.") from None
 
     if grant.expires_at <= (time.time() if now is None else now):
         raise GitInvalidGrant(detail="The git grant has expired.")
@@ -61,17 +79,6 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     return grant
 
 
-def _signature(secret: str, payload: bytes) -> bytes:
-    return hmac.new(secret.encode(), _SIGNATURE_DOMAIN + payload, hashlib.sha256).digest()
-
-
-def _b64encode(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-
-def _b64decode(data: str) -> bytes:
-    # urlsafe_b64decode silently drops characters outside its alphabet. Refuse them instead, so a grant has only
-    # one valid spelling.
-    if not _BASE64URL.fullmatch(data):
-        raise ValueError("not base64url")
-    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+def _key_id(secret: str) -> str:
+    # The first 8 hex characters of the secret's SHA-256, the same key id Sentry's viewer contexts use.
+    return hashlib.sha256(secret.encode()).hexdigest()[:8]

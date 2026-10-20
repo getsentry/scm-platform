@@ -1,18 +1,19 @@
 import base64
 import hashlib
-import hmac
-import json
 
+import jwt
 import msgspec
 import pytest
 
 from scm.errors import GitInvalidGrant
-from scm.git.grant import sign_grant, verify_grant
+from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
 from scm.git.types import Grant
-from scm.rpc.helpers import sign_post
 
 NOW = 1_800_000_000
-SECRET = "secret"
+# HS256 secrets of at least 32 bytes, as PyJWT recommends.
+SECRET = "test-secret-0000000000000000000000"
+OLD_SECRET = "test-secret-old-000000000000000000"
+NEW_SECRET = "test-secret-new-000000000000000000"
 
 
 def make_grant(**overrides) -> Grant:
@@ -26,18 +27,19 @@ def make_grant(**overrides) -> Grant:
     return Grant(**fields)  # type: ignore[arg-type]
 
 
-def b64(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+def key_id(secret: str) -> str:
+    return hashlib.sha256(secret.encode()).hexdigest()[:8]
 
 
-def sign_payload(payload: bytes, secret: str = SECRET) -> str:
-    """Sign arbitrary bytes the way sign_grant does, to reach the checks that run after the signature."""
-    signature = hmac.new(secret.encode(), b"scm-git-grant." + payload, hashlib.sha256).digest()
-    return f"{b64(payload)}.{b64(signature)}"
+def claims_of(grant: Grant) -> dict:
+    claims = msgspec.to_builtins(grant)
+    claims["exp"] = claims.pop("expires_at")
+    return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
 
 
-def payload_of(grant: Grant) -> dict:
-    return json.loads(msgspec.json.encode(grant))
+def sign_claims(claims: dict, secret: str = SECRET, algorithm: str = "HS256", kid: str | None = None) -> str:
+    """Sign arbitrary claims the way sign_grant does, to reach the checks that run after the signature."""
+    return jwt.encode(claims, secret, algorithm=algorithm, headers={"kid": kid or key_id(secret)})
 
 
 def assert_invalid(token: str, detail: str, secrets: list[str] | None = None) -> None:
@@ -49,20 +51,24 @@ def assert_invalid(token: str, detail: str, secrets: list[str] | None = None) ->
 class TestRoundTrip:
     def test_verifies_what_it_signed(self):
         grant = make_grant()
-        assert verify_grant([SECRET], sign_grant(SECRET, grant), now=NOW) == grant
-
-    def test_keeps_both_repository_id_forms(self):
-        grant = verify_grant([SECRET], sign_grant(SECRET, make_grant()), now=NOW)
-        assert grant.repositories == (5, ("github", "123"))
+        assert verify_grant([SECRET], sign_grant(SECRET, grant, now=NOW), now=NOW) == grant
 
     def test_push_grant(self):
         grant = make_grant(operation="push")
-        assert verify_grant([SECRET], sign_grant(SECRET, grant), now=NOW).operation == "push"
+        assert verify_grant([SECRET], sign_grant(SECRET, grant, now=NOW), now=NOW).operation == "push"
 
-    def test_payload_carries_the_version(self):
-        token = sign_grant(SECRET, make_grant())
-        payload = json.loads(base64.urlsafe_b64decode(token.split(".")[0] + "=="))
-        assert payload["version"] == 1
+    def test_token_is_a_jwt_with_the_grants_claims(self):
+        token = sign_grant(SECRET, make_grant(), now=NOW)
+        assert jwt.get_unverified_header(token) == {"alg": "HS256", "typ": "JWT", "kid": key_id(SECRET)}
+        assert jwt.decode(token, options={"verify_signature": False}) == {
+            "organization_id": 1,
+            "operation": "fetch",
+            "repositories": [5, ["github", "123"]],
+            "version": 1,
+            "exp": NOW + 600,
+            "iat": NOW,
+            "aud": GRANT_AUDIENCE,
+        }
 
 
 class TestExpiry:
@@ -76,69 +82,71 @@ class TestExpiry:
         token = sign_grant(SECRET, make_grant(expires_at=NOW + 1))
         assert verify_grant([SECRET], token, now=NOW).expires_at == NOW + 1
 
-    def test_expiry_is_required(self):
-        payload = payload_of(make_grant())
-        del payload["expires_at"]
-        assert_invalid(sign_payload(json.dumps(payload).encode()), "expires_at")
+    @pytest.mark.parametrize("claim", ["exp", "iat", "aud"])
+    def test_jwt_claims_are_required(self, claim):
+        claims = claims_of(make_grant())
+        del claims[claim]
+        assert_invalid(sign_claims(claims), claim)
 
 
 class TestTampering:
     def test_changed_payload(self):
-        token = sign_grant(SECRET, make_grant())
-        _, signature = token.split(".")
-        forged = msgspec.json.encode(make_grant(organization_id=2))
-        assert_invalid(f"{b64(forged)}.{signature}", "signature does not match")
+        header, _, signature = sign_grant(SECRET, make_grant()).split(".")
+        forged = base64.urlsafe_b64encode(msgspec.json.encode(claims_of(make_grant(organization_id=2))))
+        assert_invalid(f"{header}.{forged.rstrip(b'=').decode()}.{signature}", "signature does not match")
 
     def test_changed_signature(self):
-        payload, signature = sign_grant(SECRET, make_grant()).split(".")
+        header, payload, signature = sign_grant(SECRET, make_grant()).split(".")
         flipped = bytearray(base64.urlsafe_b64decode(signature + "="))
         flipped[0] ^= 1
-        assert_invalid(f"{payload}.{b64(bytes(flipped))}", "signature does not match")
+        resigned = base64.urlsafe_b64encode(bytes(flipped)).rstrip(b"=").decode()
+        assert_invalid(f"{header}.{payload}.{resigned}", "signature does not match")
 
-    def test_other_secret(self):
-        assert_invalid(sign_grant("other", make_grant()), "signature does not match")
+    def test_unknown_secret(self):
+        assert_invalid(sign_grant("other-secret-0000000000000000000000", make_grant()), "not signed with a known")
+
+    def test_other_secret_claiming_a_known_key_id(self):
+        token = sign_claims(claims_of(make_grant()), secret="other-secret-0000000000000000000000", kid=key_id(SECRET))
+        assert_invalid(token, "signature does not match")
 
     def test_no_secrets(self):
         with pytest.raises(GitInvalidGrant):
             verify_grant([], sign_grant(SECRET, make_grant()), now=NOW)
 
-    def test_rpc_signature_over_the_same_payload_is_not_a_grant_signature(self):
-        payload = msgspec.json.encode(make_grant())
-        rpc_signature = bytes.fromhex(sign_post(SECRET, payload).removeprefix("rpc0:"))
-        assert_invalid(f"{b64(payload)}.{b64(rpc_signature)}", "signature does not match")
+    def test_token_without_an_audience(self):
+        # A viewer context, for one, is an HS256 JWT signed with a shared secret and carries no audience.
+        claims = claims_of(make_grant())
+        del claims["aud"]
+        assert_invalid(sign_claims(claims), '"aud"')
+
+    def test_token_for_another_audience(self):
+        assert_invalid(sign_claims(claims_of(make_grant()) | {"aud": "scm-rpc"}), "Audience doesn't match")
+
+    def test_unsigned_token(self):
+        token = jwt.encode(claims_of(make_grant()), None, algorithm="none", headers={"kid": key_id(SECRET)})
+        assert_invalid(token, "invalid")
+
+    @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
+    def test_other_algorithm(self):
+        assert_invalid(sign_claims(claims_of(make_grant()), algorithm="HS512"), "invalid")
 
 
 class TestRotatedSecrets:
-    def test_old_secret_verifies_during_rotation(self):
-        assert verify_grant(["new", "old"], sign_grant("old", make_grant()), now=NOW) == make_grant()
-
-    def test_new_secret_verifies_during_rotation(self):
-        assert verify_grant(["new", "old"], sign_grant("new", make_grant()), now=NOW) == make_grant()
+    @pytest.mark.parametrize("signer", [OLD_SECRET, NEW_SECRET])
+    def test_both_secrets_verify_during_rotation(self, signer):
+        assert verify_grant([NEW_SECRET, OLD_SECRET], sign_grant(signer, make_grant()), now=NOW) == make_grant()
 
     def test_old_secret_refused_after_rotation(self):
-        assert_invalid(sign_grant("old", make_grant()), "signature does not match", secrets=["new"])
+        assert_invalid(sign_grant(OLD_SECRET, make_grant()), "not signed with a known", secrets=[NEW_SECRET])
 
 
 class TestMalformed:
-    @pytest.mark.parametrize(
-        "token",
-        [
-            "nodot",
-            "a.b.c",
-            "abc.d+f",
-            "ab=c.def",
-            "abc.dé",
-            ".",
-        ],
-    )
+    @pytest.mark.parametrize("token", ["nodot", "a.b.c", "a.b", "...", "é.é.é"])
     def test_malformed_token(self, token):
         assert_invalid(token, "malformed")
 
     def test_missing(self):
         assert_invalid("", "missing")
-
-    def test_signed_but_not_json(self):
-        assert_invalid(sign_payload(b"not json"), "not JSON")
 
     @pytest.mark.parametrize(
         "change",
@@ -149,13 +157,12 @@ class TestMalformed:
             {"version": 2},
             {"repositories": [["github"]]},
             {"repositories": [["unknown_provider", "123"]]},
-            {"expires_at": 1.5},
+            {"exp": NOW + 600.5},
             {"narrower_than_you_think": True},
         ],
     )
-    def test_signed_but_invalid_payload(self, change):
-        payload = payload_of(make_grant()) | change
-        assert_invalid(sign_payload(json.dumps(payload).encode()), "payload is invalid")
+    def test_signed_but_invalid_claims(self, change):
+        assert_invalid(sign_claims(claims_of(make_grant()) | change), "payload is invalid")
 
     def test_no_repositories(self):
         assert_invalid(sign_grant(SECRET, make_grant(repositories=())), "names no repositories")
