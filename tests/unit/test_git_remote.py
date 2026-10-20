@@ -1,6 +1,6 @@
 import pytest
 
-from scm.errors import GitProviderNotSupported, InvalidWebBaseUrl
+from scm.errors import GitProviderNotSupported, InvalidWebBaseUrl, MissingRepositoryPath
 from scm.git.remote import git_remote
 from scm.git.types import GitRemote
 from tests.unit.git_builders import make_repository
@@ -23,7 +23,7 @@ def test_github_enterprise(web_base_url):
 @pytest.mark.parametrize("provider_name", ["github_enterprise", "gitlab"])
 def test_self_hosted_providers_need_a_web_base_url(provider_name):
     with pytest.raises(InvalidWebBaseUrl, match=f"{provider_name} repository has no web_base_url"):
-        git_remote(make_repository(provider_name=provider_name))
+        git_remote(make_repository(provider_name=provider_name, path="getsentry/sentry"))
 
 
 @pytest.mark.parametrize(
@@ -32,7 +32,7 @@ def test_self_hosted_providers_need_a_web_base_url(provider_name):
 )
 @pytest.mark.parametrize("provider_name", ["github_enterprise", "gitlab"])
 def test_web_base_url_must_be_https(provider_name, web_base_url):
-    repository = make_repository(provider_name=provider_name, web_base_url=web_base_url)
+    repository = make_repository(provider_name=provider_name, path="getsentry/sentry", web_base_url=web_base_url)
     with pytest.raises(InvalidWebBaseUrl, match="not an https URL"):
         git_remote(repository)
 
@@ -47,9 +47,30 @@ def test_web_base_url_must_be_https(provider_name, web_base_url):
 )
 def test_gitlab(web_base_url, url):
     repository = make_repository(
-        provider_name="gitlab", external_id="gitlab.com:42", name="group / sub / project", web_base_url=web_base_url
+        provider_name="gitlab",
+        external_id="gitlab.com:42",
+        name="Group / Sub / Project",
+        path="group/sub/project",
+        web_base_url=web_base_url,
     )
     assert git_remote(repository) == GitRemote(url=url, username="oauth2")
+
+
+@pytest.mark.parametrize("path", [None, ""])
+def test_gitlab_needs_the_repository_path(path):
+    # The name is GitLab's display name, e.g. "GitLab.org / GitLab FOSS" for gitlab-org/gitlab-foss, so it can't
+    # stand in for the path.
+    repository = make_repository(
+        provider_name="gitlab", name="GitLab.org / GitLab FOSS", path=path, web_base_url="https://gitlab.com"
+    )
+    with pytest.raises(MissingRepositoryPath):
+        git_remote(repository)
+
+
+def test_gitlab_without_a_path_from_an_older_sentry():
+    repository = make_repository(provider_name="gitlab", web_base_url="https://gitlab.com")
+    with pytest.raises(MissingRepositoryPath):
+        git_remote(repository)
 
 
 @pytest.mark.parametrize("provider_name", ["bitbucket", "cursor_origin"])

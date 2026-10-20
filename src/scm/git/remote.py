@@ -1,6 +1,6 @@
 from urllib.parse import urlsplit
 
-from scm.errors import GitProviderNotSupported, InvalidWebBaseUrl
+from scm.errors import GitProviderNotSupported, InvalidWebBaseUrl, MissingRepositoryPath
 from scm.git.types import GitRemote
 from scm.types import Repository
 
@@ -20,8 +20,9 @@ def git_remote(repository: Repository) -> GitRemote:
             base_url = _https_base_url(repository)
             return GitRemote(url=f"{base_url}/{repository['name']}.git", username="x-access-token")
         case "gitlab":
-            # Sentry's repository name for GitLab is the namespace path with spaces around each slash.
-            path = repository["name"].replace(" ", "")
+            # Sentry's name for a GitLab repository is its display name, so the path has to come separately.
+            if not (path := repository.get("path")):
+                raise MissingRepositoryPath(detail="The GitLab repository has no path.")
             return GitRemote(url=f"{_https_base_url(repository)}/{path}.git", username="oauth2")
         case provider_name:
             raise GitProviderNotSupported(detail=f"The {provider_name} provider has no git remote.")

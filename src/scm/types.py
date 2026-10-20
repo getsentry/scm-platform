@@ -342,6 +342,9 @@ class Repository(TypedDict):
     web_base_url: str | None
     # The SCM app's external id.
     installation_id: str | None
+    # The repository's path on its provider's host, e.g. "gitlab-org/gitlab-foss". Only Sentry's GitLab
+    # repositories set it today, because their name is a display name ("GitLab.org / GitLab FOSS").
+    path: NotRequired[str | None]
 
 
 class GitRepository(TypedDict):

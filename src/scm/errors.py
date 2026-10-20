@@ -6,6 +6,7 @@ type ErrorCode = Literal[
     "git_route_not_allowed",
     "invalid_web_base_url",
     "malformed_external_id",
+    "missing_repository_path",
     "path_is_directory",
     "path_is_not_directory",
     "provider_not_found",
@@ -47,6 +48,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "git_route_not_allowed": "The git grant does not allow this request.",
     "invalid_web_base_url": "The repository's web_base_url is missing or is not an https URL.",
     "malformed_external_id": "The repository's external ID was malformed.",
+    "missing_repository_path": "The repository's path on its provider is unknown.",
     "path_is_directory": "The requested path is a directory, not a file.",
     "path_is_not_directory": "The requested path is not a directory.",
     "provider_not_found": "An unsupported integration provider was found.",
@@ -151,6 +153,10 @@ class InvalidWebBaseUrl(SCMCodedError):
 
 class MalformedExternalId(SCMCodedError):
     code = "malformed_external_id"
+
+
+class MissingRepositoryPath(SCMCodedError):
+    code = "missing_repository_path"
 
 
 class PathIsDirectory(SCMCodedError):
