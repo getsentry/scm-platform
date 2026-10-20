@@ -113,7 +113,11 @@ class GitRelay:
                 method,
                 url,
                 headers=upstream_headers,
-                data=_request_body(body, _content_length(client_headers), self.chunk_size),
+                # Of the git routes only the POSTs carry a body. A caller may pass its request stream for a GET too,
+                # and sent on, it would go upstream as an empty chunked body.
+                data=_request_body(body, _content_length(client_headers), self.chunk_size)
+                if method == "POST"
+                else None,
                 # Passing auth also stops requests from replacing it with credentials from a .netrc file.
                 auth=HTTPBasicAuth(remote.username, token),
                 stream=True,
@@ -170,8 +174,18 @@ def _request_body(
 
 
 def _read_until_eof(body: Readable, chunk_size: int) -> Iterator[bytes]:
-    while chunk := body.read(chunk_size):
+    while chunk := _read(body, chunk_size):
         yield chunk
+
+
+def _read(body: Readable, size: int) -> bytes:
+    try:
+        return body.read(size)
+    except OSError:
+        # urllib3 ignores ECONNRESET and EPIPE while it sends a body, taking them for the provider closing the
+        # connection, and would then wait out the read timeout for a response to the cut-off request. Raised as
+        # anything other than an OSError, the client's reset ends the request at once.
+        raise ClientClosedRequest(detail="The client's connection failed while it sent its body.") from None
 
 
 class _SizedBody:
@@ -192,7 +206,7 @@ class _SizedBody:
     def __iter__(self) -> Iterator[bytes]:
         remaining = self.length
         while remaining > 0:
-            chunk = self.body.read(min(self.chunk_size, remaining))
+            chunk = _read(self.body, min(self.chunk_size, remaining))
             if not chunk:
                 raise ClientClosedRequest(detail="The client closed the request before sending its whole body.")
             remaining -= len(chunk)

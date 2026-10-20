@@ -24,6 +24,7 @@ _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
 def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
+    _check_secrets([secret])
     claims: dict[str, Any] = msgspec.to_builtins(grant)
     claims["exp"] = claims.pop("expires_at")
     claims["iat"] = int(time.time() if now is None else now)
@@ -37,6 +38,7 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     Verification takes a list of secrets, as ``RpcServer`` does, so a new secret can be added before signers
     switch to it and the old one removed after their grants expire.
     """
+    _check_secrets(secrets)
     if not token:
         raise GitInvalidGrant(detail="The git grant is missing.")
     try:
@@ -77,6 +79,12 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     if not grant.repositories:
         raise GitInvalidGrant(detail="The git grant names no repositories.")
     return grant
+
+
+def _check_secrets(secrets: list[str]) -> None:
+    # HMAC accepts an empty key, so an empty secret, say from an unset setting, would let anyone sign a grant.
+    if not all(secrets):
+        raise ValueError("A git grant secret is empty.")
 
 
 def _key_id(secret: str) -> str:

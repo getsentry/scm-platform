@@ -151,6 +151,24 @@ class TestRequest:
             )
         assert upstream.requests == []
 
+    def test_get_sends_no_body(self, relay, upstream):
+        # A view passes its request stream for every method; a GET's must not go upstream as an empty chunked body.
+        body = io.BytesIO(b"")
+        b"".join(
+            relay.forward(
+                remote_for(upstream),
+                TOKEN,
+                method="GET",
+                route="info/refs",
+                query="service=git-upload-pack",
+                headers={},
+                body=body,
+            ).content
+        )
+        [request] = upstream.requests
+        assert "Transfer-Encoding" not in request.headers
+        assert "Content-Length" not in request.headers
+
     def test_known_length_body_is_sent_with_its_length(self, relay, upstream):
         b"".join(upload_pack(relay, upstream, io.BytesIO(b"0000"), headers={"Content-Length": "4"}).content)
         [request] = upstream.requests
@@ -173,6 +191,28 @@ class TestRequest:
     def test_body_shorter_than_its_length(self, relay, upstream):
         with pytest.raises(SCMCodedError) as exc_info:
             upload_pack(relay, upstream, io.BytesIO(b"00"), headers={"Content-Length": "4"})
+        assert exc_info.value.code == "client_closed_request"
+
+    @pytest.mark.parametrize("known_length", [True, False])
+    @pytest.mark.parametrize("error", [ConnectionResetError, BrokenPipeError])
+    def test_client_resetting_mid_body_is_reported_at_once(self, upstream, known_length, error):
+        # urllib3 ignores ECONNRESET and EPIPE while sending a body, taking them for the provider closing the
+        # connection, and then waits for a response to the cut-off request until its read timeout.
+        upstream.handler = lambda h: (b"".join(h.body_chunks()), h.respond(200, b"ok"))
+
+        class ResettingClient:
+            def __init__(self) -> None:
+                self.reads = 0
+
+            def read(self, size: int = -1, /) -> bytes:
+                self.reads += 1
+                if self.reads > 1:
+                    raise error()
+                return b"first"
+
+        headers = {"Content-Length": "100"} if known_length else {}
+        with closing(GitRelay(timeout=(1, 2))) as relay, pytest.raises(SCMCodedError) as exc_info:
+            upload_pack(relay, upstream, ResettingClient(), headers=headers)
         assert exc_info.value.code == "client_closed_request"
 
     @pytest.mark.parametrize("content_length", ["abc", "-1", "1.5", "²", "٣"])

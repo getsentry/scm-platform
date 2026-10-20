@@ -101,6 +101,18 @@ def test_requires_a_relay():
         )
 
 
+@pytest.mark.parametrize("secrets", [[], [SECRET, ""]])
+def test_requires_non_empty_secrets(secrets):
+    with pytest.raises(ValueError, match="secret"):
+        GitServer(
+            secrets=secrets,
+            fetch_repository=lambda organization_id, repository_id: None,
+            get_token=lambda repository, operation: None,
+            record_count=lambda name, value, tags: None,
+            relay=MagicMock(spec=GitRelay),
+        )
+
+
 class TestRefusedBeforeTheProvider:
     """Nothing the grant does not allow may look up a repository or a token."""
 
@@ -227,7 +239,7 @@ class TestRelay:
         recorder = Recorder()
         with pytest.raises(HostRefused):
             request(make_server(recorder, relay), signed_grant())
-        assert recorder.counts == []
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "unhandled_exception"})]
 
     def test_relays_end_to_end(self, monkeypatch):
         with running_upstream() as upstream:

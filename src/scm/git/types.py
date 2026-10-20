@@ -57,6 +57,11 @@ fetch.
 
 
 class Readable(Protocol):
-    """A request body the relay pulls from as it sends upstream, e.g. a WSGI input or a Django request."""
+    """A request body the relay pulls from as it sends upstream.
+
+    It must yield the body already decoded from its transfer encoding, ending where the body ends. A Django
+    request under WSGI reads a chunked body as empty, and git sends a push over about 1 MiB chunked, so a view
+    needs to pass a stream that has the whole body.
+    """
 
     def read(self, size: int = -1, /) -> bytes: ...

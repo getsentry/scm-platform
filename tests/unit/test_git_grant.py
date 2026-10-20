@@ -121,6 +121,19 @@ class TestTampering:
         assert_invalid(sign_claims(claims_of(make_grant()), algorithm="HS512"), "invalid")
 
 
+class TestSecrets:
+    # PyJWT signs with an empty key, so an empty secret would let anyone sign grants.
+    def test_refuses_to_sign_with_an_empty_secret(self):
+        with pytest.raises(ValueError, match="empty"):
+            sign_grant("", make_grant())
+
+    @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
+    def test_refuses_to_verify_with_an_empty_secret(self):
+        token = jwt.encode(claims_of(make_grant()), "", algorithm="HS256", headers={"kid": key_id("")})
+        with pytest.raises(ValueError, match="empty"):
+            verify_grant([SECRET, ""], token, now=NOW)
+
+
 class TestRotatedSecrets:
     @pytest.mark.parametrize("signer", [OLD_SECRET, NEW_SECRET])
     def test_both_secrets_verify_during_rotation(self, signer):

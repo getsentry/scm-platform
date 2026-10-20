@@ -35,6 +35,9 @@ class GitServer:
         record_count: Callable[[str, int, dict[str, str]], None],
         relay: GitRelay,
     ) -> None:
+        # Fail when the server is built rather than on every request, because no grant could ever verify.
+        if not secrets or not all(secrets):
+            raise ValueError("GitServer needs at least one secret, and none may be empty.")
         self.secrets = secrets
         self.fetch_repository = fetch_repository
         self.get_token = get_token
@@ -77,6 +80,9 @@ class GitServer:
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
             return _error_response(e)
+        except Exception:
+            self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"})
+            raise
 
         self.record_count(
             "sentry.scm.git.request.succeeded",
