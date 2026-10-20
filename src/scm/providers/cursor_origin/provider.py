@@ -48,6 +48,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRemote,
     GitRepository,
     GitTree,
     MoveCommitAction,
@@ -79,6 +80,8 @@ PULL_REQUEST_TEMPLATE_PARENT_DIRS = ("", "docs")
 PULL_REQUEST_TEMPLATE_FILENAME = "pull_request_template.md"
 PULL_REQUEST_TEMPLATE_DIRNAME = "pull_request_template"
 CURSOR_ORIGIN_WEB_BASE_URL = "https://cursor.com/codebase"
+# Git over HTTPS is served from its own host, not the web UI's.
+CURSOR_ORIGIN_GIT_BASE_URL = "https://origin.cursor.com"
 # Origin has no no-reply address for an app.
 CURSOR_ORIGIN_APP_COMMIT_EMAIL = "noreply@sentry.io"
 PAGE_TOKEN_PARAM = "pageToken"
@@ -353,6 +356,10 @@ class CursorOriginProvider:
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self._web_base_url}/{self.repository_path}/pull/{pull_request_id}"
+
+    def get_git_remote(self) -> GitRemote:
+        # Origin's git endpoint takes an installation token as the basic-auth password and refuses a bearer header.
+        return GitRemote(url=f"{CURSOR_ORIGIN_GIT_BASE_URL}/{self.repository_path}.git", username="x-access-token")
 
     def get_file_content(
         self,

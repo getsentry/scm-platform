@@ -1,6 +1,7 @@
 import io
 import time
 from collections.abc import Iterator
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -177,6 +178,14 @@ class TestRepository:
         assert recorder.repository_lookups == [(1, 5)]
         assert recorder.provider_lookups == [(1, make_repository())]
 
+    def test_provider_without_a_git_remote(self):
+        recorder = Recorder()
+        recorder.fetch_provider = lambda organization_id, repository: SimpleNamespace(  # type: ignore[method-assign]
+            organization_id=organization_id, repository=repository
+        )
+        assert_refused(request(make_server(recorder), signed_grant()), 400, "github provider has no git remote")
+        assert recorder.token_lookups == []
+
     def test_remote_comes_from_the_provider(self):
         repository = make_repository(provider_name="gitlab", external_id="gitlab.example.com:7", path="group/project")
         recorder = Recorder(repository=repository)
@@ -192,7 +201,6 @@ class TestRepository:
             (make_repository(organization_id=2), 404, "did not belong"),
             (make_repository(is_active=False), 404, "inactive"),
             (make_repository(provider_name="bitbucket"), 404, "unsupported integration provider"),
-            (make_repository(provider_name="cursor_origin"), 400, "cursor_origin provider has no git remote"),
             (make_repository(provider_name="gitlab", external_id="gitlab.com:7"), 400, "has no path"),
         ],
     )
