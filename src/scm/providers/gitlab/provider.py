@@ -9,6 +9,7 @@ import requests
 from scm.errors import (
     InvalidCheckRunStateTransition,
     MalformedExternalId,
+    MissingRepositoryPath,
     PathIsNotDirectory,
     ReadmeNotFound,
     ResourceBadRequest,
@@ -243,11 +244,14 @@ class GitLabProvider:
 
     @property
     def web_repository_path(self) -> str:
+        """The repository's path on the instance (e.g. "gitlab-org/gitlab-foss"), for web URLs.
+
+        Sentry's name for a GitLab repository is its display name ("GitLab.org / GitLab FOSS"), which differs from
+        the path in more than spaces, so the path has to come from the repository.
         """
-        Normalize Sentry's GitLab full repo name (e.g., "my-group / my-team / my-subteam / my-project"
-        --> "my-group/my-team/my-subteam/my-project") for use in web URLs.
-        """
-        return self.repository["name"].replace(" ", "")
+        if not (path := self.repository.get("path")):
+            raise MissingRepositoryPath(detail="The GitLab repository has no path.")
+        return path
 
     def request(
         self,
