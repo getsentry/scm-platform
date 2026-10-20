@@ -35,13 +35,13 @@ def iter_all_pages[T](
         cursor = next_cursor
 
 
-def initialize_provider(
+def resolve_repository(
     organization_id: int,
     repository_id: RepositoryId,
     *,
     fetch_repository: Callable[[int, RepositoryId], Repository | None],
-    fetch_provider: Callable[[int, Repository], Provider | None],
-) -> Provider:
+) -> Repository:
+    """Return the repository only if it exists, is active and belongs to the organization."""
     repository = fetch_repository(organization_id, repository_id)
     if not repository:
         raise RepositoryNotFound(organization_id=organization_id, repository_id=repository_id)
@@ -49,6 +49,17 @@ def initialize_provider(
         raise RepositoryInactive(organization_id=organization_id, repository_id=repository_id)
     if repository["organization_id"] != organization_id:
         raise RepositoryOrganizationMismatch(organization_id=organization_id, repository_id=repository_id)
+    return repository
+
+
+def initialize_provider(
+    organization_id: int,
+    repository_id: RepositoryId,
+    *,
+    fetch_repository: Callable[[int, RepositoryId], Repository | None],
+    fetch_provider: Callable[[int, Repository], Provider | None],
+) -> Provider:
+    repository = resolve_repository(organization_id, repository_id, fetch_repository=fetch_repository)
 
     provider = fetch_provider(organization_id, repository)
     if provider is None:
