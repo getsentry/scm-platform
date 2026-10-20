@@ -239,6 +239,26 @@ class TestRelay:
         assert TOKEN not in b"".join(response.content).decode()
         assert recorder.errors == []
 
+    def test_provider_rejecting_the_token_is_a_gateway_error(self):
+        # Passed on, a 401 would make git ask the sandboxed client for credentials.
+        closed = []
+
+        def provider_body():
+            try:
+                yield b"Bad credentials"
+            finally:
+                closed.append(True)
+
+        content = provider_body()
+        next(content)  # Started, as a relay's stream is once its first chunk is read.
+        relay = MagicMock(spec=GitRelay)
+        relay.forward.return_value = StreamResponse(status_code=401, headers={}, content=content)
+        recorder = Recorder()
+        response = fetch_refs(make_server(recorder, relay), make_grant())
+        assert_refused(response, 502, "rejected Sentry's credentials")
+        assert closed == [True]
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "resource_bad_gateway"})]
+
     def test_relays_end_to_end(self, monkeypatch):
         with running_upstream() as upstream:
             monkeypatch.setenv("REQUESTS_CA_BUNDLE", upstream.ca_bundle)

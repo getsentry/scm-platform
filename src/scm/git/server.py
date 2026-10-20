@@ -2,7 +2,7 @@ from collections.abc import Callable, Mapping
 
 from requests.structures import CaseInsensitiveDict
 
-from scm.errors import ProviderNotFound, SCMCodedError
+from scm.errors import ProviderNotFound, ResourceBadGateway, SCMCodedError
 from scm.git.grant import verify_grant
 from scm.git.operations import check_request
 from scm.git.relay import GitRelay
@@ -67,6 +67,11 @@ class GitServer:
             response = self.relay.forward(
                 remote, token, method=method, route=route, query=query, headers=headers, body=body
             )
+            if response.status_code == 401:
+                # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
+                # for credentials, which it must never have and which would not help.
+                _close(response)
+                raise ResourceBadGateway(detail="The provider rejected Sentry's credentials for this repository.")
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
             if e.code == "unhandled_exception":
@@ -83,6 +88,13 @@ class GitServer:
             },
         )
         return response
+
+
+def _close(response: StreamResponse) -> None:
+    # Closing the relay's stream before it is read to the end drops the upstream connection.
+    close = getattr(response.content, "close", None)
+    if close is not None:
+        close()
 
 
 def _error_response(error: SCMCodedError) -> StreamResponse:
