@@ -50,6 +50,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRemote,
     GitRepository,
     GitTree,
     Issue,
@@ -745,6 +746,9 @@ class GitLabProvider:
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self.web_base_url}/{self.web_repository_path}/-/merge_requests/{pull_request_id}"
+
+    def get_git_remote(self) -> GitRemote:
+        return GitRemote(url=f"{self.web_base_url}/{self.web_repository_path}.git", username="oauth2")
 
     def get_tree(
         self,

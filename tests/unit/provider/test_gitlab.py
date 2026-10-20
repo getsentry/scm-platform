@@ -37,6 +37,7 @@ from scm.types import (
     ChmodCommitAction,
     DeleteCommitAction,
     DiffLine,
+    GitRemote,
     MoveCommitAction,
     Repository,
     WriteCommitAction,
@@ -13974,6 +13975,41 @@ def test_web_links_keep_the_instances_path_prefix(client: ApiClient) -> None:
     provider = GitLabProvider(client=client, organization_id=1, repository=repository)  # type: ignore[arg-type]
 
     assert provider.get_commit_url("abc123") == "https://example.com/gitlab/test-repo/-/commit/abc123"
+
+
+def test_get_git_remote_is_the_repository_path_on_its_instance(client: ApiClient) -> None:
+    provider = _make_gitlab_provider(client, name="GitLab.org / GitLab FOSS", path="gitlab-org/gitlab-foss")
+
+    assert provider.get_git_remote() == GitRemote(
+        url="https://gitlab.com/gitlab-org/gitlab-foss.git", username="oauth2"
+    )
+
+
+def test_get_git_remote_on_a_self_managed_instance(client: ApiClient) -> None:
+    provider = GitLabProvider(
+        client=client,
+        organization_id=1,
+        repository={**_make_gitlab_provider(client).repository, "external_id": "gitlab.example.com:8443:7"},
+    )
+
+    assert provider.get_git_remote() == GitRemote(
+        url="https://gitlab.example.com:8443/test-repo.git", username="oauth2"
+    )
+
+
+def test_get_git_remote_keeps_the_instances_path_prefix(client: ApiClient) -> None:
+    repository = {**_make_gitlab_provider(client).repository, "web_base_url": "https://example.com/gitlab"}
+    provider = GitLabProvider(client=client, organization_id=1, repository=repository)  # type: ignore[arg-type]
+
+    assert provider.get_git_remote()["url"] == "https://example.com/gitlab/test-repo.git"
+
+
+@pytest.mark.parametrize("path", [None, ""])
+def test_get_git_remote_needs_the_repository_path(client: ApiClient, path: str | None) -> None:
+    provider = _make_gitlab_provider(client, name="GitLab.org / GitLab FOSS", path=path)
+
+    with pytest.raises(MissingRepositoryPath):
+        provider.get_git_remote()
 
 
 def test_get_file_url_builds_blob_url(provider: GitLabProvider):
