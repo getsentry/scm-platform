@@ -1,14 +1,14 @@
 import io
 import time
-from collections.abc import Iterator
+from collections.abc import Generator
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from scm.errors import RateLimitExceeded
+from scm.errors import ClientClosedRequest, RateLimitExceeded
 from scm.git.grant import sign_grant
-from scm.git.relay import GitRelay
+from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
 from scm.git.types import GRANT_HEADER, GitOperation, Readable
 from scm.rpc.types import StreamResponse
@@ -32,6 +32,7 @@ class Recorder:
         self.provider_lookups: list[tuple[int, Repository]] = []
         self.token_lookups: list[tuple[Repository, GitOperation]] = []
         self.counts: list[tuple[str, dict[str, str]]] = []
+        self.errors: list[Exception] = []
         self.bytes: dict[tuple[str, str], int] = {}
 
     def fetch_repository(self, organization_id: int, repository_id: RepositoryId) -> Repository | None:
@@ -47,29 +48,42 @@ class Recorder:
         return self.token
 
     def record_count(self, name: str, value: int, tags: dict[str, str]) -> None:
-        if name.endswith("_bytes"):
+        if name.endswith("_size"):
             key = (name, tags["operation"])
             self.bytes[key] = self.bytes.get(key, 0) + value
         else:
             self.counts.append((name, tags))
 
+    def emit_error(self, error: Exception) -> None:
+        self.errors.append(error)
 
-def relay_returning(content: Iterator[bytes], status_code: int = 200) -> GitRelay:
+    @property
+    def error_codes(self) -> list[str]:
+        return [getattr(error, "code", "") for error in self.errors]
+
+
+def chunks(*parts: bytes) -> Generator[bytes]:
+    """A provider response body, which, like the relay's, can be closed."""
+    yield from parts
+
+
+def relay_returning(content: ResponseBody, status_code: int = 200) -> GitRelay:
     """A stand-in relay whose every forward returns ``content`` as the provider's response."""
     relay = MagicMock(spec=GitRelay)
-    relay.forward.return_value = StreamResponse(status_code=status_code, headers={}, content=content)
+    relay.forward.return_value = RelayResponse(status_code=status_code, headers={}, content=content)
     return relay
 
 
 def make_server(recorder: Recorder, relay: GitRelay | None = None) -> GitServer:
     if relay is None:
-        relay = relay_returning(iter([b"refs"]))
+        relay = relay_returning(chunks(b"refs"))
     return GitServer(
         secrets=[SECRET],
         fetch_repository=recorder.fetch_repository,
         fetch_provider=recorder.fetch_provider,
         get_token=recorder.get_token,
         record_count=recorder.record_count,
+        emit_error=recorder.emit_error,
         relay=relay,
     )
 
@@ -118,6 +132,7 @@ def test_requires_a_relay():
             fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
             record_count=lambda name, value, tags: None,
+            emit_error=lambda error: None,
         )
 
 
@@ -130,6 +145,7 @@ def test_requires_non_empty_secrets(secrets):
             fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
             record_count=lambda name, value, tags: None,
+            emit_error=lambda error: None,
             relay=MagicMock(spec=GitRelay),
         )
 
@@ -159,6 +175,7 @@ class TestRefusedBeforeTheProvider:
         assert recorder.token_lookups == []
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": code})]
+        assert recorder.error_codes == [code]
 
     def test_route_that_is_not_git(self):
         recorder = Recorder()
@@ -267,7 +284,7 @@ class TestRelay:
         assert recorder.counts == [
             ("sentry.scm.git.request.succeeded", {"operation": "fetch", "provider": "github", "status": "200"})
         ]
-        assert recorder.bytes == {("sentry.scm.git.response_bytes", "fetch"): 4}
+        assert recorder.bytes == {("sentry.scm.git.response_size", "fetch"): 4}
 
     def test_provider_stream_breaking_is_a_failure(self):
         def broken_stream():
@@ -285,7 +302,7 @@ class TestRelay:
                 {"operation": "fetch", "provider": "github", "status": "200", "code": "stream_interrupted"},
             )
         ]
-        assert recorder.bytes == {("sentry.scm.git.response_bytes", "fetch"): 11}
+        assert recorder.bytes == {("sentry.scm.git.response_size", "fetch"): 11}
 
     def test_client_leaving_early_is_a_failure_and_closes_the_provider_stream(self):
         closed = []
@@ -314,7 +331,8 @@ class TestRelay:
             repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
         )
         response = request(make_server(recorder, GitRelay(timeout=(1, 1))), signed_grant())
-        assert_refused(response, 503, "Could not connect")
+        assert_refused(response, 503, "temporarily unavailable")
+        assert "127.0.0.1" not in b"".join(response.content).decode()
         assert TOKEN not in b"".join(response.content).decode()
 
     def test_plain_http_remote(self):
@@ -323,7 +341,7 @@ class TestRelay:
             repository=make_repository(provider_name="github_enterprise", web_base_url="http://127.0.0.1:1")
         )
         response = request(make_server(recorder, GitRelay()), signed_grant())
-        assert_refused(response, 502, "not https")
+        assert_refused(response, 502, "not an https URL")
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_remote_not_https"})]
 
     def test_provider_rejecting_the_token(self):
@@ -345,13 +363,14 @@ class TestRelay:
         # The provider's unread response is closed with its connection.
         assert [a.closed for a in adapters] == [True]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_rejected"})]
+        assert recorder.error_codes == ["git_token_rejected"]
 
     @pytest.mark.parametrize("status", [301, 403, 404, 500])
     def test_provider_refusing_the_request_is_passed_on_and_counted_as_failed(self, status):
         # e.g. GitHub's 404 for a repository the installation cannot see; git shows the client its message.
         recorder = Recorder()
         response = request(
-            make_server(recorder, relay_returning(iter([b"Repository not found."]), status)), signed_grant()
+            make_server(recorder, relay_returning(chunks(b"Repository not found."), status)), signed_grant()
         )
         assert response.status_code == status
         assert b"".join(response.content) == b"Repository not found."
@@ -362,6 +381,14 @@ class TestRelay:
                 {"operation": "fetch", "provider": "github", "status": str(status), "code": "provider_error"},
             )
         ]
+
+    def test_client_closing_its_request_is_counted_but_not_reported(self):
+        relay = MagicMock(spec=GitRelay)
+        relay.forward.side_effect = ClientClosedRequest()
+        recorder = Recorder()
+        assert_refused(request(make_server(recorder, relay), signed_grant()), 499, "")
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "client_closed_request"})]
+        assert recorder.errors == []
 
     def test_unexpected_error_code_is_a_server_error(self):
         relay = MagicMock(spec=GitRelay)
@@ -383,6 +410,8 @@ class TestRelay:
         with pytest.raises(HostRefused):
             request(make_server(recorder, relay), signed_grant())
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "unhandled_exception"})]
+        # The caller reports it.
+        assert recorder.errors == []
 
     def test_counts_bytes_each_way_end_to_end(self):
         with running_upstream() as upstream:
@@ -401,8 +430,8 @@ class TestRelay:
             )
             assert b"".join(response.content) == b"00000000"  # The fake upstream echoes the body.
         assert recorder.bytes == {
-            ("sentry.scm.git.request_bytes", "push"): 8,
-            ("sentry.scm.git.response_bytes", "push"): 8,
+            ("sentry.scm.git.request_size", "push"): 8,
+            ("sentry.scm.git.response_size", "push"): 8,
         }
 
     def test_relays_end_to_end(self):

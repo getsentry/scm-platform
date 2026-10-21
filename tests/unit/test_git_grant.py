@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import time
 
 import jwt
 import msgspec
@@ -10,7 +11,8 @@ from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
 from scm.git.types import Grant
 from tests.unit.git_builders import FAR_FUTURE, make_grant
 
-NOW = 1_800_000_000
+# Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
+NOW = 1_700_000_000
 # HS256 secrets of at least 32 bytes, as PyJWT recommends.
 SECRET = "test-secret-0000000000000000000000"
 OLD_SECRET = "test-secret-old-000000000000000000"
@@ -79,16 +81,20 @@ class TestExpiry:
         token = sign_grant(SECRET, make_grant(expires_at=NOW + 1), now=NOW)
         assert verify_grant([SECRET], token, now=NOW).expires_at == NOW + 1
 
+    # PyJWT checks iat against the real clock, so these sign against it too.
     def test_issued_in_the_future(self):
-        assert_invalid(sign_grant(SECRET, make_grant(), now=NOW + 61), "issued in the future")
+        assert_invalid(sign_grant(SECRET, make_grant(), now=time.time() + 600), "not yet valid (iat)")
 
     def test_issued_slightly_in_the_future(self):
         # The signer's clock may run a little ahead of the verifier's.
-        assert verify_grant([SECRET], sign_grant(SECRET, make_grant(), now=NOW + 60), now=NOW) == make_grant()
+        assert verify_grant([SECRET], sign_grant(SECRET, make_grant(), now=time.time() + 30), now=NOW) == make_grant()
 
-    @pytest.mark.parametrize("iat", [float(NOW), str(NOW), True])
-    def test_iat_must_be_an_integer(self, iat):
-        assert_invalid(sign_claims(claims_of(make_grant()) | {"iat": iat}), "iat is not an integer")
+    @pytest.mark.parametrize("iat", [float(NOW), NOW + 0.5])
+    def test_iat_may_be_a_float(self, iat):
+        assert verify_grant([SECRET], sign_claims(claims_of(make_grant()) | {"iat": iat}), now=NOW) == make_grant()
+
+    def test_iat_must_be_a_number(self):
+        assert_invalid(sign_claims(claims_of(make_grant()) | {"iat": "yesterday"}), "iat")
 
     @pytest.mark.parametrize("claim", ["exp", "iat", "aud"])
     def test_jwt_claims_are_required(self, claim):
@@ -190,4 +196,4 @@ class TestMalformed:
         assert_invalid(sign_claims(claims_of(make_grant()) | change), "payload is invalid")
 
     def test_no_repositories(self):
-        assert_invalid(sign_grant(SECRET, make_grant(repositories=()), now=NOW), "names no repositories")
+        assert_invalid(sign_grant(SECRET, make_grant(repositories=[]), now=NOW), "names no repositories")

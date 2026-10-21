@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterator, Mapping
-from urllib.parse import urlsplit
+from typing import Protocol
 
 import requests
 import urllib3
@@ -9,17 +9,19 @@ from requests.structures import CaseInsensitiveDict
 
 from scm.errors import (
     ClientClosedRequest,
+    GitOperationNotGranted,
     GitRemoteNotHttps,
+    GitRepositoryNotGranted,
+    GitRouteNotSupported,
     ResourceBadGateway,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
     RpcMalformedRequestHeaders,
 )
-from scm.git.operations import require_route
-from scm.git.types import Readable
+from scm.git.types import GitOperation, Grant, Readable
 from scm.rpc.types import StreamResponse
-from scm.types import GitRemote
+from scm.types import GitRemote, RepositoryId
 
 # The most bytes the relay reads at once, from the client's body or from the provider's response, so also the
 # most it holds per request in each direction. Smaller chunks cost more Python per byte of a multi-gigabyte pack;
@@ -30,6 +32,20 @@ DEFAULT_CHUNK_SIZE = 64 * 1024
 # go without sending a byte, so a clone that streams for minutes never hits it. 300s leaves room for a provider that
 # assembles a large pack before it sends anything. Both values come from the prototype.
 DEFAULT_TIMEOUT = (10.0, 300.0)
+
+# The git smart-HTTP routes and the operation each belongs to, keyed by (method, path below <repo>.git/, query
+# string). git names its two services from the server's side: in a fetch the server uploads a pack to the client
+# (git-upload-pack), and in a push it receives a pack from the client (git-receive-pack). Each service has a GET
+# that lists the refs and a POST that does the transfer.
+#
+# The query string is compared whole instead of parsed. git sends exactly these strings, so a request with extra
+# or repeated parameters is refused rather than passed on to a provider that might read them differently.
+_ROUTES: dict[tuple[str, str, str], GitOperation] = {
+    ("GET", "info/refs", "service=git-upload-pack"): "fetch",
+    ("POST", "git-upload-pack", ""): "fetch",
+    ("GET", "info/refs", "service=git-receive-pack"): "push",
+    ("POST", "git-receive-pack", ""): "push",
+}
 
 # The headers git sends that the provider needs. Accept and Content-Type name the git service, Git-Protocol
 # negotiates protocol v2, Content-Encoding marks a gzipped request body (git gzips large fetch requests),
@@ -44,6 +60,35 @@ _REQUEST_HEADERS = frozenset(
 _RESPONSE_HEADERS = frozenset(
     {"cache-control", "content-encoding", "content-length", "content-type", "expires", "pragma"}
 )
+
+
+def check_request(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
+    """Refuse a request the grant does not reach, before anything is sent to the provider.
+
+    A fetch grant reaches only upload-pack and a push grant only receive-pack. The repository must be listed in
+    the grant in the same form the request uses: a database id does not match the same repository's
+    ``(provider, external id)`` pair.
+    """
+    operation = _ROUTES.get((method, route, query))
+    if operation is None:
+        raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
+    if operation != grant.operation:
+        raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
+    if repository_id not in grant.repositories:
+        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
+    return operation
+
+
+class ResponseBody(Iterator[bytes], Protocol):
+    """The provider's response body. Closing it before it ends drops the upstream connection."""
+
+    def close(self) -> None: ...
+
+
+class RelayResponse(StreamResponse):
+    """The provider's response, whose body GitServer closes when it no longer needs it."""
+
+    content: ResponseBody
 
 
 class GitRelay:
@@ -94,17 +139,21 @@ class GitRelay:
         query: str,
         headers: Mapping[str, str],
         body: Readable | None,
-    ) -> StreamResponse:
+    ) -> RelayResponse:
         """Send one request to ``remote`` and return the provider's response as it arrives.
 
-        ``route`` is the path below ``<repo>.git/``. Check the request against a grant before calling this.
+        ``route`` is the path below ``<repo>.git/``. Check the request against a grant with ``check_request``
+        before calling this.
+
+        Errors carry no URL, because the client has no use for the provider's address.
         """
         if not remote["url"].startswith("https://"):
             # The token would cross the network in the clear, e.g. to a self-managed instance served over http.
-            raise GitRemoteNotHttps(detail=f"Refusing to send a token to {remote['url']}, which is not https.")
+            raise GitRemoteNotHttps()
         # Callers check the request against a grant first; this only makes sure the token never goes to anything
         # but a git route.
-        require_route(method, route, query)
+        if (method, route, query) not in _ROUTES:
+            raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
         if not f"{remote['basic_auth_username']}:{token}".isascii():
             # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
             # issues such a token, so the caller has a bug; the message leaves the token out.
@@ -120,8 +169,25 @@ class GitRelay:
 
         # Of the git routes only the POSTs carry a body. A caller may pass its request stream for a GET too, and sent
         # on, it would go upstream as an empty chunked body.
-        data = _request_body(body, _content_length(client_headers), self.chunk_size) if method == "POST" else None
-        url = f"{remote['url']}/{route}?{query}" if query else f"{remote['url']}/{route}"
+        data: Iterator[bytes] | _SizedBody | None = None
+        if method == "POST" and body is not None:
+            raw_length = client_headers.get("Content-Length")
+            if raw_length is None:
+                # requests sends a generator with chunked transfer encoding, the way git sends a large push.
+                data = _read_until_eof(body, self.chunk_size)
+            else:
+                try:
+                    length = int(raw_length)
+                except ValueError:
+                    raise RpcMalformedRequestHeaders(detail="Could not parse Content-Length header") from None
+                if length < 0:
+                    raise RpcMalformedRequestHeaders(detail="Could not parse Content-Length header")
+                if length > 0:
+                    data = _SizedBody(body, length, self.chunk_size)
+
+        url = f"{remote['url']}/{route}"
+        if query:
+            url += f"?{query}"
         session = self._session()
         upstream = None
         try:
@@ -138,25 +204,24 @@ class GitRelay:
             )
         # "from None" drops requests' exception, whose request holds the Authorization header.
         except requests.Timeout:
-            raise ResourceGatewayTimeout(detail=f"{remote['url']} did not respond in time.") from None
+            raise ResourceGatewayTimeout() from None
         # SSLError is a kind of ConnectionError, so catch it before that one, or a bad certificate would be
         # reported as an unreachable host.
         except requests.exceptions.SSLError:
-            host = urlsplit(remote["url"]).netloc
-            raise ResourceCertificateInvalid(detail=f"The TLS certificate of {host} could not be verified.") from None
+            raise ResourceCertificateInvalid() from None
         except requests.ConnectionError:
-            raise ResourceServiceUnavailable(detail=f"Could not connect to {remote['url']}.") from None
+            raise ResourceServiceUnavailable() from None
         # HTTPAdapter re-raises the urllib3 errors it does not translate, which are not RequestExceptions.
         except (requests.RequestException, urllib3.exceptions.HTTPError):
             # Any other failure of the request, e.g. a malformed response. A requests exception, like those above,
             # holds the request.
-            raise ResourceBadGateway(detail=f"The request to {remote['url']} failed.") from None
+            raise ResourceBadGateway() from None
         finally:
             # Once a response arrives, _stream closes the session when the response ends.
             if upstream is None:
                 session.close()
 
-        return StreamResponse(
+        return RelayResponse(
             status_code=upstream.status_code,
             headers={name: value for name, value in upstream.headers.items() if name.lower() in _RESPONSE_HEADERS},
             content=_UpstreamStream(session, upstream, self.chunk_size),
@@ -212,27 +277,6 @@ class _UpstreamStream:
         # then closes a connection the finished response returned to it.
         self.upstream.close()
         self.session.close()
-
-
-def _content_length(headers: CaseInsensitiveDict[str]) -> int | None:
-    raw = headers.get("Content-Length")
-    if raw is None:
-        return None
-    # isdigit alone also accepts digits such as "²", which int() refuses, and "٣", which it reads as 3.
-    if not (raw.isascii() and raw.isdigit()):
-        raise RpcMalformedRequestHeaders(detail="Could not parse Content-Length header")
-    return int(raw)
-
-
-def _request_body(
-    body: Readable | None, content_length: int | None, chunk_size: int
-) -> "Iterator[bytes] | _SizedBody | None":
-    if body is None or content_length == 0:
-        return None
-    if content_length is None:
-        # requests sends a generator with chunked transfer encoding, the way git sends a large push.
-        return _read_until_eof(body, chunk_size)
-    return _SizedBody(body, content_length, chunk_size)
 
 
 def _read_until_eof(body: Readable, chunk_size: int) -> Iterator[bytes]:

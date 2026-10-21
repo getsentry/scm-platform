@@ -27,7 +27,9 @@ _CLOCK_SKEW = 60
 
 
 def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
-    _check_secrets([secret])
+    # HMAC accepts an empty key, so an empty secret, say from an unset setting, would let anyone sign a grant.
+    if not secret:
+        raise ValueError("A git grant secret is empty.")
     claims: dict[str, Any] = msgspec.to_builtins(grant)
     claims["exp"] = claims.pop("expires_at")
     claims["iat"] = int(time.time() if now is None else now)
@@ -41,7 +43,9 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     Verification takes a list of secrets, as ``RpcServer`` does, so a new secret can be added before signers
     switch to it and the old one removed after their grants expire.
     """
-    _check_secrets(secrets)
+    # As in sign_grant: a grant signed with an empty secret proves nothing.
+    if not all(secrets):
+        raise ValueError("A git grant secret is empty.")
     now = time.time() if now is None else now
     if not token:
         raise GitInvalidGrant(detail="The git grant is missing.")
@@ -59,8 +63,10 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
             secret,
             algorithms=[_ALGORITHM],
             audience=GRANT_AUDIENCE,
-            # exp and iat are checked below against an injectable clock, so tests can pin it.
-            options={"require": sorted(_JWT_CLAIMS), "verify_exp": False, "verify_iat": False},
+            # exp is checked below against an injectable clock, so tests can pin it. PyJWT checks iat, which it
+            # also requires to be a number.
+            options={"require": sorted(_JWT_CLAIMS), "verify_exp": False},
+            leeway=_CLOCK_SKEW,
         )
     except jwt.InvalidSignatureError:
         raise GitInvalidGrant(detail="The git grant's signature does not match.") from None
@@ -80,20 +86,9 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
 
     if grant.expires_at <= now:
         raise GitGrantExpired(detail="The git grant has expired.")
-    # bool is an int to isinstance, and PyJWT would refuse it as an iat.
-    if not isinstance(claims["iat"], int) or isinstance(claims["iat"], bool):
-        raise GitInvalidGrant(detail="The git grant's iat is not an integer.")
-    if claims["iat"] > now + _CLOCK_SKEW:
-        raise GitInvalidGrant(detail="The git grant was issued in the future.")
     if not grant.repositories:
         raise GitInvalidGrant(detail="The git grant names no repositories.")
     return grant
-
-
-def _check_secrets(secrets: list[str]) -> None:
-    # HMAC accepts an empty key, so an empty secret, say from an unset setting, would let anyone sign a grant.
-    if not all(secrets):
-        raise ValueError("A git grant secret is empty.")
 
 
 def _key_id(secret: str) -> str:

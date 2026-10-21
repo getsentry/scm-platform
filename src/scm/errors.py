@@ -145,39 +145,43 @@ class SCMCodedError(SCMError):
         return error_cls(detail=detail)
 
 
-class GitGrantExpired(SCMCodedError):
+class GitSCMCodedError(SCMCodedError):
+    """Base class for the errors of the git endpoint (``scm.git``), so a caller can catch them all at once."""
+
+
+class GitGrantExpired(GitSCMCodedError):
     code = "git_grant_expired"
 
 
-class GitInvalidGrant(SCMCodedError):
+class GitInvalidGrant(GitSCMCodedError):
     code = "git_invalid_grant"
 
 
-class GitOperationNotGranted(SCMCodedError):
+class GitOperationNotGranted(GitSCMCodedError):
     code = "git_operation_not_granted"
 
 
-class GitProviderNotSupported(SCMCodedError):
+class GitProviderNotSupported(GitSCMCodedError):
     code = "git_provider_not_supported"
 
 
-class GitRemoteNotHttps(SCMCodedError):
+class GitRemoteNotHttps(GitSCMCodedError):
     code = "git_remote_not_https"
 
 
-class GitRepositoryNotGranted(SCMCodedError):
+class GitRepositoryNotGranted(GitSCMCodedError):
     code = "git_repository_not_granted"
 
 
-class GitRouteNotSupported(SCMCodedError):
+class GitRouteNotSupported(GitSCMCodedError):
     code = "git_route_not_supported"
 
 
-class GitTokenRejected(SCMCodedError):
+class GitTokenRejected(GitSCMCodedError):
     code = "git_token_rejected"
 
 
-class GitTokenUnavailable(SCMCodedError):
+class GitTokenUnavailable(GitSCMCodedError):
     code = "git_token_unavailable"
 
 

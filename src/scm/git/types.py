@@ -6,7 +6,7 @@ import msgspec
 from scm.types import Repository, RepositoryId
 
 type GitOperation = Literal["fetch", "push"]
-"""What a grant lets its holder do. ``scm.git.operations`` maps each to its git routes."""
+"""What a grant lets its holder do. ``scm.git.relay`` maps each to its git routes."""
 
 GRANT_VERSION: Literal[1] = 1
 
@@ -29,7 +29,7 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
 
     organization_id: int
     operation: GitOperation
-    repositories: tuple[RepositoryId, ...]
+    repositories: list[RepositoryId]
     expires_at: int
     """Unix time in seconds. Every grant expires."""
     version: Literal[1] = GRANT_VERSION
@@ -37,20 +37,10 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
 
 
 type GetToken = Callable[[Repository, GitOperation], str | None]
-"""Return a provider token that can run ``operation`` on ``repository``, or None if there is none.
-
-The git module never builds credentials itself: Sentry's integration clients supply them today, and a central
-token mint can later without a change here. The operation lets the supplier scope the token, e.g. read-only for a
-fetch.
-"""
+"""Return a provider token that can run ``operation`` on ``repository``, or None if there is none."""
 
 
 class Readable(Protocol):
-    """A request body the relay pulls from as it sends upstream.
-
-    It must yield the body already decoded from its transfer encoding, ending where the body ends. A Django
-    request under WSGI reads a chunked body as empty, and git sends a push over about 1 MiB chunked, so a view
-    needs to pass a stream that has the whole body.
-    """
+    """A request body the relay pulls from as it sends upstream."""
 
     def read(self, size: int = -1, /) -> bytes: ...

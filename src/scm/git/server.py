@@ -1,11 +1,10 @@
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Mapping
 
 from requests.structures import CaseInsensitiveDict
 
 from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
 from scm.git.grant import verify_grant
-from scm.git.operations import check_request
-from scm.git.relay import GitRelay
+from scm.git.relay import GitRelay, ResponseBody, check_request
 from scm.git.types import GRANT_HEADER, GetToken, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
@@ -54,15 +53,17 @@ class GitServer:
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
 
-    Refusals and provider failures come back as plain-text responses. Any other exception, such as an adapter
-    refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer it the
-    way it answers the same error elsewhere.
+    Refusals and provider failures come back as plain-text responses, and each is passed to ``emit_error`` as
+    well: the client only shows the message, so the server reports it rather than count on every client to. A
+    client closing its request is not reported, since there is nothing to fix. Any other exception, such as an
+    adapter refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer
+    it the way it answers the same error elsewhere.
 
     A relayed request is counted when its response stream ends, not when its headers arrive, so a clone that
     fails halfway is counted as failed: ``stream_interrupted`` when the provider's stream breaks and
     ``client_closed_request`` when the client goes away first. A response the provider sends with a status other
     than 2xx is passed on to the client but counted as failed too, as ``provider_error``. The bytes sent each way
-    are counted then too.
+    are counted then too, as ``request_size`` and ``response_size``.
     """
 
     def __init__(
@@ -72,6 +73,7 @@ class GitServer:
         fetch_provider: Callable[[int, Repository], Provider | None],
         get_token: GetToken,
         record_count: Callable[[str, int, dict[str, str]], None],
+        emit_error: Callable[[Exception], None],
         relay: GitRelay,
     ) -> None:
         # Fail when the server is built rather than on every request, because no grant could ever verify.
@@ -82,6 +84,7 @@ class GitServer:
         self.fetch_provider = fetch_provider
         self.get_token = get_token
         self.record_count = record_count
+        self.emit_error = emit_error
         self.relay = relay
 
     def handle(
@@ -97,7 +100,10 @@ class GitServer:
         """Answer one git request.
 
         ``route`` is the path below ``<repo>.git/`` and ``query`` the raw query string. ``body`` is read only
-        while the request is sent upstream, so pass the unread request stream.
+        while the request is sent upstream, so pass the unread request stream. It must yield the body already
+        decoded from its transfer encoding, ending where the body ends. A Django request under WSGI reads a chunked
+        body as empty, and git sends a push over about 1 MiB chunked, so a Django view needs to pass a stream that
+        has the whole body.
         """
         counted_body = _CountingReader(body) if body is not None else None
         try:
@@ -124,10 +130,12 @@ class GitServer:
             if response.status_code == 401:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
                 # for credentials, which it must never have and which would not help.
-                _close_stream(response.content)
+                response.content.close()
                 raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
+            if e.code != "client_closed_request":
+                self.emit_error(e)
             return _error_response(e)
         except Exception:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"})
@@ -135,7 +143,7 @@ class GitServer:
 
         tags: dict[str, str] = {"operation": operation, "provider": repository["provider_name"]}
 
-        def finish(failure: str | None, response_bytes: int) -> None:
+        def finish(failure: str | None, bytes_sent: int) -> None:
             if failure is None and not 200 <= response.status_code < 300:
                 # The provider refused the request itself, e.g. a 404 for a repository the token cannot see. git
                 # shows the client the provider's message, but did not get what it asked for.
@@ -147,9 +155,9 @@ class GitServer:
                     "sentry.scm.git.request.failed", 1, tags | {"status": str(response.status_code), "code": failure}
                 )
             if counted_body is not None and counted_body.bytes_read:
-                self.record_count("sentry.scm.git.request_bytes", counted_body.bytes_read, tags)
-            if response_bytes:
-                self.record_count("sentry.scm.git.response_bytes", response_bytes, tags)
+                self.record_count("sentry.scm.git.request_size", counted_body.bytes_read, tags)
+            if bytes_sent:
+                self.record_count("sentry.scm.git.response_size", bytes_sent, tags)
 
         return StreamResponse(
             status_code=response.status_code,
@@ -174,7 +182,7 @@ class _CountingReader:
 class _MeteredStream:
     """The relay's response stream, reporting once how it ended and how many bytes it passed on."""
 
-    def __init__(self, content: Iterator[bytes], finish: Callable[[str | None, int], None]) -> None:
+    def __init__(self, content: ResponseBody, finish: Callable[[str | None, int], None]) -> None:
         self.content = content
         self.finish = finish
         self.bytes_sent = 0
@@ -198,19 +206,13 @@ class _MeteredStream:
     def close(self) -> None:
         # The server calls this after the last chunk too, when the stream has already ended.
         self._end("client_closed_request")
-        _close_stream(self.content)
+        # Closing the relay's stream before it is read to the end drops the upstream connection.
+        self.content.close()
 
     def _end(self, failure: str | None) -> None:
         if not self.finished:
             self.finished = True
             self.finish(failure, self.bytes_sent)
-
-
-def _close_stream(content: Iterator[bytes]) -> None:
-    # Closing the relay's stream before it is read to the end drops the upstream connection.
-    close = getattr(content, "close", None)
-    if close is not None:
-        close()
 
 
 def _error_response(error: SCMCodedError) -> StreamResponse:

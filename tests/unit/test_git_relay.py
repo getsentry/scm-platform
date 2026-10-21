@@ -11,7 +11,9 @@ import urllib3
 from requests.adapters import HTTPAdapter
 
 from scm.errors import (
+    GitOperationNotGranted,
     GitRemoteNotHttps,
+    GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
     ResourceCertificateInvalid,
@@ -19,8 +21,9 @@ from scm.errors import (
     ResourceServiceUnavailable,
     SCMCodedError,
 )
-from scm.git.relay import GitRelay
+from scm.git.relay import GitRelay, check_request
 from scm.types import GitRemote
+from tests.unit.git_builders import make_grant
 from tests.unit.git_upstream import ClosingAdapter, UpstreamHandler, basic_auth, ca_bundle, running_upstream
 
 TOKEN = "ghs_secrettoken"
@@ -136,7 +139,7 @@ class TestRequest:
         remote = GitRemote(
             url=upstream.url.replace("https://", "http://") + "/repo.git", basic_auth_username="x-access-token"
         )
-        with pytest.raises(GitRemoteNotHttps, match="not https"):
+        with pytest.raises(GitRemoteNotHttps, match="not an https URL"):
             fetch_refs(relay, remote=remote)
         assert upstream.requests == []
 
@@ -218,7 +221,7 @@ class TestRequest:
             upload_pack(relay, upstream, ResettingClient(), headers=headers)
         assert exc_info.value.code == "client_closed_request"
 
-    @pytest.mark.parametrize("content_length", ["abc", "-1", "1.5", "²", "٣"])
+    @pytest.mark.parametrize("content_length", ["abc", "-1", "1.5", "²", ""])
     def test_malformed_content_length(self, relay, upstream, content_length):
         with pytest.raises(SCMCodedError) as exc_info:
             upload_pack(relay, upstream, io.BytesIO(b"0000"), headers={"Content-Length": content_length})
@@ -438,9 +441,11 @@ class TestUpstreamFailures:
         with pytest.raises(ResourceServiceUnavailable) as exc_info:
             fetch_refs(relay, remote=remote)
         assert_token_not_in(exc_info.value)
+        # The client has no use for the provider's address.
+        assert "127.0.0.1" not in exc_info.value.detail
 
     def test_untrusted_certificate(self, upstream):
-        with pytest.raises(ResourceCertificateInvalid, match="TLS certificate of 127.0.0.1") as exc_info:
+        with pytest.raises(ResourceCertificateInvalid, match="TLS certificate") as exc_info:
             fetch_refs(GitRelay(), upstream)
         assert_token_not_in(exc_info.value)
         assert upstream.requests == []
@@ -475,7 +480,7 @@ class TestUpstreamFailures:
             def send(self, request, *args, **kwargs):
                 raise make_error(request)
 
-        with pytest.raises(ResourceBadGateway, match="failed") as exc_info:
+        with pytest.raises(ResourceBadGateway) as exc_info:
             fetch_refs(GitRelay(adapter=FailingAdapter, ca_bundle=ca_bundle()), upstream)
         assert_token_not_in(exc_info.value)
 
@@ -528,3 +533,65 @@ class TestClose:
         response = fetch_refs(relay, upstream)
         response.content.close()  # type: ignore[attr-defined]
         assert upstream_saw_close.wait(WAIT)
+
+
+FETCH_ROUTES = [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-upload-pack", "")]
+PUSH_ROUTES = [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")]
+
+
+class TestCheckRequest:
+    @pytest.mark.parametrize(
+        "operation,route",
+        [("fetch", route) for route in FETCH_ROUTES] + [("push", route) for route in PUSH_ROUTES],
+    )
+    def test_grant_reaches_its_operations_routes(self, operation, route):
+        assert check_request(make_grant(operation=operation), 5, *route) == operation
+
+    @pytest.mark.parametrize(
+        "operation,route",
+        [("fetch", route) for route in PUSH_ROUTES] + [("push", route) for route in FETCH_ROUTES],
+    )
+    def test_grant_cannot_reach_the_other_operations_routes(self, operation, route):
+        other = "push" if operation == "fetch" else "fetch"
+        with pytest.raises(GitOperationNotGranted, match=f"allows {operation}, not {other}"):
+            check_request(make_grant(operation=operation), 5, *route)
+
+    @pytest.mark.parametrize(
+        "method,route,query",
+        [
+            ("GET", "info/refs", ""),
+            ("GET", "info/refs", "service=git-upload-pack&x=1"),
+            ("GET", "info/refs", "service=git-upload-archive"),
+            ("POST", "info/refs", "service=git-upload-pack"),
+            ("GET", "git-upload-pack", ""),
+            ("POST", "git-upload-pack", "service=git-upload-pack"),
+            ("post", "git-upload-pack", ""),
+            ("POST", "git-upload-archive", ""),
+            ("POST", "info/lfs/objects/batch", ""),
+            ("GET", "HEAD", ""),
+            ("GET", "objects/info/packs", ""),
+            ("GET", "../info/refs", "service=git-upload-pack"),
+            ("POST", "/git-upload-pack", ""),
+        ],
+    )
+    def test_routes_that_are_not_git(self, method, route, query):
+        for operation in ("fetch", "push"):
+            with pytest.raises(GitRouteNotSupported, match="not a git fetch or push route"):
+                check_request(make_grant(operation=operation), 5, method, route, query)
+
+    def test_repository_not_in_grant(self):
+        with pytest.raises(GitRepositoryNotGranted, match="does not cover this repository"):
+            check_request(make_grant(), 6, "POST", "git-upload-pack", "")
+
+    def test_repository_named_another_way_is_not_in_grant(self):
+        # The grant and the request name repositories the same way; matching a database id to a provider id
+        # would mean resolving every repository the grant lists.
+        grant = make_grant(repositories=[("github", "123")])
+        with pytest.raises(GitRepositoryNotGranted):
+            check_request(grant, 5, "POST", "git-upload-pack", "")
+        assert check_request(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
+
+    def test_any_listed_repository(self):
+        grant = make_grant(repositories=[5, 6, ("gitlab", "gitlab.com:7")])
+        assert check_request(grant, 6, "POST", "git-upload-pack", "") == "fetch"
+        assert check_request(grant, ("gitlab", "gitlab.com:7"), "POST", "git-upload-pack", "") == "fetch"

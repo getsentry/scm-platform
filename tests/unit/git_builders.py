@@ -46,7 +46,7 @@ def make_grant(**overrides) -> Grant:
     fields = {
         "organization_id": 1,
         "operation": "fetch",
-        "repositories": (5, ("github", "123")),
+        "repositories": [5, ("github", "123")],
         "expires_at": FAR_FUTURE,
     }
     fields.update(overrides)
