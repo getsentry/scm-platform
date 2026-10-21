@@ -193,7 +193,7 @@ class TestRepository:
         server = make_server(recorder)
         request(server, signed_grant())
         remote = server.relay.forward.call_args.args[0]  # type: ignore[attr-defined]
-        assert remote == GitRemote(url="https://gitlab.example.com/group/project.git", username="oauth2")
+        assert remote == GitRemote(url="https://gitlab.example.com/group/project.git", basic_auth_username="oauth2")
 
     @pytest.mark.parametrize(
         "repository,status,detail",
@@ -231,7 +231,7 @@ class TestRelay:
         response = request(server, grant, headers={"Git-Protocol": "version=2"})
         assert b"".join(response.content) == b"refs"
         server.relay.forward.assert_called_once_with(  # type: ignore[attr-defined]
-            GitRemote(url="https://github.com/getsentry/sentry.git", username="x-access-token"),
+            GitRemote(url="https://github.com/getsentry/sentry.git", basic_auth_username="x-access-token"),
             TOKEN,
             method="GET",
             route="info/refs",

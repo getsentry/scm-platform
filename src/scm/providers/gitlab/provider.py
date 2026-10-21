@@ -748,7 +748,7 @@ class GitLabProvider:
         return f"{self.web_base_url}/{self.web_repository_path}/-/merge_requests/{pull_request_id}"
 
     def get_git_remote(self) -> GitRemote:
-        return GitRemote(url=f"{self.web_base_url}/{self.web_repository_path}.git", username="oauth2")
+        return GitRemote(url=f"{self.web_base_url}/{self.web_repository_path}.git", basic_auth_username="oauth2")
 
     def get_tree(
         self,

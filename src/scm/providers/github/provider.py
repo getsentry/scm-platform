@@ -1035,7 +1035,9 @@ class GitHubProvider:
         return f"{self._web_base_url}/{self.repository['name']}/pull/{pull_request_id}"
 
     def get_git_remote(self) -> GitRemote:
-        return GitRemote(url=f"{self._web_base_url}/{self.repository['name']}.git", username="x-access-token")
+        return GitRemote(
+            url=f"{self._web_base_url}/{self.repository['name']}.git", basic_auth_username="x-access-token"
+        )
 
     def create_git_blob(self, content: str, encoding: str) -> ActionResult[GitBlob]:
         response = self.post(

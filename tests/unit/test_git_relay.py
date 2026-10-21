@@ -40,7 +40,7 @@ def relay():
 
 
 def remote_for(upstream) -> GitRemote:
-    return GitRemote(url=f"{upstream.url}/getsentry/sentry.git", username="x-access-token")
+    return GitRemote(url=f"{upstream.url}/getsentry/sentry.git", basic_auth_username="x-access-token")
 
 
 def fetch_refs(relay: GitRelay, upstream=None, headers: dict[str, str] | None = None, *, remote=None):
@@ -133,7 +133,9 @@ class TestRequest:
         assert upstream.requests[0].headers["Accept-Encoding"] == "identity"
 
     def test_refuses_plain_http(self, relay, upstream):
-        remote = GitRemote(url=upstream.url.replace("https://", "http://") + "/repo.git", username="x-access-token")
+        remote = GitRemote(
+            url=upstream.url.replace("https://", "http://") + "/repo.git", basic_auth_username="x-access-token"
+        )
         with pytest.raises(GitRemoteNotHttps, match="not https"):
             fetch_refs(relay, remote=remote)
         assert upstream.requests == []
@@ -380,7 +382,7 @@ class TestConnections:
             adapters.append(ClosingAdapter())
             return adapters[-1]
 
-        remote = GitRemote(url="https://127.0.0.1:1/getsentry/sentry.git", username="x-access-token")
+        remote = GitRemote(url="https://127.0.0.1:1/getsentry/sentry.git", basic_auth_username="x-access-token")
         with pytest.raises(ResourceServiceUnavailable):
             fetch_refs(GitRelay(adapter=adapter, timeout=(1, 1)), remote=remote)
         assert [a.closed for a in adapters] == [True]
@@ -431,7 +433,7 @@ class TestUpstreamFailures:
         with socket.socket() as s:
             s.bind(("127.0.0.1", 0))
             port = s.getsockname()[1]
-        remote = GitRemote(url=f"https://127.0.0.1:{port}/getsentry/sentry.git", username="x-access-token")
+        remote = GitRemote(url=f"https://127.0.0.1:{port}/getsentry/sentry.git", basic_auth_username="x-access-token")
 
         with pytest.raises(ResourceServiceUnavailable) as exc_info:
             fetch_refs(relay, remote=remote)
@@ -479,12 +481,12 @@ class TestUpstreamFailures:
 
 
 @pytest.mark.parametrize(
-    ("username", "token"),
+    ("basic_auth_username", "token"),
     [("x-access-token", "ghs_tok\u20acn"), ("x-acc\u00e9ss-token", TOKEN)],
-    ids=["token", "username"],
+    ids=["token", "basic_auth_username"],
 )
-def test_refuses_credentials_that_are_not_ascii(upstream, username, token):
-    remote = GitRemote(url=f"{upstream.url}/getsentry/sentry.git", username=username)
+def test_refuses_credentials_that_are_not_ascii(upstream, basic_auth_username, token):
+    remote = GitRemote(url=f"{upstream.url}/getsentry/sentry.git", basic_auth_username=basic_auth_username)
     with pytest.raises(ValueError, match="not ASCII") as exc_info:
         GitRelay(ca_bundle=ca_bundle()).forward(
             remote,

@@ -359,7 +359,9 @@ class CursorOriginProvider:
 
     def get_git_remote(self) -> GitRemote:
         # Origin's git endpoint takes an installation token as the basic-auth password and refuses a bearer header.
-        return GitRemote(url=f"{CURSOR_ORIGIN_GIT_BASE_URL}/{self.repository_path}.git", username="x-access-token")
+        return GitRemote(
+            url=f"{CURSOR_ORIGIN_GIT_BASE_URL}/{self.repository_path}.git", basic_auth_username="x-access-token"
+        )
 
     def get_file_content(
         self,

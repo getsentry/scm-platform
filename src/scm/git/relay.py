@@ -105,7 +105,7 @@ class GitRelay:
         # Callers check the request against a grant first; this only makes sure the token never goes to anything
         # but a git route.
         require_route(method, route, query)
-        if not f"{remote['username']}:{token}".isascii():
+        if not f"{remote['basic_auth_username']}:{token}".isascii():
             # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
             # issues such a token, so the caller has a bug; the message leaves the token out.
             raise ValueError(f"The credentials for {remote['url']} contain characters that are not ASCII.")
@@ -130,7 +130,7 @@ class GitRelay:
                 url,
                 headers=upstream_headers,
                 data=data,
-                auth=HTTPBasicAuth(remote["username"], token),
+                auth=HTTPBasicAuth(remote["basic_auth_username"], token),
                 stream=True,
                 # Following a redirect would send the request somewhere other than the repository's remote.
                 allow_redirects=False,

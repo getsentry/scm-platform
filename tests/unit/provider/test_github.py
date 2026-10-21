@@ -2086,7 +2086,7 @@ def test_get_git_remote_builds_clone_url() -> None:
     provider = GitHubProvider(MagicMock(spec=ApiClient), organization_id=1, repository=make_repository())
 
     assert provider.get_git_remote() == GitRemote(
-        url="https://github.com/test-org/test-repo.git", username="x-access-token"
+        url="https://github.com/test-org/test-repo.git", basic_auth_username="x-access-token"
     )
 
 
@@ -2099,7 +2099,7 @@ def test_ghe_web_base_url_used_in_git_remote() -> None:
     )
 
     assert provider.get_git_remote() == GitRemote(
-        url="https://github.example.com/test-org/test-repo.git", username="x-access-token"
+        url="https://github.example.com/test-org/test-repo.git", basic_auth_username="x-access-token"
     )
 
 

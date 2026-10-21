@@ -13981,7 +13981,7 @@ def test_get_git_remote_is_the_repository_path_on_its_instance(client: ApiClient
     provider = _make_gitlab_provider(client, name="GitLab.org / GitLab FOSS", path="gitlab-org/gitlab-foss")
 
     assert provider.get_git_remote() == GitRemote(
-        url="https://gitlab.com/gitlab-org/gitlab-foss.git", username="oauth2"
+        url="https://gitlab.com/gitlab-org/gitlab-foss.git", basic_auth_username="oauth2"
     )
 
 
@@ -13993,7 +13993,7 @@ def test_get_git_remote_on_a_self_managed_instance(client: ApiClient) -> None:
     )
 
     assert provider.get_git_remote() == GitRemote(
-        url="https://gitlab.example.com:8443/test-repo.git", username="oauth2"
+        url="https://gitlab.example.com:8443/test-repo.git", basic_auth_username="oauth2"
     )
 
 
