@@ -60,7 +60,9 @@ class GitServer:
 
     A relayed request is counted when its response stream ends, not when its headers arrive, so a clone that
     fails halfway is counted as failed: ``stream_interrupted`` when the provider's stream breaks and
-    ``client_closed_request`` when the client goes away first. The bytes sent each way are counted then too.
+    ``client_closed_request`` when the client goes away first. A response the provider sends with a status other
+    than 2xx is passed on to the client but counted as failed too, as ``provider_error``. The bytes sent each way
+    are counted then too.
     """
 
     def __init__(
@@ -134,10 +136,16 @@ class GitServer:
         tags: dict[str, str] = {"operation": operation, "provider": repository["provider_name"]}
 
         def finish(failure: str | None, response_bytes: int) -> None:
+            if failure is None and not 200 <= response.status_code < 300:
+                # The provider refused the request itself, e.g. a 404 for a repository the token cannot see. git
+                # shows the client the provider's message, but did not get what it asked for.
+                failure = "provider_error"
             if failure is None:
                 self.record_count("sentry.scm.git.request.succeeded", 1, tags | {"status": str(response.status_code)})
             else:
-                self.record_count("sentry.scm.git.request.failed", 1, tags | {"code": failure})
+                self.record_count(
+                    "sentry.scm.git.request.failed", 1, tags | {"status": str(response.status_code), "code": failure}
+                )
             if counted_body is not None and counted_body.bytes_read:
                 self.record_count("sentry.scm.git.request_bytes", counted_body.bytes_read, tags)
             if response_bytes:

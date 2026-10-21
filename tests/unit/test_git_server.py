@@ -282,7 +282,7 @@ class TestRelay:
         assert recorder.counts == [
             (
                 "sentry.scm.git.request.failed",
-                {"operation": "fetch", "provider": "github", "code": "stream_interrupted"},
+                {"operation": "fetch", "provider": "github", "status": "200", "code": "stream_interrupted"},
             )
         ]
         assert recorder.bytes == {("sentry.scm.git.response_bytes", "fetch"): 11}
@@ -305,7 +305,7 @@ class TestRelay:
         assert recorder.counts == [
             (
                 "sentry.scm.git.request.failed",
-                {"operation": "fetch", "provider": "github", "code": "client_closed_request"},
+                {"operation": "fetch", "provider": "github", "status": "200", "code": "client_closed_request"},
             )
         ]
 
@@ -345,6 +345,23 @@ class TestRelay:
         # The provider's unread response is closed with its connection.
         assert [a.closed for a in adapters] == [True]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_rejected"})]
+
+    @pytest.mark.parametrize("status", [301, 403, 404, 500])
+    def test_provider_refusing_the_request_is_passed_on_and_counted_as_failed(self, status):
+        # e.g. GitHub's 404 for a repository the installation cannot see; git shows the client its message.
+        recorder = Recorder()
+        response = request(
+            make_server(recorder, relay_returning(iter([b"Repository not found."]), status)), signed_grant()
+        )
+        assert response.status_code == status
+        assert b"".join(response.content) == b"Repository not found."
+        response.content.close()  # type: ignore[attr-defined]
+        assert recorder.counts == [
+            (
+                "sentry.scm.git.request.failed",
+                {"operation": "fetch", "provider": "github", "status": str(status), "code": "provider_error"},
+            )
+        ]
 
     def test_unexpected_error_code_is_a_server_error(self):
         relay = MagicMock(spec=GitRelay)
