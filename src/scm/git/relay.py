@@ -2,6 +2,7 @@ from collections.abc import Callable, Iterator, Mapping
 from urllib.parse import urlsplit
 
 import requests
+import urllib3
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 from requests.structures import CaseInsensitiveDict
@@ -60,9 +61,9 @@ class GitRelay:
     ``adapter`` builds the adapter that sends each upstream request. Pass one that refuses internal addresses: a
     GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay connects
     wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients, and the class itself can be
-    passed. An error the adapter raises for a refused host reaches the caller unchanged, unless it is a requests
-    exception, which the relay replaces like any other so that it cannot carry the token. The adapter must not
-    retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
+    passed. An error the adapter raises for a refused host reaches the caller unchanged, unless it is a requests or
+    urllib3 exception, which the relay replaces like any other so that it cannot carry the token. The adapter must
+    not retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
     ``HTTPAdapter``, which checks nothing.
 
     The relay takes no settings from the environment. Through a proxy from ``HTTPS_PROXY``, the adapter would
@@ -104,6 +105,10 @@ class GitRelay:
         # Callers check the request against a grant first; this only makes sure the token never goes to anything
         # but a git route.
         require_route(method, route, query)
+        if not f"{remote['username']}:{token}".isascii():
+            # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
+            # issues such a token, so the caller has a bug; the message leaves the token out.
+            raise ValueError(f"The credentials for {remote['url']} contain characters that are not ASCII.")
 
         client_headers = CaseInsensitiveDict(headers)
         upstream_headers = CaseInsensitiveDict(
@@ -141,8 +146,10 @@ class GitRelay:
             raise ResourceCertificateInvalid(detail=f"The TLS certificate of {host} could not be verified.") from None
         except requests.ConnectionError:
             raise ResourceServiceUnavailable(detail=f"Could not connect to {remote['url']}.") from None
-        except requests.RequestException:
-            # Any other failure of the request, e.g. a malformed response. Like those above, it holds the request.
+        # HTTPAdapter re-raises the urllib3 errors it does not translate, which are not RequestExceptions.
+        except (requests.RequestException, urllib3.exceptions.HTTPError):
+            # Any other failure of the request, e.g. a malformed response. A requests exception, like those above,
+            # holds the request.
             raise ResourceBadGateway(detail=f"The request to {remote['url']} failed.") from None
         finally:
             # Once a response arrives, _stream closes the session when the response ends.

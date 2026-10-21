@@ -7,6 +7,7 @@ from collections.abc import Iterator
 
 import pytest
 import requests
+import urllib3
 from requests.adapters import HTTPAdapter
 
 from scm.errors import (
@@ -457,14 +458,46 @@ class TestUpstreamFailures:
         finally:
             release.set()
 
-    def test_other_request_failures(self, upstream):
+    @pytest.mark.parametrize(
+        "make_error",
+        [
+            pytest.param(
+                lambda request: requests.exceptions.InvalidHeader("bad header", request=request), id="requests"
+            ),
+            # HTTPAdapter.send re-raises the urllib3 errors it does not translate.
+            pytest.param(lambda request: urllib3.exceptions.HTTPError("bad response"), id="urllib3"),
+        ],
+    )
+    def test_other_request_failures(self, upstream, make_error):
         class FailingAdapter(HTTPAdapter):
             def send(self, request, *args, **kwargs):
-                raise requests.exceptions.InvalidHeader("bad header", request=request)
+                raise make_error(request)
 
         with pytest.raises(ResourceBadGateway, match="failed") as exc_info:
             fetch_refs(GitRelay(adapter=FailingAdapter, ca_bundle=ca_bundle()), upstream)
         assert_token_not_in(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("username", "token"),
+    [("x-access-token", "ghs_tok\u20acn"), ("x-acc\u00e9ss-token", TOKEN)],
+    ids=["token", "username"],
+)
+def test_refuses_credentials_that_are_not_ascii(upstream, username, token):
+    remote = GitRemote(url=f"{upstream.url}/getsentry/sentry.git", username=username)
+    with pytest.raises(ValueError, match="not ASCII") as exc_info:
+        GitRelay(ca_bundle=ca_bundle()).forward(
+            remote,
+            token,
+            method="GET",
+            route="info/refs",
+            query="service=git-upload-pack",
+            headers={},
+            body=None,
+        )
+    assert token not in str(exc_info.value)
+    assert exc_info.value.__context__ is None
+    assert not upstream.requests
 
 
 def assert_token_not_in(error: Exception) -> None:
