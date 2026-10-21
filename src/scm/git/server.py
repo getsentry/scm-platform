@@ -48,7 +48,7 @@ class GitServer:
     refuses internal addresses; see ``GitRelay``.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
-    provider has no git remote, such as Cursor Origin's, is refused.
+    provider has no git remote is refused.
 
     Refusals and provider failures come back as plain-text responses. Any other exception, such as an adapter
     refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer it the
