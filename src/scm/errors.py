@@ -1,10 +1,14 @@
 from typing import ClassVar, Literal
 
 type ErrorCode = Literal[
+    "git_grant_expired",
     "git_invalid_grant",
+    "git_operation_not_granted",
     "git_provider_not_supported",
     "git_remote_not_https",
-    "git_route_not_allowed",
+    "git_repository_not_granted",
+    "git_route_not_supported",
+    "git_token_rejected",
     "git_token_unavailable",
     "malformed_external_id",
     "missing_repository_path",
@@ -44,10 +48,14 @@ type ErrorCode = Literal[
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
-    "git_invalid_grant": "The git grant was missing, malformed, forged or expired.",
+    "git_grant_expired": "The git grant has expired.",
+    "git_invalid_grant": "The git grant was missing, malformed or forged.",
+    "git_operation_not_granted": "The git grant does not allow this operation.",
     "git_provider_not_supported": "The repository's provider has no git remote.",
     "git_remote_not_https": "The repository's git remote is not an https URL.",
-    "git_route_not_allowed": "The git grant does not allow this request.",
+    "git_repository_not_granted": "The git grant does not cover this repository.",
+    "git_route_not_supported": "The request is not a git fetch or push.",
+    "git_token_rejected": "The provider rejected Sentry's credentials for the repository.",
     "git_token_unavailable": "No provider token could be obtained for the repository.",
     "malformed_external_id": "The repository's external ID was malformed.",
     "missing_repository_path": "No path was given for the repository.",
@@ -137,8 +145,16 @@ class SCMCodedError(SCMError):
         return error_cls(detail=detail)
 
 
+class GitGrantExpired(SCMCodedError):
+    code = "git_grant_expired"
+
+
 class GitInvalidGrant(SCMCodedError):
     code = "git_invalid_grant"
+
+
+class GitOperationNotGranted(SCMCodedError):
+    code = "git_operation_not_granted"
 
 
 class GitProviderNotSupported(SCMCodedError):
@@ -149,8 +165,16 @@ class GitRemoteNotHttps(SCMCodedError):
     code = "git_remote_not_https"
 
 
-class GitRouteNotAllowed(SCMCodedError):
-    code = "git_route_not_allowed"
+class GitRepositoryNotGranted(SCMCodedError):
+    code = "git_repository_not_granted"
+
+
+class GitRouteNotSupported(SCMCodedError):
+    code = "git_route_not_supported"
+
+
+class GitTokenRejected(SCMCodedError):
+    code = "git_token_rejected"
 
 
 class GitTokenUnavailable(SCMCodedError):

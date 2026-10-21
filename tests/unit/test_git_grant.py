@@ -5,7 +5,7 @@ import jwt
 import msgspec
 import pytest
 
-from scm.errors import GitInvalidGrant
+from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
 from scm.git.types import Grant
 from tests.unit.git_builders import FAR_FUTURE, make_grant
@@ -63,10 +63,17 @@ class TestRoundTrip:
 
 class TestExpiry:
     def test_expired(self):
-        assert_invalid(sign_grant(SECRET, make_grant(expires_at=NOW - 1), now=NOW), "expired")
+        with pytest.raises(GitGrantExpired, match="expired"):
+            verify_grant([SECRET], sign_grant(SECRET, make_grant(expires_at=NOW - 1), now=NOW), now=NOW)
 
     def test_expires_at_its_expiry_time(self):
-        assert_invalid(sign_grant(SECRET, make_grant(expires_at=NOW), now=NOW), "expired")
+        with pytest.raises(GitGrantExpired):
+            verify_grant([SECRET], sign_grant(SECRET, make_grant(expires_at=NOW), now=NOW), now=NOW)
+
+    def test_forged_grant_is_invalid_even_when_expired(self):
+        # Expiry is checked only once the signature matches, so an expired grant is always a genuine one.
+        token = sign_grant("other-secret-0000000000000000000000", make_grant(expires_at=NOW - 1), now=NOW)
+        assert_invalid(token, "not signed with a known secret")
 
     def test_valid_until_its_expiry_time(self):
         token = sign_grant(SECRET, make_grant(expires_at=NOW + 1), now=NOW)

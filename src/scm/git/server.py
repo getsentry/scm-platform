@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterator, Mapping
 
 from requests.structures import CaseInsensitiveDict
 
-from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenUnavailable, ResourceBadGateway, SCMCodedError
+from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
 from scm.git.grant import verify_grant
 from scm.git.operations import check_request
 from scm.git.relay import GitRelay
@@ -14,11 +14,14 @@ from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 # The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
 # which a sandboxed client must never have and which would not help.
 _STATUS: dict[ErrorCode, int] = {
-    # The client's own request is malformed.
+    # The client's own request is malformed, or is not a git request this endpoint serves.
     "rpc_malformed_request_headers": 400,
+    "git_route_not_supported": 404,
     # The grant does not allow the request.
     "git_invalid_grant": 403,
-    "git_route_not_allowed": 403,
+    "git_grant_expired": 403,
+    "git_operation_not_granted": 403,
+    "git_repository_not_granted": 403,
     # The grant allows it, but there is no repository to serve.
     "repository_not_found": 404,
     "repository_inactive": 404,
@@ -31,6 +34,7 @@ _STATUS: dict[ErrorCode, int] = {
     "missing_repository_path": 500,
     # The provider cannot be reached safely, or failed.
     "git_remote_not_https": 502,
+    "git_token_rejected": 502,
     "git_token_unavailable": 502,
     "resource_bad_gateway": 502,
     "resource_certificate_invalid": 502,
@@ -119,7 +123,7 @@ class GitServer:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
                 # for credentials, which it must never have and which would not help.
                 _close_stream(response.content)
-                raise ResourceBadGateway(detail="The provider rejected Sentry's credentials for this repository.")
+                raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
             return _error_response(e)

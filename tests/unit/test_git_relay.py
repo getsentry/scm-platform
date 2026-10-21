@@ -12,7 +12,7 @@ from requests.adapters import HTTPAdapter
 
 from scm.errors import (
     GitRemoteNotHttps,
-    GitRouteNotAllowed,
+    GitRouteNotSupported,
     ResourceBadGateway,
     ResourceCertificateInvalid,
     ResourceGatewayTimeout,
@@ -141,7 +141,7 @@ class TestRequest:
         assert upstream.requests == []
 
     def test_refuses_routes_that_are_not_git(self, relay, upstream):
-        with pytest.raises(GitRouteNotAllowed):
+        with pytest.raises(GitRouteNotSupported):
             relay.forward(
                 remote_for(upstream),
                 TOKEN,

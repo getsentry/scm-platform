@@ -14,7 +14,7 @@ from typing import Any
 import jwt
 import msgspec
 
-from scm.errors import GitInvalidGrant
+from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.types import Grant
 
 GRANT_AUDIENCE = "scm-git-grant"
@@ -79,7 +79,7 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
         raise GitInvalidGrant(detail=f"The git grant's payload is invalid: {e}") from None
 
     if grant.expires_at <= now:
-        raise GitInvalidGrant(detail="The git grant has expired.")
+        raise GitGrantExpired(detail="The git grant has expired.")
     # bool is an int to isinstance, and PyJWT would refuse it as an iat.
     if not isinstance(claims["iat"], int) or isinstance(claims["iat"], bool):
         raise GitInvalidGrant(detail="The git grant's iat is not an integer.")

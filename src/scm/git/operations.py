@@ -1,4 +1,4 @@
-from scm.errors import GitRouteNotAllowed
+from scm.errors import GitOperationNotGranted, GitRepositoryNotGranted, GitRouteNotSupported
 from scm.git.types import GitOperation, Grant
 from scm.types import RepositoryId
 
@@ -26,7 +26,7 @@ def require_route(method: str, route: str, query: str) -> GitOperation:
     """Return the operation a git smart-HTTP request belongs to, refusing any other request."""
     operation = route_operation(method, route, query)
     if operation is None:
-        raise GitRouteNotAllowed(detail=f"{method} {route} is not a git fetch or push route.")
+        raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
     return operation
 
 
@@ -39,7 +39,7 @@ def check_request(grant: Grant, repository_id: RepositoryId, method: str, route:
     """
     operation = require_route(method, route, query)
     if operation != grant.operation:
-        raise GitRouteNotAllowed(detail=f"The git grant allows {grant.operation}, not {operation}.")
+        raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
     if repository_id not in grant.repositories:
-        raise GitRouteNotAllowed(detail="The git grant does not cover this repository.")
+        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
     return operation

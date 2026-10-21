@@ -138,15 +138,19 @@ class TestRefusedBeforeTheProvider:
     """Nothing the grant does not allow may look up a repository or a token."""
 
     @pytest.mark.parametrize(
-        "grant,detail",
+        "grant,detail,code",
         [
-            (None, "missing"),
-            ("garbage", "malformed"),
-            (sign_grant("other-secret-0000000000000000000000", make_grant()), "not signed with a known secret"),
-            (signed_grant(expires_at=int(time.time()) - 1), "expired"),
+            (None, "missing", "git_invalid_grant"),
+            ("garbage", "malformed", "git_invalid_grant"),
+            (
+                sign_grant("other-secret-0000000000000000000000", make_grant()),
+                "not signed with a known secret",
+                "git_invalid_grant",
+            ),
+            (signed_grant(expires_at=int(time.time()) - 1), "expired", "git_grant_expired"),
         ],
     )
-    def test_invalid_grant(self, grant, detail):
+    def test_invalid_grant(self, grant, detail, code):
         recorder = Recorder()
         server = make_server(recorder)
         assert_refused(request(server, grant), 403, detail)
@@ -154,18 +158,29 @@ class TestRefusedBeforeTheProvider:
         assert recorder.provider_lookups == []
         assert recorder.token_lookups == []
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_invalid_grant"})]
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": code})]
+
+    def test_route_that_is_not_git(self):
+        recorder = Recorder()
+        response = request(
+            make_server(recorder), signed_grant(), method="POST", route="info/lfs/objects/batch", query=""
+        )
+        assert_refused(response, 404, "not a git fetch or push route")
+        assert recorder.repository_lookups == []
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_route_not_supported"})]
 
     def test_operation_the_grant_does_not_allow(self):
         recorder = Recorder()
         assert_refused(push(make_server(recorder), signed_grant()), 403, "allows fetch, not push")
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_operation_not_granted"})]
 
     def test_repository_the_grant_does_not_list(self):
         recorder = Recorder()
         assert_refused(request(make_server(recorder), signed_grant(), repository_id=6), 403, "does not cover")
         assert recorder.repository_lookups == []
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_repository_not_granted"})]
 
     def test_grant_header_name_is_case_insensitive(self):
         response = request(make_server(Recorder()), None, headers={GRANT_HEADER.lower(): signed_grant()})
@@ -311,7 +326,7 @@ class TestRelay:
         assert_refused(response, 502, "not https")
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_remote_not_https"})]
 
-    def test_provider_rejecting_the_token_is_a_gateway_error(self):
+    def test_provider_rejecting_the_token(self):
         # Passed on, a 401 would make git ask the sandboxed client for credentials.
         adapters: list[ClosingAdapter] = []
 
@@ -329,7 +344,7 @@ class TestRelay:
         assert_refused(response, 502, "rejected Sentry's credentials")
         # The provider's unread response is closed with its connection.
         assert [a.closed for a in adapters] == [True]
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "resource_bad_gateway"})]
+        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_rejected"})]
 
     def test_unexpected_error_code_is_a_server_error(self):
         relay = MagicMock(spec=GitRelay)

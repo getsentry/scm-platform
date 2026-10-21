@@ -1,6 +1,6 @@
 import pytest
 
-from scm.errors import GitRouteNotAllowed
+from scm.errors import GitOperationNotGranted, GitRepositoryNotGranted, GitRouteNotSupported
 from scm.git.operations import check_request, require_route, route_operation
 from tests.unit.git_builders import make_grant
 
@@ -48,7 +48,7 @@ class TestRequireRoute:
         assert require_route("POST", "git-receive-pack", "") == "push"
 
     def test_refuses_other_routes(self):
-        with pytest.raises(GitRouteNotAllowed, match="not a git fetch or push route"):
+        with pytest.raises(GitRouteNotSupported, match="not a git fetch or push route"):
             require_route("POST", "info/lfs/objects/batch", "")
 
 
@@ -66,22 +66,22 @@ class TestCheckRequest:
     )
     def test_grant_cannot_reach_the_other_operations_routes(self, operation, route):
         other = "push" if operation == "fetch" else "fetch"
-        with pytest.raises(GitRouteNotAllowed, match=f"allows {operation}, not {other}"):
+        with pytest.raises(GitOperationNotGranted, match=f"allows {operation}, not {other}"):
             check_request(make_grant(operation=operation), 5, *route)
 
     def test_unknown_route(self):
-        with pytest.raises(GitRouteNotAllowed, match="not a git fetch or push route"):
+        with pytest.raises(GitRouteNotSupported, match="not a git fetch or push route"):
             check_request(make_grant(), 5, "POST", "info/lfs/objects/batch", "")
 
     def test_repository_not_in_grant(self):
-        with pytest.raises(GitRouteNotAllowed, match="does not cover this repository"):
+        with pytest.raises(GitRepositoryNotGranted, match="does not cover this repository"):
             check_request(make_grant(), 6, "POST", "git-upload-pack", "")
 
     def test_repository_named_another_way_is_not_in_grant(self):
         # The grant and the request name repositories the same way; matching a database id to a provider id
         # would mean resolving every repository the grant lists.
         grant = make_grant(repositories=(("github", "123"),))
-        with pytest.raises(GitRouteNotAllowed):
+        with pytest.raises(GitRepositoryNotGranted):
             check_request(grant, 5, "POST", "git-upload-pack", "")
         assert check_request(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
 
