@@ -3,6 +3,7 @@ import time
 from collections.abc import Generator
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -32,7 +33,7 @@ class Recorder:
         self.provider_lookups: list[tuple[int, Repository]] = []
         self.token_lookups: list[tuple[Repository, GitOperation]] = []
         self.counts: list[tuple[str, dict[str, str]]] = []
-        self.errors: list[Exception] = []
+        self.errors: list[tuple[Exception, dict[str, str]]] = []
         self.bytes: dict[tuple[str, str], int] = {}
 
     def fetch_repository(self, organization_id: int, repository_id: RepositoryId) -> Repository | None:
@@ -54,12 +55,12 @@ class Recorder:
         else:
             self.counts.append((name, tags))
 
-    def emit_error(self, error: Exception) -> None:
-        self.errors.append(error)
+    def emit_error(self, error: Exception, context: dict[str, str]) -> None:
+        self.errors.append((error, context))
 
     @property
     def error_codes(self) -> list[str]:
-        return [getattr(error, "code", "") for error in self.errors]
+        return [getattr(error, "code", "") for error, _ in self.errors]
 
 
 def chunks(*parts: bytes) -> Generator[bytes]:
@@ -132,7 +133,7 @@ def test_requires_a_relay():
             fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
             record_count=lambda name, value, tags: None,
-            emit_error=lambda error: None,
+            emit_error=lambda error, context: None,
         )
 
 
@@ -145,7 +146,7 @@ def test_requires_non_empty_secrets(secrets):
             fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
             record_count=lambda name, value, tags: None,
-            emit_error=lambda error: None,
+            emit_error=lambda error, context: None,
             relay=MagicMock(spec=GitRelay),
         )
 
@@ -176,6 +177,8 @@ class TestRefusedBeforeTheProvider:
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": code})]
         assert recorder.error_codes == [code]
+        # Only the requested repository is known before the grant is verified.
+        assert recorder.errors[0][1] == {"repository_id": "5"}
 
     def test_route_that_is_not_git(self):
         recorder = Recorder()
@@ -192,6 +195,7 @@ class TestRefusedBeforeTheProvider:
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_operation_not_granted"})]
+        assert recorder.errors[0][1] == {"repository_id": "5", "organization_id": "1"}
 
     def test_repository_the_grant_does_not_list(self):
         recorder = Recorder()
@@ -335,6 +339,14 @@ class TestRelay:
         assert "127.0.0.1" not in b"".join(response.content).decode()
         assert TOKEN not in b"".join(response.content).decode()
 
+    def test_reported_remote_host_leaves_out_credentials_in_the_url(self):
+        recorder = Recorder(
+            repository=make_repository(provider_name="github_enterprise", web_base_url="https://user:pw@127.0.0.1:1")
+        )
+        request(make_server(recorder, GitRelay(timeout=(1, 1))), signed_grant())
+        assert recorder.error_codes == ["resource_service_unavailable"]
+        assert recorder.errors[0][1]["remote_host"] == "127.0.0.1:1"
+
     def test_plain_http_remote(self):
         # A self-managed instance served over http; the token must not cross the network in the clear.
         recorder = Recorder(
@@ -364,6 +376,13 @@ class TestRelay:
         assert [a.closed for a in adapters] == [True]
         assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_rejected"})]
         assert recorder.error_codes == ["git_token_rejected"]
+        assert recorder.errors[0][1] == {
+            "repository_id": "5",
+            "organization_id": "1",
+            "operation": "fetch",
+            "provider": "github_enterprise",
+            "remote_host": urlsplit(upstream.url).netloc,
+        }
 
     @pytest.mark.parametrize("status", [301, 403, 404, 500])
     def test_provider_refusing_the_request_is_passed_on_and_counted_as_failed(self, status):
