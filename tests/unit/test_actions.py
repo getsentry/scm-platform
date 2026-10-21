@@ -478,7 +478,7 @@ def _check_get_pull_request_url(result: Any) -> None:
 
 
 def _check_get_git_remote(result: Any) -> None:
-    assert result == {"url": "https://github.com/test-org/test-repo.git", "username": "x-access-token"}
+    assert result == {"url": "https://github.com/test-org/test-repo.git", "basic_auth_username": "x-access-token"}
 
 
 def _check_create_git_blob(result: Any) -> None:

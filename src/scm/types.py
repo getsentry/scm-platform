@@ -70,8 +70,8 @@ class GitRemote(TypedDict):
 
     url: str
     """The repository's clone URL, e.g. ``https://github.com/getsentry/sentry.git``."""
-    username: str
-    """The basic-auth username the provider pairs with a token, e.g. ``x-access-token`` on GitHub."""
+    basic_auth_username: str
+    """Sent with the token as the Basic auth username, e.g. ``x-access-token`` on GitHub."""
 
 
 type BuildStatus = Literal["pending", "running", "completed"]

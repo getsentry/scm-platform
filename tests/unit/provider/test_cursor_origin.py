@@ -1087,7 +1087,7 @@ class TestWebUrls:
     def test_a_git_remote(self, provider: CursorOriginProvider) -> None:
         # Git is served from origin.cursor.com rather than the web UI's cursor.com/codebase.
         assert provider.get_git_remote() == GitRemote(
-            url=f"https://origin.cursor.com/{REPO}.git", username="x-access-token"
+            url=f"https://origin.cursor.com/{REPO}.git", basic_auth_username="x-access-token"
         )
 
 

@@ -1192,7 +1192,7 @@ class BaseTestProvider(Provider):
         return f"https://github.com/test-org/test-repo/pull/{pull_request_id}"
 
     def get_git_remote(self) -> GitRemote:
-        return GitRemote(url="https://github.com/test-org/test-repo.git", username="x-access-token")
+        return GitRemote(url="https://github.com/test-org/test-repo.git", basic_auth_username="x-access-token")
 
     # Git blob operations
 
