@@ -50,7 +50,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "git_route_not_allowed": "The git grant does not allow this request.",
     "git_token_unavailable": "No provider token could be obtained for the repository.",
     "malformed_external_id": "The repository's external ID was malformed.",
-    "missing_repository_path": "The repository's path on its provider is unknown.",
+    "missing_repository_path": "No path was given for the repository.",
     "path_is_directory": "The requested path is a directory, not a file.",
     "path_is_not_directory": "The requested path is not a directory.",
     "provider_not_found": "An unsupported integration provider was found.",
