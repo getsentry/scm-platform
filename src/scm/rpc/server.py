@@ -17,6 +17,7 @@ from scm.manager import SourceCodeManager
 from scm.rpc.errors import serialize_error
 from scm.rpc.helpers import serialize_repository, verify_get, verify_post
 from scm.rpc.types import ActionRequest, Response, StreamResponse
+from scm.secret import Secret
 from scm.types import Provider, Repository, RepositoryId
 
 TEN_MEGABYTES = 10 * 1024 * 1024
@@ -26,13 +27,14 @@ ALLOWED_HEADERS = frozenset({"accept", "content-type", "if-none-match"})
 class RpcServer:
     def __init__(
         self,
-        secrets: list[str],
+        secrets: list[str] | list[Secret],
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         fetch_provider: Callable[[int, Repository], Provider | None],
         record_count: Callable[[str, int, dict[str, str]], None],
         emit_error: Callable[[Exception], None],
     ) -> None:
-        self.secrets = secrets
+        # Wrapped, so the secrets show as [Filtered] in the frames of a reported error, e.g. while verifying.
+        self.secrets = [Secret.of(secret) for secret in secrets]
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.record_count = record_count
