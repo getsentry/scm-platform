@@ -82,11 +82,20 @@ def _derive_provider_name(base_url: str) -> str:
 class InstallationTokenManager:
     """Manages GitHub App installation access tokens with automatic refresh."""
 
-    def __init__(self, app_id: str, private_key: str, installation_id: str, base_url: str = GITHUB_API_BASE) -> None:
+    def __init__(
+        self,
+        app_id: str,
+        private_key: str,
+        installation_id: str,
+        base_url: str = GITHUB_API_BASE,
+        ca_bundle: str | None = None,
+    ) -> None:
         self.app_id = app_id
         self.private_key = private_key
         self.installation_id = installation_id
         self.base_url = base_url
+        # A CA file to trust instead of the system's, for a GitHub Enterprise instance with a private CA.
+        self.ca_bundle = ca_bundle
         self._token: str | None = None
         self._expires_at: float = 0
 
@@ -107,6 +116,7 @@ class InstallationTokenManager:
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/vnd.github+json",
             },
+            verify=self.ca_bundle or True,
         )
         response.raise_for_status()
         data = response.json()
