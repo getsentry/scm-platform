@@ -5,7 +5,7 @@ from requests.structures import CaseInsensitiveDict
 
 from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
 from scm.git.grant import verify_grant
-from scm.git.relay import GitRelay, ResponseBody, check_request
+from scm.git.relay import GitRelay, ResponseBody, authorize_request
 from scm.git.types import GRANT_HEADER, GetToken, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
@@ -119,7 +119,7 @@ class GitServer:
             grant = verify_grant(self.secrets, CaseInsensitiveDict(headers).get(GRANT_HEADER, ""))
             context["organization_id"] = str(grant.organization_id)
             referrer_tag["referrer"] = context["referrer"] = grant.referrer
-            operation = check_request(grant, repository_id, method, route, query)
+            operation = authorize_request(grant, repository_id, method, route, query)
             context["operation"] = operation
             provider = initialize_provider(
                 grant.organization_id,

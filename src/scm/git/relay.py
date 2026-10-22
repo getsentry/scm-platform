@@ -62,8 +62,8 @@ _RESPONSE_HEADERS = frozenset(
 )
 
 
-def check_request(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
-    """Refuse a request the grant does not reach, before anything is sent to the provider.
+def authorize_request(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
+    """Return the git operation a request belongs to, refusing the request unless the grant allows it.
 
     A fetch grant reaches only upload-pack and a push grant only receive-pack. The repository must be listed in
     the grant in the same form the request uses: a database id does not match the same repository's
@@ -142,16 +142,16 @@ class GitRelay:
     ) -> RelayResponse:
         """Send one request to ``remote`` and return the provider's response as it arrives.
 
-        ``route`` is the path below ``<repo>.git/``. Check the request against a grant with ``check_request``
-        before calling this.
+        ``route`` is the path below ``<repo>.git/``. The relay enforces what keeps the token safe: an https remote
+        and one of the four git routes. It knows nothing of grants, so whether the request may run at all is the
+        caller's to decide; GitServer calls ``authorize_request`` before it looks up the repository or a token.
 
         Errors carry no URL, because the client has no use for the provider's address.
         """
         if not remote["url"].startswith("https://"):
             # The token would cross the network in the clear, e.g. to a self-managed instance served over http.
             raise GitRemoteNotHttps()
-        # Callers check the request against a grant first; this only makes sure the token never goes to anything
-        # but a git route.
+        # The token never goes to anything but a git route, whatever the caller checked.
         if (method, route, query) not in _ROUTES:
             raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
         if not f"{remote['basic_auth_username']}:{token}".isascii():
@@ -266,8 +266,8 @@ class _UpstreamStream:
         try:
             while not (chunk := next(self.chunks)):
                 pass
-        except BaseException:
-            # The end of the body, or the provider's stream breaking.
+        except Exception:
+            # The end of the body (StopIteration), or the provider's stream breaking.
             self.close()
             raise
         return chunk

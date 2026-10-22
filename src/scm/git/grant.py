@@ -21,9 +21,6 @@ GRANT_AUDIENCE = "scm-git-grant"
 _ALGORITHM = "HS256"
 # Claims the JWT layer owns. Every other claim must be a Grant field.
 _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
-# How far in the future a grant's iat may be. Seer signs grants on other hosts than the one verifying them, and a
-# clock running a little ahead should not get its grants refused.
-_CLOCK_SKEW = 60
 
 
 def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
@@ -73,7 +70,9 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
             # exp is checked below against an injectable clock, so tests can pin it. PyJWT checks iat, which it
             # also requires to be a number.
             options={"require": sorted(_JWT_CLAIMS), "verify_exp": False},
-            leeway=_CLOCK_SKEW,
+            # How far in the future iat may be, in seconds. Seer signs grants on other hosts than the one verifying
+            # them, and a clock running a little ahead should not get its grants refused.
+            leeway=60,
         )
     except jwt.InvalidSignatureError:
         raise GitInvalidGrant(detail="The git grant's signature does not match.") from None

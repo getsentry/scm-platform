@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
+from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -21,7 +22,7 @@ from scm.errors import (
     ResourceServiceUnavailable,
     SCMCodedError,
 )
-from scm.git.relay import GitRelay, check_request
+from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
 from scm.types import GitRemote
 from tests.unit.git_builders import make_grant
 from tests.unit.git_upstream import ClosingAdapter, UpstreamHandler, basic_auth, ca_bundle, running_upstream
@@ -186,6 +187,13 @@ class TestRequest:
         [request] = upstream.requests
         assert request.headers["Transfer-Encoding"] == "chunked"
         assert request.body == b"0000"
+
+    def test_empty_body_is_sent_as_one(self, relay, upstream):
+        b"".join(upload_pack(relay, upstream, io.BytesIO(b""), headers={"Content-Length": "0"}).content)
+        [request] = upstream.requests
+        assert request.headers["Content-Length"] == "0"
+        assert "Transfer-Encoding" not in request.headers
+        assert request.body == b""
 
     def test_reads_no_further_than_the_declared_length(self, relay, upstream):
         body = io.BytesIO(b"0000trailing")
@@ -515,6 +523,49 @@ def assert_token_not_in(error: Exception) -> None:
     assert basic_auth("x-access-token", TOKEN) not in repr(error)
 
 
+def upstream_stream(*chunks: bytes | Exception) -> tuple[_UpstreamStream, MagicMock, MagicMock]:
+    """An _UpstreamStream over a response whose body yields ``chunks``, raising any that is an exception."""
+
+    def stream(chunk_size, decode_content):
+        for chunk in chunks:
+            if isinstance(chunk, Exception):
+                raise chunk
+            yield chunk
+
+    session, response = MagicMock(spec=requests.Session), MagicMock(spec=requests.Response)
+    response.raw = MagicMock(stream=stream)
+    return _UpstreamStream(session, response, 1024), session, response
+
+
+class TestUpstreamStream:
+    def test_skips_empty_chunks(self):
+        # An empty chunk carries nothing, so it is not passed on.
+        stream, _, _ = upstream_stream(b"a", b"", b"", b"b")
+        assert list(stream) == [b"a", b"b"]
+
+    def test_closes_the_response_and_session_when_the_body_ends(self):
+        stream, session, response = upstream_stream(b"a")
+        assert list(stream) == [b"a"]
+        response.close.assert_called_once()
+        session.close.assert_called_once()
+
+    def test_closes_the_response_and_session_when_the_provider_stream_breaks(self):
+        stream, session, response = upstream_stream(b"a", urllib3.exceptions.ProtocolError("connection broken"))
+        assert next(stream) == b"a"
+        response.close.assert_not_called()
+        with pytest.raises(urllib3.exceptions.ProtocolError):
+            next(stream)
+        response.close.assert_called_once()
+        session.close.assert_called_once()
+
+    def test_close_before_reading(self):
+        # A response GitServer replaces, such as a 401, is closed without being read.
+        stream, session, response = upstream_stream(b"a")
+        stream.close()
+        response.close.assert_called_once()
+        session.close.assert_called_once()
+
+
 class TestClose:
     def test_closing_an_unread_response_drops_the_upstream_connection(self, relay, upstream):
         upstream_saw_close = threading.Event()
@@ -539,13 +590,13 @@ FETCH_ROUTES = [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-u
 PUSH_ROUTES = [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")]
 
 
-class TestCheckRequest:
+class TestAuthorizeRequest:
     @pytest.mark.parametrize(
         "operation,route",
         [("fetch", route) for route in FETCH_ROUTES] + [("push", route) for route in PUSH_ROUTES],
     )
     def test_grant_reaches_its_operations_routes(self, operation, route):
-        assert check_request(make_grant(operation=operation), 5, *route) == operation
+        assert authorize_request(make_grant(operation=operation), 5, *route) == operation
 
     @pytest.mark.parametrize(
         "operation,route",
@@ -554,7 +605,7 @@ class TestCheckRequest:
     def test_grant_cannot_reach_the_other_operations_routes(self, operation, route):
         other = "push" if operation == "fetch" else "fetch"
         with pytest.raises(GitOperationNotGranted, match=f"allows {operation}, not {other}"):
-            check_request(make_grant(operation=operation), 5, *route)
+            authorize_request(make_grant(operation=operation), 5, *route)
 
     @pytest.mark.parametrize(
         "method,route,query",
@@ -577,21 +628,21 @@ class TestCheckRequest:
     def test_routes_that_are_not_git(self, method, route, query):
         for operation in ("fetch", "push"):
             with pytest.raises(GitRouteNotSupported, match="not a git fetch or push route"):
-                check_request(make_grant(operation=operation), 5, method, route, query)
+                authorize_request(make_grant(operation=operation), 5, method, route, query)
 
     def test_repository_not_in_grant(self):
         with pytest.raises(GitRepositoryNotGranted, match="does not cover this repository"):
-            check_request(make_grant(), 6, "POST", "git-upload-pack", "")
+            authorize_request(make_grant(), 6, "POST", "git-upload-pack", "")
 
     def test_repository_named_another_way_is_not_in_grant(self):
         # The grant and the request name repositories the same way; matching a database id to a provider id
         # would mean resolving every repository the grant lists.
         grant = make_grant(repositories=[("github", "123")])
         with pytest.raises(GitRepositoryNotGranted):
-            check_request(grant, 5, "POST", "git-upload-pack", "")
-        assert check_request(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
+            authorize_request(grant, 5, "POST", "git-upload-pack", "")
+        assert authorize_request(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
 
     def test_any_listed_repository(self):
         grant = make_grant(repositories=[5, 6, ("gitlab", "gitlab.com:7")])
-        assert check_request(grant, 6, "POST", "git-upload-pack", "") == "fetch"
-        assert check_request(grant, ("gitlab", "gitlab.com:7"), "POST", "git-upload-pack", "") == "fetch"
+        assert authorize_request(grant, 6, "POST", "git-upload-pack", "") == "fetch"
+        assert authorize_request(grant, ("gitlab", "gitlab.com:7"), "POST", "git-upload-pack", "") == "fetch"
