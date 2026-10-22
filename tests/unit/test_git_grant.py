@@ -188,22 +188,6 @@ class TestSecrets:
             verify_grant([SECRET, Secret("")], token, now=NOW)
 
 
-class TestRequiresSecret:
-    def test_sign_refuses_a_plain_string(self):
-        with pytest.raises(TypeError, match=r"secret must be a scm\.Secret, not str"):
-            sign_grant(SECRET.reveal(), make_grant(), now=NOW)  # type: ignore[arg-type]
-
-    def test_verify_refuses_a_plain_string(self):
-        token = sign_grant(SECRET, make_grant(), now=NOW)
-        with pytest.raises(TypeError, match=r"secrets must be a scm\.Secret, not str"):
-            verify_grant([SECRET, SECRET.reveal()], token, now=NOW)  # type: ignore[list-item]
-
-    def test_message_leaves_out_the_value(self):
-        with pytest.raises(TypeError) as exc_info:
-            sign_grant(SECRET.reveal(), make_grant(), now=NOW)  # type: ignore[arg-type]
-        assert SECRET.reveal() not in str(exc_info.value)
-
-
 class TestRotatedSecrets:
     @pytest.mark.parametrize("signer", [OLD_SECRET, NEW_SECRET])
     def test_both_secrets_verify_during_rotation(self, signer):

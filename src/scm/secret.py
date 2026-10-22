@@ -35,21 +35,19 @@ class Secret:
         return bool(self._value)
 
 
-def require_secret(value: object, *, parameter: str) -> Secret:
-    """Return ``value`` if it is a ``Secret``.
-
-    Type checkers catch a plain string already; this tells an untyped caller what to do instead of failing later
-    with an AttributeError.
-    """
-    if not isinstance(value, Secret):
-        # A plain string would stay in the caller's frame, where an error report shows it.
-        raise TypeError(
-            f"{parameter} must be a scm.Secret, not {type(value).__name__}. "
-            'Wrap it in scm.Secret where you read it, e.g. Secret(os.environ["SCM_RPC_SHARED_SECRET"]).'
-        )
-    return value
-
-
 def require_secrets(values: Sequence[object], *, parameter: str) -> list[Secret]:
-    """Like ``require_secret``, for each of ``values``."""
-    return [require_secret(value, parameter=parameter) for value in values]
+    """Return ``values`` as a list, if each is a ``Secret``.
+
+    For the servers, which hold their secrets for every request. A plain string that got past the type checker, say
+    from untyped code, would make every request fail inside verification, and each failure's error report would
+    carry the strings in its frames. Refused here, the server fails once, when it is built.
+    """
+    secrets: list[Secret] = []
+    for value in values:
+        if not isinstance(value, Secret):
+            raise TypeError(
+                f"{parameter} must be scm.Secret objects, not {type(value).__name__}. "
+                'Wrap each in scm.Secret where you read it, e.g. Secret(os.environ["SCM_RPC_SHARED_SECRET"]).'
+            )
+        secrets.append(value)
+    return secrets

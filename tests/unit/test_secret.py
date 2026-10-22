@@ -7,7 +7,7 @@ import requests
 from scm import Secret as ExportedSecret
 from scm.manager import SourceCodeManager
 from scm.rpc import helpers
-from scm.rpc.client import RpcApiClient, fetch_repository
+from scm.rpc.client import RpcApiClient
 from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
 from scm.secret import Secret
@@ -101,51 +101,9 @@ def make_server(secrets):
     )
 
 
-def make_api_client(signing_secret):
-    return RpcApiClient(
-        full_url="https://sentry.example/api/0/internal/scm-rpc/",
-        signing_secret=signing_secret,
-        organization_id=1,
-        referrer="shared",
-        repository_id=5,
-    )
-
-
-class TestRequiresSecret:
-    @pytest.mark.parametrize(
-        ("call", "parameter"),
-        [
-            (
-                lambda secret: SourceCodeManager.make_proxy_client(
-                    1, 5, base_url="https://sentry.example", signing_secret=secret
-                ),
-                "signing_secret",
-            ),
-            (lambda secret: fetch_repository("https://sentry.example", secret, 1, 5), "signing_secret"),
-            (make_api_client, "signing_secret"),
-            (lambda secret: make_server([Secret(SECRET), secret]), "secrets"),
-            (lambda secret: helpers.sign_get(secret, 1, 5), "secret"),
-            (lambda secret: helpers.sign_post(secret, b"body"), "secret"),
-            (lambda secret: helpers.sign(secret, b"body"), "secret"),
-            (lambda secret: helpers.verify_get([secret], 1, 5, "rpc0:abc"), "secrets"),
-            (lambda secret: helpers.verify_post([secret], b"body", "rpc0:abc"), "secrets"),
-            (lambda secret: helpers.verify([secret], b"body", "rpc0:abc"), "secrets"),
-        ],
-        ids=[
-            "make_proxy_client",
-            "fetch_repository",
-            "RpcApiClient",
-            "RpcServer",
-            "sign_get",
-            "sign_post",
-            "sign",
-            "verify_get",
-            "verify_post",
-            "verify",
-        ],
-    )
-    def test_refuses_a_plain_string(self, call, parameter):
-        # Refused before anything is sent, so no request is made.
-        with pytest.raises(TypeError, match=rf"^{parameter} must be a scm\.Secret, not str\.") as exc_info:
-            call(SECRET)
+class TestServerRequiresSecret:
+    def test_refuses_a_plain_string(self):
+        # Built with one, the server would fail every request inside verification, with the strings in its frames.
+        with pytest.raises(TypeError, match=r"^secrets must be scm\.Secret objects, not str\.") as exc_info:
+            make_server([Secret(SECRET), SECRET])
         assert SECRET not in str(exc_info.value)

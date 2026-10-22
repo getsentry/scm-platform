@@ -155,7 +155,7 @@ def test_requires_non_empty_secrets(secrets):
 
 
 def test_requires_secret_objects():
-    with pytest.raises(TypeError, match=r"secrets must be a scm\.Secret, not str"):
+    with pytest.raises(TypeError, match=r"^secrets must be scm\.Secret objects, not str\."):
         GitServer(
             secrets=[SECRET.reveal()],  # type: ignore[list-item]
             fetch_repository=lambda organization_id, repository_id: None,

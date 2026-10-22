@@ -17,7 +17,7 @@ import msgspec
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
-from scm.secret import Secret, require_secret, require_secrets
+from scm.secret import Secret
 
 GRANT_AUDIENCE = "scm-git-grant"
 _ALGORITHM = "HS256"
@@ -26,7 +26,6 @@ _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
 def sign_grant(secret: Secret, grant: Grant, *, now: float | None = None) -> str:
-    require_secret(secret, parameter="secret")
     # HMAC accepts an empty key, so an empty secret, say from an unset setting, would let anyone sign a grant.
     if not secret:
         raise ValueError("A git grant secret is empty.")
@@ -50,7 +49,6 @@ def verify_grant(secrets: Sequence[Secret], token: str, *, now: float | None = N
     Verification takes a list of secrets, as ``RpcServer`` does, so a new secret can be added before signers
     switch to it and the old one removed after their grants expire.
     """
-    require_secrets(secrets, parameter="secrets")
     # As in sign_grant: a grant signed with an empty secret proves nothing.
     if not all(secrets):
         raise ValueError("A git grant secret is empty.")

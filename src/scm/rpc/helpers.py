@@ -7,7 +7,7 @@ import msgspec
 
 from scm.errors import RepositoryCouldNotBeDeserialized
 from scm.rpc.types import JsonApiData, JsonApiPayload, RepositoryAttributes
-from scm.secret import Secret, require_secret, require_secrets
+from scm.secret import Secret
 from scm.types import Repository, RepositoryId
 
 
@@ -20,7 +20,6 @@ def sign_post(secret: Secret, serialized_body: bytes) -> str:
 
 
 def sign(secret: Secret, message: bytes) -> str:
-    require_secret(secret, parameter="secret")
     return f"rpc0:{hmac.new(secret.reveal().encode(), message, hashlib.sha256).hexdigest()}"
 
 
@@ -35,7 +34,6 @@ def verify_post(secrets: Sequence[Secret], serialized_body: bytes, received_sign
 
 
 def verify(secrets: Sequence[Secret], message: bytes, received_signature: str) -> bool:
-    require_secrets(secrets, parameter="secrets")
     return any(hmac.compare_digest(received_signature, sign(secret, message)) for secret in secrets)
 
 

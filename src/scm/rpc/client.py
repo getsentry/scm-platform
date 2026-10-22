@@ -17,7 +17,7 @@ from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.types import ActionAttributes, ActionRequest, ErrorResponse
-from scm.secret import Secret, require_secret
+from scm.secret import Secret
 from scm.types import ApiClient, CredentialsSet, Provider, Repository, RepositoryId
 
 SCM_API_URL = "{base_url}/api/0/internal/scm-rpc/"
@@ -80,7 +80,6 @@ def fetch_repository(
     session: Callable[[], Session] = lambda: RequestsSession(),
 ) -> Repository:
     """Fetch repositorty metadata."""
-    require_secret(signing_secret, parameter="signing_secret")
     response = session().get(
         url,
         headers={
@@ -165,7 +164,7 @@ class RpcApiClient(ApiClient):
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
     ) -> None:
         self.full_url = full_url
-        self.signing_secret = require_secret(signing_secret, parameter="signing_secret")
+        self.signing_secret = signing_secret
         self.organization_id = organization_id
         self.referrer = referrer
         self.repository_id = repository_id

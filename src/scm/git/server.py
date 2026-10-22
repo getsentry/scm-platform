@@ -82,11 +82,10 @@ class GitServer:
         emit_error: Callable[[Exception, dict[str, str]], None],
         relay: GitRelay,
     ) -> None:
-        require_secrets(secrets, parameter="secrets")
         # Fail when the server is built rather than on every request, because no grant could ever verify.
         if not secrets or not all(secrets):
             raise ValueError("GitServer needs at least one secret, and none may be empty.")
-        self.secrets = list(secrets)
+        self.secrets = require_secrets(secrets, parameter="secrets")
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.get_token = get_token
