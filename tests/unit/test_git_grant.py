@@ -8,7 +8,7 @@ import pytest
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
-from scm.git.types import Grant
+from scm.git.types import GRANT_MAX_LENGTH, Grant
 from tests.unit.git_builders import FAR_FUTURE, make_grant
 
 # Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
@@ -146,6 +146,33 @@ class TestTampering:
     @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
     def test_other_algorithm(self):
         assert_invalid(sign_claims(claims_of(make_grant()), algorithm="HS512"), "invalid")
+
+
+def grant_with_repositories(count: int) -> Grant:
+    # Names of one length, so each repository adds the same to the grant.
+    return make_grant(repositories=[("github", f"getsentry/repository-{i:04d}") for i in range(count)])
+
+
+class TestLength:
+    """The grant travels in a request header, and sandbox-router refuses one longer than GRANT_MAX_LENGTH."""
+
+    def test_too_long_to_sign(self):
+        with pytest.raises(ValueError, match=f"over GRANT_MAX_LENGTH \\({GRANT_MAX_LENGTH}\\)"):
+            sign_grant(SECRET, grant_with_repositories(100), now=NOW)
+
+    def test_longest_grant_that_fits_signs(self):
+        # Add repositories until one more would not fit.
+        count = 1
+        token = sign_grant(SECRET, grant_with_repositories(count), now=NOW)
+        while True:
+            try:
+                longer = sign_grant(SECRET, grant_with_repositories(count + 1), now=NOW)
+            except ValueError:
+                break
+            token, count = longer, count + 1
+        # One more repository adds about 50 characters.
+        assert GRANT_MAX_LENGTH - 100 < len(token) <= GRANT_MAX_LENGTH
+        assert verify_grant([SECRET], token, now=NOW) == grant_with_repositories(count)
 
 
 class TestSecrets:

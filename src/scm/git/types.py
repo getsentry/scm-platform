@@ -13,6 +13,14 @@ GRANT_VERSION: Literal[1] = 1
 GRANT_HEADER = "X-Scm-Git-Grant"
 """The request header that carries a signed grant to the git endpoint."""
 
+GRANT_MAX_LENGTH = 4096
+"""The longest signed grant, in characters. The grant travels in a request header, and sandbox-router's
+``PUT /grant/{sandbox_id}`` refuses a longer one, so a change here must change the router too. A grant grows with
+its repositories: a grant for one is under 400 characters, and the claims are base64-encoded, so each repository
+named as ``(provider, path)`` adds about 4/3 of its path's length plus 20, e.g. 52 for a 25-character path. The
+limit is a conservative pick rather than a measured ceiling: header limits further along the path are typically
+around 8 KiB."""
+
 
 class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
     """Permission to run one git operation against a fixed set of an organization's repositories.

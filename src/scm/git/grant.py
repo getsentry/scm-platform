@@ -15,7 +15,7 @@ import jwt
 import msgspec
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
-from scm.git.types import Grant
+from scm.git.types import GRANT_MAX_LENGTH, Grant
 
 GRANT_AUDIENCE = "scm-git-grant"
 _ALGORITHM = "HS256"
@@ -34,7 +34,14 @@ def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
     claims["exp"] = claims.pop("expires_at")
     claims["iat"] = int(time.time() if now is None else now)
     claims["aud"] = GRANT_AUDIENCE
-    return jwt.encode(claims, secret, algorithm=_ALGORITHM, headers={"kid": _key_id(secret)})
+    token = jwt.encode(claims, secret, algorithm=_ALGORITHM, headers={"kid": _key_id(secret)})
+    # Refused here, the signer's tests catch a grant that is too long, rather than the sandbox router in production.
+    if len(token) > GRANT_MAX_LENGTH:
+        raise ValueError(
+            f"The git grant is {len(token)} characters, over GRANT_MAX_LENGTH ({GRANT_MAX_LENGTH}). It travels in a "
+            "request header, and sandbox-router refuses a longer one."
+        )
+    return token
 
 
 def verify_grant(secrets: list[str], token: str, *, now: float | None = None) -> Grant:
