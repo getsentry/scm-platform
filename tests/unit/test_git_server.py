@@ -19,6 +19,7 @@ from tests.unit.git_upstream import ClosingAdapter, basic_auth, running_upstream
 
 SECRET = "test-secret-0000000000000000000000"
 TOKEN = "ghs_secrettoken"
+REFERRER = make_grant().referrer
 
 
 def signed_grant(**overrides) -> str:
@@ -187,21 +188,27 @@ class TestRefusedBeforeTheProvider:
         )
         assert_refused(response, 404, "not a git fetch or push route")
         assert recorder.repository_lookups == []
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_route_not_supported"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_route_not_supported"})
+        ]
 
     def test_operation_the_grant_does_not_allow(self):
         recorder = Recorder()
         assert_refused(push(make_server(recorder), signed_grant()), 403, "allows fetch, not push")
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_operation_not_granted"})]
-        assert recorder.errors[0][1] == {"repository_id": "5", "organization_id": "1"}
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
+        ]
+        assert recorder.errors[0][1] == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER}
 
     def test_repository_the_grant_does_not_list(self):
         recorder = Recorder()
         assert_refused(request(make_server(recorder), signed_grant(), repository_id=6), 403, "does not cover")
         assert recorder.repository_lookups == []
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_repository_not_granted"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_repository_not_granted"})
+        ]
 
     def test_grant_header_name_is_case_insensitive(self):
         response = request(make_server(Recorder()), None, headers={GRANT_HEADER.lower(): signed_grant()})
@@ -253,7 +260,9 @@ class TestRelay:
         recorder = Recorder(token=None)
         response = request(make_server(recorder), signed_grant())
         assert_refused(response, 502, "could not get a github token")
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_unavailable"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_token_unavailable"})
+        ]
 
     def test_token_asked_for_the_grants_operation(self):
         recorder = Recorder()
@@ -276,7 +285,10 @@ class TestRelay:
             body=None,
         )
         assert recorder.counts == [
-            ("sentry.scm.git.request.succeeded", {"operation": "fetch", "provider": "github", "status": "200"})
+            (
+                "sentry.scm.git.request.succeeded",
+                {"referrer": REFERRER, "operation": "fetch", "provider": "github", "status": "200"},
+            )
         ]
 
     def test_counted_when_the_response_ends_not_when_it_starts(self):
@@ -286,7 +298,10 @@ class TestRelay:
         assert b"".join(response.content) == b"refs"
         response.content.close()  # type: ignore[attr-defined]
         assert recorder.counts == [
-            ("sentry.scm.git.request.succeeded", {"operation": "fetch", "provider": "github", "status": "200"})
+            (
+                "sentry.scm.git.request.succeeded",
+                {"referrer": REFERRER, "operation": "fetch", "provider": "github", "status": "200"},
+            )
         ]
         assert recorder.bytes == {("sentry.scm.git.response_size", "fetch"): 4}
 
@@ -303,7 +318,13 @@ class TestRelay:
         assert recorder.counts == [
             (
                 "sentry.scm.git.request.failed",
-                {"operation": "fetch", "provider": "github", "status": "200", "code": "stream_interrupted"},
+                {
+                    "referrer": REFERRER,
+                    "operation": "fetch",
+                    "provider": "github",
+                    "status": "200",
+                    "code": "stream_interrupted",
+                },
             )
         ]
         assert recorder.bytes == {("sentry.scm.git.response_size", "fetch"): 11}
@@ -326,7 +347,13 @@ class TestRelay:
         assert recorder.counts == [
             (
                 "sentry.scm.git.request.failed",
-                {"operation": "fetch", "provider": "github", "status": "200", "code": "client_closed_request"},
+                {
+                    "referrer": REFERRER,
+                    "operation": "fetch",
+                    "provider": "github",
+                    "status": "200",
+                    "code": "client_closed_request",
+                },
             )
         ]
 
@@ -354,7 +381,9 @@ class TestRelay:
         )
         response = request(make_server(recorder, GitRelay()), signed_grant())
         assert_refused(response, 502, "not an https URL")
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_remote_not_https"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_remote_not_https"})
+        ]
 
     def test_provider_rejecting_the_token(self):
         # Passed on, a 401 would make git ask the sandboxed client for credentials.
@@ -374,11 +403,14 @@ class TestRelay:
         assert_refused(response, 502, "rejected Sentry's credentials")
         # The provider's unread response is closed with its connection.
         assert [a.closed for a in adapters] == [True]
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "git_token_rejected"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_token_rejected"})
+        ]
         assert recorder.error_codes == ["git_token_rejected"]
         assert recorder.errors[0][1] == {
             "repository_id": "5",
             "organization_id": "1",
+            "referrer": REFERRER,
             "operation": "fetch",
             "provider": "github_enterprise",
             "remote_host": urlsplit(upstream.url).netloc,
@@ -397,7 +429,13 @@ class TestRelay:
         assert recorder.counts == [
             (
                 "sentry.scm.git.request.failed",
-                {"operation": "fetch", "provider": "github", "status": str(status), "code": "provider_error"},
+                {
+                    "referrer": REFERRER,
+                    "operation": "fetch",
+                    "provider": "github",
+                    "status": str(status),
+                    "code": "provider_error",
+                },
             )
         ]
 
@@ -406,7 +444,9 @@ class TestRelay:
         relay.forward.side_effect = ClientClosedRequest()
         recorder = Recorder()
         assert_refused(request(make_server(recorder, relay), signed_grant()), 499, "")
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "client_closed_request"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "client_closed_request"})
+        ]
         assert recorder.errors == []
 
     def test_unexpected_error_code_is_a_server_error(self):
@@ -428,7 +468,9 @@ class TestRelay:
         recorder = Recorder()
         with pytest.raises(HostRefused):
             request(make_server(recorder, relay), signed_grant())
-        assert recorder.counts == [("sentry.scm.git.request.failed", {"code": "unhandled_exception"})]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "unhandled_exception"})
+        ]
         # The caller reports it.
         assert recorder.errors == []
 

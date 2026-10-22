@@ -3,7 +3,7 @@ from typing import Literal, Protocol
 
 import msgspec
 
-from scm.types import Repository, RepositoryId
+from scm.types import Referrer, Repository, RepositoryId
 
 type GitOperation = Literal["fetch", "push"]
 """What a grant lets its holder do. ``scm.git.relay`` maps each to its git routes."""
@@ -28,6 +28,10 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
     """
 
     organization_id: int
+    referrer: Referrer
+    """Who the grant is for, e.g. a coding job or Seer itself, as ``referrer`` is elsewhere in this library.
+    Sentry tags the git endpoint's metrics with it. Seer sets it, because git requests carry nothing else that
+    tells callers apart."""
     operation: GitOperation
     repositories: list[RepositoryId]
     expires_at: int

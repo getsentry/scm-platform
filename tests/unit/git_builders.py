@@ -45,6 +45,7 @@ def make_grant(**overrides) -> Grant:
     """A fetch grant for the default repository, named both ways a grant can name it."""
     fields = {
         "organization_id": 1,
+        "referrer": "seer.coding_job",
         "operation": "fetch",
         "repositories": [5, ("github", "123")],
         "expires_at": FAR_FUTURE,

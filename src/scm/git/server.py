@@ -57,11 +57,14 @@ class GitServer:
     Refusals and provider failures come back as plain-text responses, and each is passed to ``emit_error`` as
     well: the client only shows the message, so the server reports it rather than count on every client to. The
     message leaves out where the request was going, so ``emit_error`` also gets what the request had resolved
-    when it failed, as tags: ``repository_id`` as requested, then ``organization_id`` once the grant is verified,
-    ``operation``, ``provider`` and ``remote_host``. A tag is missing when the request failed before it was known.
-    A client closing its request is not reported, since there is nothing to fix. Any other exception, such as an
-    adapter refusing a host or the token supplier failing, reaches the caller unchanged, so the caller can answer
-    it the way it answers the same error elsewhere.
+    when it failed, as tags: ``repository_id`` as requested, then ``organization_id`` and ``referrer`` once the
+    grant is verified, ``operation``, ``provider`` and ``remote_host``. A tag is missing when the request failed
+    before it was known. A client closing its request is not reported, since there is nothing to fix. Any other
+    exception, such as an adapter refusing a host or the token supplier failing, reaches the caller unchanged, so
+    the caller can answer it the way it answers the same error elsewhere.
+
+    Every count is tagged with the grant's ``referrer`` once the grant is verified, so Sentry can tell a coding
+    job's clone from Seer's own fetch or push.
 
     A relayed request is counted when its response stream ends, not when its headers arrive, so a clone that
     fails halfway is counted as failed: ``stream_interrupted`` when the provider's stream breaks and
@@ -111,9 +114,11 @@ class GitServer:
         """
         counted_body = _CountingReader(body) if body is not None else None
         context = {"repository_id": str(repository_id)}
+        referrer_tag: dict[str, str] = {}
         try:
             grant = verify_grant(self.secrets, CaseInsensitiveDict(headers).get(GRANT_HEADER, ""))
             context["organization_id"] = str(grant.organization_id)
+            referrer_tag["referrer"] = context["referrer"] = grant.referrer
             operation = check_request(grant, repository_id, method, route, query)
             context["operation"] = operation
             provider = initialize_provider(
@@ -143,15 +148,15 @@ class GitServer:
                 response.content.close()
                 raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
         except SCMCodedError as e:
-            self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code})
+            self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
                 self.emit_error(e, context)
             return _error_response(e)
         except Exception:
-            self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"})
+            self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"} | referrer_tag)
             raise
 
-        tags: dict[str, str] = {"operation": operation, "provider": repository["provider_name"]}
+        tags: dict[str, str] = {"operation": operation, "provider": repository["provider_name"]} | referrer_tag
 
         def finish(failure: str | None, bytes_sent: int) -> None:
             if failure is None and not 200 <= response.status_code < 300:

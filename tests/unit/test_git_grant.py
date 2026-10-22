@@ -54,6 +54,7 @@ class TestRoundTrip:
         assert jwt.get_unverified_header(token) == {"alg": "HS256", "typ": "JWT", "kid": key_id(SECRET)}
         assert jwt.decode(token, options={"verify_signature": False}) == {
             "organization_id": 1,
+            "referrer": "seer.coding_job",
             "operation": "fetch",
             "repositories": [5, ["github", "123"]],
             "version": 1,
@@ -184,6 +185,7 @@ class TestMalformed:
         [
             {"organization_id": True},
             {"organization_id": "1"},
+            {"referrer": None},
             {"operation": "delete"},
             {"version": 2},
             {"repositories": [["github"]]},
@@ -194,6 +196,12 @@ class TestMalformed:
     )
     def test_signed_but_invalid_claims(self, change):
         assert_invalid(sign_claims(claims_of(make_grant()) | change), "payload is invalid")
+
+    def test_referrer_is_required(self):
+        # Without it Sentry could not tell a coding job's clone from Seer's own fetch.
+        claims = claims_of(make_grant())
+        del claims["referrer"]
+        assert_invalid(sign_claims(claims), "referrer")
 
     def test_no_repositories(self):
         assert_invalid(sign_grant(SECRET, make_grant(repositories=[]), now=NOW), "names no repositories")
