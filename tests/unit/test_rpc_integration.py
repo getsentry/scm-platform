@@ -17,6 +17,7 @@ from scm.rpc.client import fetch_provider as fetch_proxy_provider
 from scm.rpc.errors import deserialize_error
 from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
+from scm.secret import Secret
 from scm.test_fixtures import (
     make_github_assignee,
     make_github_branch,
@@ -83,7 +84,7 @@ def make_github_api_response(
 
 def make_rpc_server(repository: Repository, server_provider: MagicMock) -> RpcServer:
     return RpcServer(
-        secrets=[SIGNING_SECRET],
+        secrets=[Secret(SIGNING_SECRET)],
         fetch_repository=lambda org_id, repo_id: repository,
         fetch_provider=lambda org_id, repo: server_provider,
         record_count=lambda name, value, tags: None,
@@ -129,7 +130,7 @@ def make_client_scm(organization_id, repository_id, server):
     # This is a real AoiClient but we'll
     client = RpcApiClient(
         full_url=BASE_URL,
-        signing_secret=SIGNING_SECRET,
+        signing_secret=Secret(SIGNING_SECRET),
         organization_id=organization_id,
         referrer="shared",
         repository_id=repository_id,
@@ -141,7 +142,9 @@ def make_client_scm(organization_id, repository_id, server):
     scm = SourceCodeManager.make_client(
         organization_id,
         repository_id,
-        fetch_repository=lambda oid, rid: fetch_proxy_repository(BASE_URL, SIGNING_SECRET, oid, rid, client.session),
+        fetch_repository=lambda oid, rid: fetch_proxy_repository(
+            BASE_URL, Secret(SIGNING_SECRET), oid, rid, client.session
+        ),
         fetch_provider=lambda oid, repo: fetch_proxy_provider(client, oid, repo),
         record_count=lambda a, b, c: None,
     )

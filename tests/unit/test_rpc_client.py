@@ -18,6 +18,7 @@ from scm.rpc.client import (
 )
 from scm.rpc.server import serialize_repository
 from scm.rpc.types import Error, ErrorResponse
+from scm.secret import Secret
 
 
 def make_repository(**overrides):
@@ -62,7 +63,7 @@ class TestFetchRepository:
     @patch("scm.rpc.client.requests.get")
     def test_success(self, mock_get):
         mock_get.return_value = MagicMock(status_code=200, content=make_serialized_repository())
-        repo = fetch_repository("http://base", "secret", 1, 1)
+        repo = fetch_repository("http://base", Secret("secret"), 1, 1)
         assert repo["name"] == "org/repo"
         assert repo["provider_name"] == "github"
 
@@ -70,7 +71,7 @@ class TestFetchRepository:
     def test_single_error_raises_coded_error(self, mock_get):
         mock_get.return_value = MagicMock(status_code=404, content=make_error_response("repository_not_found"))
         with pytest.raises(SCMCodedError) as exc_info:
-            fetch_repository("http://base", "secret", 1, 1)
+            fetch_repository("http://base", Secret("secret"), 1, 1)
         assert exc_info.value.code == "repository_not_found"
 
     @patch("scm.rpc.client.requests.get")
@@ -80,7 +81,7 @@ class TestFetchRepository:
             content=make_error_response("repository_not_found", "rpc_invalid_grant"),
         )
         with pytest.raises(ExceptionGroup) as exc_info:
-            fetch_repository("http://base", "secret", 1, 1)
+            fetch_repository("http://base", Secret("secret"), 1, 1)
 
         codes = {e.code for e in exc_info.value.exceptions}
         assert codes == {"repository_not_found", "rpc_invalid_grant"}
@@ -89,13 +90,13 @@ class TestFetchRepository:
     def test_undeserializable_error_response(self, mock_get):
         mock_get.return_value = MagicMock(status_code=500, content=b"not valid json")
         with pytest.raises(SCMCodedError) as exc_info:
-            fetch_repository("http://base", "secret", 1, 1)
+            fetch_repository("http://base", Secret("secret"), 1, 1)
         assert exc_info.value.code == "rpc_errors_could_not_be_deserialized"
 
     @patch("scm.rpc.client.requests.get")
     def test_signs_get_request_headers(self, mock_get):
         mock_get.return_value = MagicMock(status_code=200, content=make_serialized_repository())
-        fetch_repository("http://base", "secret", 1, 1)
+        fetch_repository("http://base", Secret("secret"), 1, 1)
 
         call_kwargs = mock_get.call_args
         headers = call_kwargs.kwargs["headers"]
@@ -105,7 +106,7 @@ class TestFetchRepository:
     @patch("scm.rpc.client.requests.get")
     def test_tuple_repository_id(self, mock_get):
         mock_get.return_value = MagicMock(status_code=200, content=make_serialized_repository())
-        fetch_repository("http://base", "secret", 1, ("github", "ext-123"))
+        fetch_repository("http://base", Secret("secret"), 1, ("github", "ext-123"))
 
         headers = mock_get.call_args.kwargs["headers"]
         assert headers["X-Repository-Id"] == '["github","ext-123"]'
@@ -183,7 +184,7 @@ class TestRpcApiClient:
     def test_request_encodes_action_and_signs(self):
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret="secret",
+            signing_secret=Secret("secret"),
             organization_id=1,
             referrer="test-referrer",
             repository_id=1,
@@ -224,7 +225,7 @@ class TestRpcApiClient:
     def test_request_with_tuple_repository_id(self):
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret="secret",
+            signing_secret=Secret("secret"),
             organization_id=1,
             referrer="shared",
             repository_id=("github", "ext-123"),
@@ -240,7 +241,7 @@ class TestRpcApiClient:
     def test_request_forwards_stream_opt_out(self):
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret="secret",
+            signing_secret=Secret("secret"),
             organization_id=1,
             referrer="shared",
             repository_id=1,
@@ -269,7 +270,7 @@ class TestRpcApiClientTransportRetry:
         # Retries are off by default in the library; these tests opt in to exercise the retry path.
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret="secret",
+            signing_secret=Secret("secret"),
             organization_id=1,
             referrer="shared",
             repository_id=1,
@@ -409,7 +410,7 @@ class TestRpcApiClientTransportRetry:
         # and no transport_retry metric fires.
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret="secret",
+            signing_secret=Secret("secret"),
             organization_id=1,
             referrer="shared",
             repository_id=1,
@@ -459,7 +460,7 @@ class TestRpcApiClientTransportRetry:
         # retry_connection_errors is optional; omitting it leaves connection errors untouched.
         client = RpcApiClient(
             full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret="secret",
+            signing_secret=Secret("secret"),
             organization_id=1,
             referrer="shared",
             repository_id=1,

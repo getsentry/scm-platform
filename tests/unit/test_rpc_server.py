@@ -7,6 +7,7 @@ import pytest
 from scm.errors import SCMCodedError
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.server import RpcServer, is_safe_path, iter_response, normalize_headers, serialize_repository
+from scm.secret import Secret
 from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
 
@@ -34,7 +35,7 @@ def mock_record_count(a, b, c):
 
 def make_server(**overrides) -> RpcServer:
     defaults = dict(
-        secrets=[TEST_SECRET],
+        secrets=[Secret(TEST_SECRET)],
         fetch_repository=lambda org_id, repo_id: make_repository(),
         fetch_provider=lambda org_id, repo: BaseTestProvider(),
         record_count=mock_record_count,

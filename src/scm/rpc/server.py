@@ -17,7 +17,7 @@ from scm.manager import SourceCodeManager
 from scm.rpc.errors import serialize_error
 from scm.rpc.helpers import serialize_repository, verify_get, verify_post
 from scm.rpc.types import ActionRequest, Response, StreamResponse
-from scm.secret import Secret
+from scm.secret import Secret, accept_secrets
 from scm.types import Provider, Repository, RepositoryId
 
 TEN_MEGABYTES = 10 * 1024 * 1024
@@ -34,7 +34,7 @@ class RpcServer:
         emit_error: Callable[[Exception], None],
     ) -> None:
         # Wrapped, so the secrets show as [Filtered] in the frames of a reported error, e.g. while verifying.
-        self.secrets = [Secret.of(secret) for secret in secrets]
+        self.secrets = accept_secrets(secrets, parameter="secrets")
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.record_count = record_count
