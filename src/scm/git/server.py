@@ -1,7 +1,5 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
-
-from requests.structures import CaseInsensitiveDict
 
 from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
 from scm.git.grant import verify_grant
@@ -9,6 +7,7 @@ from scm.git.relay import GitRelay, ResponseBody, authorize_request
 from scm.git.types import GRANT_HEADER, GetToken, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
+from scm.secret import Secret, require_secret
 from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 
 # The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
@@ -75,7 +74,7 @@ class GitServer:
 
     def __init__(
         self,
-        secrets: list[str],
+        secrets: Sequence[Secret],
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         fetch_provider: Callable[[int, Repository], Provider | None],
         get_token: GetToken,
@@ -83,10 +82,12 @@ class GitServer:
         emit_error: Callable[[Exception, dict[str, str]], None],
         relay: GitRelay,
     ) -> None:
+        for candidate in secrets:
+            require_secret(candidate, parameter="secrets")
         # Fail when the server is built rather than on every request, because no grant could ever verify.
         if not secrets or not all(secrets):
             raise ValueError("GitServer needs at least one secret, and none may be empty.")
-        self.secrets = secrets
+        self.secrets = list(secrets)
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.get_token = get_token
@@ -112,11 +113,14 @@ class GitServer:
         body as empty, and git sends a push over about 1 MiB chunked, so a Django view needs to pass a stream that
         has the whole body.
         """
+        # Rebound without the grant, so it shows as [Filtered] in the frames of a reported error rather than in
+        # ``headers``, here and in the relay, which never sends it upstream anyway.
+        grant_token, headers = _take_grant(headers)
         counted_body = _CountingReader(body) if body is not None else None
         context = {"repository_id": str(repository_id)}
         referrer_tag: dict[str, str] = {}
         try:
-            grant = verify_grant(self.secrets, CaseInsensitiveDict(headers).get(GRANT_HEADER, ""))
+            grant = verify_grant(self.secrets, grant_token.reveal())
             context["organization_id"] = str(grant.organization_id)
             referrer_tag["referrer"] = context["referrer"] = grant.referrer
             operation = authorize_request(grant, repository_id, method, route, query)
@@ -179,6 +183,18 @@ class GitServer:
             headers=response.headers,
             content=_MeteredStream(response.content, finish),
         )
+
+
+def _take_grant(headers: Mapping[str, str]) -> tuple[Secret, dict[str, str]]:
+    """Split the grant, empty if there is none, from the other headers. Header names are case-insensitive."""
+    grant = Secret("")
+    rest: dict[str, str] = {}
+    for name, value in headers.items():
+        if name.lower() == GRANT_HEADER.lower():
+            grant = Secret(value)
+        else:
+            rest[name] = value
+    return grant, rest
 
 
 class _CountingReader:

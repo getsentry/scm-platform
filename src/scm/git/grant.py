@@ -9,6 +9,7 @@ while they rotate.
 
 import hashlib
 import time
+from collections.abc import Sequence
 from typing import Any
 
 import jwt
@@ -16,6 +17,7 @@ import msgspec
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
+from scm.secret import Secret, require_secret
 
 GRANT_AUDIENCE = "scm-git-grant"
 _ALGORITHM = "HS256"
@@ -23,7 +25,8 @@ _ALGORITHM = "HS256"
 _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
-def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
+def sign_grant(secret: Secret, grant: Grant, *, now: float | None = None) -> str:
+    require_secret(secret, parameter="secret")
     # HMAC accepts an empty key, so an empty secret, say from an unset setting, would let anyone sign a grant.
     if not secret:
         raise ValueError("A git grant secret is empty.")
@@ -31,7 +34,7 @@ def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
     claims["exp"] = claims.pop("expires_at")
     claims["iat"] = int(time.time() if now is None else now)
     claims["aud"] = GRANT_AUDIENCE
-    token = jwt.encode(claims, secret, algorithm=_ALGORITHM, headers={"kid": _key_id(secret)})
+    token = jwt.encode(claims, secret.reveal(), algorithm=_ALGORITHM, headers={"kid": _key_id(secret)})
     # Refused here, the signer's tests catch a grant that is too long, rather than the sandbox router in production.
     if len(token) > GRANT_MAX_LENGTH:
         raise ValueError(
@@ -41,12 +44,14 @@ def sign_grant(secret: str, grant: Grant, *, now: float | None = None) -> str:
     return token
 
 
-def verify_grant(secrets: list[str], token: str, *, now: float | None = None) -> Grant:
+def verify_grant(secrets: Sequence[Secret], token: str, *, now: float | None = None) -> Grant:
     """Return the grant if one of ``secrets`` signed it and it has not expired.
 
     Verification takes a list of secrets, as ``RpcServer`` does, so a new secret can be added before signers
     switch to it and the old one removed after their grants expire.
     """
+    for candidate in secrets:
+        require_secret(candidate, parameter="secrets")
     # As in sign_grant: a grant signed with an empty secret proves nothing.
     if not all(secrets):
         raise ValueError("A git grant secret is empty.")
@@ -64,7 +69,7 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     try:
         claims = jwt.decode(
             token,
-            secret,
+            secret.reveal(),
             algorithms=[_ALGORITHM],
             audience=GRANT_AUDIENCE,
             # exp is checked below against an injectable clock, so tests can pin it. PyJWT checks iat, which it
@@ -97,6 +102,6 @@ def verify_grant(secrets: list[str], token: str, *, now: float | None = None) ->
     return grant
 
 
-def _key_id(secret: str) -> str:
+def _key_id(secret: Secret) -> str:
     # The first 8 hex characters of the secret's SHA-256, the same key id Sentry's viewer contexts use.
-    return hashlib.sha256(secret.encode()).hexdigest()[:8]
+    return hashlib.sha256(secret.reveal().encode()).hexdigest()[:8]

@@ -10,22 +10,9 @@ from scm.rpc.client import RpcApiClient, fetch_repository
 from scm.rpc.helpers import sign_get
 from scm.rpc.server import RpcServer
 from scm.secret import Secret
+from tests.unit.error_reports import assert_not_in_frames
 
 SECRET = "rpc-signing-secret-0000000000000000"
-
-
-def assert_not_in_frames(error: BaseException, value: str) -> None:
-    """Fail if any frame of the error's traceback holds ``value`` where an error report would show it.
-
-    Sentry's SDK sends every frame's local variables, using ``__sentry_repr__`` or else ``repr()`` for each, and its
-    default scrubbing only replaces variables with a few exact names, such as ``secret``.
-    """
-    tb = error.__traceback__
-    while tb is not None:
-        for name, local in tb.tb_frame.f_locals.items():
-            shown = local.__sentry_repr__() if hasattr(local, "__sentry_repr__") else repr(local)
-            assert value not in shown, f"{tb.tb_frame.f_code.co_name} holds it in {name}"
-        tb = tb.tb_next
 
 
 class TestSecret:
@@ -44,6 +31,11 @@ class TestSecret:
     def test_has_no_attributes_to_look_into(self):
         # With __slots__ there is no __dict__ for a serializer to walk.
         assert not hasattr(Secret(SECRET), "__dict__")
+
+    def test_false_when_empty(self):
+        # So an empty-secret check such as ``if not secret`` works on a Secret as on a string.
+        assert not Secret("")
+        assert Secret(SECRET)
 
     def test_of_wraps_a_string_once(self):
         secret = Secret(SECRET)

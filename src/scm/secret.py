@@ -36,6 +36,24 @@ class Secret:
     def __sentry_repr__(self) -> str:
         return "[Filtered]"
 
+    def __bool__(self) -> bool:
+        # False for an empty secret, as for an empty string, so a check such as ``if not secret`` still refuses one.
+        return bool(self._value)
+
+
+def require_secret(value: object, *, parameter: str) -> Secret:
+    """Return ``value`` if it is a ``Secret``, for an entry point that never took plain strings.
+
+    Type checkers catch a plain string already; this tells an untyped caller what to do instead of failing later
+    with an AttributeError.
+    """
+    if not isinstance(value, Secret):
+        raise TypeError(
+            f"{parameter} must be a scm.Secret, not {type(value).__name__}. "
+            'Wrap it in scm.Secret where you read it, e.g. Secret(os.environ["SCM_GIT_GRANT_SECRET"]).'
+        )
+    return value
+
 
 def accept_secret(value: str | Secret, *, parameter: str) -> Secret:
     """Wrap a secret given to a public entry point, warning if it came as a plain string.
