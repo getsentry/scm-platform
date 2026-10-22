@@ -1,4 +1,5 @@
-import warnings
+import hashlib
+import hmac
 
 import pytest
 import requests
@@ -37,19 +38,14 @@ class TestSecret:
         assert not Secret("")
         assert Secret(SECRET)
 
-    def test_of_wraps_a_string_once(self):
-        secret = Secret(SECRET)
-        assert Secret.of(secret) is secret
-        assert Secret.of(SECRET).reveal() == SECRET
+    def test_exported_from_the_package(self):
+        assert ExportedSecret is Secret
 
-    def test_signing_accepts_either(self):
-        with pytest.warns(DeprecationWarning):
-            plain = sign_get(SECRET, 1, 5)
-        assert sign_get(Secret(SECRET), 1, 5) == plain
+    def test_signs_with_the_revealed_value(self):
+        assert sign_get(Secret(SECRET), 1, 5) == "rpc0:" + hmac.new(SECRET.encode(), b"15", hashlib.sha256).hexdigest()
 
 
-# Plain strings, the worst case: wrapping on entry must still keep them out of this library's frames.
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+# A revealed value kept in a variable, rather than used inline, would put the secret back in a frame.
 class TestKeptOutOfErrorReports:
     def test_proxy_client_that_cannot_reach_sentry(self, monkeypatch):
         def unreachable(*args, **kwargs):
@@ -57,7 +53,7 @@ class TestKeptOutOfErrorReports:
 
         monkeypatch.setattr(requests, "get", unreachable)
         with pytest.raises(requests.ConnectionError) as exc_info:
-            SourceCodeManager.make_proxy_client(1, 5, base_url="https://sentry.example", signing_secret=SECRET)
+            SourceCodeManager.make_proxy_client(1, 5, base_url="https://sentry.example", signing_secret=Secret(SECRET))
         assert_not_in_frames(exc_info.value, SECRET)
 
     def test_api_client_that_cannot_reach_sentry(self):
@@ -67,7 +63,7 @@ class TestKeptOutOfErrorReports:
 
         client = RpcApiClient(
             full_url="https://sentry.example/api/0/internal/scm-rpc/",
-            signing_secret=SECRET,
+            signing_secret=Secret(SECRET),
             organization_id=1,
             referrer="shared",
             repository_id=5,
@@ -83,7 +79,7 @@ class TestKeptOutOfErrorReports:
 
         monkeypatch.setattr(helpers.hmac, "compare_digest", failing_compare)
         server = RpcServer(
-            secrets=[SECRET],
+            secrets=[Secret(SECRET)],
             fetch_repository=lambda organization_id, repository_id: None,
             fetch_provider=lambda organization_id, repository: None,
             record_count=lambda name, value, tags: None,
@@ -93,15 +89,6 @@ class TestKeptOutOfErrorReports:
         with pytest.raises(RuntimeError) as exc_info:
             server.get(headers)
         assert_not_in_frames(exc_info.value, SECRET)
-
-
-def unreachable_get(*args, **kwargs):
-    raise requests.ConnectionError("Sentry is unreachable")
-
-
-class UnreachableSession:
-    def get(self, url, headers):
-        raise requests.ConnectionError("Sentry is unreachable")
 
 
 def make_server(secrets):
@@ -124,42 +111,19 @@ def make_api_client(signing_secret):
     )
 
 
-class TestPlainStringDeprecated:
-    def assert_warns_at_caller(self, record: pytest.WarningsRecorder, parameter: str) -> None:
-        assert len(record) == 1
-        assert f"Passing {parameter} as a plain str is deprecated" in str(record[0].message)
-        # Points at the code that passed the string, not at this library.
-        assert record[0].filename == __file__
-
-    def test_exported_from_the_package(self):
-        assert ExportedSecret is Secret
-
-    def test_proxy_client(self, monkeypatch):
-        monkeypatch.setattr(requests, "get", unreachable_get)
-        with pytest.warns(DeprecationWarning) as record, pytest.raises(requests.ConnectionError):
-            SourceCodeManager.make_proxy_client(1, 5, base_url="https://sentry.example", signing_secret=SECRET)
-        self.assert_warns_at_caller(record, "signing_secret")
-
-    def test_fetch_repository(self):
-        with pytest.warns(DeprecationWarning) as record, pytest.raises(requests.ConnectionError):
-            fetch_repository("https://sentry.example", SECRET, 1, 5, session=UnreachableSession)
-        self.assert_warns_at_caller(record, "signing_secret")
-
-    def test_api_client(self):
-        with pytest.warns(DeprecationWarning) as record:
-            make_api_client(SECRET)
-        # make_api_client is in this file too, so the caller check still holds.
-        self.assert_warns_at_caller(record, "signing_secret")
-
-    def test_server_warns_once_for_several(self):
-        with pytest.warns(DeprecationWarning) as record:
-            server = make_server([SECRET, "another-secret"])
-        self.assert_warns_at_caller(record, "secrets")
-        assert all(isinstance(secret, Secret) for secret in server.secrets)
-
+class TestRequiresSecret:
     @pytest.mark.parametrize(
         ("call", "parameter"),
         [
+            (
+                lambda secret: SourceCodeManager.make_proxy_client(
+                    1, 5, base_url="https://sentry.example", signing_secret=secret
+                ),
+                "signing_secret",
+            ),
+            (lambda secret: fetch_repository("https://sentry.example", secret, 1, 5), "signing_secret"),
+            (make_api_client, "signing_secret"),
+            (lambda secret: make_server([Secret(SECRET), secret]), "secrets"),
             (lambda secret: helpers.sign_get(secret, 1, 5), "secret"),
             (lambda secret: helpers.sign_post(secret, b"body"), "secret"),
             (lambda secret: helpers.sign(secret, b"body"), "secret"),
@@ -167,26 +131,21 @@ class TestPlainStringDeprecated:
             (lambda secret: helpers.verify_post([secret], b"body", "rpc0:abc"), "secrets"),
             (lambda secret: helpers.verify([secret], b"body", "rpc0:abc"), "secrets"),
         ],
-        ids=["sign_get", "sign_post", "sign", "verify_get", "verify_post", "verify"],
+        ids=[
+            "make_proxy_client",
+            "fetch_repository",
+            "RpcApiClient",
+            "RpcServer",
+            "sign_get",
+            "sign_post",
+            "sign",
+            "verify_get",
+            "verify_post",
+            "verify",
+        ],
     )
-    def test_signing_helpers(self, call, parameter):
-        with pytest.warns(DeprecationWarning) as record:
+    def test_refuses_a_plain_string(self, call, parameter):
+        # Refused before anything is sent, so no request is made.
+        with pytest.raises(TypeError, match=rf"^{parameter} must be a scm\.Secret, not str\.") as exc_info:
             call(SECRET)
-        self.assert_warns_at_caller(record, parameter)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            call(Secret(SECRET))
-
-    def test_no_warning_for_secrets(self, monkeypatch):
-        monkeypatch.setattr(requests, "get", unreachable_get)
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            with pytest.raises(requests.ConnectionError):
-                SourceCodeManager.make_proxy_client(
-                    1, 5, base_url="https://sentry.example", signing_secret=Secret(SECRET)
-                )
-            with pytest.raises(requests.ConnectionError):
-                fetch_repository("https://sentry.example", Secret(SECRET), 1, 5, session=UnreachableSession)
-            make_api_client(Secret(SECRET))
-            make_server([Secret(SECRET)])
+        assert SECRET not in str(exc_info.value)

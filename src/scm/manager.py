@@ -10,7 +10,7 @@ from scm.rpc.client import (
 )
 from scm.rpc.client import fetch_provider as fetch_proxy_provider
 from scm.rpc.client import fetch_repository as fetch_proxy_repository
-from scm.secret import Secret, accept_secret
+from scm.secret import Secret, require_secret
 from scm.types import Provider, Referrer, Repository, RepositoryId
 
 
@@ -45,13 +45,11 @@ class SourceCodeManager(Facade):
         *,
         referrer: Referrer = "shared",
         base_url: str,
-        signing_secret: str | Secret,
+        signing_secret: Secret,
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
         retry: RetryConfig | None = None,
     ):
-        # Rebound, so the plain string is not in this frame, or in the lambda below, when fetching the repository
-        # fails and the error is reported.
-        signing_secret = accept_secret(signing_secret, parameter="signing_secret")
+        require_secret(signing_secret, parameter="signing_secret")
         full_url = SCM_API_URL.format(base_url=base_url)
 
         # A specialized RpcApiClient is initialized. It will proxy the service-provider requests through Sentry. This

@@ -1,4 +1,3 @@
-import warnings
 from collections.abc import Sequence
 
 
@@ -19,11 +18,6 @@ class Secret:
     def __init__(self, value: str) -> None:
         self._value = value
 
-    @classmethod
-    def of(cls, value: "str | Secret") -> "Secret":
-        """Wrap ``value``, unless it already is a ``Secret``."""
-        return value if isinstance(value, Secret) else cls(value)
-
     def reveal(self) -> str:
         return self._value
 
@@ -42,43 +36,20 @@ class Secret:
 
 
 def require_secret(value: object, *, parameter: str) -> Secret:
-    """Return ``value`` if it is a ``Secret``, for an entry point that never took plain strings.
+    """Return ``value`` if it is a ``Secret``.
 
     Type checkers catch a plain string already; this tells an untyped caller what to do instead of failing later
     with an AttributeError.
     """
     if not isinstance(value, Secret):
+        # A plain string would stay in the caller's frame, where an error report shows it.
         raise TypeError(
             f"{parameter} must be a scm.Secret, not {type(value).__name__}. "
-            'Wrap it in scm.Secret where you read it, e.g. Secret(os.environ["SCM_GIT_GRANT_SECRET"]).'
+            'Wrap it in scm.Secret where you read it, e.g. Secret(os.environ["SCM_RPC_SHARED_SECRET"]).'
         )
     return value
 
 
-def accept_secret(value: str | Secret, *, parameter: str) -> Secret:
-    """Wrap a secret given to a public entry point, warning if it came as a plain string.
-
-    Call it first thing in the entry point, so the warning points at the entry point's caller.
-    """
-    if isinstance(value, str):
-        _warn_plain_string(parameter)
-    return Secret.of(value)
-
-
-def accept_secrets(values: Sequence[str | Secret], *, parameter: str) -> list[Secret]:
-    """Like ``accept_secret``, for a list of secrets, warning once however many are plain strings."""
-    if any(isinstance(value, str) for value in values):
-        _warn_plain_string(parameter)
-    return [Secret.of(value) for value in values]
-
-
-def _warn_plain_string(parameter: str) -> None:
-    # A plain string stays in the caller's frame, where an error report shows it, so callers should wrap it where they
-    # read it. Accepted until the next major release, so Sentry and Seer can move over first.
-    warnings.warn(
-        f"Passing {parameter} as a plain str is deprecated and will stop working in the next major release. "
-        'Wrap it in scm.Secret where you read it, e.g. Secret(os.environ["SCM_RPC_SHARED_SECRET"]).',
-        DeprecationWarning,
-        # This function, accept_secret(s), the entry point, then the entry point's caller.
-        stacklevel=4,
-    )
+def require_secrets(values: Sequence[object], *, parameter: str) -> list[Secret]:
+    """Like ``require_secret``, for each of ``values``."""
+    return [require_secret(value, parameter=parameter) for value in values]

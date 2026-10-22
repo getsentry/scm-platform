@@ -7,7 +7,7 @@ from scm.git.relay import GitRelay, ResponseBody, authorize_request
 from scm.git.types import GRANT_HEADER, GetToken, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
-from scm.secret import Secret, require_secret
+from scm.secret import Secret, require_secrets
 from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 
 # The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
@@ -82,8 +82,7 @@ class GitServer:
         emit_error: Callable[[Exception, dict[str, str]], None],
         relay: GitRelay,
     ) -> None:
-        for candidate in secrets:
-            require_secret(candidate, parameter="secrets")
+        require_secrets(secrets, parameter="secrets")
         # Fail when the server is built rather than on every request, because no grant could ever verify.
         if not secrets or not all(secrets):
             raise ValueError("GitServer needs at least one secret, and none may be empty.")
