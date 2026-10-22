@@ -11,7 +11,7 @@ from scm.secret import Secret
 from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
 
-TEST_SECRET = "test-secret"
+TEST_SECRET = Secret("test-secret")
 
 
 def make_repository(**overrides) -> Repository:
@@ -35,7 +35,7 @@ def mock_record_count(a, b, c):
 
 def make_server(**overrides) -> RpcServer:
     defaults = dict(
-        secrets=[Secret(TEST_SECRET)],
+        secrets=[TEST_SECRET],
         fetch_repository=lambda org_id, repo_id: make_repository(),
         fetch_provider=lambda org_id, repo: BaseTestProvider(),
         record_count=mock_record_count,

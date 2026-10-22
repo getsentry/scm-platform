@@ -51,7 +51,9 @@ class TestSecret:
         assert Secret.of(SECRET).reveal() == SECRET
 
     def test_signing_accepts_either(self):
-        assert sign_get(Secret(SECRET), 1, 5) == sign_get(SECRET, 1, 5)
+        with pytest.warns(DeprecationWarning):
+            plain = sign_get(SECRET, 1, 5)
+        assert sign_get(Secret(SECRET), 1, 5) == plain
 
 
 # Plain strings, the worst case: wrapping on entry must still keep them out of this library's frames.
@@ -162,6 +164,27 @@ class TestPlainStringDeprecated:
             server = make_server([SECRET, "another-secret"])
         self.assert_warns_at_caller(record, "secrets")
         assert all(isinstance(secret, Secret) for secret in server.secrets)
+
+    @pytest.mark.parametrize(
+        ("call", "parameter"),
+        [
+            (lambda secret: helpers.sign_get(secret, 1, 5), "secret"),
+            (lambda secret: helpers.sign_post(secret, b"body"), "secret"),
+            (lambda secret: helpers.sign(secret, b"body"), "secret"),
+            (lambda secret: helpers.verify_get([secret], 1, 5, "rpc0:abc"), "secrets"),
+            (lambda secret: helpers.verify_post([secret], b"body", "rpc0:abc"), "secrets"),
+            (lambda secret: helpers.verify([secret], b"body", "rpc0:abc"), "secrets"),
+        ],
+        ids=["sign_get", "sign_post", "sign", "verify_get", "verify_post", "verify"],
+    )
+    def test_signing_helpers(self, call, parameter):
+        with pytest.warns(DeprecationWarning) as record:
+            call(SECRET)
+        self.assert_warns_at_caller(record, parameter)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            call(Secret(SECRET))
 
     def test_no_warning_for_secrets(self, monkeypatch):
         monkeypatch.setattr(requests, "get", unreachable_get)

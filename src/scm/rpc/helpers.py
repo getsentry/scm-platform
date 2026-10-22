@@ -7,33 +7,42 @@ import msgspec
 
 from scm.errors import RepositoryCouldNotBeDeserialized
 from scm.rpc.types import JsonApiData, JsonApiPayload, RepositoryAttributes
-from scm.secret import Secret
+from scm.secret import Secret, accept_secret, accept_secrets
 from scm.types import Repository, RepositoryId
+
+# Each public function wraps its secrets first thing, so a plain string warns once, at the caller's line, and the
+# functions it calls only ever see a Secret.
 
 
 def sign_get(secret: str | Secret, organization_id: int, repository_id: RepositoryId) -> str:
+    secret = accept_secret(secret, parameter="secret")
     return sign(secret, f"{organization_id}{repository_id}".encode())
 
 
 def sign_post(secret: str | Secret, serialized_body: bytes) -> str:
+    secret = accept_secret(secret, parameter="secret")
     return sign(secret, serialized_body)
 
 
 def sign(secret: str | Secret, message: bytes) -> str:
-    return f"rpc0:{hmac.new(Secret.of(secret).reveal().encode(), message, hashlib.sha256).hexdigest()}"
+    secret = accept_secret(secret, parameter="secret")
+    return f"rpc0:{hmac.new(secret.reveal().encode(), message, hashlib.sha256).hexdigest()}"
 
 
 def verify_get(
     secrets: Sequence[str | Secret], organization_id: int, repository_id: RepositoryId, received_signature: str
 ) -> bool:
+    secrets = accept_secrets(secrets, parameter="secrets")
     return verify(secrets, f"{organization_id}{repository_id}".encode(), received_signature)
 
 
 def verify_post(secrets: Sequence[str | Secret], serialized_body: bytes, received_signature: str) -> bool:
+    secrets = accept_secrets(secrets, parameter="secrets")
     return verify(secrets, serialized_body, received_signature)
 
 
 def verify(secrets: Sequence[str | Secret], message: bytes, received_signature: str) -> bool:
+    secrets = accept_secrets(secrets, parameter="secrets")
     return any(hmac.compare_digest(received_signature, sign(secret, message)) for secret in secrets)
 
 
