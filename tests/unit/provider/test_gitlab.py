@@ -7,6 +7,7 @@ from typing import Any, NamedTuple
 import pytest
 
 from scm.errors import (
+    MissingRepositoryPath,
     RateLimitExceeded,
     ResourceBadGateway,
     ResourceBadRequest,
@@ -47,7 +48,9 @@ def client() -> ApiClient:
     return unittest.mock.MagicMock(_name="client")
 
 
-def _make_gitlab_provider(client: ApiClient, *, name: str = "test-repo") -> GitLabProvider:
+def _make_gitlab_provider(
+    client: ApiClient, *, name: str = "Test Repo", path: str | None = "test-repo"
+) -> GitLabProvider:
     return GitLabProvider(
         client=client,
         organization_id=1,
@@ -55,6 +58,7 @@ def _make_gitlab_provider(client: ApiClient, *, name: str = "test-repo") -> GitL
             id=1,
             integration_id=1,
             name=name,
+            path=path,
             organization_id=1,
             is_active=True,
             external_id="gitlab.com:79787061",
@@ -13939,24 +13943,23 @@ def test_download_archive_zip_uses_zip_extension(client, provider: GitLabProvide
     assert call.kwargs["path"] == "/projects/79787061/repository/archive.zip"
 
 
-@pytest.mark.parametrize(
-    ("repository_name", "expected_path"),
-    [
-        ("test-org/test-repo", "test-org/test-repo"),
-        ("my-group / my-project", "my-group/my-project"),
-        ("my-group / my-subteam / my-project", "my-group/my-subteam/my-project"),
-    ],
-)
-def test_web_repository_path_normalizes_namespaced_name(
-    client: ApiClient, repository_name: str, expected_path: str
-) -> None:
-    provider = _make_gitlab_provider(client, name=repository_name)
+def test_web_repository_path_is_the_repository_path_not_its_name(client: ApiClient) -> None:
+    # Sentry's name for a GitLab repository is its display name, which differs from the path in more than spaces.
+    provider = _make_gitlab_provider(client, name="GitLab.org / GitLab FOSS", path="gitlab-org/gitlab-foss")
 
-    assert provider.web_repository_path == expected_path
+    assert provider.web_repository_path == "gitlab-org/gitlab-foss"
+
+
+@pytest.mark.parametrize("path", [None, ""])
+def test_web_repository_path_needs_the_repository_path(client: ApiClient, path: str | None) -> None:
+    provider = _make_gitlab_provider(client, name="GitLab.org / GitLab FOSS", path=path)
+
+    with pytest.raises(MissingRepositoryPath):
+        provider.get_commit_url("abc123")
 
 
 def test_web_repository_path_used_in_commit_and_mr_urls(client: ApiClient) -> None:
-    provider = _make_gitlab_provider(client, name="my-group / my-project")
+    provider = _make_gitlab_provider(client, name="My Group / My Project", path="my-group/my-project")
 
     assert provider.get_commit_url("abc123") == "https://gitlab.com/my-group/my-project/-/commit/abc123"
     assert provider.get_commits_url("abc123") == "https://gitlab.com/my-group/my-project/-/commits/abc123"

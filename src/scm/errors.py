@@ -2,6 +2,7 @@ from typing import ClassVar, Literal
 
 type ErrorCode = Literal[
     "malformed_external_id",
+    "missing_repository_path",
     "path_is_directory",
     "path_is_not_directory",
     "provider_not_found",
@@ -38,6 +39,7 @@ type ErrorCode = Literal[
 
 ERROR_CODES: dict[ErrorCode, str] = {
     "malformed_external_id": "The repository's external ID was malformed.",
+    "missing_repository_path": "No path was given for the repository.",
     "path_is_directory": "The requested path is a directory, not a file.",
     "path_is_not_directory": "The requested path is not a directory.",
     "provider_not_found": "An unsupported integration provider was found.",
@@ -125,6 +127,10 @@ class SCMCodedError(SCMError):
 
 class MalformedExternalId(SCMCodedError):
     code = "malformed_external_id"
+
+
+class MissingRepositoryPath(SCMCodedError):
+    code = "missing_repository_path"
 
 
 class PathIsDirectory(SCMCodedError):
