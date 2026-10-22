@@ -74,6 +74,7 @@ from scm.types import (
     CredentialsSet,
     DeleteCommitAction,
     DiffLine,
+    GitRemote,
     MoveCommitAction,
     Repository,
     WriteCommitAction,
@@ -2081,6 +2082,40 @@ def test_get_pull_request_url_builds_pr_url() -> None:
     assert provider.get_pull_request_url("42") == "https://github.com/test-org/test-repo/pull/42"
 
 
+def test_get_git_remote_builds_clone_url() -> None:
+    provider = GitHubProvider(MagicMock(spec=ApiClient), organization_id=1, repository=make_repository())
+
+    assert provider.get_git_remote() == GitRemote(
+        url="https://github.com/test-org/test-repo.git", basic_auth_username="x-access-token"
+    )
+
+
+def test_ghe_web_base_url_used_in_git_remote() -> None:
+    provider = GitHubProvider(
+        MagicMock(spec=ApiClient),
+        organization_id=1,
+        repository=make_repository(),
+        web_base_url="https://github.example.com",
+    )
+
+    assert provider.get_git_remote() == GitRemote(
+        url="https://github.example.com/test-org/test-repo.git", basic_auth_username="x-access-token"
+    )
+
+
+def test_ghe_web_base_url_defaults_to_the_repositorys() -> None:
+    # Built without a web_base_url, a GitHub Enterprise provider would otherwise send its token to github.com.
+    repository = {
+        **make_repository(),
+        "provider_name": "github_enterprise",
+        "web_base_url": "https://github.example.com",
+    }
+    provider = GitHubProvider(MagicMock(spec=ApiClient), organization_id=1, repository=repository)  # type: ignore[arg-type]
+
+    assert provider.get_git_remote()["url"] == "https://github.example.com/test-org/test-repo.git"
+    assert provider.get_pull_request_url("42") == "https://github.example.com/test-org/test-repo/pull/42"
+
+
 def test_ghe_web_base_url_used_in_url_methods() -> None:
     provider = GitHubProvider(
         MagicMock(spec=ApiClient),
@@ -3658,6 +3693,7 @@ def test_public_methods_are_accounted_for() -> None:
         "get_commit_url",
         "get_commits_url",
         "get_pull_request_url",
+        "get_git_remote",
         "create_commit",
         "update_issue",
         "get_thread_id_from_review_comment_unique_id",

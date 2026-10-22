@@ -1,7 +1,17 @@
 from typing import ClassVar, Literal
 
 type ErrorCode = Literal[
+    "git_grant_expired",
+    "git_invalid_grant",
+    "git_operation_not_granted",
+    "git_provider_not_supported",
+    "git_remote_not_https",
+    "git_repository_not_granted",
+    "git_route_not_supported",
+    "git_token_rejected",
+    "git_token_unavailable",
     "malformed_external_id",
+    "missing_repository_path",
     "path_is_directory",
     "path_is_not_directory",
     "provider_not_found",
@@ -25,6 +35,7 @@ type ErrorCode = Literal[
     "resource_unprocessable_content",
     "resource_server_error",
     "resource_bad_gateway",
+    "resource_certificate_invalid",
     "resource_service_unavailable",
     "resource_gateway_timeout",
     "unexpected_response_format",
@@ -37,7 +48,17 @@ type ErrorCode = Literal[
 ]
 
 ERROR_CODES: dict[ErrorCode, str] = {
+    "git_grant_expired": "The git grant has expired.",
+    "git_invalid_grant": "The git grant was missing, malformed or forged.",
+    "git_operation_not_granted": "The git grant does not allow this operation.",
+    "git_provider_not_supported": "The repository's provider has no git remote.",
+    "git_remote_not_https": "The repository's git remote is not an https URL.",
+    "git_repository_not_granted": "The git grant does not cover this repository.",
+    "git_route_not_supported": "The request is not a git fetch or push.",
+    "git_token_rejected": "The provider rejected Sentry's credentials for the repository.",
+    "git_token_unavailable": "No provider token could be obtained for the repository.",
     "malformed_external_id": "The repository's external ID was malformed.",
+    "missing_repository_path": "No path was given for the repository.",
     "path_is_directory": "The requested path is a directory, not a file.",
     "path_is_not_directory": "The requested path is not a directory.",
     "provider_not_found": "An unsupported integration provider was found.",
@@ -61,6 +82,7 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "resource_unprocessable_content": "Request could not be processed.",
     "resource_server_error": "The service-provider encountered an internal error.",
     "resource_bad_gateway": "The service-provider returned an invalid response from an upstream gateway.",
+    "resource_certificate_invalid": "The service-provider's TLS certificate could not be verified.",
     "resource_service_unavailable": "The service-provider is temporarily unavailable. The request can be retried.",
     "resource_gateway_timeout": "The service-provider did not respond in time. The request can be retried.",
     "unexpected_response_format": "The response format was in an unexpected format.",
@@ -123,8 +145,52 @@ class SCMCodedError(SCMError):
         return error_cls(detail=detail)
 
 
+class GitSCMCodedError(SCMCodedError):
+    """Base class for the errors of the git endpoint (``scm.git``), so a caller can catch them all at once."""
+
+
+class GitGrantExpired(GitSCMCodedError):
+    code = "git_grant_expired"
+
+
+class GitInvalidGrant(GitSCMCodedError):
+    code = "git_invalid_grant"
+
+
+class GitOperationNotGranted(GitSCMCodedError):
+    code = "git_operation_not_granted"
+
+
+class GitProviderNotSupported(GitSCMCodedError):
+    code = "git_provider_not_supported"
+
+
+class GitRemoteNotHttps(GitSCMCodedError):
+    code = "git_remote_not_https"
+
+
+class GitRepositoryNotGranted(GitSCMCodedError):
+    code = "git_repository_not_granted"
+
+
+class GitRouteNotSupported(GitSCMCodedError):
+    code = "git_route_not_supported"
+
+
+class GitTokenRejected(GitSCMCodedError):
+    code = "git_token_rejected"
+
+
+class GitTokenUnavailable(GitSCMCodedError):
+    code = "git_token_unavailable"
+
+
 class MalformedExternalId(SCMCodedError):
     code = "malformed_external_id"
+
+
+class MissingRepositoryPath(SCMCodedError):
+    code = "missing_repository_path"
 
 
 class PathIsDirectory(SCMCodedError):
@@ -225,6 +291,10 @@ class ResourceServerError(SCMCodedError):
 
 class ResourceBadGateway(SCMCodedError):
     code = "resource_bad_gateway"
+
+
+class ResourceCertificateInvalid(SCMCodedError):
+    code = "resource_certificate_invalid"
 
 
 class ResourceServiceUnavailable(SCMCodedError):

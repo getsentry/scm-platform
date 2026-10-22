@@ -12,10 +12,11 @@ The SCM (Source Code Management) platform is a vendor-agnostic abstraction layer
 
 ### Features
 
-The platform exposes three subsystems:
+The platform exposes four subsystems:
 
 - **Actions** — outbound SCM operations initiated by Sentry code. The `SourceCodeManager` class provides 70+ methods covering comments, reactions, pull requests, branches, git objects, reviews, and check runs. With more actions planned to be added as we port more use cases.
 - **Actions RPC** - outbound SCM commands exposed over the network. The `SourceCodeManager` is fully available over the network. This enables usage of the SCM for services outside the monolith.
+- **Git relay** - `git` fetches and pushes for services that hold no provider credentials. Seer signs a grant naming the organization, operation and repositories with `scm.git.grant.sign_grant`, and `scm.git.server.GitServer` checks each git smart-HTTP request against it before relaying the request to the provider with a token, streaming both bodies.
 - **Event Stream** — inbound webhook processing. SCM service-providers push events which are deserialized into typed, provider-neutral dataclasses (`CheckRunEvent`, `CommentEvent`, `PullRequestEvent`) which are then dispatched to registered listener functions.
 
 ### Why

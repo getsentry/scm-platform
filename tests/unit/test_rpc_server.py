@@ -314,6 +314,17 @@ class TestSerializeRepository:
         decoded = deserialize_repository(serialize_repository(make_repository()))
         assert decoded["web_base_url"] is None
 
+    def test_path_round_trips(self):
+        repo = make_repository(provider_name="gitlab", path="gitlab-org/gitlab-foss")
+        decoded = deserialize_repository(serialize_repository(repo))
+        assert decoded["path"] == "gitlab-org/gitlab-foss"
+
+    def test_path_none_when_the_server_omits_it(self):
+        payload = json.loads(serialize_repository(make_repository()))
+        del payload["data"]["attributes"]["path"]
+        decoded = deserialize_repository(json.dumps(payload).encode())
+        assert decoded["path"] is None
+
     def test_installation_id_round_trips(self):
         repo = make_repository(provider_name="cursor_origin", installation_id="inst_01example")
         decoded = deserialize_repository(serialize_repository(repo))

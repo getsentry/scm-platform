@@ -1,0 +1,585 @@
+#!/usr/bin/env python
+"""
+Standalone git endpoint that relays git smart-HTTP to a real GitHub or GitLab
+repository through GitServer, the way Sentry's git endpoint does.
+
+It stands in for Sentry: it looks the repository up, signs grants, and supplies
+the provider token. Everything after that is the real GitServer and GitRelay,
+so a real git client exercises grants, refusals and streaming against a real
+provider.
+
+Usage:
+    bin/git-server github --repository OWNER/REPO            # serve, print grants
+    bin/git-server github --repository OWNER/REPO --check    # run the checks, exit
+    bin/git-server gitlab --repository GROUP/PROJECT --check --push
+
+Credentials are loaded from .credentials (KEY=VALUE, one per line) then
+overridden by env vars, then by CLI args. The provider settings are the ones
+bin/github-server and bin/gitlab-server read.
+
+Configuration:
+    github / gitlab                          The repository's provider (required)
+    --repository / SCM_GIT_REPOSITORY        The repository's path on the provider,
+                                             e.g. getsentry/scm-platform (required)
+    --secret / SCM_GIT_GRANT_SECRET          Secret grants are signed with (default: a random
+                                             one per run; set it to sign your own grants)
+    --ca-bundle / SCM_GIT_CA_BUNDLE          CA file to trust instead of the system's, for an
+                                             instance with a private CA; used for the relay and
+                                             for fetching GitHub installation tokens
+    --host                                   Bind address (default: 127.0.0.1)
+    --port                                   Listen port (default: 8080; --check picks a free one)
+    --check                                  Run the checks below against the provider and
+                                             exit non-zero if any fails
+    --push                                   With --check, also push a branch and delete it
+    --verbose                                Log each request and the metrics GitServer records
+
+    GitHub, as for bin/github-server:
+        GITHUB_APP_ID, GITHUB_PRIVATE_KEY_PATH, GITHUB_INSTALLATION_ID (required)
+        GITHUB_BASE_URL                      API base URL (default: https://api.github.com;
+                                             for GHES: https://HOSTNAME/api/v3)
+        GITHUB_WEB_BASE_URL                  Web base URL, where the git remote is
+                                             (default: derived from GITHUB_BASE_URL)
+
+    GitLab, as for bin/gitlab-server:
+        GITLAB_ACCESS_TOKEN                  Access token (required; read_repository, plus
+                                             write_repository for --push)
+        GITLAB_BASE_URL                      Instance URL (default: https://gitlab.com)
+
+Serving:
+    The server prints a fetch grant and a push grant for the repository, valid
+    for an hour, with commands that pass them to git:
+
+        git -c http.extraHeader="X-Scm-Git-Grant: $FETCH_GRANT" \\
+            clone http://127.0.0.1:8080/OWNER/REPO.git
+
+    The URL path is the repository's path, which the server uses as its external
+    id, so a grant names the repository as (provider, path).
+
+Checks:
+    --check starts the server on a free port and runs git against it:
+      - ls-remote and a shallow clone succeed with a fetch grant
+      - a push with a fetch grant is refused before it reaches the provider
+      - a grant for another repository is refused
+      - a token the provider rejects fails with a message, without git asking
+        for credentials
+      - a repository the token cannot see fails with the provider's own
+        message, which the relay passes on
+    With --push it also commits a 256 KiB file on a new branch, pushes it with
+    a push grant, sending the pack chunked as git does for a large push, and
+    then deletes the branch. This writes to the repository, so point it at a
+    test repository.
+
+    git runs without the user's or the system's git config, so credential
+    helpers and URL rewrites cannot hide a failure.
+"""
+
+import argparse
+import importlib.machinery
+import importlib.util
+import logging
+import os
+import secrets
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from types import ModuleType
+from urllib.parse import urlsplit
+
+from scm.git.grant import sign_grant
+from scm.git.relay import GitRelay
+from scm.git.server import GitServer
+from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
+from scm.providers.github.provider import GitHubProvider
+from scm.providers.gitlab.provider import GitLabProvider
+from scm.types import Provider, ProviderName, Repository, RepositoryId
+
+logger = logging.getLogger(__name__)
+
+ORGANIZATION_ID = 1
+# Tags every count, so this server's requests stand apart from a coding job's or Seer's.
+REFERRER = "git-server"
+GRANT_TTL = 3600
+GITHUB_API_BASE = "https://api.github.com"
+GITLAB_BASE_URL = "https://gitlab.com"
+
+
+def _load_script(name: str) -> ModuleType:
+    """Import a sibling bin script, which has no .py suffix, to share its credential handling."""
+    path = Path(__file__).resolve().parent / name
+    loader = importlib.machinery.SourceFileLoader(name.replace("-", "_"), str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+github_server = _load_script("github-server")
+gitlab_server = _load_script("gitlab-server")
+load_credentials = github_server.load_credentials
+resolve = github_server.resolve
+
+
+@dataclass
+class Backend:
+    """What Sentry would supply for the repository: its record, its provider and a token."""
+
+    provider_name: ProviderName
+    repository: Repository
+    repository_at: Callable[[str], Repository]
+    """Sentry's record of the repository at another path on the same provider."""
+    fetch_provider: Callable[[int, Repository], Provider | None]
+    get_token: GetToken
+
+    @property
+    def repository_id(self) -> RepositoryId:
+        return repository_id_of(self.provider_name, self.repository)
+
+
+def repository_id_of(provider_name: ProviderName, repository: Repository) -> RepositoryId:
+    # The URL path is the repository's path, which the server uses as its external id.
+    return (provider_name, repository["name"])
+
+
+def github_backend(path: str, creds: dict[str, str], ca_bundle: str | None) -> Backend:
+    app_id = resolve("GITHUB_APP_ID", None, creds)
+    private_key_path = resolve("GITHUB_PRIVATE_KEY_PATH", None, creds)
+    installation_id = resolve("GITHUB_INSTALLATION_ID", None, creds)
+    base_url = resolve("GITHUB_BASE_URL", None, creds) or GITHUB_API_BASE
+    web_base_url = resolve("GITHUB_WEB_BASE_URL", None, creds) or github_server._derive_web_base_url(base_url)
+    _require(GITHUB_APP_ID=app_id, GITHUB_PRIVATE_KEY_PATH=private_key_path, GITHUB_INSTALLATION_ID=installation_id)
+
+    token_manager = github_server.InstallationTokenManager(
+        app_id, Path(private_key_path).read_text(), installation_id, base_url=base_url, ca_bundle=ca_bundle
+    )
+    provider_name: ProviderName = github_server._derive_provider_name(base_url)
+
+    def repository_at(path: str) -> Repository:
+        return _repository(provider_name, external_id=path, path=path, web_base_url=web_base_url)
+
+    def fetch_provider(organization_id: int, repository: Repository) -> Provider | None:
+        client = github_server.GitHubApiClient(token_manager, base_url=base_url)
+        return GitHubProvider(client=client, organization_id=organization_id, repository=repository)
+
+    # An installation token can fetch and push, so the operation does not change it.
+    return Backend(
+        provider_name,
+        repository_at(path),
+        repository_at,
+        fetch_provider,
+        lambda repository, operation: token_manager.installation_token,
+    )
+
+
+def gitlab_backend(path: str, creds: dict[str, str]) -> Backend:
+    access_token = resolve("GITLAB_ACCESS_TOKEN", None, creds)
+    base_url = (resolve("GITLAB_BASE_URL", None, creds) or GITLAB_BASE_URL).rstrip("/")
+    _require(GITLAB_ACCESS_TOKEN=access_token)
+
+    def repository_at(path: str) -> Repository:
+        # Sentry's GitLab external id is "<host>:<project id>". The path stands in for the project id here: the git
+        # remote is built from the repository's path, and this server makes no API calls.
+        external_id = f"{urlsplit(base_url).netloc}:{path}"
+        return _repository("gitlab", external_id=external_id, path=path, web_base_url=base_url)
+
+    def fetch_provider(organization_id: int, repository: Repository) -> Provider | None:
+        client = gitlab_server.GitLabApiClient(base_url, access_token)
+        return GitLabProvider(client=client, organization_id=organization_id, repository=repository)
+
+    return Backend(
+        "gitlab", repository_at(path), repository_at, fetch_provider, lambda repository, operation: access_token
+    )
+
+
+def _repository(provider_name: ProviderName, *, external_id: str, path: str, web_base_url: str) -> Repository:
+    return {
+        "id": 1,
+        "external_id": external_id,
+        "integration_id": 1,
+        "is_active": True,
+        "name": path,
+        "path": path,
+        "organization_id": ORGANIZATION_ID,
+        "provider_name": provider_name,
+        "web_base_url": web_base_url,
+        "installation_id": None,
+    }
+
+
+def _require(**values: str | None) -> None:
+    if missing := [name for name, value in values.items() if not value]:
+        logger.error(f"Error: missing required config: {', '.join(missing)}")
+        sys.exit(1)
+
+
+def make_git_server(
+    backend: Backend,
+    secret: str,
+    ca_bundle: str | None,
+    get_token: GetToken | None = None,
+    repository: Repository | None = None,
+) -> GitServer:
+    """A GitServer for the backend's repository, or for ``repository`` instead."""
+    served = repository or backend.repository
+
+    def fetch_repository(organization_id: int, requested: RepositoryId) -> Repository | None:
+        return served if requested == repository_id_of(backend.provider_name, served) else None
+
+    def record_count(name: str, value: int, tags: dict[str, str]) -> None:
+        logger.debug(f"{name} {value} {tags}")
+
+    def emit_error(error: Exception, context: dict[str, str]) -> None:
+        logger.debug(f"emit_error {error!r} {context}")
+
+    return GitServer(
+        secrets=[secret],
+        fetch_repository=fetch_repository,
+        fetch_provider=backend.fetch_provider,
+        get_token=get_token or backend.get_token,
+        record_count=record_count,
+        emit_error=emit_error,
+        # A plain adapter connects wherever the provider's host resolves. Sentry passes one that refuses internal
+        # addresses; on a developer's machine there is nothing to protect.
+        relay=GitRelay(ca_bundle=ca_bundle),
+    )
+
+
+def grant_for(secret: str, operation: GitOperation, repository_id: RepositoryId) -> str:
+    grant = Grant(
+        organization_id=ORGANIZATION_ID,
+        referrer=REFERRER,
+        operation=operation,
+        repositories=[repository_id],
+        expires_at=int(time.time()) + GRANT_TTL,
+    )
+    return sign_grant(secret, grant)
+
+
+class GitHandler(BaseHTTPRequestHandler):
+    """Serves /<repository path>.git/<route>, as Sentry's endpoint serves a repository's git routes.
+
+    HTTP/1.0, the default, closes the connection after each response, so a response without a Content-Length
+    ends when the connection does.
+    """
+
+    server: "GitHTTPServer"
+
+    def do_GET(self) -> None:
+        self._handle()
+
+    def do_POST(self) -> None:
+        self._handle()
+
+    def _handle(self) -> None:
+        url = urlsplit(self.path)
+        path, separator, route = url.path.lstrip("/").partition(".git/")
+        if not separator:
+            self.send_error(404, "Expected /<repository path>.git/<route>")
+            return
+
+        body: Readable | None
+        if self.command != "POST":
+            body = None
+        elif self.headers.get("Transfer-Encoding", "").lower() == "chunked":
+            body = ChunkedBody(self.rfile)
+        else:
+            # The relay reads no more than Content-Length from it.
+            body = self.rfile
+        try:
+            response = self.server.git.handle(
+                method=self.command,
+                repository_id=(self.server.provider_name, path),
+                route=route,
+                query=url.query,
+                headers=dict(self.headers.items()),
+                body=body,
+            )
+        except Exception as e:
+            # Sentry's view would answer these as it answers the same errors elsewhere.
+            logger.exception("GitServer raised")
+            self.send_error(500, f"{type(e).__name__}: {e}")
+            return
+
+        content: Iterator[bytes] = response.content
+        try:
+            self.send_response(response.status_code)
+            for name, value in response.headers.items():
+                self.send_header(name, value)
+            self.end_headers()
+            for chunk in content:
+                self.wfile.write(chunk)
+        finally:
+            # Counts the request, and drops the upstream connection if git went away mid-response.
+            if close := getattr(content, "close", None):
+                close()
+
+    def log_message(self, format: str, *args: object) -> None:
+        logger.debug(format % args)
+
+
+class GitHTTPServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self, server_address: tuple[str, int], git: GitServer, provider_name: ProviderName) -> None:
+        self.git = git
+        self.provider_name = provider_name
+        super().__init__(server_address, GitHandler)
+
+    @property
+    def url(self) -> str:
+        host, port = self.server_address[:2]
+        return f"http://{host!s}:{port}"
+
+
+class ChunkedBody:
+    """A chunked request body, decoded as the relay reads it.
+
+    git sends a push larger than http.postBuffer chunked, and the relay reads a body without a Content-Length
+    until it ends.
+    """
+
+    def __init__(self, rfile) -> None:
+        self.rfile = rfile
+        self.remaining = 0
+        self.ended = False
+
+    def read(self, size: int = -1, /) -> bytes:
+        if size < 0:
+            parts = []
+            while part := self.read(64 * 1024):
+                parts.append(part)
+            return b"".join(parts)
+        if self.ended:
+            return b""
+        if self.remaining == 0:
+            self.remaining = int(self.rfile.readline().split(b";")[0], 16)
+            if self.remaining == 0:
+                # Skip any trailers, up to the blank line that ends the body.
+                while self.rfile.readline().strip():
+                    pass
+                self.ended = True
+                return b""
+        data = self.rfile.read(min(size, self.remaining))
+        if not data:
+            # The relay takes an OSError for the client going away.
+            raise ConnectionResetError("git closed the connection mid-body")
+        self.remaining -= len(data)
+        if self.remaining == 0:
+            self.rfile.readline()
+        return data
+
+
+def serve(backend: Backend, args: argparse.Namespace) -> None:
+    server = GitHTTPServer(
+        (args.host, args.port), make_git_server(backend, args.secret, args.ca_bundle), backend.provider_name
+    )
+    url = f"{server.url}/{backend.repository['name']}.git"
+    fetch_grant = grant_for(args.secret, "fetch", backend.repository_id)
+    push_grant = grant_for(args.secret, "push", backend.repository_id)
+    logger.info(
+        f"Serving {backend.provider_name} repository {backend.repository['name']} at {url}\n\n"
+        f"Grants, valid for {GRANT_TTL // 60} minutes:\n"
+        f"  export FETCH_GRANT={fetch_grant}\n"
+        f"  export PUSH_GRANT={push_grant}\n\n"
+        f"Then:\n"
+        f'  git -c http.extraHeader="{GRANT_HEADER}: $FETCH_GRANT" clone {url}\n'
+        f'  git -c http.extraHeader="{GRANT_HEADER}: $PUSH_GRANT" push {url} HEAD:refs/heads/my-branch\n',
+    )
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        logger.info("Shutting down.")
+        server.server_close()
+
+
+class Checks:
+    """Runs git against a git server on a free port and records which checks failed."""
+
+    def __init__(self, backend: Backend, args: argparse.Namespace, workdir: Path) -> None:
+        self.backend = backend
+        self.args = args
+        self.workdir = workdir
+        self.failures: list[str] = []
+        self.env = {
+            **os.environ,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+
+    def start(self, get_token: GetToken | None = None, repository: Repository | None = None) -> GitHTTPServer:
+        git = make_git_server(self.backend, self.args.secret, self.args.ca_bundle, get_token, repository)
+        server = GitHTTPServer((self.args.host, 0), git, self.backend.provider_name)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return server
+
+    def git(self, grant: str, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        command = [
+            "git",
+            "-c", f"http.extraHeader={GRANT_HEADER}: {grant}",
+            "-c", "credential.helper=",
+            "-c", "user.name=scm-platform git-server",
+            "-c", "user.email=git-server@scm-platform.invalid",
+            *args,
+        ]  # fmt: skip
+        return subprocess.run(
+            command, cwd=cwd or self.workdir, env=self.env, capture_output=True, text=True, timeout=300
+        )
+
+    def check(self, name: str, result: subprocess.CompletedProcess[str], ok: bool) -> bool:
+        logger.info(f"{'ok  ' if ok else 'FAIL'} {name}")
+        if not ok:
+            self.failures.append(name)
+            logger.info(f"     exit {result.returncode}\n" + _indent(result.stdout + result.stderr))
+        return ok
+
+    def expect_success(self, name: str, result: subprocess.CompletedProcess[str]) -> bool:
+        return self.check(name, result, result.returncode == 0)
+
+    def expect_refusal(self, name: str, result: subprocess.CompletedProcess[str], message: str) -> bool:
+        # git shows the text of a refused first request as "remote: <message>".
+        return self.check(name, result, result.returncode != 0 and f"remote: {message}" in result.stderr)
+
+    def run(self) -> int:
+        repository_id = self.backend.repository_id
+        other_repository_id = (self.backend.provider_name, f"{self.backend.repository['name']}-other")
+        fetch_grant = grant_for(self.args.secret, "fetch", repository_id)
+        push_grant = grant_for(self.args.secret, "push", repository_id)
+
+        server = self.start()
+        url = f"{server.url}/{self.backend.repository['name']}.git"
+        logger.info(f"Checking {self.backend.provider_name} repository {self.backend.repository['name']} via {url}")
+
+        result = self.git(fetch_grant, "ls-remote", url)
+        self.check("ls-remote with a fetch grant", result, result.returncode == 0 and bool(result.stdout.strip()))
+        clone = self.workdir / "clone"
+        cloned = self.expect_success(
+            "clone with a fetch grant", self.git(fetch_grant, "clone", "--depth=1", url, str(clone))
+        )
+        branch = f"scm-git-server-check/{int(time.time())}"
+        self.expect_refusal(
+            "push with a fetch grant is refused",
+            # Refused before the provider sees it, so any local repository will do.
+            self.git(fetch_grant, "push", url, f"HEAD:refs/heads/{branch}", cwd=self.local_repository()),
+            "The git grant allows fetch, not push.",
+        )
+        self.expect_refusal(
+            "a grant for another repository is refused",
+            self.git(grant_for(self.args.secret, "fetch", other_repository_id), "ls-remote", url),
+            "The git grant does not cover this repository.",
+        )
+        server.shutdown()
+
+        rejecting = self.start(get_token=lambda repository, operation: "not-a-valid-token")
+        result = self.git(fetch_grant, "ls-remote", f"{rejecting.url}/{self.backend.repository['name']}.git")
+        self.check(
+            "a rejected token fails without asking for credentials",
+            result,
+            result.returncode != 0
+            and "remote: The provider rejected Sentry's credentials" in result.stderr
+            and "could not read Username" not in result.stderr,
+        )
+        rejecting.shutdown()
+
+        # Sentry knows the repository, but the provider has no such repository for the token to see.
+        missing = self.backend.repository_at(f"{self.backend.repository['name']}-does-not-exist")
+        server = self.start(repository=missing)
+        result = self.git(
+            grant_for(self.args.secret, "fetch", repository_id_of(self.backend.provider_name, missing)),
+            "ls-remote",
+            f"{server.url}/{missing['name']}.git",
+        )
+        self.check(
+            "a repository the token cannot see fails with the provider's message",
+            result,
+            # GitHub's message is "Repository not found."; what matters is that git shows the provider's own.
+            result.returncode != 0
+            and "remote: " in result.stderr
+            and "rejected Sentry's credentials" not in result.stderr
+            and "could not read Username" not in result.stderr,
+        )
+        server.shutdown()
+
+        if self.args.push:
+            if cloned:
+                self.check_push(push_grant, clone, branch)
+            else:
+                logger.info("skip push, as the clone failed")
+        return 1 if self.failures else 0
+
+    def local_repository(self) -> Path:
+        local = self.workdir / "local"
+        self.git("", "init", "--quiet", str(local)).check_returncode()
+        self.git(
+            "", "commit", "--quiet", "--allow-empty", "-m", "scm-platform git-server check", cwd=local
+        ).check_returncode()
+        return local
+
+    def check_push(self, push_grant: str, clone: Path, branch: str) -> None:
+        server = self.start()
+        url = f"{server.url}/{self.backend.repository['name']}.git"
+        # Random bytes do not compress, so the pack outgrows http.postBuffer and git sends it chunked. git raises
+        # a smaller postBuffer to 64 KiB.
+        (clone / "scm-git-server-check.bin").write_bytes(secrets.token_bytes(256 * 1024))
+        self.git(push_grant, "add", "scm-git-server-check.bin", cwd=clone).check_returncode()
+        self.git(push_grant, "commit", "-m", "scm-platform git-server check", cwd=clone).check_returncode()
+        pushed = self.expect_success(
+            "chunked push with a push grant",
+            self.git(push_grant, "-c", "http.postBuffer=65536", "push", url, f"HEAD:refs/heads/{branch}", cwd=clone),
+        )
+        if pushed:
+            self.expect_success(
+                f"delete the pushed branch {branch}",
+                self.git(push_grant, "push", url, f":refs/heads/{branch}", cwd=clone),
+            )
+        server.shutdown()
+
+
+def _indent(text: str) -> str:
+    return "".join(f"     {line}\n" for line in text.splitlines())
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Git endpoint relaying to GitHub or GitLab through GitServer")
+    parser.add_argument("provider", choices=["github", "gitlab"])
+    parser.add_argument("--repository", default=None)
+    parser.add_argument("--secret", default=None)
+    parser.add_argument("--ca-bundle", default=None)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--check", action="store_true")
+    parser.add_argument("--push", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(message)s")
+    if args.push and not args.check:
+        parser.error("--push needs --check")
+
+    creds = load_credentials()
+    args.repository = resolve("SCM_GIT_REPOSITORY", args.repository, creds)
+    # The server prints grants for its repository, so nothing else needs to know a secret it makes up.
+    args.secret = resolve("SCM_GIT_GRANT_SECRET", args.secret, creds) or secrets.token_hex(32)
+    args.ca_bundle = resolve("SCM_GIT_CA_BUNDLE", args.ca_bundle, creds)
+    _require(SCM_GIT_REPOSITORY=args.repository)
+    path = args.repository.strip("/").removesuffix(".git")
+
+    # GitLab's backend makes no API calls, so only the GitHub one needs the CA bundle.
+    if args.provider == "github":
+        backend = github_backend(path, creds, args.ca_bundle)
+    else:
+        backend = gitlab_backend(path, creds)
+    if not args.check:
+        serve(backend, args)
+        return
+    with tempfile.TemporaryDirectory(prefix="scm-git-server-") as workdir:
+        sys.exit(Checks(backend, args, Path(workdir)).run())
+
+
+if __name__ == "__main__":
+    main()
