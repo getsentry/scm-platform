@@ -50,6 +50,7 @@ from scm.types import (
     GitCommitObject,
     GitCommitTree,
     GitRef,
+    GitRemote,
     GitRepository,
     GitTree,
     Issue,
@@ -240,7 +241,9 @@ class GitLabProvider:
             raise MalformedExternalId()
 
         netloc, self.project_id = repository["external_id"].rsplit(":", maxsplit=1)
-        self.web_base_url = f"https://{netloc}"
+        # Sentry sends the instance's URL with the scheme and any path prefix it is served under. The external ID
+        # holds only the host, which is enough for an instance served at the root over https.
+        self.web_base_url = repository["web_base_url"] or f"https://{netloc}"
 
     @property
     def web_repository_path(self) -> str:
@@ -743,6 +746,9 @@ class GitLabProvider:
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self.web_base_url}/{self.web_repository_path}/-/merge_requests/{pull_request_id}"
+
+    def get_git_remote(self) -> GitRemote:
+        return GitRemote(url=f"{self.web_base_url}/{self.web_repository_path}.git", basic_auth_username="oauth2")
 
     def get_tree(
         self,

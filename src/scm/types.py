@@ -65,6 +65,15 @@ class ArchiveLink(TypedDict):
     headers: dict[str, str]
 
 
+class GitRemote(TypedDict):
+    """Where a repository's git smart-HTTP endpoint lives and how a token authenticates against it."""
+
+    url: str
+    """The repository's clone URL, e.g. ``https://github.com/getsentry/sentry.git``."""
+    basic_auth_username: str
+    """Sent with the token as the Basic auth username, e.g. ``x-access-token`` on GitHub."""
+
+
 type BuildStatus = Literal["pending", "running", "completed"]
 """The lifecycle stage of a CI build.
 
@@ -1100,6 +1109,11 @@ class GetPullRequestUrlProtocol(Protocol):
     def get_pull_request_url(self, pull_request_id: str) -> str: ...
 
 
+@runtime_checkable
+class GetGitRemoteProtocol(Protocol):
+    def get_git_remote(self) -> GitRemote: ...
+
+
 # Commit Protocols
 
 
@@ -1675,6 +1689,7 @@ ALL_PROTOCOLS = (
     GetFileUrlProtocol,
     GetGitCommitProtocol,
     GetGitRefProtocol,
+    GetGitRemoteProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueProtocol,

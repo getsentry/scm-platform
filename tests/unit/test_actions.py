@@ -53,6 +53,7 @@ from scm.actions import (
     get_full_tree,
     get_git_commit,
     get_git_ref,
+    get_git_remote,
     get_issue,
     get_issue_comment_reactions,
     get_issue_comments,
@@ -194,6 +195,7 @@ ALL_ACTIONS: tuple[tuple[Callable[..., Any], dict[str, Any]], ...] = (
     (get_commit_url, {"commit_sha": "abc123"}),
     (get_commits_url, {"commit_sha": "abc123"}),
     (get_pull_request_url, {"pull_request_id": "1"}),
+    (get_git_remote, {}),
     # Git blob operations
     (create_git_blob, {"content": "hello", "encoding": "utf-8"}),
     # File content operations
@@ -473,6 +475,10 @@ def _check_get_commits_url(result: Any) -> None:
 
 def _check_get_pull_request_url(result: Any) -> None:
     assert result == "https://github.com/test-org/test-repo/pull/1"
+
+
+def _check_get_git_remote(result: Any) -> None:
+    assert result == {"url": "https://github.com/test-org/test-repo.git", "basic_auth_username": "x-access-token"}
 
 
 def _check_create_git_blob(result: Any) -> None:
@@ -831,6 +837,7 @@ ACTION_TESTS: tuple[tuple[Callable[..., Any], dict[str, Any], Callable[..., Any]
     (get_commit_url, {"commit_sha": "abc123"}, _check_get_commit_url),
     (get_commits_url, {"commit_sha": "abc123"}, _check_get_commits_url),
     (get_pull_request_url, {"pull_request_id": "1"}, _check_get_pull_request_url),
+    (get_git_remote, {}, _check_get_git_remote),
     (
         create_git_blob,
         {"content": "hello", "encoding": "utf-8"},

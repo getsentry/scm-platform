@@ -34,6 +34,7 @@ from scm.types import (
     ChmodCommitAction,
     CommitAuthorParam,
     DeleteCommitAction,
+    GitRemote,
     MoveCommitAction,
     Repository,
     WriteCommitAction,
@@ -1082,6 +1083,12 @@ class TestWebUrls:
 
     def test_a_commit_url(self, provider: CursorOriginProvider) -> None:
         assert provider.get_commit_url("abc123") == f"https://cursor.com/codebase/{REPO}/commit/abc123"
+
+    def test_a_git_remote(self, provider: CursorOriginProvider) -> None:
+        # Git is served from origin.cursor.com rather than the web UI's cursor.com/codebase.
+        assert provider.get_git_remote() == GitRemote(
+            url=f"https://origin.cursor.com/{REPO}.git", basic_auth_username="x-access-token"
+        )
 
 
 def _commit_raw(sha: str, date: str = "2026-08-01T09:30:00Z") -> dict[str, Any]:

@@ -78,6 +78,7 @@ from scm.types import (
     GetFullTreeProtocol,
     GetGitCommitProtocol,
     GetGitRefProtocol,
+    GetGitRemoteProtocol,
     GetIssueCommentReactionsProtocol,
     GetIssueCommentsProtocol,
     GetIssueProtocol,
@@ -106,6 +107,7 @@ from scm.types import (
     GitBlob,
     GitCommitObject,
     GitRef,
+    GitRemote,
     GitRepository,
     GitTree,
     InputTreeEntry,
@@ -526,6 +528,11 @@ def get_commits_url(
 def get_pull_request_url(scm: GetPullRequestUrlProtocol, pull_request_id: str) -> str:
     """Returns the HTML URL of the pull-request."""
     return scm.get_pull_request_url(pull_request_id)
+
+
+def get_git_remote(scm: GetGitRemoteProtocol) -> GitRemote:
+    """Return the repository's git smart-HTTP endpoint and the basic-auth username its provider pairs with a token."""
+    return scm.get_git_remote()
 
 
 def create_git_blob(scm: CreateGitBlobProtocol, content: str, encoding: str) -> ActionResult[GitBlob]:
@@ -1202,6 +1209,7 @@ __all__ = (
     "get_file_url",
     "get_git_commit",
     "get_git_ref",
+    "get_git_remote",
     "get_issue_comment_reactions",
     "get_issue_comments",
     "get_issue_reactions",
