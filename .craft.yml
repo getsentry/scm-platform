@@ -1,5 +1,7 @@
 minVersion: 2.21.1
 preReleaseCommand: bash scripts/bump-version.sh
+changelog:
+  policy: auto
 statusProvider:
   name: github
 artifactProvider:
