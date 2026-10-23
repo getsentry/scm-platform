@@ -9,18 +9,20 @@ import pytest
 from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
+from scm.secret import Secret
 from tests.unit.git_builders import FAR_FUTURE, make_grant
 
 # Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
 NOW = 1_700_000_000
 # HS256 secrets of at least 32 bytes, as PyJWT recommends.
-SECRET = "test-secret-0000000000000000000000"
-OLD_SECRET = "test-secret-old-000000000000000000"
-NEW_SECRET = "test-secret-new-000000000000000000"
+SECRET = Secret("test-secret-0000000000000000000000")
+OLD_SECRET = Secret("test-secret-old-000000000000000000")
+NEW_SECRET = Secret("test-secret-new-000000000000000000")
+OTHER_SECRET = Secret("other-secret-0000000000000000000000")
 
 
-def key_id(secret: str) -> str:
-    return hashlib.sha256(secret.encode()).hexdigest()[:8]
+def key_id(secret: Secret) -> str:
+    return hashlib.sha256(secret.reveal().encode()).hexdigest()[:8]
 
 
 def claims_of(grant: Grant) -> dict:
@@ -29,12 +31,12 @@ def claims_of(grant: Grant) -> dict:
     return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
 
 
-def sign_claims(claims: dict, secret: str = SECRET, algorithm: str = "HS256", kid: str | None = None) -> str:
+def sign_claims(claims: dict, secret: Secret = SECRET, algorithm: str = "HS256", kid: str | None = None) -> str:
     """Sign arbitrary claims the way sign_grant does, to reach the checks that run after the signature."""
-    return jwt.encode(claims, secret, algorithm=algorithm, headers={"kid": kid or key_id(secret)})
+    return jwt.encode(claims, secret.reveal(), algorithm=algorithm, headers={"kid": kid or key_id(secret)})
 
 
-def assert_invalid(token: str, detail: str, secrets: list[str] | None = None) -> None:
+def assert_invalid(token: str, detail: str, secrets: list[Secret] | None = None) -> None:
     with pytest.raises(GitInvalidGrant) as exc_info:
         verify_grant(secrets or [SECRET], token, now=NOW)
     assert detail in exc_info.value.detail
@@ -75,7 +77,7 @@ class TestExpiry:
 
     def test_forged_grant_is_invalid_even_when_expired(self):
         # Expiry is checked only once the signature matches, so an expired grant is always a genuine one.
-        token = sign_grant("other-secret-0000000000000000000000", make_grant(expires_at=NOW - 1), now=NOW)
+        token = sign_grant(OTHER_SECRET, make_grant(expires_at=NOW - 1), now=NOW)
         assert_invalid(token, "not signed with a known secret")
 
     def test_valid_until_its_expiry_time(self):
@@ -118,12 +120,10 @@ class TestTampering:
         assert_invalid(f"{header}.{payload}.{resigned}", "signature does not match")
 
     def test_unknown_secret(self):
-        assert_invalid(
-            sign_grant("other-secret-0000000000000000000000", make_grant(), now=NOW), "not signed with a known"
-        )
+        assert_invalid(sign_grant(OTHER_SECRET, make_grant(), now=NOW), "not signed with a known")
 
     def test_other_secret_claiming_a_known_key_id(self):
-        token = sign_claims(claims_of(make_grant()), secret="other-secret-0000000000000000000000", kid=key_id(SECRET))
+        token = sign_claims(claims_of(make_grant()), secret=OTHER_SECRET, kid=key_id(SECRET))
         assert_invalid(token, "signature does not match")
 
     def test_no_secrets(self):
@@ -179,13 +179,13 @@ class TestSecrets:
     # PyJWT signs with an empty key, so an empty secret would let anyone sign grants.
     def test_refuses_to_sign_with_an_empty_secret(self):
         with pytest.raises(ValueError, match="empty"):
-            sign_grant("", make_grant(), now=NOW)
+            sign_grant(Secret(""), make_grant(), now=NOW)
 
     @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
     def test_refuses_to_verify_with_an_empty_secret(self):
-        token = jwt.encode(claims_of(make_grant()), "", algorithm="HS256", headers={"kid": key_id("")})
+        token = jwt.encode(claims_of(make_grant()), "", algorithm="HS256", headers={"kid": key_id(Secret(""))})
         with pytest.raises(ValueError, match="empty"):
-            verify_grant([SECRET, ""], token, now=NOW)
+            verify_grant([SECRET, Secret("")], token, now=NOW)
 
 
 class TestRotatedSecrets:

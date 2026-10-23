@@ -89,6 +89,7 @@ import pathlib
 import sys
 from datetime import date
 
+from scm import Secret
 from scm.manager import SourceCodeManager
 from scm.types import (
     CheckRunOutput,
@@ -415,7 +416,7 @@ def main():
 
     kwargs = {
         "base_url": args.base_url if args.base_url else "http://127.0.0.1:8080",
-        "signing_secret": args.secret if args.secret else "secret",
+        "signing_secret": Secret(args.secret if args.secret else "secret"),
     }
 
     scm = SourceCodeManager.make_proxy_client(

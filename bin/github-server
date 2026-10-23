@@ -53,6 +53,7 @@ from typing import Any
 import jwt
 import requests
 
+from scm import Secret
 from scm.providers.github.provider import GitHubProvider
 from scm.rpc.server import RpcServer
 from scm.types import CredentialsSet, Provider, Repository, RepositoryId
@@ -298,7 +299,7 @@ def main():
     app_id = resolve("GITHUB_APP_ID", args.app_id, creds)
     private_key_path = resolve("GITHUB_PRIVATE_KEY_PATH", args.private_key, creds)
     installation_id = resolve("GITHUB_INSTALLATION_ID", args.installation_id, creds)
-    secret = resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret"
+    secret = Secret(resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret")
     base_url = resolve("GITHUB_BASE_URL", args.base_url, creds) or GITHUB_API_BASE
     web_base_url = resolve("GITHUB_WEB_BASE_URL", args.web_base_url, creds) or _derive_web_base_url(base_url)
     provider_name = resolve("GITHUB_PROVIDER_NAME", args.provider_name, creds) or _derive_provider_name(base_url)

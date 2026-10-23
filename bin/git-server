@@ -91,6 +91,7 @@ from pathlib import Path
 from types import ModuleType
 from urllib.parse import urlsplit
 
+from scm import Secret
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
@@ -220,7 +221,7 @@ def _require(**values: str | None) -> None:
 
 def make_git_server(
     backend: Backend,
-    secret: str,
+    secret: Secret,
     ca_bundle: str | None,
     get_token: GetToken | None = None,
     repository: Repository | None = None,
@@ -250,7 +251,7 @@ def make_git_server(
     )
 
 
-def grant_for(secret: str, operation: GitOperation, repository_id: RepositoryId) -> str:
+def grant_for(secret: Secret, operation: GitOperation, repository_id: RepositoryId) -> str:
     grant = Grant(
         organization_id=ORGANIZATION_ID,
         referrer=REFERRER,
@@ -564,7 +565,7 @@ def main() -> None:
     creds = load_credentials()
     args.repository = resolve("SCM_GIT_REPOSITORY", args.repository, creds)
     # The server prints grants for its repository, so nothing else needs to know a secret it makes up.
-    args.secret = resolve("SCM_GIT_GRANT_SECRET", args.secret, creds) or secrets.token_hex(32)
+    args.secret = Secret(resolve("SCM_GIT_GRANT_SECRET", args.secret, creds) or secrets.token_hex(32))
     args.ca_bundle = resolve("SCM_GIT_CA_BUNDLE", args.ca_bundle, creds)
     _require(SCM_GIT_REPOSITORY=args.repository)
     path = args.repository.strip("/").removesuffix(".git")

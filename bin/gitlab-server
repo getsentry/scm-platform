@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from scm import Secret
 from scm.providers.gitlab.provider import API_VERSION, GitLabProvider
 from scm.rpc.server import RpcServer
 from scm.types import CredentialsSet, Provider, Repository, RepositoryId
@@ -192,7 +193,7 @@ def main():
 
     access_token = resolve("GITLAB_ACCESS_TOKEN", args.access_token, creds)
     base_url = resolve("GITLAB_BASE_URL", args.base_url, creds) or "https://gitlab.com"
-    secret = resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret"
+    secret = Secret(resolve("SCM_RPC_SIGNING_SECRET", args.secret, creds) or "secret")
 
     if not access_token:
         logger.error("Error: missing required config: GITLAB_ACCESS_TOKEN")

@@ -1,35 +1,39 @@
 import hashlib
 import hmac
+from collections.abc import Sequence
 from typing import Literal
 
 import msgspec
 
 from scm.errors import RepositoryCouldNotBeDeserialized
 from scm.rpc.types import JsonApiData, JsonApiPayload, RepositoryAttributes
+from scm.secret import Secret
 from scm.types import Repository, RepositoryId
 
 
-def sign_get(secret: str, organization_id: int, repository_id: RepositoryId) -> str:
+def sign_get(secret: Secret, organization_id: int, repository_id: RepositoryId) -> str:
     return sign(secret, f"{organization_id}{repository_id}".encode())
 
 
-def sign_post(secret: str, serialized_body: bytes) -> str:
+def sign_post(secret: Secret, serialized_body: bytes) -> str:
     return sign(secret, serialized_body)
 
 
-def sign(secret: str, message: bytes) -> str:
-    return f"rpc0:{hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()}"
+def sign(secret: Secret, message: bytes) -> str:
+    return f"rpc0:{hmac.new(secret.reveal().encode(), message, hashlib.sha256).hexdigest()}"
 
 
-def verify_get(secrets: list[str], organization_id: int, repository_id: RepositoryId, received_signature: str) -> bool:
+def verify_get(
+    secrets: Sequence[Secret], organization_id: int, repository_id: RepositoryId, received_signature: str
+) -> bool:
     return verify(secrets, f"{organization_id}{repository_id}".encode(), received_signature)
 
 
-def verify_post(secrets: list[str], serialized_body: bytes, received_signature: str) -> bool:
+def verify_post(secrets: Sequence[Secret], serialized_body: bytes, received_signature: str) -> bool:
     return verify(secrets, serialized_body, received_signature)
 
 
-def verify(secrets: list[str], message: bytes, received_signature: str) -> bool:
+def verify(secrets: Sequence[Secret], message: bytes, received_signature: str) -> bool:
     return any(hmac.compare_digest(received_signature, sign(secret, message)) for secret in secrets)
 
 

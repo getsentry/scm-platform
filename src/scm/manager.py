@@ -10,6 +10,7 @@ from scm.rpc.client import (
 )
 from scm.rpc.client import fetch_provider as fetch_proxy_provider
 from scm.rpc.client import fetch_repository as fetch_proxy_repository
+from scm.secret import Secret
 from scm.types import Provider, Referrer, Repository, RepositoryId
 
 
@@ -44,7 +45,7 @@ class SourceCodeManager(Facade):
         *,
         referrer: Referrer = "shared",
         base_url: str,
-        signing_secret: str,
+        signing_secret: Secret,
         record_count: Callable[[str, int, dict[str, str]], None] = lambda name, value, tags: None,
         retry: RetryConfig | None = None,
     ):

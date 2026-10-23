@@ -7,10 +7,11 @@ import pytest
 from scm.errors import SCMCodedError
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.server import RpcServer, is_safe_path, iter_response, normalize_headers, serialize_repository
+from scm.secret import Secret
 from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
 
-TEST_SECRET = "test-secret"
+TEST_SECRET = Secret("test-secret")
 
 
 def make_repository(**overrides) -> Repository:
