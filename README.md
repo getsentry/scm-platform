@@ -35,9 +35,13 @@ We have extensive documentation both inline in the Sentry codebase and on the [S
 
 1. On the `getsentry/scm-platform` repository page click the **Actions** tab.
 2. On the left-hand side click the **release** workflow.
-3. Click **Run workflow**, choose a bump type (`patch`, `minor`, or `major`), and run it. The next version is calculated automatically from the current version in `pyproject.toml`.
-4. The workflow will create a release branch and PR via `getsentry/action-prepare-release`. After completion it will return a URL to an issue on `getsentry/publish`.
-5. On the `getsentry/publish` issue immediately set the **accepted** label.
+3. Click **Run workflow** and run it with the default bump type, `auto`. [Craft](https://github.com/getsentry/craft) picks the version from the titles of the PRs merged since the last release tag: `type!:` (e.g. `fix!:`) makes a major release, `feat:` a minor one, and any other conventional-commit type a patch. Choose `major`, `minor`, or `patch` only to override it.
+4. The workflow creates a `release/<version>` branch with the version bump and the new `CHANGELOG.md` section, and opens an issue on `getsentry/publish` titled `publish: getsentry/scm-platform@<version>`. Check that the version and changelog in the issue are what you expect.
+5. On the `getsentry/publish` issue set the **accepted** label. Once CI passes on the release branch, Craft publishes to PyPI and the internal `getsentry/pypi` index, creates the GitHub release with the same changelog, and merges the release branch into `main`.
 6. A pull request will be opened on `getsentry/pypi`.
-7. Edit the file in GitHub and place `python>=3.13` on the line immediately following the changed line.
+7. Edit `packages.ini` in that PR and add `python_versions = >=3.13` on the line immediately following the new `[sentry-scm==<version>]` line.
 8. The PR will merge automatically. When it's merged your new version is available for use.
+
+Because the changelog and version come from PR titles, give every PR a [conventional-commit](https://www.conventionalcommits.org/) title, and mark breaking changes with `!`.
+
+To retract a release request, comment `#retract` on a line by itself on the `getsentry/publish` issue, close the issue, and delete the `release/<version>` branch before running the workflow again.
