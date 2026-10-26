@@ -38,9 +38,7 @@ We have extensive documentation both inline in the Sentry codebase and on the [S
 3. Click **Run workflow** and run it with the default bump type, `auto`. [Craft](https://github.com/getsentry/craft) picks the version from the titles of the PRs merged since the last release tag: `type!:` (e.g. `fix!:`) makes a major release, `feat:` a minor one, and any other conventional-commit type a patch. Choose `major`, `minor`, or `patch` only to override it.
 4. The workflow creates a `release/<version>` branch with the version bump and the new `CHANGELOG.md` section, and opens an issue on `getsentry/publish` titled `publish: getsentry/scm-platform@<version>`. Check that the version and changelog in the issue are what you expect.
 5. On the `getsentry/publish` issue set the **accepted** label. Once CI passes on the release branch, Craft publishes to PyPI and the internal `getsentry/pypi` index, creates the GitHub release with the same changelog, and merges the release branch into `main`.
-6. A pull request will be opened on `getsentry/pypi`.
-7. Edit `packages.ini` in that PR and add `python_versions = >=3.13` on the line immediately following the new `[sentry-scm==<version>]` line.
-8. The PR will merge automatically. When it's merged your new version is available for use.
+6. A pull request adding the version to `getsentry/pypi` is opened and merged automatically. Once it's merged and that repository's build finishes, the new version is available for use.
 
 Because the changelog and version come from PR titles, give every PR a [conventional-commit](https://www.conventionalcommits.org/) title, and mark breaking changes with `!`.
 
