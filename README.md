@@ -41,5 +41,3 @@ We have extensive documentation both inline in the Sentry codebase and on the [S
 6. A pull request adding the version to `getsentry/pypi` is opened and merged automatically. Once it's merged and that repository's build finishes, the new version is available for use.
 
 Because the changelog and version come from PR titles, give every PR a [conventional-commit](https://www.conventionalcommits.org/) title, and mark breaking changes with `!`.
-
-To retract a release request, comment `#retract` on a line by itself on the `getsentry/publish` issue, close the issue, and delete the `release/<version>` branch before running the workflow again.
