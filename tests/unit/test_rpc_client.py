@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import msgspec
 import pytest
+import requests
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from scm.errors import ErrorCode, ResourceServiceUnavailable, SCMCodedError
@@ -19,6 +20,7 @@ from scm.rpc.client import (
 from scm.rpc.server import serialize_repository
 from scm.rpc.types import Error, ErrorResponse
 from scm.secret import Secret
+from tests.unit.error_reports import assert_not_in_frames, reported_local
 
 
 def make_repository(**overrides):
@@ -532,3 +534,43 @@ class TestRpcApiClientTransportRetry:
         assert client.session.post.call_count == 1
         mock_sleep.assert_not_called()
         assert self._metric_names(client) == []
+
+
+class UnreachableSession:
+    """Keeps the Authorization header it is sent, then fails as if Sentry were unreachable."""
+
+    def __init__(self) -> None:
+        self.authorization = ""
+
+    def get(self, url: str, headers: dict[str, str]) -> requests.Response:
+        raise NotImplementedError
+
+    def post(self, url: str, data: bytes, headers: dict[str, str], stream: bool = False) -> requests.Response:
+        self.authorization = headers["Authorization"]
+        raise RequestsConnectionError("connection reset")
+
+
+class TestKeptOutOfErrorReports:
+    """An error is reported to Sentry with every frame's local variables, and a signature in one could be replayed."""
+
+    def test_exhausted_connection_retries_leave_out_the_signature(self):
+        session = UnreachableSession()
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret=Secret("secret"),
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+            session=lambda: session,
+            retry={"max_retries": 1, "backoff_seconds": 0, "status_codes": (), "retry_connection_errors": True},
+        )
+
+        with pytest.raises(ResourceServiceUnavailable) as exc_info:
+            client.request(method="GET", path="/repos/org/repo")
+
+        error = exc_info.value
+        assert_not_in_frames(error, session.authorization.removeprefix("rpcsignature "))
+        assert reported_local(error, "request", "authorization") == "[Filtered]"
+        # A chained exception is reported with its own frames, and the session's holds the headers it was sent.
+        assert error.__cause__ is None
+        assert error.__suppress_context__

@@ -41,9 +41,12 @@ class RpcServer:
 
     def get(self, headers: dict[str, str]):
         try:
-            authorization, organization_id, repository_id = self._extract_headers(headers)
+            # Rebound without the signature, so it shows as [Filtered] in the frames of a reported error rather than in
+            # ``headers``.
+            signature, headers = _take_signature(headers)
+            organization_id, repository_id = self._extract_headers(headers)
 
-            if not verify_get(self.secrets, organization_id, repository_id, authorization):
+            if not verify_get(self.secrets, organization_id, repository_id, signature):
                 raise RpcInvalidGrant()
 
             scm = SourceCodeManager.make_client(
@@ -73,7 +76,9 @@ class RpcServer:
 
     def post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
         try:
-            result = self._post(data, headers)
+            # Rebound without the signature, which would otherwise be reported next to ``data``, the body it signs.
+            signature, headers = _take_signature(headers)
+            result = self._post(data, signature, headers)
             self.record_count("sentry.scm.rpc.request.post.succeeded", 1, {})
             return result
         except SCMCodedError as e:
@@ -90,10 +95,10 @@ class RpcServer:
                 content=iter([error_data]),
             )
 
-    def _post(self, data: bytes, headers: dict[str, str]) -> StreamResponse:
-        authorization, organization_id, repository_id = self._extract_headers(headers)
+    def _post(self, data: bytes, signature: Secret, headers: dict[str, str]) -> StreamResponse:
+        organization_id, repository_id = self._extract_headers(headers)
 
-        if not verify_post(self.secrets, data, authorization):
+        if not verify_post(self.secrets, data, signature):
             raise RpcInvalidGrant()
         if len(data) >= TEN_MEGABYTES:
             raise RpcRequestTooLarge()
@@ -140,12 +145,7 @@ class RpcServer:
             content=iter_response(response),
         )
 
-    def _extract_headers(self, headers: Mapping[str, str]) -> tuple[str, int, RepositoryId]:
-        try:
-            authorization = headers["Authorization"].removeprefix("rpcsignature ")
-        except KeyError as e:
-            raise RpcMalformedRequestHeaders(detail="Could not find Authorization header") from e
-
+    def _extract_headers(self, headers: Mapping[str, str]) -> tuple[int, RepositoryId]:
         try:
             raw = headers["X-Organization-Id"]
             organization_id = int(raw)
@@ -161,7 +161,21 @@ class RpcServer:
         except msgspec.DecodeError as e:
             raise RpcMalformedRequestHeaders(detail="Could not parse X-Repository-Id header") from e
 
-        return authorization, organization_id, repository_id
+        return organization_id, repository_id
+
+
+def _take_signature(headers: Mapping[str, str]) -> tuple[Secret, dict[str, str]]:
+    """Split the request's signature from the other headers. Header names are case-insensitive."""
+    signature: Secret | None = None
+    rest: dict[str, str] = {}
+    for name, value in headers.items():
+        if name.lower() == "authorization":
+            signature = Secret(value.removeprefix("rpcsignature "))
+        else:
+            rest[name] = value
+    if signature is None:
+        raise RpcMalformedRequestHeaders(detail="Could not find Authorization header")
+    return signature, rest
 
 
 def iter_response(response: requests.Response) -> Iterator[bytes]:

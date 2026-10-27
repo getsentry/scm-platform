@@ -150,6 +150,11 @@ class RpcApiClient(ApiClient):
     regardless of request origin (i.e. within Sentry or without).
 
     Access controls are handling on the Sentry-side with required scoping metadata specified in the request's headers.
+
+    A request's signature, which could be replayed, is held in a ``Secret`` and revealed only in the call to the
+    session. The session gets it in plain text in its headers, as does requests below it, so a requests error that
+    reaches the caller carries it in those frames. The ``ResourceServiceUnavailable`` raised instead for a connection
+    error, with ``retry_connection_errors``, does not.
     """
 
     def __init__(
@@ -201,8 +206,8 @@ class RpcApiClient(ApiClient):
             )
         )
 
+        authorization = Secret(f"rpcsignature {sign_post(self.signing_secret, body)}")
         request_headers = {
-            "Authorization": f"rpcsignature {sign_post(self.signing_secret, body)}",
             "Content-Type": "application/json",
             "X-Organization-Id": str(self.organization_id),
             "X-Referrer": self.referrer,
@@ -226,7 +231,12 @@ class RpcApiClient(ApiClient):
         last_reason = ""  # trigger of the most recent retry; tags the recovery metric on success
         while True:
             try:
-                response = self.session.post(url=self.full_url, data=body, headers=request_headers, stream=stream)
+                response = self.session.post(
+                    url=self.full_url,
+                    data=body,
+                    headers={"Authorization": authorization.reveal(), **request_headers},
+                    stream=stream,
+                )
             except _RETRIABLE_TRANSPORT_ERRORS as exc:
                 # Only intercept connection errors when the caller opted in, and only for reads: a
                 # write that died at the transport layer may already have landed upstream, so it is
@@ -244,8 +254,10 @@ class RpcApiClient(ApiClient):
                 if attempt:
                     self._record_retry_outcome("exhausted", method, "connection_error")
                 # Surface a typed, RPC-serializable error instead of an opaque ConnectionError that
-                # would not survive the proxy boundary — independent of whether we retried.
-                raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from exc
+                # would not survive the proxy boundary — independent of whether we retried. "from None" drops the
+                # connection error, which is reported with its frames, and those of the session and of requests hold
+                # the Authorization header.
+                raise ResourceServiceUnavailable(detail=f"{type(exc).__name__}: {exc}") from None
 
             if idempotent and response.status_code in status_codes:
                 if attempt < max_retries:
