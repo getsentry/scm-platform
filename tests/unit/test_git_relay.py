@@ -14,6 +14,7 @@ from requests.adapters import HTTPAdapter
 from scm.errors import (
     GitOperationNotGranted,
     GitRemoteNotHttps,
+    GitRemoteRefused,
     GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
@@ -25,7 +26,15 @@ from scm.errors import (
 from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
 from scm.types import GitRemote
 from tests.unit.git_builders import make_grant
-from tests.unit.git_upstream import ClosingAdapter, UpstreamHandler, basic_auth, ca_bundle, running_upstream
+from tests.unit.git_upstream import (
+    ClosingAdapter,
+    HostRefused,
+    RefusingAdapter,
+    UpstreamHandler,
+    basic_auth,
+    ca_bundle,
+    running_upstream,
+)
 
 TOKEN = "ghs_secrettoken"
 # Long enough that a relay that buffers fails the test instead of hanging it.
@@ -410,18 +419,45 @@ class TestConnections:
 
 
 class TestAdapter:
-    def test_uses_the_adapter_it_is_given(self, upstream):
-        # Sentry passes an adapter that refuses internal addresses; the relay must send through it.
-        class HostRefused(Exception):
+    @pytest.mark.parametrize("refused_host_errors", [(), (LookupError,)], ids=["none", "another"])
+    def test_uses_the_adapter_it_is_given(self, upstream, refused_host_errors):
+        # Sentry passes an adapter that refuses internal addresses; the relay must send through it. A refusal that
+        # refused_host_errors does not name reaches the caller as it was raised.
+        relay = GitRelay(adapter=RefusingAdapter, refused_host_errors=refused_host_errors, ca_bundle=ca_bundle())
+        with pytest.raises(HostRefused, match="internal address"):
+            fetch_refs(relay, upstream)
+        assert upstream.connections == 0
+
+    def test_refused_host(self, upstream):
+        relay = GitRelay(adapter=RefusingAdapter, refused_host_errors=(HostRefused,), ca_bundle=ca_bundle())
+        with pytest.raises(GitRemoteRefused) as exc_info:
+            fetch_refs(relay, upstream)
+        # The refusal passes through urllib3's frames, which hold the Authorization header.
+        assert_token_not_in(exc_info.value)
+        # The refusal names the address; the client has no use for it.
+        assert "127.0.0.1" not in exc_info.value.detail
+        assert upstream.connections == 0
+
+    def test_refused_host_named_as_a_requests_exception(self, upstream):
+        class HostRefusedConnectionError(requests.ConnectionError):
             pass
 
-        class RefusingAdapter(HTTPAdapter):
+        class Adapter(HTTPAdapter):
             def send(self, request, *args, **kwargs):
-                raise HostRefused(request.url)
+                raise HostRefusedConnectionError(request=request)
 
-        with pytest.raises(HostRefused):
-            fetch_refs(GitRelay(adapter=RefusingAdapter, ca_bundle=ca_bundle()), upstream)
-        assert upstream.requests == []
+        relay = GitRelay(adapter=Adapter, refused_host_errors=(HostRefusedConnectionError,), ca_bundle=ca_bundle())
+        with pytest.raises(GitRemoteRefused) as exc_info:
+            fetch_refs(relay, upstream)
+        assert_token_not_in(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "refused_host_errors", [HostRefused, [HostRefused], (HostRefused, "HostRefused")], ids=["class", "list", "str"]
+    )
+    def test_refused_host_errors_must_be_a_tuple_of_exception_classes(self, refused_host_errors):
+        # In an except clause anything else fails only once a request does, as a TypeError chained to its error.
+        with pytest.raises(TypeError, match="tuple of exception classes"):
+            GitRelay(refused_host_errors=refused_host_errors)
 
 
 class TestEnvironment:

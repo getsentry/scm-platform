@@ -8,6 +8,7 @@ import base64
 import datetime
 import functools
 import ipaddress
+import socket
 import ssl
 import sys
 import tempfile
@@ -23,6 +24,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 from requests.adapters import HTTPAdapter
 from requests.structures import CaseInsensitiveDict
+from urllib3 import HTTPSConnectionPool
+from urllib3.connection import HTTPSConnection
 
 
 @dataclass
@@ -136,6 +139,27 @@ class ClosingAdapter(HTTPAdapter):
     def close(self) -> None:
         self.closed = True
         super().close()
+
+
+class HostRefused(Exception):
+    """Stands in for Sentry's ``RestrictedIPAddress``, which is neither a requests nor a urllib3 exception."""
+
+
+class _RefusingConnection(HTTPSConnection):
+    def _new_conn(self) -> socket.socket:
+        raise HostRefused(f"{self.host} is an internal address")
+
+
+class _RefusingPool(HTTPSConnectionPool):
+    ConnectionCls = _RefusingConnection
+
+
+class RefusingAdapter(HTTPAdapter):
+    """Refuses every host as it connects, from inside urllib3 the way Sentry's ``BlacklistAdapter`` does."""
+
+    def init_poolmanager(self, *args, **kwargs) -> None:
+        super().init_poolmanager(*args, **kwargs)
+        self.poolmanager.pool_classes_by_scheme = {"https": _RefusingPool}
 
 
 def echo(handler: UpstreamHandler) -> None:

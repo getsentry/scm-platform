@@ -33,6 +33,7 @@ _STATUS: dict[ErrorCode, int] = {
     "missing_repository_path": 500,
     # The provider cannot be reached safely, or failed.
     "git_remote_not_https": 502,
+    "git_remote_refused": 502,
     "git_token_rejected": 502,
     "git_token_unavailable": 502,
     "resource_bad_gateway": 502,
@@ -59,8 +60,9 @@ class GitServer:
     when it failed, as tags: ``repository_id`` as requested, then ``organization_id`` and ``referrer`` once the
     grant is verified, ``operation``, ``provider`` and ``remote_host``. A tag is missing when the request failed
     before it was known. A client closing its request is not reported, since there is nothing to fix. Any other
-    exception, such as an adapter refusing a host or the token supplier failing, reaches the caller unchanged, so
-    the caller can answer it the way it answers the same error elsewhere.
+    exception, such as the token supplier failing, or the relay's adapter refusing a host with an error its
+    ``refused_host_errors`` does not name, reaches the caller unchanged, so the caller can answer it the way it
+    answers the same error elsewhere.
 
     Every count is tagged with the grant's ``referrer`` once the grant is verified, so Sentry can tell a coding
     job's clone from Seer's own fetch or push.

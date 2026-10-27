@@ -11,6 +11,7 @@ from scm.errors import (
     ClientClosedRequest,
     GitOperationNotGranted,
     GitRemoteNotHttps,
+    GitRemoteRefused,
     GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
@@ -106,10 +107,12 @@ class GitRelay:
     ``adapter`` builds the adapter that sends each upstream request. Pass one that refuses internal addresses: a
     GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay connects
     wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients, and the class itself can be
-    passed. An error the adapter raises for a refused host reaches the caller unchanged, unless it is a requests or
-    urllib3 exception, which the relay replaces like any other so that it cannot carry the token. The adapter must
-    not retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
-    ``HTTPAdapter``, which checks nothing.
+    passed. ``refused_host_errors`` names the exception classes the adapter raises for a refused host, such as
+    Sentry's ``RestrictedIPAddress``; the relay raises ``GitRemoteRefused`` in their place, which GitServer answers
+    like its other refusals. Any other error the adapter raises reaches the caller unchanged, unless it is a requests
+    or urllib3 exception, which the relay replaces like any other so that it cannot carry the token. The adapter
+    must not retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses
+    a plain ``HTTPAdapter``, which checks nothing.
 
     The relay takes no settings from the environment. Through a proxy from ``HTTPS_PROXY``, the adapter would
     check the proxy's address rather than the provider's. ``ca_bundle`` names a CA file to trust instead of the
@@ -120,11 +123,19 @@ class GitRelay:
         self,
         *,
         adapter: Callable[[], HTTPAdapter] = HTTPAdapter,
+        refused_host_errors: tuple[type[Exception], ...] = (),
         ca_bundle: str | None = None,
         timeout: tuple[float, float] = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> None:
+        # Checked now rather than when a request fails: in an except clause, anything but a tuple of exception
+        # classes turns every failed request into a TypeError chained to the original error.
+        if not isinstance(refused_host_errors, tuple) or not all(
+            isinstance(error, type) and issubclass(error, Exception) for error in refused_host_errors
+        ):
+            raise TypeError("refused_host_errors must be a tuple of exception classes.")
         self.adapter = adapter
+        self.refused_host_errors = refused_host_errors
         self.ca_bundle = ca_bundle
         self.timeout = timeout
         self.chunk_size = chunk_size
@@ -202,6 +213,10 @@ class GitRelay:
                 allow_redirects=False,
                 timeout=self.timeout,
             )
+        # First, in case the adapter refuses with a requests exception. "from None" drops the refusal: raised as the
+        # adapter connects, its traceback runs through urllib3's frames, which hold the Authorization header.
+        except self.refused_host_errors:
+            raise GitRemoteRefused() from None
         # "from None" drops requests' exception, whose request holds the Authorization header.
         except requests.Timeout:
             raise ResourceGatewayTimeout() from None
