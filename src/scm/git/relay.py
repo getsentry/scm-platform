@@ -21,6 +21,7 @@ from scm.errors import (
 )
 from scm.git.types import GitOperation, Grant, Readable
 from scm.rpc.types import StreamResponse
+from scm.secret import Secret
 from scm.types import GitRemote, RepositoryId
 
 # The most bytes the relay reads at once, from the client's body or from the provider's response, so also the
@@ -107,7 +108,9 @@ class GitRelay:
     GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay connects
     wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients, and the class itself can be
     passed. An error the adapter raises for a refused host reaches the caller unchanged, unless it is a requests or
-    urllib3 exception, which the relay replaces like any other so that it cannot carry the token. The adapter must
+    urllib3 exception, which the relay replaces like any other so that it cannot carry the token. One that reaches
+    the caller does carry it: an adapter refusing the host as it connects raises through urllib3's frames, which hold
+    the Authorization header, so report such an error without its frames' local variables. The adapter must
     not retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
     ``HTTPAdapter``, which checks nothing.
 
@@ -132,7 +135,7 @@ class GitRelay:
     def forward(
         self,
         remote: GitRemote,
-        token: str,
+        token: Secret,
         *,
         method: str,
         route: str,
@@ -154,7 +157,7 @@ class GitRelay:
         # The token never goes to anything but a git route, whatever the caller checked.
         if (method, route, query) not in _ROUTES:
             raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
-        if not f"{remote['basic_auth_username']}:{token}".isascii():
+        if not f"{remote['basic_auth_username']}:{token.reveal()}".isascii():
             # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
             # issues such a token, so the caller has a bug; the message leaves the token out.
             raise ValueError(f"The credentials for {remote['url']} contain characters that are not ASCII.")
@@ -196,7 +199,7 @@ class GitRelay:
                 url,
                 headers=upstream_headers,
                 data=data,
-                auth=HTTPBasicAuth(remote["basic_auth_username"], token),
+                auth=HTTPBasicAuth(remote["basic_auth_username"], token.reveal()),
                 stream=True,
                 # Following a redirect would send the request somewhere other than the repository's remote.
                 allow_redirects=False,
