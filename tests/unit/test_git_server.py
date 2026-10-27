@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from scm.errors import ClientClosedRequest, RateLimitExceeded
+from scm.errors import ClientClosedRequest, GitRemoteRefused, RateLimitExceeded
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
@@ -405,7 +405,10 @@ class TestRelay:
         recorder = Recorder(
             repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
         )
-        relay = GitRelay(adapter=RefusingAdapter, refused_host_errors=(HostRefused,))
+        relay = GitRelay(
+            adapter=RefusingAdapter,
+            map_error=lambda error: GitRemoteRefused() if isinstance(error, HostRefused) else None,
+        )
         response = request(make_server(recorder, relay), signed_grant())
         assert_refused(response, 502, "at an address Sentry does not connect to")
         assert recorder.counts == [
@@ -487,8 +490,8 @@ class TestRelay:
         assert 401 not in _STATUS.values()
 
     def test_other_errors_reach_the_caller(self):
-        # Sentry's view answers these the way it answers them elsewhere, e.g. a refusal from an adapter whose error
-        # the relay was not told about.
+        # Sentry's view answers these the way it answers them elsewhere, e.g. an adapter's error that the relay's
+        # map_error leaves alone.
         relay = MagicMock(spec=GitRelay)
         relay.forward.side_effect = HostRefused()
         recorder = Recorder()

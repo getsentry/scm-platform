@@ -60,9 +60,8 @@ class GitServer:
     when it failed, as tags: ``repository_id`` as requested, then ``organization_id`` and ``referrer`` once the
     grant is verified, ``operation``, ``provider`` and ``remote_host``. A tag is missing when the request failed
     before it was known. A client closing its request is not reported, since there is nothing to fix. Any other
-    exception, such as the token supplier failing, or the relay's adapter refusing a host with an error its
-    ``refused_host_errors`` does not name, reaches the caller unchanged, so the caller can answer it the way it
-    answers the same error elsewhere.
+    exception, such as the token supplier failing, or an error of the relay's adapter that its ``map_error`` leaves
+    alone, reaches the caller unchanged, so the caller can answer it the way it answers the same error elsewhere.
 
     Every count is tagged with the grant's ``referrer`` once the grant is verified, so Sentry can tell a coding
     job's clone from Seer's own fetch or push.
