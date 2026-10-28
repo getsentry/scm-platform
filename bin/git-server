@@ -174,7 +174,7 @@ def github_backend(path: str, creds: dict[str, str], ca_bundle: str | None) -> B
         repository_at(path),
         repository_at,
         fetch_provider,
-        lambda repository, operation: token_manager.installation_token,
+        lambda repository, operation: Secret(token_manager.installation_token),
     )
 
 
@@ -194,7 +194,7 @@ def gitlab_backend(path: str, creds: dict[str, str]) -> Backend:
         return GitLabProvider(client=client, organization_id=organization_id, repository=repository)
 
     return Backend(
-        "gitlab", repository_at(path), repository_at, fetch_provider, lambda repository, operation: access_token
+        "gitlab", repository_at(path), repository_at, fetch_provider, lambda repository, operation: Secret(access_token)
     )
 
 
@@ -477,7 +477,7 @@ class Checks:
         )
         server.shutdown()
 
-        rejecting = self.start(get_token=lambda repository, operation: "not-a-valid-token")
+        rejecting = self.start(get_token=lambda repository, operation: Secret("not-a-valid-token"))
         result = self.git(fetch_grant, "ls-remote", f"{rejecting.url}/{self.backend.repository['name']}.git")
         self.check(
             "a rejected token fails without asking for credentials",

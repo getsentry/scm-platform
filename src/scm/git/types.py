@@ -3,6 +3,7 @@ from typing import Literal, Protocol
 
 import msgspec
 
+from scm.secret import Secret
 from scm.types import Referrer, Repository, RepositoryId
 
 type GitOperation = Literal["fetch", "push"]
@@ -48,8 +49,11 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
     """The format version. A verifier refuses a version it does not know."""
 
 
-type GetToken = Callable[[Repository, GitOperation], str | None]
-"""Return a provider token that can run ``operation`` on ``repository``, or None if there is none."""
+type GetToken = Callable[[Repository, GitOperation], Secret | None]
+"""Return a provider token that can run ``operation`` on ``repository``, or None if there is none.
+
+Wrap the token in a ``Secret`` where you read it. GitServer and the relay hold it in their frames' local variables,
+which an error report sends."""
 
 
 class Readable(Protocol):

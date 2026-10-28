@@ -142,6 +142,15 @@ class GitServer:
                 raise GitTokenUnavailable(
                     detail=f"Sentry could not get a {repository['provider_name']} token for this repository."
                 )
+            if not isinstance(token, Secret):
+                # A plain string, from code the type checker does not see. Every frame from here to the provider
+                # would show it in an error report; dropped before refusing it, so this error's report does not.
+                token_type = type(token).__name__
+                del token
+                raise TypeError(
+                    f"get_token must return an scm.Secret, not {token_type}. Wrap the token in scm.Secret where you "
+                    "read it."
+                )
             response = self.relay.forward(
                 remote, token, method=method, route=route, query=query, headers=headers, body=counted_body
             )

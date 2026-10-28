@@ -24,7 +24,9 @@ from scm.errors import (
     SCMCodedError,
 )
 from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
+from scm.secret import Secret
 from scm.types import GitRemote
+from tests.unit.error_reports import assert_not_in_frames, reported_local
 from tests.unit.git_builders import make_grant
 from tests.unit.git_upstream import (
     ClosingAdapter,
@@ -36,7 +38,7 @@ from tests.unit.git_upstream import (
     running_upstream,
 )
 
-TOKEN = "ghs_secrettoken"
+TOKEN = Secret("ghs_secrettoken")
 # Long enough that a relay that buffers fails the test instead of hanging it.
 WAIT = 5
 
@@ -87,7 +89,7 @@ class TestRequest:
         [request] = upstream.requests
         assert request.method == "GET"
         assert request.path == "/getsentry/sentry.git/info/refs?service=git-upload-pack"
-        assert request.headers["Authorization"] == basic_auth("x-access-token", TOKEN)
+        assert request.headers["Authorization"] == basic_auth("x-access-token", TOKEN.reveal())
 
     def test_git_headers_pass_through(self, relay, upstream):
         body = gzip.compress(b"0000")
@@ -130,7 +132,7 @@ class TestRequest:
             ).content
         )
         [request] = upstream.requests
-        assert request.headers["Authorization"] == basic_auth("x-access-token", TOKEN)
+        assert request.headers["Authorization"] == basic_auth("x-access-token", TOKEN.reveal())
         assert request.headers["Host"] == upstream.url.removeprefix("https://")
         for name in ("X-Scm-Git-Grant", "Cookie", "X-Forwarded-For"):
             assert name not in request.headers
@@ -558,7 +560,7 @@ class TestUpstreamFailures:
 
 @pytest.mark.parametrize(
     ("basic_auth_username", "token"),
-    [("x-access-token", "ghs_tok\u20acn"), ("x-acc\u00e9ss-token", TOKEN)],
+    [("x-access-token", "ghs_tok\u20acn"), ("x-acc\u00e9ss-token", TOKEN.reveal())],
     ids=["token", "basic_auth_username"],
 )
 def test_refuses_credentials_that_are_not_ascii(upstream, basic_auth_username, token):
@@ -566,7 +568,7 @@ def test_refuses_credentials_that_are_not_ascii(upstream, basic_auth_username, t
     with pytest.raises(ValueError, match="not ASCII") as exc_info:
         GitRelay(ca_bundle=ca_bundle()).forward(
             remote,
-            token,
+            Secret(token),
             method="GET",
             route="info/refs",
             query="service=git-upload-pack",
@@ -582,8 +584,10 @@ def assert_token_not_in(error: Exception) -> None:
     # The requests exception holds the prepared request and its Authorization header, so it must not be chained.
     assert error.__cause__ is None
     assert error.__suppress_context__
-    assert TOKEN not in str(error)
-    assert basic_auth("x-access-token", TOKEN) not in repr(error)
+    assert TOKEN.reveal() not in str(error)
+    assert_not_in_frames(error, TOKEN.reveal())
+    assert reported_local(error, "forward", "token") == "[Filtered]"
+    assert basic_auth("x-access-token", TOKEN.reveal()) not in repr(error)
 
 
 def upstream_stream(*chunks: bytes | Exception) -> tuple[_UpstreamStream, MagicMock, MagicMock]:
