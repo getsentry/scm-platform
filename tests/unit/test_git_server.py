@@ -15,12 +15,12 @@ from scm.git.types import GRANT_HEADER, GitOperation, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
-from tests.unit.error_reports import assert_not_in_frames
+from tests.unit.error_reports import assert_not_in_frames, reported_local
 from tests.unit.git_builders import make_grant, make_provider, make_repository
 from tests.unit.git_upstream import ClosingAdapter, basic_auth, running_upstream
 
 SECRET = Secret("test-secret-0000000000000000000000")
-TOKEN = "ghs_secrettoken"
+TOKEN = Secret("ghs_secrettoken")
 REFERRER = make_grant().referrer
 
 
@@ -29,7 +29,7 @@ def signed_grant(**overrides) -> str:
 
 
 class Recorder:
-    def __init__(self, repository: Repository | None = None, token: str | None = TOKEN) -> None:
+    def __init__(self, repository: Repository | None = None, token: Secret | None = TOKEN) -> None:
         self.repository = make_repository() if repository is None else repository
         self.token = token
         self.repository_lookups: list[tuple[int, RepositoryId]] = []
@@ -47,7 +47,7 @@ class Recorder:
         self.provider_lookups.append((organization_id, repository))
         return make_provider(organization_id, repository)
 
-    def get_token(self, repository: Repository, operation: GitOperation) -> str | None:
+    def get_token(self, repository: Repository, operation: GitOperation) -> Secret | None:
         self.token_lookups.append((repository, operation))
         return self.token
 
@@ -379,7 +379,7 @@ class TestRelay:
         response = request(make_server(recorder, GitRelay(timeout=(1, 1))), signed_grant())
         assert_refused(response, 503, "temporarily unavailable")
         assert "127.0.0.1" not in b"".join(response.content).decode()
-        assert TOKEN not in b"".join(response.content).decode()
+        assert TOKEN.reveal() not in b"".join(response.content).decode()
 
     def test_reported_remote_host_leaves_out_credentials_in_the_url(self):
         recorder = Recorder(
@@ -521,12 +521,12 @@ class TestRelay:
             b"".join(response.content)
         [received] = upstream.requests
         assert received.path == "/getsentry/sentry.git/info/refs?service=git-upload-pack"
-        assert received.headers["Authorization"] == basic_auth("x-access-token", TOKEN)
+        assert received.headers["Authorization"] == basic_auth("x-access-token", TOKEN.reveal())
         assert GRANT_HEADER not in received.headers
 
 
 class TestKeptOutOfErrorReports:
-    """What GitServer passes to emit_error is reported to Sentry, with every frame's local variables."""
+    """What GitServer passes to emit_error or raises is reported to Sentry, with every frame's local variables."""
 
     def test_refused_grant_leaves_out_the_signing_secret(self):
         recorder = Recorder()
@@ -547,3 +547,36 @@ class TestKeptOutOfErrorReports:
         assert error.code != "git_invalid_grant"  # type: ignore[attr-defined]
         assert_not_in_frames(error, grant)
         assert_not_in_frames(error, SECRET.reveal())
+
+    def test_relay_failure_leaves_out_the_provider_token(self):
+        recorder = Recorder(
+            repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
+        )
+        request(make_server(recorder, GitRelay(timeout=(1, 1))), signed_grant())
+        [(error, _)] = recorder.errors
+        assert error.code == "resource_service_unavailable"  # type: ignore[attr-defined]
+        assert_not_in_frames(error, TOKEN.reveal())
+        # Not because the frames dropped it: both hold it, masked.
+        assert reported_local(error, "handle", "token") == "[Filtered]"
+        assert reported_local(error, "forward", "token") == "[Filtered]"
+
+    def test_rejected_token_is_left_out(self):
+        recorder = Recorder()
+        request(make_server(recorder, relay_returning(chunks(b"Bad credentials"), 401)), signed_grant())
+        [(error, _)] = recorder.errors
+        assert error.code == "git_token_rejected"  # type: ignore[attr-defined]
+        assert_not_in_frames(error, TOKEN.reveal())
+        assert reported_local(error, "handle", "token") == "[Filtered]"
+
+    def test_token_that_is_not_a_secret_is_refused_and_left_out(self):
+        # A plain string from code the type checker does not see, which the caller would report with its frames.
+        recorder = Recorder(token=TOKEN.reveal())  # type: ignore[arg-type]
+        server = make_server(recorder)
+        with pytest.raises(TypeError, match=r"^get_token must return an scm\.Secret, not str\.") as exc_info:
+            request(server, signed_grant())
+        assert TOKEN.reveal() not in str(exc_info.value)
+        assert_not_in_frames(exc_info.value, TOKEN.reveal())
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "unhandled_exception"})
+        ]
