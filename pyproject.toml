@@ -13,7 +13,9 @@ dependencies = [
     # Git grants are signed with Ed25519 keys, which scm.git.grant parses and PyJWT's EdDSA needs.
     "cryptography>=48.0.1",
     "msgspec>=0.19.0",
-    "pyjwt>=2.9.0",
+    # PyJWT reads a grant's header before it checks the signature. Before 2.14.0, a deeply nested header raised
+    # RecursionError rather than DecodeError, so the git endpoint failed instead of refusing it (GHSA-8wjv-2p76-3863).
+    "pyjwt>=2.14.0",
     "requests>=2.32.4",
     # The git relay streams responses through urllib3 directly. Before 2.8.0, a server could make its chunked
     # reader buffer without limit (GHSA-vxq7-64xx-v4gw).

@@ -197,9 +197,9 @@ class TestAlgorithms:
         )
         assert_invalid(token, "alg value is not allowed")
 
-    @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
     def test_hs256(self):
-        token = sign_claims(claims_of(make_grant()), key="test-only-hmac-key", algorithm="HS256")
+        # 32 bytes, the shortest HS256 key PyJWT signs with without warning.
+        token = sign_claims(claims_of(make_grant()), key="test-only-hmac-key-for-hs256-32b", algorithm="HS256")
         assert_invalid(token, "alg value is not allowed")
 
     def test_unsigned_token(self):
@@ -355,6 +355,13 @@ class TestMalformed:
     def test_key_id_that_is_not_a_string(self, kid):
         # PyJWT refuses it while reading the header, and the grant is refused rather than failing the request.
         assert_invalid(handmade_token({"alg": "EdDSA", "kid": kid}, claims_of(make_grant())), "malformed")
+
+    def test_deeply_nested_header(self):
+        # PyJWT reads the header before it checks the signature, so anyone can send one. Before PyJWT 2.14.0, nesting
+        # deeper than json's recursion limit raised RecursionError, which failed the request (GHSA-8wjv-2p76-3863).
+        depth = 100_000
+        header = b64url(b'{"alg":"EdDSA","kid":' + b"[" * depth + b"]" * depth + b"}")
+        assert_invalid(f"{header}.{b64url(b'{}')}.", "malformed")
 
     def test_missing(self):
         assert_invalid("", "missing")
