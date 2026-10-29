@@ -21,8 +21,12 @@ Configuration:
     github / gitlab                          The repository's provider (required)
     --repository / SCM_GIT_REPOSITORY        The repository's path on the provider,
                                              e.g. getsentry/scm-platform (required)
-    --secret / SCM_GIT_GRANT_SECRET          Secret grants are signed with (default: a random
-                                             one per run; set it to sign your own grants)
+    --signing-key / SCM_GIT_GRANT_SIGNING_KEY_PATH
+                                             Ed25519 private key file (PEM) that grants are
+                                             signed with, e.g. from `openssl genpkey -algorithm
+                                             ed25519` (default: a new key per run; set it to
+                                             sign your own grants). The server verifies grants
+                                             with its public key.
     --ca-bundle / SCM_GIT_CA_BUNDLE          CA file to trust instead of the system's, for an
                                              instance with a private CA; used for the relay and
                                              for fetching GitHub installation tokens
@@ -91,8 +95,11 @@ from pathlib import Path
 from types import ModuleType
 from urllib.parse import urlsplit
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+
 from scm import Secret
-from scm.git.grant import sign_grant
+from scm.git.grant import public_key_of, sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
 from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
@@ -219,9 +226,32 @@ def _require(**values: str | None) -> None:
         sys.exit(1)
 
 
+def grant_keys(signing_key_path: str | None) -> tuple[Secret, str]:
+    """The private key grants are signed with, and its public key, which the server verifies them with.
+
+    The private key is read from ``signing_key_path``, or else made up for this run: the server prints grants for
+    its repository, so nothing else needs to know it.
+    """
+    if not signing_key_path:
+        key = Ed25519PrivateKey.generate()
+        private_key = Secret(key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode())
+        return private_key, public_key_of(private_key)
+    try:
+        # Bytes that are not UTF-8, as in a DER file, become U+FFFD, so the error says the file is not PEM rather
+        # than quoting a byte of it.
+        private_key = Secret(Path(signing_key_path).read_text(errors="replace"))
+        return private_key, public_key_of(private_key)
+    except OSError as e:
+        logger.error(f"Error: cannot read {signing_key_path}: {e.strerror or e}.")
+    except ValueError as e:
+        # scm.git.grant's messages name no key material.
+        logger.error(f"Error: {signing_key_path}: {e}")
+    sys.exit(1)
+
+
 def make_git_server(
     backend: Backend,
-    secret: Secret,
+    public_key: str,
     ca_bundle: str | None,
     get_token: GetToken | None = None,
     repository: Repository | None = None,
@@ -239,7 +269,7 @@ def make_git_server(
         logger.debug(f"emit_error {error!r} {context}")
 
     return GitServer(
-        secrets=[secret],
+        public_keys=[public_key],
         fetch_repository=fetch_repository,
         fetch_provider=backend.fetch_provider,
         get_token=get_token or backend.get_token,
@@ -251,7 +281,7 @@ def make_git_server(
     )
 
 
-def grant_for(secret: Secret, operation: GitOperation, repository_id: RepositoryId) -> str:
+def grant_for(private_key: Secret, operation: GitOperation, repository_id: RepositoryId) -> str:
     grant = Grant(
         organization_id=ORGANIZATION_ID,
         referrer=REFERRER,
@@ -259,7 +289,7 @@ def grant_for(secret: Secret, operation: GitOperation, repository_id: Repository
         repositories=[repository_id],
         expires_at=int(time.time()) + GRANT_TTL,
     )
-    return sign_grant(secret, grant)
+    return sign_grant(private_key, grant)
 
 
 class GitHandler(BaseHTTPRequestHandler):
@@ -378,11 +408,11 @@ class ChunkedBody:
 
 def serve(backend: Backend, args: argparse.Namespace) -> None:
     server = GitHTTPServer(
-        (args.host, args.port), make_git_server(backend, args.secret, args.ca_bundle), backend.provider_name
+        (args.host, args.port), make_git_server(backend, args.public_key, args.ca_bundle), backend.provider_name
     )
     url = f"{server.url}/{backend.repository['name']}.git"
-    fetch_grant = grant_for(args.secret, "fetch", backend.repository_id)
-    push_grant = grant_for(args.secret, "push", backend.repository_id)
+    fetch_grant = grant_for(args.private_key, "fetch", backend.repository_id)
+    push_grant = grant_for(args.private_key, "push", backend.repository_id)
     logger.info(
         f"Serving {backend.provider_name} repository {backend.repository['name']} at {url}\n\n"
         f"Grants, valid for {GRANT_TTL // 60} minutes:\n"
@@ -415,7 +445,7 @@ class Checks:
         }
 
     def start(self, get_token: GetToken | None = None, repository: Repository | None = None) -> GitHTTPServer:
-        git = make_git_server(self.backend, self.args.secret, self.args.ca_bundle, get_token, repository)
+        git = make_git_server(self.backend, self.args.public_key, self.args.ca_bundle, get_token, repository)
         server = GitHTTPServer((self.args.host, 0), git, self.backend.provider_name)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         return server
@@ -450,8 +480,8 @@ class Checks:
     def run(self) -> int:
         repository_id = self.backend.repository_id
         other_repository_id = (self.backend.provider_name, f"{self.backend.repository['name']}-other")
-        fetch_grant = grant_for(self.args.secret, "fetch", repository_id)
-        push_grant = grant_for(self.args.secret, "push", repository_id)
+        fetch_grant = grant_for(self.args.private_key, "fetch", repository_id)
+        push_grant = grant_for(self.args.private_key, "push", repository_id)
 
         server = self.start()
         url = f"{server.url}/{self.backend.repository['name']}.git"
@@ -472,7 +502,7 @@ class Checks:
         )
         self.expect_refusal(
             "a grant for another repository is refused",
-            self.git(grant_for(self.args.secret, "fetch", other_repository_id), "ls-remote", url),
+            self.git(grant_for(self.args.private_key, "fetch", other_repository_id), "ls-remote", url),
             "The git grant does not cover this repository.",
         )
         server.shutdown()
@@ -492,7 +522,7 @@ class Checks:
         missing = self.backend.repository_at(f"{self.backend.repository['name']}-does-not-exist")
         server = self.start(repository=missing)
         result = self.git(
-            grant_for(self.args.secret, "fetch", repository_id_of(self.backend.provider_name, missing)),
+            grant_for(self.args.private_key, "fetch", repository_id_of(self.backend.provider_name, missing)),
             "ls-remote",
             f"{server.url}/{missing['name']}.git",
         )
@@ -550,7 +580,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Git endpoint relaying to GitHub or GitLab through GitServer")
     parser.add_argument("provider", choices=["github", "gitlab"])
     parser.add_argument("--repository", default=None)
-    parser.add_argument("--secret", default=None)
+    parser.add_argument("--signing-key", default=None)
     parser.add_argument("--ca-bundle", default=None)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
@@ -564,8 +594,7 @@ def main() -> None:
 
     creds = load_credentials()
     args.repository = resolve("SCM_GIT_REPOSITORY", args.repository, creds)
-    # The server prints grants for its repository, so nothing else needs to know a secret it makes up.
-    args.secret = Secret(resolve("SCM_GIT_GRANT_SECRET", args.secret, creds) or secrets.token_hex(32))
+    args.private_key, args.public_key = grant_keys(resolve("SCM_GIT_GRANT_SIGNING_KEY_PATH", args.signing_key, creds))
     args.ca_bundle = resolve("SCM_GIT_CA_BUNDLE", args.ca_bundle, creds)
     _require(SCM_GIT_REPOSITORY=args.repository)
     path = args.repository.strip("/").removesuffix(".git")

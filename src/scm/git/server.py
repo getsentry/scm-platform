@@ -2,12 +2,12 @@ from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
 from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
-from scm.git.grant import verify_grant
+from scm.git.grant import require_public_keys, verify_grant
 from scm.git.relay import GitRelay, ResponseBody, authorize_request
 from scm.git.types import GRANT_HEADER, GetToken, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
-from scm.secret import Secret, require_secrets
+from scm.secret import Secret
 from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 
 # The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
@@ -46,6 +46,9 @@ _STATUS: dict[ErrorCode, int] = {
 class GitServer:
     """Serves a git endpoint: checks each request against its grant, then relays it with a provider token.
 
+    Grants are verified against ``public_keys``, the Ed25519 public keys in PEM whose private keys sign them; see
+    ``scm.git.grant``.
+
     The order of the checks matters. The grant is verified, and the request's route and repository checked
     against it, before the repository and its provider are looked up or a token fetched, so a request the grant
     does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
@@ -75,7 +78,7 @@ class GitServer:
 
     def __init__(
         self,
-        secrets: Sequence[Secret],
+        public_keys: Sequence[str],
         fetch_repository: Callable[[int, RepositoryId], Repository | None],
         fetch_provider: Callable[[int, Repository], Provider | None],
         get_token: GetToken,
@@ -84,9 +87,7 @@ class GitServer:
         relay: GitRelay,
     ) -> None:
         # Fail when the server is built rather than on every request, because no grant could ever verify.
-        if not secrets or not all(secrets):
-            raise ValueError("GitServer needs at least one secret, and none may be empty.")
-        self.secrets = require_secrets(secrets, parameter="secrets")
+        self.public_keys = require_public_keys(public_keys)
         self.fetch_repository = fetch_repository
         self.fetch_provider = fetch_provider
         self.get_token = get_token
@@ -119,7 +120,7 @@ class GitServer:
         context = {"repository_id": str(repository_id)}
         referrer_tag: dict[str, str] = {}
         try:
-            grant = verify_grant(self.secrets, grant_token.reveal())
+            grant = verify_grant(self.public_keys, grant_token.reveal())
             context["organization_id"] = str(grant.organization_id)
             referrer_tag["referrer"] = context["referrer"] = grant.referrer
             operation = authorize_request(grant, repository_id, method, route, query)

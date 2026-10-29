@@ -1,28 +1,41 @@
 import base64
 import hashlib
+import hmac
 import time
+from collections.abc import Callable
+from typing import Any
 
 import jwt
 import msgspec
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec, ed448, rsa
+from cryptography.hazmat.primitives.serialization import (
+    BestAvailableEncryption,
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+    load_pem_public_key,
+)
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
-from scm.git.grant import GRANT_AUDIENCE, sign_grant, verify_grant
+from scm.git.grant import GRANT_AUDIENCE, public_key_of, require_public_keys, sign_grant, verify_grant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
 from scm.secret import Secret
-from tests.unit.git_builders import FAR_FUTURE, make_grant
+from tests.unit.error_reports import assert_not_in_frames
+from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair
 
 # Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
 NOW = 1_700_000_000
-# HS256 secrets of at least 32 bytes, as PyJWT recommends.
-SECRET = Secret("test-secret-0000000000000000000000")
-OLD_SECRET = Secret("test-secret-old-000000000000000000")
-NEW_SECRET = Secret("test-secret-new-000000000000000000")
-OTHER_SECRET = Secret("other-secret-0000000000000000000000")
+KEY = make_key_pair()
+OLD_KEY = make_key_pair()
+NEW_KEY = make_key_pair()
+OTHER_KEY = make_key_pair()
 
 
-def key_id(secret: Secret) -> str:
-    return hashlib.sha256(secret.reveal().encode()).hexdigest()[:8]
+def key_id(key: KeyPair) -> str:
+    raw = load_pem_public_key(key.public.encode()).public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return hashlib.sha256(raw).hexdigest()[:16]
 
 
 def claims_of(grant: Grant) -> dict:
@@ -31,29 +44,52 @@ def claims_of(grant: Grant) -> dict:
     return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
 
 
-def sign_claims(claims: dict, secret: Secret = SECRET, algorithm: str = "HS256", kid: str | None = None) -> str:
+def sign_claims(claims: dict, key: Any = KEY.key, algorithm: str = "EdDSA", kid: str | None = None) -> str:
     """Sign arbitrary claims the way sign_grant does, to reach the checks that run after the signature."""
-    return jwt.encode(claims, secret.reveal(), algorithm=algorithm, headers={"kid": kid or key_id(secret)})
+    return jwt.encode(claims, key, algorithm=algorithm, headers={"kid": kid or key_id(KEY)})
 
 
-def assert_invalid(token: str, detail: str, secrets: list[Secret] | None = None) -> None:
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def b64url_decode(data: str) -> bytes:
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+
+
+def handmade_token(header: dict, claims: dict, sign: Callable[[bytes], bytes] = lambda signing_input: b"") -> str:
+    """A JWT that PyJWT refuses to encode."""
+    signing_input = f"{b64url(msgspec.json.encode(header))}.{b64url(msgspec.json.encode(claims))}"
+    return f"{signing_input}.{b64url(sign(signing_input.encode()))}"
+
+
+def assert_invalid(token: str, detail: str, public_keys: list[str] | None = None) -> None:
     with pytest.raises(GitInvalidGrant) as exc_info:
-        verify_grant(secrets or [SECRET], token, now=NOW)
+        verify_grant(public_keys or [KEY.public], token, now=NOW)
     assert detail in exc_info.value.detail
+
+
+def pem_body(pem: str) -> str:
+    """The base64 between a PEM's delimiters: the key material an error must not echo."""
+    return "".join(line for line in pem.splitlines() if not line.startswith("-----"))
 
 
 class TestRoundTrip:
     def test_verifies_what_it_signed(self):
         grant = make_grant()
-        assert verify_grant([SECRET], sign_grant(SECRET, grant, now=NOW), now=NOW) == grant
+        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
+
+    def test_public_key_of_the_signing_key(self):
+        # make_key_pair serializes the public key with cryptography directly, not through public_key_of.
+        assert public_key_of(KEY.private) == KEY.public
 
     def test_push_grant(self):
         grant = make_grant(operation="push")
-        assert verify_grant([SECRET], sign_grant(SECRET, grant, now=NOW), now=NOW).operation == "push"
+        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW).operation == "push"
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
-        token = sign_grant(SECRET, make_grant(), now=NOW)
-        assert jwt.get_unverified_header(token) == {"alg": "HS256", "typ": "JWT", "kid": key_id(SECRET)}
+        token = sign_grant(KEY.private, make_grant(), now=NOW)
+        assert jwt.get_unverified_header(token) == {"alg": "EdDSA", "typ": "JWT", "kid": key_id(KEY)}
         assert jwt.decode(token, options={"verify_signature": False}) == {
             "organization_id": 1,
             "referrer": "seer.coding_job",
@@ -65,36 +101,48 @@ class TestRoundTrip:
             "aud": GRANT_AUDIENCE,
         }
 
+    def test_key_id_is_the_same_for_every_grant_a_key_signs(self):
+        # The signer derives it from its private key and the verifier from the public key, with no setting to match.
+        tokens = [sign_grant(KEY.private, make_grant(organization_id=i), now=NOW) for i in (1, 2)]
+        assert {jwt.get_unverified_header(token)["kid"] for token in tokens} == {key_id(KEY)}
+        assert key_id(KEY) != key_id(OTHER_KEY)
+
+    def test_public_key_with_surrounding_whitespace(self):
+        # As a setting read from a file or an environment variable may have.
+        token = sign_grant(KEY.private, make_grant(), now=NOW)
+        assert verify_grant([f"\n  {KEY.public}\n\n"], token, now=NOW) == make_grant()
+
 
 class TestExpiry:
     def test_expired(self):
         with pytest.raises(GitGrantExpired, match="expired"):
-            verify_grant([SECRET], sign_grant(SECRET, make_grant(expires_at=NOW - 1), now=NOW), now=NOW)
+            verify_grant([KEY.public], sign_grant(KEY.private, make_grant(expires_at=NOW - 1), now=NOW), now=NOW)
 
     def test_expires_at_its_expiry_time(self):
         with pytest.raises(GitGrantExpired):
-            verify_grant([SECRET], sign_grant(SECRET, make_grant(expires_at=NOW), now=NOW), now=NOW)
+            verify_grant([KEY.public], sign_grant(KEY.private, make_grant(expires_at=NOW), now=NOW), now=NOW)
 
     def test_forged_grant_is_invalid_even_when_expired(self):
         # Expiry is checked only once the signature matches, so an expired grant is always a genuine one.
-        token = sign_grant(OTHER_SECRET, make_grant(expires_at=NOW - 1), now=NOW)
-        assert_invalid(token, "not signed with a known secret")
+        token = sign_grant(OTHER_KEY.private, make_grant(expires_at=NOW - 1), now=NOW)
+        assert_invalid(token, "not signed with a known key")
 
     def test_valid_until_its_expiry_time(self):
-        token = sign_grant(SECRET, make_grant(expires_at=NOW + 1), now=NOW)
-        assert verify_grant([SECRET], token, now=NOW).expires_at == NOW + 1
+        token = sign_grant(KEY.private, make_grant(expires_at=NOW + 1), now=NOW)
+        assert verify_grant([KEY.public], token, now=NOW).expires_at == NOW + 1
 
     # PyJWT checks iat against the real clock, so these sign against it too.
     def test_issued_in_the_future(self):
-        assert_invalid(sign_grant(SECRET, make_grant(), now=time.time() + 600), "not yet valid (iat)")
+        assert_invalid(sign_grant(KEY.private, make_grant(), now=time.time() + 600), "not yet valid (iat)")
 
     def test_issued_slightly_in_the_future(self):
         # The signer's clock may run a little ahead of the verifier's.
-        assert verify_grant([SECRET], sign_grant(SECRET, make_grant(), now=time.time() + 30), now=NOW) == make_grant()
+        token = sign_grant(KEY.private, make_grant(), now=time.time() + 30)
+        assert verify_grant([KEY.public], token, now=NOW) == make_grant()
 
     @pytest.mark.parametrize("iat", [float(NOW), NOW + 0.5])
     def test_iat_may_be_a_float(self, iat):
-        assert verify_grant([SECRET], sign_claims(claims_of(make_grant()) | {"iat": iat}), now=NOW) == make_grant()
+        assert verify_grant([KEY.public], sign_claims(claims_of(make_grant()) | {"iat": iat}), now=NOW) == make_grant()
 
     def test_iat_must_be_a_number(self):
         assert_invalid(sign_claims(claims_of(make_grant()) | {"iat": "yesterday"}), "iat")
@@ -108,30 +156,30 @@ class TestExpiry:
 
 class TestTampering:
     def test_changed_payload(self):
-        header, _, signature = sign_grant(SECRET, make_grant(), now=NOW).split(".")
-        forged = base64.urlsafe_b64encode(msgspec.json.encode(claims_of(make_grant(organization_id=2))))
-        assert_invalid(f"{header}.{forged.rstrip(b'=').decode()}.{signature}", "signature does not match")
+        header, _, signature = sign_grant(KEY.private, make_grant(), now=NOW).split(".")
+        forged = b64url(msgspec.json.encode(claims_of(make_grant(organization_id=2))))
+        assert_invalid(f"{header}.{forged}.{signature}", "signature does not match")
 
     def test_changed_signature(self):
-        header, payload, signature = sign_grant(SECRET, make_grant(), now=NOW).split(".")
-        flipped = bytearray(base64.urlsafe_b64decode(signature + "="))
+        header, payload, signature = sign_grant(KEY.private, make_grant(), now=NOW).split(".")
+        flipped = bytearray(b64url_decode(signature))
         flipped[0] ^= 1
-        resigned = base64.urlsafe_b64encode(bytes(flipped)).rstrip(b"=").decode()
-        assert_invalid(f"{header}.{payload}.{resigned}", "signature does not match")
+        assert_invalid(f"{header}.{payload}.{b64url(bytes(flipped))}", "signature does not match")
 
-    def test_unknown_secret(self):
-        assert_invalid(sign_grant(OTHER_SECRET, make_grant(), now=NOW), "not signed with a known")
+    def test_unknown_key(self):
+        assert_invalid(sign_grant(OTHER_KEY.private, make_grant(), now=NOW), "not signed with a known key")
 
-    def test_other_secret_claiming_a_known_key_id(self):
-        token = sign_claims(claims_of(make_grant()), secret=OTHER_SECRET, kid=key_id(SECRET))
-        assert_invalid(token, "signature does not match")
+    def test_no_key_id(self):
+        token = jwt.encode(claims_of(make_grant()), KEY.key, algorithm="EdDSA")
+        assert_invalid(token, "not signed with a known key")
 
-    def test_no_secrets(self):
-        with pytest.raises(GitInvalidGrant):
-            verify_grant([], sign_grant(SECRET, make_grant(), now=NOW), now=NOW)
+    # Ed448 is EdDSA too, so PyJWT would verify with an Ed448 key; the verifier only holds Ed25519 keys.
+    @pytest.mark.parametrize("key", [OTHER_KEY.key, ed448.Ed448PrivateKey.generate()], ids=["ed25519", "ed448"])
+    def test_other_key_claiming_a_known_key_id(self, key):
+        assert_invalid(sign_claims(claims_of(make_grant()), key=key), "signature does not match")
 
     def test_token_without_an_audience(self):
-        # A viewer context, for one, is an HS256 JWT signed with a shared secret and carries no audience.
+        # A token signed with the same key for another purpose need not carry an audience.
         claims = claims_of(make_grant())
         del claims["aud"]
         assert_invalid(sign_claims(claims), '"aud"')
@@ -139,13 +187,32 @@ class TestTampering:
     def test_token_for_another_audience(self):
         assert_invalid(sign_claims(claims_of(make_grant()) | {"aud": "scm-rpc"}), "Audience doesn't match")
 
-    def test_unsigned_token(self):
-        token = jwt.encode(claims_of(make_grant()), None, algorithm="none", headers={"kid": key_id(SECRET)})
-        assert_invalid(token, "invalid")
 
-    @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
-    def test_other_algorithm(self):
-        assert_invalid(sign_claims(claims_of(make_grant()), algorithm="HS512"), "invalid")
+class TestAlgorithms:
+    """EdDSA is the only algorithm a grant may name, whatever key its kid points to."""
+
+    def test_hs256_keyed_with_the_public_key(self):
+        # The public key is no secret, so a verifier that let a token pick HS256 and used the key it holds as the HMAC
+        # key would accept a grant from anyone. PyJWT refuses to sign with a PEM as an HMAC key, so it is made here.
+        token = handmade_token(
+            {"alg": "HS256", "typ": "JWT", "kid": key_id(KEY)},
+            claims_of(make_grant()),
+            lambda signing_input: hmac.digest(KEY.public.encode(), signing_input, "sha256"),
+        )
+        assert_invalid(token, "alg value is not allowed")
+
+    def test_hs256(self):
+        # 32 bytes, the shortest HS256 key PyJWT signs with without warning.
+        token = sign_claims(claims_of(make_grant()), key="test-only-hmac-key-for-hs256-32b", algorithm="HS256")
+        assert_invalid(token, "alg value is not allowed")
+
+    def test_unsigned_token(self):
+        token = jwt.encode(claims_of(make_grant()), None, algorithm="none", headers={"kid": key_id(KEY)})
+        assert_invalid(token, "alg value is not allowed")
+
+    def test_other_asymmetric_algorithm(self):
+        token = sign_claims(claims_of(make_grant()), key=ec.generate_private_key(ec.SECP256R1()), algorithm="ES256")
+        assert_invalid(token, "alg value is not allowed")
 
 
 def grant_with_repositories(count: int) -> Grant:
@@ -157,52 +224,154 @@ class TestLength:
     """The grant travels in a request header, and sandbox-router refuses one longer than GRANT_MAX_LENGTH."""
 
     def test_too_long_to_sign(self):
-        with pytest.raises(ValueError, match=f"over GRANT_MAX_LENGTH \\({GRANT_MAX_LENGTH}\\)"):
-            sign_grant(SECRET, grant_with_repositories(100), now=NOW)
+        with pytest.raises(ValueError, match=f"over GRANT_MAX_LENGTH \\({GRANT_MAX_LENGTH}\\)") as exc_info:
+            sign_grant(KEY.private, grant_with_repositories(100), now=NOW)
+        # The signer reports this error with its frames, which hold the private key only as a Secret and a key object.
+        assert_not_in_frames(exc_info.value, pem_body(KEY.private.reveal()))
 
     def test_longest_grant_that_fits_signs(self):
         # Add repositories until one more would not fit.
         count = 1
-        token = sign_grant(SECRET, grant_with_repositories(count), now=NOW)
+        token = sign_grant(KEY.private, grant_with_repositories(count), now=NOW)
         while True:
             try:
-                longer = sign_grant(SECRET, grant_with_repositories(count + 1), now=NOW)
+                longer = sign_grant(KEY.private, grant_with_repositories(count + 1), now=NOW)
             except ValueError:
                 break
             token, count = longer, count + 1
         # One more repository adds about 50 characters.
         assert GRANT_MAX_LENGTH - 100 < len(token) <= GRANT_MAX_LENGTH
-        assert verify_grant([SECRET], token, now=NOW) == grant_with_repositories(count)
+        assert verify_grant([KEY.public], token, now=NOW) == grant_with_repositories(count)
+
+    def test_grant_for_one_repository(self):
+        # GRANT_MAX_LENGTH's docstring sizes grants from this.
+        grant = make_grant(repositories=[("github", "getsentry/scm-platform")])
+        assert len(sign_grant(KEY.private, grant, now=NOW)) < 450
 
 
-class TestSecrets:
-    # PyJWT signs with an empty key, so an empty secret would let anyone sign grants.
-    def test_refuses_to_sign_with_an_empty_secret(self):
+def other_key_types() -> list:
+    return [
+        rsa.generate_private_key(public_exponent=65537, key_size=2048),
+        ec.generate_private_key(ec.SECP256R1()),
+        ed448.Ed448PrivateKey.generate(),
+    ]
+
+
+def private_pem(key) -> str:
+    return key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()
+
+
+def public_pem(key) -> str:
+    return key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
+
+
+class TestPrivateKey:
+    @pytest.fixture(params=[sign_grant, public_key_of], ids=["sign_grant", "public_key_of"])
+    def load(self, request) -> Callable[[Secret], object]:
+        if request.param is sign_grant:
+            return lambda private_key: sign_grant(private_key, make_grant(), now=NOW)
+        return public_key_of
+
+    def test_empty(self, load):
         with pytest.raises(ValueError, match="empty"):
-            sign_grant(Secret(""), make_grant(), now=NOW)
+            load(Secret(""))
 
-    @pytest.mark.filterwarnings("ignore::jwt.warnings.InsecureKeyLengthWarning")
-    def test_refuses_to_verify_with_an_empty_secret(self):
-        token = jwt.encode(claims_of(make_grant()), "", algorithm="HS256", headers={"kid": key_id(Secret(""))})
-        with pytest.raises(ValueError, match="empty"):
-            verify_grant([SECRET, Secret("")], token, now=NOW)
+    @pytest.mark.parametrize(
+        "pem",
+        [
+            "not a key",
+            KEY.public,
+            KEY.key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())[:80].decode(),
+        ],
+        ids=["garbage", "public-key", "truncated"],
+    )
+    def test_not_a_private_key(self, load, pem):
+        with pytest.raises(ValueError, match=r"not an unencrypted private key in PEM \(-----BEGIN PRIVATE KEY-----\)"):
+            load(Secret(pem))
+
+    def test_encrypted(self, load):
+        pem = KEY.key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, BestAvailableEncryption(b"test-only")).decode()
+        with pytest.raises(ValueError, match="not an unencrypted private key") as exc_info:
+            load(Secret(pem))
+        assert "encrypted" in str(exc_info.value.__cause__)
+
+    @pytest.mark.parametrize("key", other_key_types(), ids=["rsa", "ec", "ed448"])
+    def test_other_key_type(self, load, key):
+        pem = private_pem(key)
+        with pytest.raises(ValueError, match=f"must be an Ed25519 key, not {type(key).__name__}") as exc_info:
+            load(Secret(pem))
+        assert pem_body(pem) not in str(exc_info.value)
+        assert_not_in_frames(exc_info.value, pem_body(pem))
 
 
-class TestRotatedSecrets:
-    @pytest.mark.parametrize("signer", [OLD_SECRET, NEW_SECRET])
-    def test_both_secrets_verify_during_rotation(self, signer):
-        assert (
-            verify_grant([NEW_SECRET, OLD_SECRET], sign_grant(signer, make_grant(), now=NOW), now=NOW) == make_grant()
-        )
+class TestPublicKeys:
+    """A list of keys no grant could verify against is a mistake in configuration, not a refused grant."""
 
-    def test_old_secret_refused_after_rotation(self):
-        assert_invalid(sign_grant(OLD_SECRET, make_grant(), now=NOW), "not signed with a known", secrets=[NEW_SECRET])
+    @pytest.fixture(params=[verify_grant, require_public_keys], ids=["verify_grant", "require_public_keys"])
+    def load(self, request) -> Callable[[list], object]:
+        token = sign_grant(KEY.private, make_grant(), now=NOW)
+        if request.param is verify_grant:
+            return lambda public_keys: verify_grant(public_keys, token, now=NOW)
+        return require_public_keys
+
+    def test_require_public_keys_returns_them(self):
+        assert require_public_keys((KEY.public, OTHER_KEY.public)) == [KEY.public, OTHER_KEY.public]
+
+    def test_empty_list(self, load):
+        with pytest.raises(ValueError, match="no git grant public keys"):
+            load([])
+
+    def test_private_key(self, load):
+        pem = KEY.private.reveal()
+        with pytest.raises(ValueError, match=r"^public_keys\[1\] is a private key\.") as exc_info:
+            load([OTHER_KEY.public, pem])
+        assert pem_body(pem) not in str(exc_info.value)
+
+    def test_private_key_as_a_secret(self, load):
+        with pytest.raises(TypeError, match=r"^public_keys\[0\] must be a PEM string, not Secret\."):
+            load([KEY.private])
+
+    @pytest.mark.parametrize("pem", ["", "not a key", KEY.public[:60]], ids=["empty", "garbage", "truncated"])
+    def test_not_a_public_key(self, load, pem):
+        # One bad key fails the whole list rather than being skipped, so it is noticed before it is needed.
+        with pytest.raises(ValueError, match=r"^public_keys\[1\] is not a public key in PEM"):
+            load([KEY.public, pem])
+
+    @pytest.mark.parametrize("key", other_key_types(), ids=["rsa", "ec", "ed448"])
+    def test_other_key_type(self, load, key):
+        pem = public_pem(key)
+        expected = f"^public_keys\\[0\\] must be an Ed25519 key, not {type(key.public_key()).__name__}"
+        with pytest.raises(ValueError, match=expected):
+            load([pem])
+
+
+class TestRotatedKeys:
+    @pytest.mark.parametrize("signer", [OLD_KEY, NEW_KEY], ids=["old", "new"])
+    def test_both_keys_verify_during_rotation(self, signer):
+        token = sign_grant(signer.private, make_grant(), now=NOW)
+        assert verify_grant([NEW_KEY.public, OLD_KEY.public], token, now=NOW) == make_grant()
+
+    def test_old_key_refused_after_rotation(self):
+        token = sign_grant(OLD_KEY.private, make_grant(), now=NOW)
+        assert_invalid(token, "not signed with a known key", public_keys=[NEW_KEY.public])
 
 
 class TestMalformed:
     @pytest.mark.parametrize("token", ["nodot", "a.b.c", "a.b", "...", "é.é.é"])
     def test_malformed_token(self, token):
         assert_invalid(token, "malformed")
+
+    @pytest.mark.parametrize("kid", [5, ["a"], {"a": 1}])
+    def test_key_id_that_is_not_a_string(self, kid):
+        # PyJWT refuses it while reading the header, and the grant is refused rather than failing the request.
+        assert_invalid(handmade_token({"alg": "EdDSA", "kid": kid}, claims_of(make_grant())), "malformed")
+
+    def test_deeply_nested_header(self):
+        # PyJWT reads the header before it checks the signature, so anyone can send one. Before PyJWT 2.14.0, nesting
+        # deeper than json's recursion limit raised RecursionError, which failed the request (GHSA-8wjv-2p76-3863).
+        depth = 100_000
+        header = b64url(b'{"alg":"EdDSA","kid":' + b"[" * depth + b"]" * depth + b"}")
+        assert_invalid(f"{header}.{b64url(b'{}')}.", "malformed")
 
     def test_missing(self):
         assert_invalid("", "missing")
@@ -231,4 +400,4 @@ class TestMalformed:
         assert_invalid(sign_claims(claims), "referrer")
 
     def test_no_repositories(self):
-        assert_invalid(sign_grant(SECRET, make_grant(repositories=[]), now=NOW), "names no repositories")
+        assert_invalid(sign_grant(KEY.private, make_grant(repositories=[]), now=NOW), "names no repositories")

@@ -16,16 +16,16 @@ from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
 from tests.unit.error_reports import assert_not_in_frames, reported_local
-from tests.unit.git_builders import make_grant, make_provider, make_repository
+from tests.unit.git_builders import make_grant, make_key_pair, make_provider, make_repository
 from tests.unit.git_upstream import ClosingAdapter, HostRefused, RefusingAdapter, basic_auth, running_upstream
 
-SECRET = Secret("test-secret-0000000000000000000000")
+KEY = make_key_pair()
 TOKEN = Secret("ghs_secrettoken")
 REFERRER = make_grant().referrer
 
 
 def signed_grant(**overrides) -> str:
-    return sign_grant(SECRET, make_grant(**overrides))
+    return sign_grant(KEY.private, make_grant(**overrides))
 
 
 class Recorder:
@@ -82,7 +82,7 @@ def make_server(recorder: Recorder, relay: GitRelay | None = None) -> GitServer:
     if relay is None:
         relay = relay_returning(chunks(b"refs"))
     return GitServer(
-        secrets=[SECRET],
+        public_keys=[KEY.public],
         fetch_repository=recorder.fetch_repository,
         fetch_provider=recorder.fetch_provider,
         get_token=recorder.get_token,
@@ -131,7 +131,7 @@ def test_requires_a_relay():
     # A default relay would connect to internal addresses, so the caller has to choose its adapter.
     with pytest.raises(TypeError, match="relay"):
         GitServer(  # type: ignore[call-arg]
-            secrets=[SECRET],
+            public_keys=[KEY.public],
             fetch_repository=lambda organization_id, repository_id: None,
             fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
@@ -140,24 +140,21 @@ def test_requires_a_relay():
         )
 
 
-@pytest.mark.parametrize("secrets", [[], [SECRET, Secret("")]])
-def test_requires_non_empty_secrets(secrets):
-    with pytest.raises(ValueError, match="secret"):
+@pytest.mark.parametrize(
+    "public_keys,error,message",
+    [
+        ([], ValueError, "no git grant public keys"),
+        ([KEY.public, "not a key"], ValueError, r"^public_keys\[1\] is not a public key in PEM"),
+        ([KEY.private.reveal()], ValueError, r"^public_keys\[0\] is a private key\."),
+        ([KEY.private], TypeError, r"^public_keys\[0\] must be a PEM string, not Secret\."),
+    ],
+    ids=["empty", "not-a-key", "private-key", "secret"],
+)
+def test_requires_public_keys(public_keys, error, message):
+    # Checked when the server is built, since no grant could verify against them.
+    with pytest.raises(error, match=message):
         GitServer(
-            secrets=secrets,
-            fetch_repository=lambda organization_id, repository_id: None,
-            fetch_provider=lambda organization_id, repository: None,
-            get_token=lambda repository, operation: None,
-            record_count=lambda name, value, tags: None,
-            emit_error=lambda error, context: None,
-            relay=MagicMock(spec=GitRelay),
-        )
-
-
-def test_requires_secret_objects():
-    with pytest.raises(TypeError, match=r"^secrets must be scm\.Secret objects, not str\."):
-        GitServer(
-            secrets=[SECRET.reveal()],  # type: ignore[list-item]
+            public_keys=public_keys,
             fetch_repository=lambda organization_id, repository_id: None,
             fetch_provider=lambda organization_id, repository: None,
             get_token=lambda repository, operation: None,
@@ -175,11 +172,7 @@ class TestRefusedBeforeTheProvider:
         [
             (None, "missing", "git_invalid_grant"),
             ("garbage", "malformed", "git_invalid_grant"),
-            (
-                sign_grant(Secret("other-secret-0000000000000000000000"), make_grant()),
-                "not signed with a known secret",
-                "git_invalid_grant",
-            ),
+            (sign_grant(make_key_pair().private, make_grant()), "not signed with a known key", "git_invalid_grant"),
             (signed_grant(expires_at=int(time.time()) - 1), "expired", "git_grant_expired"),
         ],
     )
@@ -542,15 +535,8 @@ class TestRelay:
 class TestKeptOutOfErrorReports:
     """What GitServer passes to emit_error or raises is reported to Sentry, with every frame's local variables."""
 
-    def test_refused_grant_leaves_out_the_signing_secret(self):
-        recorder = Recorder()
-        request(make_server(recorder), sign_grant(Secret("other-secret-0000000000000000000000"), make_grant()))
-        [(error, _)] = recorder.errors
-        assert error.code == "git_invalid_grant"  # type: ignore[attr-defined]
-        assert_not_in_frames(error, SECRET.reveal())
-
     @pytest.mark.parametrize("header", [GRANT_HEADER, GRANT_HEADER.lower()])
-    def test_relay_failure_leaves_out_the_grant_and_the_signing_secret(self, header):
+    def test_relay_failure_leaves_out_the_grant(self, header):
         recorder = Recorder(
             repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
         )
@@ -560,7 +546,6 @@ class TestKeptOutOfErrorReports:
         # Failed after the grant check, in the relay.
         assert error.code != "git_invalid_grant"  # type: ignore[attr-defined]
         assert_not_in_frames(error, grant)
-        assert_not_in_frames(error, SECRET.reveal())
 
     def test_relay_failure_leaves_out_the_provider_token(self):
         recorder = Recorder(
