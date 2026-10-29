@@ -24,17 +24,22 @@ def sign(secret: Secret, message: bytes) -> str:
 
 
 def verify_get(
-    secrets: Sequence[Secret], organization_id: int, repository_id: RepositoryId, received_signature: str
+    secrets: Sequence[Secret], organization_id: int, repository_id: RepositoryId, received_signature: Secret | str
 ) -> bool:
     return verify(secrets, f"{organization_id}{repository_id}".encode(), received_signature)
 
 
-def verify_post(secrets: Sequence[Secret], serialized_body: bytes, received_signature: str) -> bool:
+def verify_post(secrets: Sequence[Secret], serialized_body: bytes, received_signature: Secret | str) -> bool:
     return verify(secrets, serialized_body, received_signature)
 
 
-def verify(secrets: Sequence[Secret], message: bytes, received_signature: str) -> bool:
-    return any(hmac.compare_digest(received_signature, sign(secret, message)) for secret in secrets)
+def verify(secrets: Sequence[Secret], message: bytes, received_signature: Secret | str) -> bool:
+    """Whether ``received_signature`` signs ``message`` with one of ``secrets``.
+
+    A signature with its message can be replayed, so pass it as a ``Secret``. A plain string is still accepted.
+    """
+    received = received_signature if isinstance(received_signature, Secret) else Secret(received_signature)
+    return any(hmac.compare_digest(received.reveal(), sign(secret, message)) for secret in secrets)
 
 
 def deserialize_repository(content: bytes) -> Repository:

@@ -4,12 +4,20 @@ from unittest.mock import MagicMock
 import msgspec
 import pytest
 
-from scm.errors import SCMCodedError
+from scm.errors import ResourceServiceUnavailable, SCMCodedError
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
-from scm.rpc.server import RpcServer, is_safe_path, iter_response, normalize_headers, serialize_repository
+from scm.rpc.server import (
+    RpcServer,
+    _take_signature,
+    is_safe_path,
+    iter_response,
+    normalize_headers,
+    serialize_repository,
+)
 from scm.secret import Secret
 from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
+from tests.unit.error_reports import assert_not_in_frames, reported_local
 
 TEST_SECRET = Secret("test-secret")
 
@@ -55,27 +63,37 @@ def make_headers(**overrides) -> dict[str, str]:
     return defaults
 
 
+class TestTakeSignature:
+    def test_takes_the_signature_out_of_the_headers(self):
+        signature, headers = _take_signature(make_headers())
+        assert signature.reveal() == "rpc0:abc"
+        assert headers == {"X-Organization-Id": "1", "X-Repository-Id": "1"}
+
+    def test_header_name_is_case_insensitive(self):
+        signature, headers = _take_signature({"authorization": "rpcsignature rpc0:abc", "X-Organization-Id": "1"})
+        assert signature.reveal() == "rpc0:abc"
+        assert headers == {"X-Organization-Id": "1"}
+
+    def test_missing_authorization_raises(self):
+        headers = make_headers()
+        del headers["Authorization"]
+        with pytest.raises(SCMCodedError) as exc_info:
+            _take_signature(headers)
+        assert exc_info.value.code == "rpc_malformed_request_headers"
+
+
 class TestExtractHeaders:
     def test_extracts_int_repository_id(self):
         server = make_server()
-        auth, org_id, repo_id = server._extract_headers(make_headers())
-        assert auth == "rpc0:abc"
+        org_id, repo_id = server._extract_headers(make_headers())
         assert org_id == 1
         assert repo_id == 1
 
     def test_extracts_tuple_repository_id(self):
         server = make_server()
         headers = make_headers(**{"X-Repository-Id": '["github","ext-123"]'})
-        _, _, repo_id = server._extract_headers(headers)
+        _, repo_id = server._extract_headers(headers)
         assert repo_id == ("github", "ext-123")
-
-    def test_missing_authorization_raises(self):
-        server = make_server()
-        headers = make_headers()
-        del headers["Authorization"]
-        with pytest.raises(SCMCodedError) as exc_info:
-            server._extract_headers(headers)
-        assert exc_info.value.code == "rpc_malformed_request_headers"
 
     def test_missing_organization_id_raises(self):
         server = make_server()
@@ -288,6 +306,53 @@ class TestPost:
         assert response.headers["Content-Type"] == "application/json"
         chunks = list(response.content)
         assert b'{"ref": "main"}' in chunks
+
+
+class UnavailableProvider(BaseTestProvider):
+    def request(self, *args, **kwargs):  # type: ignore[override]
+        raise ResourceServiceUnavailable()
+
+
+class TestKeptOutOfErrorReports:
+    """An error is reported to Sentry with every frame's local variables, and a signature in one could be replayed."""
+
+    @pytest.mark.parametrize("header", ["Authorization", "authorization"])
+    def test_post_reporting_a_provider_failure_leaves_out_the_signature(self, header):
+        errors: list[Exception] = []
+        server = make_server(fetch_provider=lambda org_id, repo: UnavailableProvider(), emit_error=errors.append)
+        body = msgspec.json.encode(
+            {
+                "type": "action",
+                "data": {
+                    "method": "GET",
+                    "path": "/repos/org/repo",
+                    "headers": None,
+                    "data": None,
+                    "params": None,
+                    "allow_redirects": None,
+                    "stream": None,
+                },
+            }
+        )
+        signature = sign_post(TEST_SECRET, body)
+
+        server.post(body, {header: f"rpcsignature {signature}", "X-Organization-Id": "1", "X-Repository-Id": "1"})
+
+        [error] = errors
+        assert error.code == "resource_service_unavailable"  # type: ignore[attr-defined]
+        assert_not_in_frames(error, signature)
+        assert reported_local(error, "post", "signature") == "[Filtered]"
+
+    def test_get_failing_to_fetch_the_repository_leaves_out_the_signature(self):
+        def failing_fetch(organization_id, repository_id):
+            raise RuntimeError("database down")
+
+        server = make_server(fetch_repository=failing_fetch)
+        # Not a coded error, so it reaches the caller, whose error reporting sees every frame here.
+        with pytest.raises(RuntimeError) as exc_info:
+            server.get(make_headers(Authorization=f"rpcsignature {sign_get(TEST_SECRET, 1, 1)}"))
+        assert_not_in_frames(exc_info.value, sign_get(TEST_SECRET, 1, 1))
+        assert reported_local(exc_info.value, "get", "signature") == "[Filtered]"
 
 
 class TestSerializeRepository:
