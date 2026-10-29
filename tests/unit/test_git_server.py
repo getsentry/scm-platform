@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from scm.errors import ClientClosedRequest, RateLimitExceeded
+from scm.errors import ClientClosedRequest, GitRemoteRefused, RateLimitExceeded
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
@@ -17,7 +17,7 @@ from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
 from tests.unit.error_reports import assert_not_in_frames, reported_local
 from tests.unit.git_builders import make_grant, make_provider, make_repository
-from tests.unit.git_upstream import ClosingAdapter, basic_auth, running_upstream
+from tests.unit.git_upstream import ClosingAdapter, HostRefused, RefusingAdapter, basic_auth, running_upstream
 
 SECRET = Secret("test-secret-0000000000000000000000")
 TOKEN = Secret("ghs_secrettoken")
@@ -400,6 +400,22 @@ class TestRelay:
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_remote_not_https"})
         ]
 
+    def test_adapter_refusing_the_host(self):
+        # e.g. Sentry's BlacklistAdapter refusing a GitHub Enterprise host that resolves to an internal address.
+        recorder = Recorder(
+            repository=make_repository(provider_name="github_enterprise", web_base_url="https://127.0.0.1:1")
+        )
+        relay = GitRelay(
+            adapter=RefusingAdapter,
+            map_error=lambda error: GitRemoteRefused() if isinstance(error, HostRefused) else None,
+        )
+        response = request(make_server(recorder, relay), signed_grant())
+        assert_refused(response, 502, "at an address Sentry does not connect to")
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_remote_refused"})
+        ]
+        assert recorder.error_codes == ["git_remote_refused"]
+
     def test_provider_rejecting_the_token(self):
         # Passed on, a 401 would make git ask the sandboxed client for credentials.
         adapters: list[ClosingAdapter] = []
@@ -474,10 +490,8 @@ class TestRelay:
         assert 401 not in _STATUS.values()
 
     def test_other_errors_reach_the_caller(self):
-        # Sentry's view answers these the way it answers them elsewhere, e.g. a refused host as ApiHostError.
-        class HostRefused(Exception):
-            pass
-
+        # Sentry's view answers these the way it answers them elsewhere, e.g. an adapter's error that the relay's
+        # map_error leaves alone.
         relay = MagicMock(spec=GitRelay)
         relay.forward.side_effect = HostRefused()
         recorder = Recorder()

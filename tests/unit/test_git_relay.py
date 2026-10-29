@@ -3,7 +3,7 @@ import io
 import socket
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,6 +14,7 @@ from requests.adapters import HTTPAdapter
 from scm.errors import (
     GitOperationNotGranted,
     GitRemoteNotHttps,
+    GitRemoteRefused,
     GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
@@ -27,7 +28,15 @@ from scm.secret import Secret
 from scm.types import GitRemote
 from tests.unit.error_reports import assert_not_in_frames, reported_local
 from tests.unit.git_builders import make_grant
-from tests.unit.git_upstream import ClosingAdapter, UpstreamHandler, basic_auth, ca_bundle, running_upstream
+from tests.unit.git_upstream import (
+    ClosingAdapter,
+    HostRefused,
+    RefusingAdapter,
+    UpstreamHandler,
+    basic_auth,
+    ca_bundle,
+    running_upstream,
+)
 
 TOKEN = Secret("ghs_secrettoken")
 # Long enough that a relay that buffers fails the test instead of hanging it.
@@ -414,16 +423,70 @@ class TestConnections:
 class TestAdapter:
     def test_uses_the_adapter_it_is_given(self, upstream):
         # Sentry passes an adapter that refuses internal addresses; the relay must send through it.
-        class HostRefused(Exception):
-            pass
-
-        class RefusingAdapter(HTTPAdapter):
-            def send(self, request, *args, **kwargs):
-                raise HostRefused(request.url)
-
-        with pytest.raises(HostRefused):
+        with pytest.raises(HostRefused, match="internal address"):
             fetch_refs(GitRelay(adapter=RefusingAdapter, ca_bundle=ca_bundle()), upstream)
-        assert upstream.requests == []
+        assert upstream.connections == 0
+
+
+def refusal_mapper(seen: list[Exception]) -> Callable[[Exception], SCMCodedError | None]:
+    """A map_error that records each error it gets and maps HostRefused, the way Sentry maps its refusal."""
+
+    def map_error(error: Exception) -> SCMCodedError | None:
+        seen.append(error)
+        return GitRemoteRefused() if isinstance(error, HostRefused) else None
+
+    return map_error
+
+
+class TestMapError:
+    def test_mapped_error_is_raised_in_place_of_the_original(self, upstream):
+        seen: list[Exception] = []
+        relay = GitRelay(adapter=RefusingAdapter, map_error=refusal_mapper(seen), ca_bundle=ca_bundle())
+        with pytest.raises(GitRemoteRefused) as exc_info:
+            fetch_refs(relay, upstream)
+        assert [type(error) for error in seen] == [HostRefused]
+        # The refusal passes through urllib3's frames, which hold the Authorization header.
+        assert_token_not_in(exc_info.value)
+        # The refusal names the address; the client has no use for it.
+        assert "127.0.0.1" not in exc_info.value.detail
+
+    @pytest.mark.parametrize("map_error", [None, lambda error: None], ids=["no_mapper", "unmapped"])
+    def test_unmapped_error_reaches_the_caller_unchanged(self, upstream, map_error):
+        with pytest.raises(HostRefused, match="internal address"):
+            fetch_refs(GitRelay(adapter=RefusingAdapter, map_error=map_error, ca_bundle=ca_bundle()), upstream)
+
+    @pytest.mark.parametrize(
+        ("make_error", "expected"),
+        [
+            pytest.param(
+                lambda request: requests.ConnectionError("refused", request=request),
+                ResourceServiceUnavailable,
+                id="requests",
+            ),
+            pytest.param(
+                lambda request: urllib3.exceptions.HTTPError("bad response"), ResourceBadGateway, id="urllib3"
+            ),
+        ],
+    )
+    def test_requests_and_urllib3_errors_never_reach_the_mapper(self, upstream, make_error, expected):
+        # A requests exception holds the request and its Authorization header.
+        class FailingAdapter(HTTPAdapter):
+            def send(self, request, *args, **kwargs):
+                raise make_error(request)
+
+        seen: list[Exception] = []
+        relay = GitRelay(adapter=FailingAdapter, map_error=refusal_mapper(seen), ca_bundle=ca_bundle())
+        with pytest.raises(expected):
+            fetch_refs(relay, upstream)
+        assert seen == []
+
+    def test_the_relays_own_errors_never_reach_the_mapper(self, upstream):
+        seen: list[Exception] = []
+        relay = GitRelay(map_error=refusal_mapper(seen), ca_bundle=ca_bundle())
+        with pytest.raises(SCMCodedError) as exc_info:
+            upload_pack(relay, upstream, io.BytesIO(b"00"), headers={"Content-Length": "4"})
+        assert exc_info.value.code == "client_closed_request"
+        assert seen == []
 
 
 class TestEnvironment:

@@ -18,6 +18,7 @@ from scm.errors import (
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
     RpcMalformedRequestHeaders,
+    SCMCodedError,
 )
 from scm.git.types import GitOperation, Grant, Readable
 from scm.rpc.types import StreamResponse
@@ -107,12 +108,18 @@ class GitRelay:
     ``adapter`` builds the adapter that sends each upstream request. Pass one that refuses internal addresses: a
     GitHub Enterprise or self-managed GitLab host is whatever the customer configured, and the relay connects
     wherever it resolves. Sentry's ``BlacklistAdapter`` does this for its API clients, and the class itself can be
-    passed. An error the adapter raises for a refused host reaches the caller unchanged, unless it is a requests or
-    urllib3 exception, which the relay replaces like any other so that it cannot carry the token. One that reaches
-    the caller does carry it: an adapter refusing the host as it connects raises through urllib3's frames, which hold
-    the Authorization header, so report such an error without its frames' local variables. The adapter must
-    not retry, because a retry cannot resend a body that has already been streamed. Without one, the relay uses a plain
-    ``HTTPAdapter``, which checks nothing.
+    passed. The adapter must not retry, because a retry cannot resend a body that has already been streamed. Without
+    one, the relay uses a plain ``HTTPAdapter``, which checks nothing.
+
+    The relay replaces a requests or urllib3 exception from the upstream request with a coded error, so that it
+    cannot carry the token. ``map_error`` gets any other exception, such as the adapter's own for a refused host,
+    and returns either a coded error, which the relay raises in its place without the original, or None to let the
+    original reach the caller unchanged. An error that reaches the caller this way does carry the token: an adapter
+    refusing the host as it connects raises through urllib3's frames, which hold the Authorization header, so report
+    such an error without its frames' local variables. GitServer answers a coded error like its other refusals. For
+    an adapter that refuses a host with ``HostRefused``::
+
+        GitRelay(adapter=..., map_error=lambda e: GitRemoteRefused() if isinstance(e, HostRefused) else None)
 
     The relay takes no settings from the environment. Through a proxy from ``HTTPS_PROXY``, the adapter would
     check the proxy's address rather than the provider's. ``ca_bundle`` names a CA file to trust instead of the
@@ -123,11 +130,13 @@ class GitRelay:
         self,
         *,
         adapter: Callable[[], HTTPAdapter] = HTTPAdapter,
+        map_error: Callable[[Exception], SCMCodedError | None] | None = None,
         ca_bundle: str | None = None,
         timeout: tuple[float, float] = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> None:
         self.adapter = adapter
+        self.map_error = map_error
         self.ca_bundle = ca_bundle
         self.timeout = timeout
         self.chunk_size = chunk_size
@@ -219,6 +228,16 @@ class GitRelay:
             # Any other failure of the request, e.g. a malformed response. A requests exception, like those above,
             # holds the request.
             raise ResourceBadGateway() from None
+        # The relay's own, such as the client's connection failing while its body is sent.
+        except SCMCodedError:
+            raise
+        except Exception as error:
+            mapped = self.map_error(error) if self.map_error is not None else None
+            if mapped is None:
+                raise
+            # "from None" drops the original. Raised as the adapter connects, e.g. for a refused host, its traceback
+            # runs through urllib3's frames, which hold the Authorization header.
+            raise mapped from None
         finally:
             # Once a response arrives, _stream closes the session when the response ends.
             if upstream is None:
