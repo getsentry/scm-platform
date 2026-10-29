@@ -464,11 +464,6 @@ wheels = [
     { url = "https://sfw.security.sentry.io/pypi/packages/e5/7a/8dd906bd22e79e47397a61742927f6747fe93242ef86645ee9092e610244/pyjwt-2.12.1-py3-none-any.whl", hash = "sha256:28ca37c070cad8ba8cd9790cd940535d40274d22f80ab87f3ac6a713e6e8454c", size = 29726, upload-time = "2026-03-13T19:27:35.677Z" },
 ]
 
-[package.optional-dependencies]
-crypto = [
-    { name = "cryptography" },
-]
-
 [[package]]
 name = "pytest"
 version = "9.0.3"
@@ -544,6 +539,7 @@ name = "sentry-scm"
 version = "2.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "msgspec" },
     { name = "pyjwt" },
     { name = "requests" },
@@ -552,10 +548,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "cryptography" },
     { name = "mypy" },
     { name = "prek" },
-    { name = "pyjwt", extra = ["crypto"] },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -564,6 +558,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=48.0.1" },
     { name = "msgspec", specifier = ">=0.19.0" },
     { name = "pyjwt", specifier = ">=2.9.0" },
     { name = "requests", specifier = ">=2.32.4" },
@@ -572,10 +567,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "cryptography", specifier = ">=48.0.1" },
     { name = "mypy", specifier = ">=1.20.0" },
     { name = "prek", specifier = ">=0.3.6" },
-    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.9.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.15.10" },

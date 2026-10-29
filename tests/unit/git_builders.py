@@ -1,11 +1,16 @@
 """Builders shared by the git module's tests."""
 
+from typing import NamedTuple
 from unittest.mock import MagicMock
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
 from scm.git.types import Grant
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
+from scm.secret import Secret
 from scm.types import ApiClient, Provider, Repository
 
 # Unix seconds long after any test runs, for grants a test doesn't expect to expire.
@@ -52,3 +57,22 @@ def make_grant(**overrides) -> Grant:
     }
     fields.update(overrides)
     return Grant(**fields)  # type: ignore[arg-type]
+
+
+class KeyPair(NamedTuple):
+    key: Ed25519PrivateKey
+    """The private key, to sign tokens sign_grant would not."""
+    private: Secret
+    """The private key in PEM, as sign_grant takes it."""
+    public: str
+    """The public key in PEM, as verify_grant and GitServer take it."""
+
+
+def make_key_pair() -> KeyPair:
+    """A new Ed25519 key pair for signing grants. Tests make their own, so no private key is committed."""
+    key = Ed25519PrivateKey.generate()
+    return KeyPair(
+        key=key,
+        private=Secret(key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()),
+        public=key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
+    )

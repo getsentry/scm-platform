@@ -10,6 +10,8 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    # Git grants are signed with Ed25519 keys, which scm.git.grant parses and PyJWT's EdDSA needs.
+    "cryptography>=48.0.1",
     "msgspec>=0.19.0",
     "pyjwt>=2.9.0",
     "requests>=2.32.4",
@@ -54,10 +56,8 @@ select = [
 
 [dependency-groups]
 dev = [
-    "cryptography>=48.0.1",
     "mypy>=1.20.0",
     "prek>=0.3.6",
-    "pyjwt[crypto]>=2.9.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.10",
