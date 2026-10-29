@@ -9,7 +9,7 @@ they rotate.
 
 Keys are PEM strings, as for objectstore's tokens: the private key as PKCS#8 (``-----BEGIN PRIVATE KEY-----``),
 public keys as SubjectPublicKeyInfo (``-----BEGIN PUBLIC KEY-----``). ``openssl genpkey -algorithm ed25519`` writes
-a private key, and ``openssl pkey -pubout`` its public key.
+a private key, and ``openssl pkey -pubout`` or ``public_key_of`` gives its public key.
 """
 
 import hashlib
@@ -21,7 +21,12 @@ import jwt
 import msgspec
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PublicFormat,
+    load_pem_private_key,
+    load_pem_public_key,
+)
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
@@ -54,6 +59,16 @@ def sign_grant(private_key: Secret, grant: Grant, *, now: float | None = None) -
             "request header, and sandbox-router refuses a longer one."
         )
     return token
+
+
+def public_key_of(private_key: Secret) -> str:
+    """Return the public key, in PEM, that verifies the grants ``private_key`` signs.
+
+    It goes in the verifier's list of public keys. Raises ValueError, as ``sign_grant`` does, if ``private_key`` is
+    not an unencrypted Ed25519 private key in PEM.
+    """
+    public_key = _load_private_key(private_key).public_key()
+    return public_key.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
 
 
 def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> Grant:

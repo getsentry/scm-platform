@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.serialization import (
 )
 
 from scm.errors import GitGrantExpired, GitInvalidGrant
-from scm.git.grant import GRANT_AUDIENCE, require_public_keys, sign_grant, verify_grant
+from scm.git.grant import GRANT_AUDIENCE, public_key_of, require_public_keys, sign_grant, verify_grant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
@@ -78,6 +78,10 @@ class TestRoundTrip:
     def test_verifies_what_it_signed(self):
         grant = make_grant()
         assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
+
+    def test_public_key_of_the_signing_key(self):
+        # make_key_pair serializes the public key with cryptography directly, not through public_key_of.
+        assert public_key_of(KEY.private) == KEY.public
 
     def test_push_grant(self):
         grant = make_grant(operation="push")
@@ -262,9 +266,15 @@ def public_pem(key) -> str:
 
 
 class TestPrivateKey:
-    def test_empty(self):
+    @pytest.fixture(params=[sign_grant, public_key_of], ids=["sign_grant", "public_key_of"])
+    def load(self, request) -> Callable[[Secret], object]:
+        if request.param is sign_grant:
+            return lambda private_key: sign_grant(private_key, make_grant(), now=NOW)
+        return public_key_of
+
+    def test_empty(self, load):
         with pytest.raises(ValueError, match="empty"):
-            sign_grant(Secret(""), make_grant(), now=NOW)
+            load(Secret(""))
 
     @pytest.mark.parametrize(
         "pem",
@@ -275,21 +285,21 @@ class TestPrivateKey:
         ],
         ids=["garbage", "public-key", "truncated"],
     )
-    def test_not_a_private_key(self, pem):
+    def test_not_a_private_key(self, load, pem):
         with pytest.raises(ValueError, match=r"not an unencrypted private key in PEM \(-----BEGIN PRIVATE KEY-----\)"):
-            sign_grant(Secret(pem), make_grant(), now=NOW)
+            load(Secret(pem))
 
-    def test_encrypted(self):
+    def test_encrypted(self, load):
         pem = KEY.key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, BestAvailableEncryption(b"test-only")).decode()
         with pytest.raises(ValueError, match="not an unencrypted private key") as exc_info:
-            sign_grant(Secret(pem), make_grant(), now=NOW)
+            load(Secret(pem))
         assert "encrypted" in str(exc_info.value.__cause__)
 
     @pytest.mark.parametrize("key", other_key_types(), ids=["rsa", "ec", "ed448"])
-    def test_other_key_type(self, key):
+    def test_other_key_type(self, load, key):
         pem = private_pem(key)
         with pytest.raises(ValueError, match=f"must be an Ed25519 key, not {type(key).__name__}") as exc_info:
-            sign_grant(Secret(pem), make_grant(), now=NOW)
+            load(Secret(pem))
         assert pem_body(pem) not in str(exc_info.value)
         assert_not_in_frames(exc_info.value, pem_body(pem))
 
