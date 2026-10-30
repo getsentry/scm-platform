@@ -7,7 +7,13 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from scm.errors import ClientClosedRequest, GitGrantKeyError, GitRemoteRefused, RateLimitExceeded
+from scm.errors import (
+    ClientClosedRequest,
+    GitGrantKeyError,
+    GitRemoteRefused,
+    RateLimitExceeded,
+    ResourceServiceUnavailable,
+)
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
@@ -29,9 +35,12 @@ def signed_grant(**overrides) -> str:
 
 
 class Recorder:
-    def __init__(self, repository: Repository | None = None, token: Secret | None = TOKEN) -> None:
+    def __init__(
+        self, repository: Repository | None = None, token: Secret | None = TOKEN, token_error: Exception | None = None
+    ) -> None:
         self.repository = make_repository() if repository is None else repository
         self.token = token
+        self.token_error = token_error
         self.repository_lookups: list[tuple[int, RepositoryId]] = []
         self.provider_lookups: list[tuple[int, Repository]] = []
         self.token_lookups: list[tuple[Repository, GitOperation]] = []
@@ -49,6 +58,8 @@ class Recorder:
 
     def get_token(self, repository: Repository, operation: GitOperation) -> Secret | None:
         self.token_lookups.append((repository, operation))
+        if self.token_error is not None:
+            raise self.token_error
         return self.token
 
     def record_count(self, name: str, value: int, tags: dict[str, str]) -> None:
@@ -389,7 +400,8 @@ class TestRelay:
             repository=make_repository(provider_name="github_enterprise", web_base_url="http://127.0.0.1:1")
         )
         response = request(make_server(recorder, GitRelay()), signed_grant())
-        assert_refused(response, 502, "not an https URL")
+        # Retrying cannot change the remote's scheme, so this is the server's error rather than a 502.
+        assert_refused(response, 500, "not an https URL")
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_remote_not_https"})
         ]
@@ -404,11 +416,53 @@ class TestRelay:
             map_error=lambda error: GitRemoteRefused() if isinstance(error, HostRefused) else None,
         )
         response = request(make_server(recorder, relay), signed_grant())
-        assert_refused(response, 502, "at an address Sentry does not connect to")
+        assert_refused(response, 500, "at an address Sentry does not connect to")
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_remote_refused"})
         ]
         assert recorder.error_codes == ["git_remote_refused"]
+
+    def test_untrusted_certificate(self):
+        # A self-managed instance whose certificate Sentry does not trust. Retrying cannot fix it.
+        with running_upstream() as upstream:
+            recorder = Recorder(
+                repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
+            )
+            response = request(make_server(recorder, GitRelay()), signed_grant())
+        assert_refused(response, 500, "TLS certificate")
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "resource_certificate_invalid"})
+        ]
+        assert upstream.requests == []
+
+    def test_token_supplier_raising_a_coded_error(self):
+        # e.g. Sentry failing to reach the control silo for a token: the supplier says the failure may pass, and
+        # GitServer answers with a 503, which the client retries.
+        recorder = Recorder(token_error=ResourceServiceUnavailable())
+        server = make_server(recorder)
+        assert_refused(request(server, signed_grant()), 503, "temporarily unavailable")
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "resource_service_unavailable"})
+        ]
+        assert recorder.error_codes == ["resource_service_unavailable"]
+        assert recorder.errors[0][1] == {
+            "repository_id": "5",
+            "organization_id": "1",
+            "referrer": REFERRER,
+            "operation": "fetch",
+            "provider": "github",
+            "remote_host": "github.com",
+        }
+
+    def test_token_supplier_raising_another_error(self):
+        recorder = Recorder(token_error=ConnectionError("control silo unreachable"))
+        with pytest.raises(ConnectionError):
+            request(make_server(recorder), signed_grant())
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "unhandled_exception"})
+        ]
+        assert recorder.errors == []
 
     def test_provider_rejecting_the_token(self):
         # Passed on, a 401 would make git ask the sandboxed client for credentials.

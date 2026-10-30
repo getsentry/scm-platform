@@ -53,7 +53,11 @@ type GetToken = Callable[[Repository, GitOperation], Secret | None]
 """Return a provider token that can run ``operation`` on ``repository``, or None if there is none.
 
 Wrap the token in a ``Secret`` where you read it. GitServer and the relay hold it in their frames' local variables,
-which an error report sends."""
+which an error report sends.
+
+It may raise an ``SCMCodedError`` to say why there is no token. GitServer answers it as it answers its own
+refusals, with the status for its code, or a 500 for a code it has none for. A ``ResourceServiceUnavailable`` for a
+failure that may pass becomes a 503, which the client retries. Any other exception reaches GitServer's caller."""
 
 
 class Readable(Protocol):
