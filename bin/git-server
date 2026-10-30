@@ -95,11 +95,9 @@ from pathlib import Path
 from types import ModuleType
 from urllib.parse import urlsplit
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
-
 from scm import Secret
-from scm.git.grant import public_key_of, sign_grant
+from scm.errors import GitGrantKeyError
+from scm.git.grant import generate_private_key, public_key_of, sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
 from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
@@ -233,8 +231,7 @@ def grant_keys(signing_key_path: str | None) -> tuple[Secret, str]:
     its repository, so nothing else needs to know it.
     """
     if not signing_key_path:
-        key = Ed25519PrivateKey.generate()
-        private_key = Secret(key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode())
+        private_key = generate_private_key()
         return private_key, public_key_of(private_key)
     try:
         # Bytes that are not UTF-8, as in a DER file, become U+FFFD, so the error says the file is not PEM rather
@@ -243,7 +240,7 @@ def grant_keys(signing_key_path: str | None) -> tuple[Secret, str]:
         return private_key, public_key_of(private_key)
     except OSError as e:
         logger.error(f"Error: cannot read {signing_key_path}: {e.strerror or e}.")
-    except ValueError as e:
+    except GitGrantKeyError as e:
         # scm.git.grant's messages name no key material.
         logger.error(f"Error: {signing_key_path}: {e}")
     sys.exit(1)

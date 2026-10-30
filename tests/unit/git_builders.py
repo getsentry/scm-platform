@@ -4,8 +4,9 @@ from typing import NamedTuple
 from unittest.mock import MagicMock
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_private_key
 
+from scm.git.grant import generate_private_key
 from scm.git.types import Grant
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
@@ -70,9 +71,12 @@ class KeyPair(NamedTuple):
 
 def make_key_pair() -> KeyPair:
     """A new Ed25519 key pair for signing grants. Tests make their own, so no private key is committed."""
-    key = Ed25519PrivateKey.generate()
+    private = generate_private_key()
+    key = load_pem_private_key(private.reveal().encode(), password=None)
+    assert isinstance(key, Ed25519PrivateKey)
     return KeyPair(
         key=key,
-        private=Secret(key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()),
+        private=private,
+        # Serialized here rather than by public_key_of, so the tests check public_key_of against cryptography.
         public=key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
     )

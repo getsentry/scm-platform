@@ -47,7 +47,9 @@ class GitServer:
     """Serves a git endpoint: checks each request against its grant, then relays it with a provider token.
 
     Grants are verified against ``public_keys``, the Ed25519 public keys in PEM whose private keys sign them; see
-    ``scm.git.grant``.
+    ``scm.git.grant``. The keys are checked when the server is built: an empty list, or one holding anything but
+    Ed25519 public keys in PEM, raises ``GitGrantKeyError`` from the constructor, since no grant could verify against
+    it. That is the server's misconfiguration rather than a refusal, so the server never answers a request with it.
 
     The order of the checks matters. The grant is verified, and the request's route and repository checked
     against it, before the repository and its provider are looked up or a token fetched, so a request the grant

@@ -9,17 +9,27 @@ import jwt
 import msgspec
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import (
     BestAvailableEncryption,
     Encoding,
     NoEncryption,
     PrivateFormat,
     PublicFormat,
+    load_pem_private_key,
     load_pem_public_key,
 )
 
-from scm.errors import GitGrantExpired, GitInvalidGrant
-from scm.git.grant import GRANT_AUDIENCE, public_key_of, require_public_keys, sign_grant, verify_grant
+from scm.errors import GitGrantExpired, GitGrantKeyError, GitInvalidGrant
+from scm.git.grant import (
+    GRANT_AUDIENCE,
+    generate_private_key,
+    public_key_of,
+    require_private_key,
+    require_public_keys,
+    sign_grant,
+    verify_grant,
+)
 from scm.git.types import GRANT_MAX_LENGTH, Grant
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
@@ -69,9 +79,31 @@ def assert_invalid(token: str, detail: str, public_keys: list[str] | None = None
     assert detail in exc_info.value.detail
 
 
+def key_lines(pem: str) -> list[str]:
+    """The lines of base64 between a PEM's delimiters: the key material an error must not echo.
+
+    Checked one by one, since an error could quote a key that spans several lines with or without its line breaks.
+    """
+    return [line for line in pem.splitlines() if line and not line.startswith("-----")]
+
+
 def pem_body(pem: str) -> str:
-    """The base64 between a PEM's delimiters: the key material an error must not echo."""
-    return "".join(line for line in pem.splitlines() if not line.startswith("-----"))
+    """The base64 between a PEM's delimiters, as one string."""
+    return "".join(key_lines(pem))
+
+
+def assert_quotes_no_key(error: BaseException, pem: str) -> None:
+    """Neither the error's message nor that of the cryptography error it chains quotes the key."""
+    for message in (str(error), str(error.__cause__)):
+        for line in key_lines(pem):
+            assert line not in message
+
+
+def assert_key_not_in_frames(error: BaseException, private_key: Secret) -> None:
+    """No frame of the error's traceback shows the key. The caller's frame is in the traceback too, so it must hold the
+    key only as a Secret; the lines are revealed here, in a frame that is not."""
+    for line in key_lines(private_key.reveal()):
+        assert_not_in_frames(error, line)
 
 
 class TestRoundTrip:
@@ -111,6 +143,22 @@ class TestRoundTrip:
         # As a setting read from a file or an environment variable may have.
         token = sign_grant(KEY.private, make_grant(), now=NOW)
         assert verify_grant([f"\n  {KEY.public}\n\n"], token, now=NOW) == make_grant()
+
+
+class TestGeneratePrivateKey:
+    def test_signs_grants_its_public_key_verifies(self):
+        private_key = generate_private_key()
+        token = sign_grant(private_key, make_grant(), now=NOW)
+        assert verify_grant([public_key_of(private_key)], token, now=NOW) == make_grant()
+
+    def test_ed25519_private_key_in_pkcs8_pem(self):
+        # What openssl genpkey writes, so a generated key can go wherever a signer reads its key from.
+        pem = generate_private_key().reveal()
+        assert pem.startswith("-----BEGIN PRIVATE KEY-----\n")
+        assert isinstance(load_pem_private_key(pem.encode(), password=None), Ed25519PrivateKey)
+
+    def test_new_key_each_time(self):
+        assert generate_private_key().reveal() != generate_private_key().reveal()
 
 
 class TestExpiry:
@@ -226,8 +274,10 @@ class TestLength:
     def test_too_long_to_sign(self):
         with pytest.raises(ValueError, match=f"over GRANT_MAX_LENGTH \\({GRANT_MAX_LENGTH}\\)") as exc_info:
             sign_grant(KEY.private, grant_with_repositories(100), now=NOW)
+        # The grant is at fault rather than the key, so the signer can tell the two apart.
+        assert not isinstance(exc_info.value, GitGrantKeyError)
         # The signer reports this error with its frames, which hold the private key only as a Secret and a key object.
-        assert_not_in_frames(exc_info.value, pem_body(KEY.private.reveal()))
+        assert_key_not_in_frames(exc_info.value, KEY.private)
 
     def test_longest_grant_that_fits_signs(self):
         # Add repositories until one more would not fit.
@@ -266,42 +316,57 @@ def public_pem(key) -> str:
 
 
 class TestPrivateKey:
-    @pytest.fixture(params=[sign_grant, public_key_of], ids=["sign_grant", "public_key_of"])
+    """A signing key that is not one is a mistake in the signer's configuration, raised as GitGrantKeyError."""
+
+    @pytest.fixture(
+        params=[sign_grant, public_key_of, require_private_key], ids=["sign_grant", "public_key_of", "require"]
+    )
     def load(self, request) -> Callable[[Secret], object]:
         if request.param is sign_grant:
             return lambda private_key: sign_grant(private_key, make_grant(), now=NOW)
-        return public_key_of
+        return request.param
+
+    def test_require_private_key_returns_it(self):
+        assert require_private_key(KEY.private) is KEY.private
 
     def test_empty(self, load):
-        with pytest.raises(ValueError, match="empty"):
+        with pytest.raises(GitGrantKeyError, match="^The git grant signing key is empty\\.$"):
             load(Secret(""))
+
+    def test_not_a_secret(self, load):
+        pem = KEY.private.reveal()
+        expected = r"^The git grant signing key must be an scm\.Secret, not str\."
+        with pytest.raises(GitGrantKeyError, match=expected) as exc_info:
+            load(pem)
+        assert_quotes_no_key(exc_info.value, pem)
 
     @pytest.mark.parametrize(
         "pem",
-        [
-            "not a key",
-            KEY.public,
-            KEY.key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())[:80].decode(),
-        ],
-        ids=["garbage", "public-key", "truncated"],
+        ["not a key", KEY.public, KEY.private.reveal()[:80], pem_body(KEY.private.reveal())],
+        ids=["garbage", "public-key", "truncated", "no-delimiters"],
     )
     def test_not_a_private_key(self, load, pem):
-        with pytest.raises(ValueError, match=r"not an unencrypted private key in PEM \(-----BEGIN PRIVATE KEY-----\)"):
+        expected = (
+            r"^The git grant signing key is not an unencrypted private key in PEM \(-----BEGIN PRIVATE KEY-----\)"
+        )
+        with pytest.raises(GitGrantKeyError, match=expected) as exc_info:
             load(Secret(pem))
+        assert_quotes_no_key(exc_info.value, pem)
 
     def test_encrypted(self, load):
         pem = KEY.key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, BestAvailableEncryption(b"test-only")).decode()
-        with pytest.raises(ValueError, match="not an unencrypted private key") as exc_info:
+        with pytest.raises(GitGrantKeyError, match="not an unencrypted private key") as exc_info:
             load(Secret(pem))
         assert "encrypted" in str(exc_info.value.__cause__)
+        assert_quotes_no_key(exc_info.value, pem)
 
     @pytest.mark.parametrize("key", other_key_types(), ids=["rsa", "ec", "ed448"])
     def test_other_key_type(self, load, key):
-        pem = private_pem(key)
-        with pytest.raises(ValueError, match=f"must be an Ed25519 key, not {type(key).__name__}") as exc_info:
-            load(Secret(pem))
-        assert pem_body(pem) not in str(exc_info.value)
-        assert_not_in_frames(exc_info.value, pem_body(pem))
+        private_key = Secret(private_pem(key))
+        with pytest.raises(GitGrantKeyError, match=f"must be an Ed25519 key, not {type(key).__name__}") as exc_info:
+            load(private_key)
+        assert_quotes_no_key(exc_info.value, private_key.reveal())
+        assert_key_not_in_frames(exc_info.value, private_key)
 
 
 class TestPublicKeys:
@@ -318,31 +383,43 @@ class TestPublicKeys:
         assert require_public_keys((KEY.public, OTHER_KEY.public)) == [KEY.public, OTHER_KEY.public]
 
     def test_empty_list(self, load):
-        with pytest.raises(ValueError, match="no git grant public keys"):
+        # Under HS256, verify_grant refused every grant against an empty list; now the caller learns it has no keys.
+        with pytest.raises(GitGrantKeyError, match="no git grant public keys"):
             load([])
 
     def test_private_key(self, load):
         pem = KEY.private.reveal()
-        with pytest.raises(ValueError, match=r"^public_keys\[1\] is a private key\.") as exc_info:
+        with pytest.raises(GitGrantKeyError, match=r"^public_keys\[1\] is a private key\.") as exc_info:
             load([OTHER_KEY.public, pem])
-        assert pem_body(pem) not in str(exc_info.value)
+        assert_quotes_no_key(exc_info.value, pem)
 
     def test_private_key_as_a_secret(self, load):
-        with pytest.raises(TypeError, match=r"^public_keys\[0\] must be a PEM string, not Secret\."):
+        with pytest.raises(GitGrantKeyError, match=r"^public_keys\[0\] must be a PEM string, not Secret\."):
             load([KEY.private])
 
-    @pytest.mark.parametrize("pem", ["", "not a key", KEY.public[:60]], ids=["empty", "garbage", "truncated"])
+    def test_empty_key(self, load):
+        # As a list read from a setting with a trailing separator may have.
+        with pytest.raises(GitGrantKeyError, match=r"^public_keys\[1\] is not a public key in PEM"):
+            load([KEY.public, ""])
+
+    @pytest.mark.parametrize(
+        "pem",
+        ["not a key", OTHER_KEY.public[:60], pem_body(OTHER_KEY.public)],
+        ids=["garbage", "truncated", "no-delimiters"],
+    )
     def test_not_a_public_key(self, load, pem):
         # One bad key fails the whole list rather than being skipped, so it is noticed before it is needed.
-        with pytest.raises(ValueError, match=r"^public_keys\[1\] is not a public key in PEM"):
+        with pytest.raises(GitGrantKeyError, match=r"^public_keys\[1\] is not a public key in PEM") as exc_info:
             load([KEY.public, pem])
+        assert_quotes_no_key(exc_info.value, pem)
 
     @pytest.mark.parametrize("key", other_key_types(), ids=["rsa", "ec", "ed448"])
     def test_other_key_type(self, load, key):
         pem = public_pem(key)
         expected = f"^public_keys\\[0\\] must be an Ed25519 key, not {type(key.public_key()).__name__}"
-        with pytest.raises(ValueError, match=expected):
+        with pytest.raises(GitGrantKeyError, match=expected) as exc_info:
             load([pem])
+        assert_quotes_no_key(exc_info.value, pem)
 
 
 class TestRotatedKeys:

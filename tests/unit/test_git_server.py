@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from scm.errors import ClientClosedRequest, GitRemoteRefused, RateLimitExceeded
+from scm.errors import ClientClosedRequest, GitGrantKeyError, GitRemoteRefused, RateLimitExceeded
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
@@ -141,18 +141,19 @@ def test_requires_a_relay():
 
 
 @pytest.mark.parametrize(
-    "public_keys,error,message",
+    "public_keys,message",
     [
-        ([], ValueError, "no git grant public keys"),
-        ([KEY.public, "not a key"], ValueError, r"^public_keys\[1\] is not a public key in PEM"),
-        ([KEY.private.reveal()], ValueError, r"^public_keys\[0\] is a private key\."),
-        ([KEY.private], TypeError, r"^public_keys\[0\] must be a PEM string, not Secret\."),
+        ([], "no git grant public keys"),
+        ([KEY.public, "not a key"], r"^public_keys\[1\] is not a public key in PEM"),
+        ([KEY.private.reveal()], r"^public_keys\[0\] is a private key\."),
+        ([KEY.private], r"^public_keys\[0\] must be a PEM string, not Secret\."),
     ],
     ids=["empty", "not-a-key", "private-key", "secret"],
 )
-def test_requires_public_keys(public_keys, error, message):
-    # Checked when the server is built, since no grant could verify against them.
-    with pytest.raises(error, match=message):
+def test_requires_public_keys(public_keys, message):
+    # Checked when the server is built, since no grant could verify against them. Not a coded error, so a caller
+    # that answers those as refusals does not blame the client for the server's keys.
+    with pytest.raises(GitGrantKeyError, match=message):
         GitServer(
             public_keys=public_keys,
             fetch_repository=lambda organization_id, repository_id: None,
