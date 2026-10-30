@@ -147,6 +147,17 @@ class SCMCodedError(SCMError):
         return error_cls(detail=detail)
 
 
+class GitGrantKeyError(SCMError, ValueError):
+    """A git grant key is missing or unusable: the signer's private key, or one of the verifier's public keys.
+
+    The key is the server's configuration, so a bad one is the server's fault rather than the client's. Unlike the
+    git endpoint's refusals it is not an :class:`SCMCodedError`: ``verify_grant`` raises it instead of refusing the
+    grant, and ``GitServer`` raises it when it is built instead of answering requests with it. It is a
+    ``ValueError``, so code that catches one still catches it. Its message names a key by its role or by its place in
+    the list, and never quotes it.
+    """
+
+
 class GitSCMCodedError(SCMCodedError):
     """Base class for the errors of the git endpoint (``scm.git``), so a caller can catch them all at once."""
 

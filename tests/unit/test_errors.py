@@ -7,6 +7,7 @@ from scm.errors import (
     ERROR_CODES,
     ClientClosedRequest,
     ErrorCode,
+    GitGrantKeyError,
     RateLimitExceeded,
     RepositoryNotFound,
     ResourceBadGateway,
@@ -82,6 +83,14 @@ class TestConcreteErrors:
     def test_can_be_caught_as_base_type(self):
         with pytest.raises(SCMCodedError):
             raise RpcInvalidGrant()
+
+
+def test_git_grant_key_error_is_not_a_refusal():
+    # A bad key is the server's mistake. As a coded error, GitServer would answer it as a refused grant, blaming the
+    # client; as a ValueError, code written before it existed still catches it.
+    assert not issubclass(GitGrantKeyError, SCMCodedError)
+    assert issubclass(GitGrantKeyError, SCMError)
+    assert issubclass(GitGrantKeyError, ValueError)
 
 
 class TestErrorClassForStatus:

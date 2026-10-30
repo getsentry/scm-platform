@@ -8,8 +8,12 @@ grant. A ``kid`` header names the key that signed the grant, so the verifier can
 they rotate.
 
 Keys are PEM strings, as for objectstore's tokens: the private key as PKCS#8 (``-----BEGIN PRIVATE KEY-----``),
-public keys as SubjectPublicKeyInfo (``-----BEGIN PUBLIC KEY-----``). ``openssl genpkey -algorithm ed25519`` writes
-a private key, and ``openssl pkey -pubout`` or ``public_key_of`` gives its public key.
+public keys as SubjectPublicKeyInfo (``-----BEGIN PUBLIC KEY-----``). ``openssl genpkey -algorithm ed25519`` or
+``generate_private_key`` makes a private key, and ``openssl pkey -pubout`` or ``public_key_of`` gives its public key.
+
+A key that is missing or unusable raises ``GitGrantKeyError`` from every function that takes it, whichever side it
+is on. ``require_private_key`` and ``require_public_keys`` check the keys on their own, so a signer or a verifier
+can refuse to start with a bad one.
 """
 
 import hashlib
@@ -23,12 +27,14 @@ from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
+    NoEncryption,
+    PrivateFormat,
     PublicFormat,
     load_pem_private_key,
     load_pem_public_key,
 )
 
-from scm.errors import GitGrantExpired, GitInvalidGrant
+from scm.errors import GitGrantExpired, GitGrantKeyError, GitInvalidGrant
 from scm.git.types import GRANT_MAX_LENGTH, Grant
 from scm.secret import Secret
 
@@ -43,7 +49,9 @@ _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 def sign_grant(private_key: Secret, grant: Grant, *, now: float | None = None) -> str:
     """Sign ``grant`` with ``private_key``, an Ed25519 private key in PEM.
 
-    The ``kid`` header is derived from the key, so a signer needs no key id setting next to it.
+    The ``kid`` header is derived from the key, so a signer needs no key id setting next to it. Raises
+    GitGrantKeyError if ``private_key`` is not an unencrypted Ed25519 private key in PEM, and a plain ValueError if
+    the signed grant is longer than GRANT_MAX_LENGTH.
     """
     key = _load_private_key(private_key)
     claims: dict[str, Any] = msgspec.to_builtins(grant)
@@ -64,19 +72,40 @@ def sign_grant(private_key: Secret, grant: Grant, *, now: float | None = None) -
 def public_key_of(private_key: Secret) -> str:
     """Return the public key, in PEM, that verifies the grants ``private_key`` signs.
 
-    It goes in the verifier's list of public keys. Raises ValueError, as ``sign_grant`` does, if ``private_key`` is
-    not an unencrypted Ed25519 private key in PEM.
+    It goes in the verifier's list of public keys. Raises GitGrantKeyError, as ``sign_grant`` does, if
+    ``private_key`` is not an unencrypted Ed25519 private key in PEM.
     """
     public_key = _load_private_key(private_key).public_key()
     return public_key.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
+
+
+def generate_private_key() -> Secret:
+    """Return a new Ed25519 private key to sign grants with, in PEM (PKCS#8).
+
+    For tests and local tools that sign their own grants. ``public_key_of`` gives the public key that verifies them.
+    """
+    key = Ed25519PrivateKey.generate()
+    # Wrapped inline, so no frame holds the PEM outside its Secret.
+    return Secret(key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode())
+
+
+def require_private_key(private_key: Secret) -> Secret:
+    """Return ``private_key`` if it is an unencrypted Ed25519 private key in PEM, and raise GitGrantKeyError if not.
+
+    For a signer to check its key when it starts, as ``require_public_keys`` does for a verifier, rather than when it
+    signs its first grant.
+    """
+    _load_private_key(private_key)
+    return private_key
 
 
 def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> Grant:
     """Return the grant if the private key of one of ``public_keys`` signed it and it has not expired.
 
     Verification takes a list of Ed25519 public keys in PEM, so a new key can be added before the signer switches to
-    it and the old one removed after its grants expire. Raises ValueError, rather than refusing the grant, if the
-    list is empty or a key is not one, since no grant could verify against it.
+    it and the old one removed after its grants expire. Raises GitGrantKeyError, rather than refusing the grant, if
+    the list is empty or a key is not one, since no grant could verify against it. Every other failure is a
+    GitSCMCodedError that refuses the grant.
     """
     keys = _public_keys_by_id(public_keys)
     now = time.time() if now is None else now
@@ -131,32 +160,39 @@ def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = 
 def require_public_keys(public_keys: Sequence[str]) -> list[str]:
     """Return ``public_keys`` as a list, if there is at least one and each is an Ed25519 public key in PEM.
 
-    For GitServer, which verifies a grant against its keys on every request. A key that does not parse would make
-    every request fail, so the server fails once, when it is built.
+    Raises GitGrantKeyError if not. For GitServer, which verifies a grant against its keys on every request. A key
+    that does not parse would make every request fail, so the server fails once, when it is built.
     """
     _public_keys_by_id(public_keys)
     return list(public_keys)
 
 
 def _load_private_key(private_key: Secret) -> Ed25519PrivateKey:
+    if not isinstance(private_key, Secret):
+        # A plain string, from code the type checker does not see, would otherwise fail on reveal() with an
+        # AttributeError that says nothing about the key.
+        raise GitGrantKeyError(
+            f"The git grant signing key must be an scm.Secret, not {type(private_key).__name__}. Wrap the key in "
+            "scm.Secret where you read it."
+        )
     if not private_key:
-        raise ValueError("The git grant signing key is empty.")
+        raise GitGrantKeyError("The git grant signing key is empty.")
     try:
         # Revealed inline, so no frame holds the PEM outside its Secret.
         key = load_pem_private_key(private_key.reveal().encode(), password=None)
     except (ValueError, TypeError, UnsupportedAlgorithm) as e:
         # cryptography's reason, chained, names no key material.
-        raise ValueError(
+        raise GitGrantKeyError(
             "The git grant signing key is not an unencrypted private key in PEM (-----BEGIN PRIVATE KEY-----)."
         ) from e
     if not isinstance(key, Ed25519PrivateKey):
-        raise ValueError(f"The git grant signing key must be an Ed25519 key, not {type(key).__name__}.")
+        raise GitGrantKeyError(f"The git grant signing key must be an Ed25519 key, not {type(key).__name__}.")
     return key
 
 
 def _public_keys_by_id(public_keys: Sequence[str]) -> dict[str, Ed25519PublicKey]:
     if not public_keys:
-        raise ValueError("There are no git grant public keys, so no grant could verify.")
+        raise GitGrantKeyError("There are no git grant public keys, so no grant could verify.")
     keys: dict[str, Ed25519PublicKey] = {}
     for index, pem in enumerate(public_keys):
         key = _load_public_key(pem, index)
@@ -167,20 +203,20 @@ def _public_keys_by_id(public_keys: Sequence[str]) -> dict[str, Ed25519PublicKey
 def _load_public_key(pem: str, index: int) -> Ed25519PublicKey:
     # Each message names the key by its place in the list rather than quoting it.
     if not isinstance(pem, str):
-        raise TypeError(f"public_keys[{index}] must be a PEM string, not {type(pem).__name__}.")
+        raise GitGrantKeyError(f"public_keys[{index}] must be a PEM string, not {type(pem).__name__}.")
     # load_pem_public_key refuses a private key too, but saying what it is tells the operator to move it away from
     # where verifiers read their keys.
     if "PRIVATE KEY" in pem:
-        raise ValueError(
+        raise GitGrantKeyError(
             f"public_keys[{index}] is a private key. Verifiers take public keys only; the private key stays with the "
             "signer."
         )
     try:
         key = load_pem_public_key(pem.encode())
     except (ValueError, UnsupportedAlgorithm) as e:
-        raise ValueError(f"public_keys[{index}] is not a public key in PEM (-----BEGIN PUBLIC KEY-----).") from e
+        raise GitGrantKeyError(f"public_keys[{index}] is not a public key in PEM (-----BEGIN PUBLIC KEY-----).") from e
     if not isinstance(key, Ed25519PublicKey):
-        raise ValueError(f"public_keys[{index}] must be an Ed25519 key, not {type(key).__name__}.")
+        raise GitGrantKeyError(f"public_keys[{index}] must be an Ed25519 key, not {type(key).__name__}.")
     return key
 
 

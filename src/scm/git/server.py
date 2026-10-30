@@ -28,16 +28,18 @@ _STATUS: dict[ErrorCode, int] = {
     "provider_not_found": 404,
     "git_provider_not_supported": 404,
     "client_closed_request": 499,
-    # Sentry's record of the repository is incomplete.
+    # Misconfigured: Sentry's record of the repository is incomplete, or the provider's host is one the relay does
+    # not send a token to. No retry can succeed, so these are not a 502 or a 503, which a client retries.
     "malformed_external_id": 500,
     "missing_repository_path": 500,
-    # The provider cannot be reached safely, or failed.
-    "git_remote_not_https": 502,
-    "git_remote_refused": 502,
+    "git_remote_not_https": 500,
+    "git_remote_refused": 500,
+    "resource_certificate_invalid": 500,
+    # The provider failed, or Sentry could not get or use a token for it.
     "git_token_rejected": 502,
     "git_token_unavailable": 502,
     "resource_bad_gateway": 502,
-    "resource_certificate_invalid": 502,
+    # Temporary, so a retry can succeed.
     "resource_service_unavailable": 503,
     "resource_gateway_timeout": 504,
 }
@@ -47,7 +49,9 @@ class GitServer:
     """Serves a git endpoint: checks each request against its grant, then relays it with a provider token.
 
     Grants are verified against ``public_keys``, the Ed25519 public keys in PEM whose private keys sign them; see
-    ``scm.git.grant``.
+    ``scm.git.grant``. The keys are checked when the server is built: an empty list, or one holding anything but
+    Ed25519 public keys in PEM, raises ``GitGrantKeyError`` from the constructor, since no grant could verify against
+    it. That is the server's misconfiguration rather than a refusal, so the server never answers a request with it.
 
     The order of the checks matters. The grant is verified, and the request's route and repository checked
     against it, before the repository and its provider are looked up or a token fetched, so a request the grant
@@ -62,9 +66,11 @@ class GitServer:
     message leaves out where the request was going, so ``emit_error`` also gets what the request had resolved
     when it failed, as tags: ``repository_id`` as requested, then ``organization_id`` and ``referrer`` once the
     grant is verified, ``operation``, ``provider`` and ``remote_host``. A tag is missing when the request failed
-    before it was known. A client closing its request is not reported, since there is nothing to fix. Any other
-    exception, such as the token supplier failing, or an error of the relay's adapter that its ``map_error`` leaves
-    alone, reaches the caller unchanged, so the caller can answer it the way it answers the same error elsewhere.
+    before it was known. A client closing its request is not reported, since there is nothing to fix. A coded error
+    that ``get_token`` raises is answered and reported like a refusal, so the token supplier can say how it failed: a
+    ``ResourceServiceUnavailable`` becomes a 503, which the client retries. Any other exception, such as an error of
+    the token supplier that is not coded, or one of the relay's adapter that its ``map_error`` leaves alone, reaches
+    the caller unchanged, so the caller can answer it the way it answers the same error elsewhere.
 
     Every count is tagged with the grant's ``referrer`` once the grant is verified, so Sentry can tell a coding
     job's clone from Seer's own fetch or push.
