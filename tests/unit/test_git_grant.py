@@ -383,7 +383,6 @@ class TestPublicKeys:
         assert require_public_keys((KEY.public, OTHER_KEY.public)) == [KEY.public, OTHER_KEY.public]
 
     def test_empty_list(self, load):
-        # Under HS256, verify_grant refused every grant against an empty list; now the caller learns it has no keys.
         with pytest.raises(GitGrantKeyError, match="no git grant public keys"):
             load([])
 

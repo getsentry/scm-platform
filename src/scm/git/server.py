@@ -67,7 +67,7 @@ class GitServer:
     when it failed, as tags: ``repository_id`` as requested, then ``organization_id`` and ``referrer`` once the
     grant is verified, ``operation``, ``provider`` and ``remote_host``. A tag is missing when the request failed
     before it was known. A client closing its request is not reported, since there is nothing to fix. A coded error
-    that ``get_token`` raises is answered the same way, so the token supplier can say how it failed: a
+    that ``get_token`` raises is answered and reported like a refusal, so the token supplier can say how it failed: a
     ``ResourceServiceUnavailable`` becomes a 503, which the client retries. Any other exception, such as an error of
     the token supplier that is not coded, or one of the relay's adapter that its ``map_error`` leaves alone, reaches
     the caller unchanged, so the caller can answer it the way it answers the same error elsewhere.
