@@ -112,8 +112,9 @@ class GitRelay:
     one, the relay uses a plain ``HTTPAdapter``, which checks nothing.
 
     The relay replaces a requests or urllib3 exception from the upstream request with a coded error, so that it
-    cannot carry the token. ``map_error`` gets any other exception, such as the adapter's own for a refused host,
-    and returns either a coded error, which the relay raises in its place without the original, or None to let the
+    cannot carry the token, and so is one from reading the response body, whose frames hold the bytes read so far.
+    ``map_error`` gets any other exception from the request, such as the adapter's own for a refused host, and
+    returns either a coded error, which the relay raises in its place without the original, or None to let the
     original reach the caller unchanged. An error that reaches the caller this way does carry the token: an adapter
     refusing the host as it connects raises through urllib3's frames, which hold the Authorization header, so report
     such an error without its frames' local variables. GitServer answers a coded error like its other refusals. For
@@ -279,7 +280,7 @@ class _UpstreamStream:
     def __init__(self, session: requests.Session, upstream: requests.Response, chunk_size: int) -> None:
         self.session = session
         self.upstream = upstream
-        self.chunks = upstream.raw.stream(chunk_size, decode_content=False)
+        self.chunks = _read_body(upstream, chunk_size)
 
     def __iter__(self) -> "_UpstreamStream":
         return self
@@ -299,6 +300,20 @@ class _UpstreamStream:
         # then closes a connection the finished response returned to it.
         self.upstream.close()
         self.session.close()
+
+
+def _read_body(upstream: requests.Response, chunk_size: int) -> Iterator[bytes]:
+    """Yield the provider's response body, raising the coded error ``forward`` would for the same failure."""
+    try:
+        yield from upstream.raw.stream(chunk_size, decode_content=False)
+    # "from None" drops urllib3's exception and the http.client one it chains, whose frames hold the partial chunk.
+    except urllib3.exceptions.ReadTimeoutError:
+        raise ResourceGatewayTimeout() from None
+    # A broken connection or a body cut off early. An SSLError here is the TLS connection breaking, not a certificate.
+    except (urllib3.exceptions.ProtocolError, urllib3.exceptions.IncompleteRead, urllib3.exceptions.SSLError):
+        raise ResourceServiceUnavailable() from None
+    except urllib3.exceptions.HTTPError:
+        raise ResourceBadGateway() from None
 
 
 def _read_until_eof(body: Readable, chunk_size: int) -> Iterator[bytes]:

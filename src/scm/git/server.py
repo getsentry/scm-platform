@@ -80,6 +80,10 @@ class GitServer:
     ``client_closed_request`` when the client goes away first. A response the provider sends with a status other
     than 2xx is passed on to the client but counted as failed too, as ``provider_error``. The bytes sent each way
     are counted then too, as ``request_size`` and ``response_size``.
+
+    A coded error from the provider's stream breaking, such as a ``ResourceGatewayTimeout``, comes too late for a
+    refusal, so it goes to ``emit_error`` with the request's tags and is then raised, making the WSGI server drop
+    the connection rather than end the response as if it were whole. The caller need not report it again.
     """
 
     def __init__(
@@ -193,10 +197,13 @@ class GitServer:
             if bytes_sent:
                 self.record_count("sentry.scm.git.response_size", bytes_sent, tags)
 
+        def report(error: SCMCodedError) -> None:
+            self.emit_error(error, context)
+
         return StreamResponse(
             status_code=response.status_code,
             headers=response.headers,
-            content=_MeteredStream(response.content, finish),
+            content=_MeteredStream(response.content, finish, report),
         )
 
 
@@ -228,9 +235,15 @@ class _CountingReader:
 class _MeteredStream:
     """The relay's response stream, reporting once how it ended and how many bytes it passed on."""
 
-    def __init__(self, content: ResponseBody, finish: Callable[[str | None, int], None]) -> None:
+    def __init__(
+        self,
+        content: ResponseBody,
+        finish: Callable[[str | None, int], None],
+        report: Callable[[SCMCodedError], None],
+    ) -> None:
         self.content = content
         self.finish = finish
+        self.report = report
         self.bytes_sent = 0
         self.finished = False
 
@@ -242,6 +255,11 @@ class _MeteredStream:
             chunk = next(self.content)
         except StopIteration:
             self._end(None)
+            raise
+        except SCMCodedError as e:
+            # Counted like any other break; the report says which it was.
+            self._end("stream_interrupted")
+            self.report(e)
             raise
         except Exception:
             self._end("stream_interrupted")
