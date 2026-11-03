@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterator
 from datetime import date, datetime
 from email.utils import format_datetime, parsedate_to_datetime
 from typing import Any, Literal, cast
+from urllib.parse import quote
 
 import msgspec
 import requests
@@ -430,6 +431,12 @@ def _extract_response_meta(response: requests.Response) -> ResponseMeta:
     if last_modified := response.headers.get("Last-Modified"):
         meta["last_modified"] = parsedate_to_datetime(last_modified)
     return meta
+
+
+def _quote_ref(ref: str) -> str:
+    """Percent-encode a branch name, ref or SHA for a URL path; ``#``, ``%`` and ``?`` are legal in
+    git refs but would otherwise end or corrupt the path. ``/`` stays literal, as GitHub expects."""
+    return quote(ref, safe="/")
 
 
 class GitHubProvider:
@@ -945,7 +952,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitRef]:
         response = self.get(
-            f"/repos/{self.repository['name']}/branches/{branch}",
+            f"/repos/{self.repository['name']}/branches/{_quote_ref(branch)}",
             request_options=request_options,
         )
         return map_action(response, lambda r: GitRef(ref=r["name"], sha=r["commit"]["sha"]))
@@ -963,7 +970,7 @@ class GitHubProvider:
 
     def update_branch(self, branch: BranchName, sha: SHA, force: bool = False) -> ActionResult[GitRef]:
         response = self.patch(
-            f"/repos/{self.repository['name']}/git/refs/heads/{branch}",
+            f"/repos/{self.repository['name']}/git/refs/heads/{_quote_ref(branch)}",
             data={"sha": sha, "force": force},
         )
         return map_action(
@@ -972,7 +979,7 @@ class GitHubProvider:
         )
 
     def delete_branch(self, branch: BranchName) -> None:
-        self.delete(f"/repos/{self.repository['name']}/git/refs/heads/{branch}")
+        self.delete(f"/repos/{self.repository['name']}/git/refs/heads/{_quote_ref(branch)}")
 
     def _assert_branch_head(self, branch: BranchName, expected_head_sha: SHA) -> None:
         head_sha = self.get_branch(branch)["data"]["sha"]
@@ -987,7 +994,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[GitRef]:
         response = self.get(
-            f"/repos/{self.repository['name']}/git/ref/{ref}",
+            f"/repos/{self.repository['name']}/git/ref/{_quote_ref(ref)}",
             request_options=request_options,
         )
         return map_action(response, lambda r: GitRef(ref=r["ref"], sha=r["object"]["sha"]))
@@ -1163,7 +1170,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[CommitWithChanges]:
         response = self.get(
-            f"/repos/{self.repository['name']}/commits/{sha}",
+            f"/repos/{self.repository['name']}/commits/{_quote_ref(sha)}",
             request_options=request_options,
         )
         return map_action(response, map_commit_with_changes)
@@ -1175,7 +1182,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[CommitFile]]:
         response = self.get(
-            f"/repos/{self.repository['name']}/commits/{sha}",
+            f"/repos/{self.repository['name']}/commits/{_quote_ref(sha)}",
             pagination=pagination,
             request_options=request_options,
         )
@@ -1243,7 +1250,7 @@ class GitHubProvider:
     ) -> PaginatedActionResult[CommitComparison]:
         """Compare two commits. ``include_behind`` is a no-op: GitHub always returns ``behind_by``."""
         response = self.get(
-            f"/repos/{self.repository['name']}/compare/{start_sha}...{end_sha}",
+            f"/repos/{self.repository['name']}/compare/{_quote_ref(start_sha)}...{_quote_ref(end_sha)}",
             pagination=pagination,
             request_options=request_options,
         )
@@ -1897,7 +1904,7 @@ class GitHubProvider:
             params["filter"] = timestamp_filter
 
         response = self.get(
-            f"/repos/{self.repository['name']}/commits/{ref}/check-runs",
+            f"/repos/{self.repository['name']}/commits/{_quote_ref(ref)}/check-runs",
             params=params,
             pagination=pagination,
             request_options=request_options,
@@ -1951,7 +1958,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[ArchiveLink]:
         response = self.get(
-            f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{ref}",
+            f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{_quote_ref(ref)}",
             request_options=request_options,
             allow_redirects=False,
         )
@@ -1972,7 +1979,7 @@ class GitHubProvider:
         request_options: RequestOptions | None = None,
     ) -> requests.Response:
         return self.get(
-            f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{ref}",
+            f"/repos/{self.repository['name']}/{GITHUB_ARCHIVE_FORMAT_MAP[archive_format]}/{_quote_ref(ref)}",
             request_options=request_options,
         )
 
