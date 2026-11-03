@@ -1,4 +1,17 @@
 # Changelog
+## 3.1.0
+
+### New Features ✨
+
+#### Git
+
+- Add `key_id` to get a git grant key's `kid` from its public key, so callers needn't parse the grant's JWT header by @vaind in [#173](https://github.com/getsentry/scm-platform/pull/173)
+- 🤖 Generated with [Claude Code](https://claude.com/claude-code) by @vaind in [#173](https://github.com/getsentry/scm-platform/pull/173)
+
+### Bug Fixes 🐛
+
+- (git) Report a provider stream breaking mid-response as a coded error by @vaind in [#172](https://github.com/getsentry/scm-platform/pull/172)
+
 ## 3.0.0
 
 ### Breaking Changes 🛠
