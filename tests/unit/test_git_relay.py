@@ -1,6 +1,8 @@
+import contextlib
 import gzip
 import io
 import socket
+import ssl
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -26,7 +28,7 @@ from scm.errors import (
 from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
 from scm.secret import Secret
 from scm.types import GitRemote
-from tests.unit.error_reports import assert_not_in_frames, reported_local
+from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, reported_local
 from tests.unit.git_builders import make_grant
 from tests.unit.git_upstream import (
     ClosingAdapter,
@@ -538,6 +540,48 @@ class TestUpstreamFailures:
         finally:
             release.set()
 
+    def test_provider_cutting_off_the_body(self, relay, upstream):
+        def handler(h: UpstreamHandler) -> None:
+            h.start_chunked(200)
+            h.write_chunk(b"first")
+            # A chunk that promises more than it sends, so http.client raises IncompleteRead.
+            h.wfile.write(b"%x\r\n" % (2 * len(PARTIAL_CHUNK)) + PARTIAL_CHUNK)
+            h.wfile.flush()
+            # A clean TLS close, so the relay sees the chunk end early rather than TLS breaking. It then fails
+            # waiting for the relay's close_notify.
+            with contextlib.suppress(ssl.SSLError):
+                h.connection.unwrap()  # type: ignore[attr-defined]
+            h.close_connection = True
+
+        upstream.handler = handler
+        content = fetch_refs(relay, upstream).content
+        assert next(content) == b"first"
+        with pytest.raises(ResourceServiceUnavailable) as exc_info:
+            next(content)
+        assert isinstance(exc_info.value.__context__, urllib3.exceptions.ProtocolError)
+        assert_body_not_in(exc_info.value)
+
+    def test_provider_going_silent_mid_body(self, upstream):
+        release = threading.Event()
+
+        def handler(h: UpstreamHandler) -> None:
+            h.start_chunked(200)
+            h.write_chunk(b"first")
+            h.wfile.write(b"%x\r\n" % (2 * len(PARTIAL_CHUNK)) + PARTIAL_CHUNK)
+            h.wfile.flush()
+            release.wait(WAIT)
+
+        upstream.handler = handler
+        try:
+            content = fetch_refs(GitRelay(ca_bundle=ca_bundle(), timeout=(1, 0.2)), upstream).content
+            assert next(content) == b"first"
+            with pytest.raises(ResourceGatewayTimeout) as exc_info:
+                next(content)
+            assert isinstance(exc_info.value.__context__, urllib3.exceptions.ReadTimeoutError)
+            assert_body_not_in(exc_info.value)
+        finally:
+            release.set()
+
     @pytest.mark.parametrize(
         "make_error",
         [
@@ -590,6 +634,16 @@ def assert_token_not_in(error: Exception) -> None:
     assert basic_auth("x-access-token", TOKEN.reveal()) not in repr(error)
 
 
+# Part of a pack, which must not reach an error report.
+PARTIAL_CHUNK = b"PACK-partial-repository-contents" * 64
+
+
+def assert_body_not_in(error: Exception) -> None:
+    assert error.__cause__ is None
+    assert error.__suppress_context__
+    assert_not_reported(error, PARTIAL_CHUNK[:32])
+
+
 def upstream_stream(*chunks: bytes | Exception) -> tuple[_UpstreamStream, MagicMock, MagicMock]:
     """An _UpstreamStream over a response whose body yields ``chunks``, raising any that is an exception."""
 
@@ -620,9 +674,41 @@ class TestUpstreamStream:
         stream, session, response = upstream_stream(b"a", urllib3.exceptions.ProtocolError("connection broken"))
         assert next(stream) == b"a"
         response.close.assert_not_called()
-        with pytest.raises(urllib3.exceptions.ProtocolError):
+        with pytest.raises(ResourceServiceUnavailable):
             next(stream)
         response.close.assert_called_once()
+        session.close.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            (
+                urllib3.exceptions.ReadTimeoutError(urllib3.HTTPSConnectionPool("127.0.0.1"), "", "Read timed out."),
+                ResourceGatewayTimeout,
+            ),
+            (urllib3.exceptions.ProtocolError("Connection broken"), ResourceServiceUnavailable),
+            (urllib3.exceptions.IncompleteRead(10, 5), ResourceServiceUnavailable),
+            # Not a certificate the relay does not trust: the connection is already up.
+            (urllib3.exceptions.SSLError("bad record mac"), ResourceServiceUnavailable),
+            (urllib3.exceptions.HTTPError("something else"), ResourceBadGateway),
+        ],
+        ids=lambda value: value.__name__ if isinstance(value, type) else type(value).__name__,
+    )
+    def test_provider_stream_breaking_is_a_coded_error(self, error, expected):
+        stream, _, _ = upstream_stream(b"a", error)
+        next(stream)
+        with pytest.raises(expected) as exc_info:
+            next(stream)
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__
+
+    def test_other_errors_reach_the_caller_unchanged(self):
+        error = RuntimeError("not a urllib3 error")
+        stream, session, _ = upstream_stream(b"a", error)
+        next(stream)
+        with pytest.raises(RuntimeError) as exc_info:
+            next(stream)
+        assert exc_info.value is error
         session.close.assert_called_once()
 
     def test_close_before_reading(self):

@@ -1,4 +1,6 @@
+import contextlib
 import io
+import ssl
 import time
 from collections.abc import Generator
 from types import SimpleNamespace
@@ -12,6 +14,7 @@ from scm.errors import (
     GitGrantKeyError,
     GitRemoteRefused,
     RateLimitExceeded,
+    ResourceGatewayTimeout,
     ResourceServiceUnavailable,
 )
 from scm.git.grant import sign_grant
@@ -21,13 +24,22 @@ from scm.git.types import GRANT_HEADER, GitOperation, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
-from tests.unit.error_reports import assert_not_in_frames, reported_local
+from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, reported_local
 from tests.unit.git_builders import make_grant, make_key_pair, make_provider, make_repository
-from tests.unit.git_upstream import ClosingAdapter, HostRefused, RefusingAdapter, basic_auth, running_upstream
+from tests.unit.git_upstream import (
+    ClosingAdapter,
+    HostRefused,
+    RefusingAdapter,
+    UpstreamHandler,
+    basic_auth,
+    running_upstream,
+)
 
 KEY = make_key_pair()
 TOKEN = Secret("ghs_secrettoken")
 REFERRER = make_grant().referrer
+# A constant, not a test's local, since the test's own frame is in the traceback.
+PARTIAL_PACK = b"PACK-partial-repository-contents" * 64
 
 
 def signed_grant(**overrides) -> str:
@@ -348,6 +360,53 @@ class TestRelay:
             )
         ]
         assert recorder.bytes == {("sentry.scm.git.response_size", "fetch"): 11}
+        # Not coded, so the caller reports it.
+        assert recorder.errors == []
+
+    def test_provider_stream_breaking_with_a_coded_error_is_reported_and_raised(self):
+        error = ResourceGatewayTimeout()
+
+        def broken_stream():
+            yield b"half a pack"
+            raise error
+
+        recorder = Recorder()
+        content = request(make_server(recorder, relay_returning(broken_stream())), signed_grant()).content
+        assert next(content) == b"half a pack"
+        assert recorder.errors == []
+        # Raised, so the WSGI server drops the connection.
+        with pytest.raises(ResourceGatewayTimeout) as exc_info:
+            next(content)
+        assert exc_info.value is error
+        assert recorder.errors == [
+            (
+                error,
+                {
+                    "repository_id": "5",
+                    "organization_id": "1",
+                    "referrer": REFERRER,
+                    "operation": "fetch",
+                    "provider": "github",
+                    "remote_host": "github.com",
+                },
+            )
+        ]
+        assert recorder.counts == [
+            (
+                "sentry.scm.git.request.failed",
+                {
+                    "referrer": REFERRER,
+                    "operation": "fetch",
+                    "provider": "github",
+                    "status": "200",
+                    "code": "stream_interrupted",
+                },
+            )
+        ]
+        # Reported once, however the caller goes on to close the stream.
+        content.close()  # type: ignore[attr-defined]
+        assert len(recorder.errors) == 1
+        assert len(recorder.counts) == 1
 
     def test_client_leaving_early_is_a_failure_and_closes_the_provider_stream(self):
         closed = []
@@ -585,6 +644,34 @@ class TestRelay:
         assert received.path == "/getsentry/sentry.git/info/refs?service=git-upload-pack"
         assert received.headers["Authorization"] == basic_auth("x-access-token", TOKEN.reveal())
         assert GRANT_HEADER not in received.headers
+
+    def test_provider_cutting_off_the_body_end_to_end(self):
+        def handler(h: UpstreamHandler) -> None:
+            h.start_chunked(200)
+            h.write_chunk(b"first")
+            h.wfile.write(b"%x\r\n" % (2 * len(PARTIAL_PACK)) + PARTIAL_PACK)
+            h.wfile.flush()
+            # See test_git_relay's test_provider_cutting_off_the_body.
+            with contextlib.suppress(ssl.SSLError):
+                h.connection.unwrap()  # type: ignore[attr-defined]
+            h.close_connection = True
+
+        with running_upstream() as upstream:
+            upstream.handler = handler
+            recorder = Recorder(
+                repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
+            )
+            content = request(make_server(recorder, GitRelay(ca_bundle=upstream.ca_bundle)), signed_grant()).content
+            assert next(content) == b"first"
+            with pytest.raises(ResourceServiceUnavailable) as exc_info:
+                next(content)
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__
+        assert_not_reported(exc_info.value, PARTIAL_PACK[:32])
+        [(error, context)] = recorder.errors
+        assert error is exc_info.value
+        assert set(context) == {"repository_id", "organization_id", "referrer", "operation", "provider", "remote_host"}
+        assert [tags["code"] for _, tags in recorder.counts] == ["stream_interrupted"]
 
 
 class TestKeptOutOfErrorReports:

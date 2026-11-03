@@ -11,6 +11,16 @@ def assert_not_in_frames(error: BaseException, value: str) -> None:
         tb = tb.tb_next
 
 
+def assert_not_reported(error: BaseException, value: bytes) -> None:
+    """Fail if a report of ``error`` or what it chains, followed as Sentry's SDK does, would show ``value``."""
+    shown = repr(value)[2:-1]
+    reported: BaseException | None = error
+    while reported is not None:
+        assert shown not in str(reported) and shown not in repr(reported), f"{type(reported).__name__} holds it"
+        assert_not_in_frames(reported, shown)
+        reported = reported.__cause__ if reported.__suppress_context__ else reported.__context__
+
+
 def reported_local(error: BaseException, function: str, name: str) -> str:
     """How an error report shows the local variable ``name`` of ``function``'s frame in the error's traceback."""
     tb = error.__traceback__
