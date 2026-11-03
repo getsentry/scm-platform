@@ -10,6 +10,8 @@ they rotate.
 Keys are PEM strings, as for objectstore's tokens: the private key as PKCS#8 (``-----BEGIN PRIVATE KEY-----``),
 public keys as SubjectPublicKeyInfo (``-----BEGIN PUBLIC KEY-----``). ``openssl genpkey -algorithm ed25519`` or
 ``generate_private_key`` makes a private key, and ``openssl pkey -pubout`` or ``public_key_of`` gives its public key.
+``key_id`` gives a public key's ``kid``, so a signer can log which key signed a grant and an operator can tell the keys
+in the verifier's list apart.
 
 A key that is missing or unusable raises ``GitGrantKeyError`` from every function that takes it, whichever side it
 is on. ``require_private_key`` and ``require_public_keys`` check the keys on their own, so a signer or a verifier
@@ -77,6 +79,16 @@ def public_key_of(private_key: Secret) -> str:
     """
     public_key = _load_private_key(private_key).public_key()
     return public_key.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
+
+
+def key_id(public_key: str) -> str:
+    """Return the ``kid`` that grants signed by ``public_key``'s private key carry, for an Ed25519 public key in PEM.
+
+    The id is derived from the key, so it names a key in logs without quoting it. A signer, which holds only its
+    private key, gets its own with ``key_id(public_key_of(private_key))``. Raises GitGrantKeyError, as
+    ``verify_grant`` does, if ``public_key`` is not an Ed25519 public key in PEM.
+    """
+    return _key_id(_load_public_key(public_key, "The git grant public key"))
 
 
 def generate_private_key() -> Secret:
@@ -195,28 +207,27 @@ def _public_keys_by_id(public_keys: Sequence[str]) -> dict[str, Ed25519PublicKey
         raise GitGrantKeyError("There are no git grant public keys, so no grant could verify.")
     keys: dict[str, Ed25519PublicKey] = {}
     for index, pem in enumerate(public_keys):
-        key = _load_public_key(pem, index)
+        key = _load_public_key(pem, f"public_keys[{index}]")
         keys[_key_id(key)] = key
     return keys
 
 
-def _load_public_key(pem: str, index: int) -> Ed25519PublicKey:
-    # Each message names the key by its place in the list rather than quoting it.
+def _load_public_key(pem: str, name: str) -> Ed25519PublicKey:
+    # Each message names the key, e.g. by its place in the list, rather than quoting it.
     if not isinstance(pem, str):
-        raise GitGrantKeyError(f"public_keys[{index}] must be a PEM string, not {type(pem).__name__}.")
+        raise GitGrantKeyError(f"{name} must be a PEM string, not {type(pem).__name__}.")
     # load_pem_public_key refuses a private key too, but saying what it is tells the operator to move it away from
     # where verifiers read their keys.
     if "PRIVATE KEY" in pem:
         raise GitGrantKeyError(
-            f"public_keys[{index}] is a private key. Verifiers take public keys only; the private key stays with the "
-            "signer."
+            f"{name} is a private key. Verifiers take public keys only; the private key stays with the signer."
         )
     try:
         key = load_pem_public_key(pem.encode())
     except (ValueError, UnsupportedAlgorithm) as e:
-        raise GitGrantKeyError(f"public_keys[{index}] is not a public key in PEM (-----BEGIN PUBLIC KEY-----).") from e
+        raise GitGrantKeyError(f"{name} is not a public key in PEM (-----BEGIN PUBLIC KEY-----).") from e
     if not isinstance(key, Ed25519PublicKey):
-        raise GitGrantKeyError(f"public_keys[{index}] must be an Ed25519 key, not {type(key).__name__}.")
+        raise GitGrantKeyError(f"{name} must be an Ed25519 key, not {type(key).__name__}.")
     return key
 
 

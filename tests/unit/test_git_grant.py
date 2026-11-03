@@ -24,6 +24,7 @@ from scm.errors import GitGrantExpired, GitGrantKeyError, GitInvalidGrant
 from scm.git.grant import (
     GRANT_AUDIENCE,
     generate_private_key,
+    key_id,
     public_key_of,
     require_private_key,
     require_public_keys,
@@ -43,7 +44,8 @@ NEW_KEY = make_key_pair()
 OTHER_KEY = make_key_pair()
 
 
-def key_id(key: KeyPair) -> str:
+def expected_key_id(key: KeyPair) -> str:
+    """The kid derived here from the raw key, so the tests check key_id and sign_grant against it."""
     raw = load_pem_public_key(key.public.encode()).public_bytes(Encoding.Raw, PublicFormat.Raw)
     return hashlib.sha256(raw).hexdigest()[:16]
 
@@ -56,7 +58,7 @@ def claims_of(grant: Grant) -> dict:
 
 def sign_claims(claims: dict, key: Any = KEY.key, algorithm: str = "EdDSA", kid: str | None = None) -> str:
     """Sign arbitrary claims the way sign_grant does, to reach the checks that run after the signature."""
-    return jwt.encode(claims, key, algorithm=algorithm, headers={"kid": kid or key_id(KEY)})
+    return jwt.encode(claims, key, algorithm=algorithm, headers={"kid": kid or expected_key_id(KEY)})
 
 
 def b64url(data: bytes) -> str:
@@ -121,7 +123,7 @@ class TestRoundTrip:
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_grant(KEY.private, make_grant(), now=NOW)
-        assert jwt.get_unverified_header(token) == {"alg": "EdDSA", "typ": "JWT", "kid": key_id(KEY)}
+        assert jwt.get_unverified_header(token) == {"alg": "EdDSA", "typ": "JWT", "kid": expected_key_id(KEY)}
         assert jwt.decode(token, options={"verify_signature": False}) == {
             "organization_id": 1,
             "referrer": "seer.coding_job",
@@ -136,8 +138,8 @@ class TestRoundTrip:
     def test_key_id_is_the_same_for_every_grant_a_key_signs(self):
         # The signer derives it from its private key and the verifier from the public key, with no setting to match.
         tokens = [sign_grant(KEY.private, make_grant(organization_id=i), now=NOW) for i in (1, 2)]
-        assert {jwt.get_unverified_header(token)["kid"] for token in tokens} == {key_id(KEY)}
-        assert key_id(KEY) != key_id(OTHER_KEY)
+        assert {jwt.get_unverified_header(token)["kid"] for token in tokens} == {expected_key_id(KEY)}
+        assert expected_key_id(KEY) != expected_key_id(OTHER_KEY)
 
     def test_public_key_with_surrounding_whitespace(self):
         # As a setting read from a file or an environment variable may have.
@@ -243,7 +245,7 @@ class TestAlgorithms:
         # The public key is no secret, so a verifier that let a token pick HS256 and used the key it holds as the HMAC
         # key would accept a grant from anyone. PyJWT refuses to sign with a PEM as an HMAC key, so it is made here.
         token = handmade_token(
-            {"alg": "HS256", "typ": "JWT", "kid": key_id(KEY)},
+            {"alg": "HS256", "typ": "JWT", "kid": expected_key_id(KEY)},
             claims_of(make_grant()),
             lambda signing_input: hmac.digest(KEY.public.encode(), signing_input, "sha256"),
         )
@@ -255,7 +257,7 @@ class TestAlgorithms:
         assert_invalid(token, "alg value is not allowed")
 
     def test_unsigned_token(self):
-        token = jwt.encode(claims_of(make_grant()), None, algorithm="none", headers={"kid": key_id(KEY)})
+        token = jwt.encode(claims_of(make_grant()), None, algorithm="none", headers={"kid": expected_key_id(KEY)})
         assert_invalid(token, "alg value is not allowed")
 
     def test_other_asymmetric_algorithm(self):
@@ -418,6 +420,51 @@ class TestPublicKeys:
         expected = f"^public_keys\\[0\\] must be an Ed25519 key, not {type(key.public_key()).__name__}"
         with pytest.raises(GitGrantKeyError, match=expected) as exc_info:
             load([pem])
+        assert_quotes_no_key(exc_info.value, pem)
+
+
+class TestKeyId:
+    def test_kid_of_the_grants_the_key_signs(self):
+        token = sign_grant(KEY.private, make_grant(), now=NOW)
+        assert key_id(KEY.public) == jwt.get_unverified_header(token)["kid"] == expected_key_id(KEY)
+
+    def test_signer_gets_its_own_from_its_private_key(self):
+        private_key = generate_private_key()
+        token = sign_grant(private_key, make_grant(), now=NOW)
+        assert key_id(public_key_of(private_key)) == jwt.get_unverified_header(token)["kid"]
+
+    def test_differs_between_keys(self):
+        assert key_id(KEY.public) != key_id(OTHER_KEY.public)
+
+    def test_public_key_with_surrounding_whitespace(self):
+        assert key_id(f"\n  {KEY.public}\n\n") == key_id(KEY.public)
+
+    def test_private_key(self):
+        pem = KEY.private.reveal()
+        with pytest.raises(GitGrantKeyError, match=r"^The git grant public key is a private key\.") as exc_info:
+            key_id(pem)
+        assert_quotes_no_key(exc_info.value, pem)
+
+    def test_private_key_as_a_secret(self):
+        with pytest.raises(GitGrantKeyError, match=r"^The git grant public key must be a PEM string, not Secret\."):
+            key_id(KEY.private)  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize(
+        "pem",
+        ["", "not a key", OTHER_KEY.public[:60], pem_body(OTHER_KEY.public)],
+        ids=["empty", "garbage", "truncated", "no-delimiters"],
+    )
+    def test_not_a_public_key(self, pem):
+        with pytest.raises(GitGrantKeyError, match=r"^The git grant public key is not a public key in PEM") as exc_info:
+            key_id(pem)
+        assert_quotes_no_key(exc_info.value, pem)
+
+    @pytest.mark.parametrize("key", other_key_types(), ids=["rsa", "ec", "ed448"])
+    def test_other_key_type(self, key):
+        pem = public_pem(key)
+        expected = f"^The git grant public key must be an Ed25519 key, not {type(key.public_key()).__name__}"
+        with pytest.raises(GitGrantKeyError, match=expected) as exc_info:
+            key_id(pem)
         assert_quotes_no_key(exc_info.value, pem)
 
 
