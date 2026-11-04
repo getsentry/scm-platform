@@ -1,4 +1,10 @@
 # Changelog
+## 3.1.1
+
+### Bug Fixes 🐛
+
+- (github) Percent-encode branch names and refs in URL paths by @joseph-sentry in [#175](https://github.com/getsentry/scm-platform/pull/175)
+
 ## 3.1.0
 
 ### New Features ✨
