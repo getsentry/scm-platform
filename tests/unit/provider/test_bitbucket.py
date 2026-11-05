@@ -284,6 +284,13 @@ class TestGetReadme:
         assert requested_paths(client) == [f"{SRC}/main/", f"{SRC}/main/README.md"]
         assert result["data"]["path"] == "README.md"
 
+    def test_quotes_ref_once(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("directory_main_root"), recorded("file_readme")]
+
+        provider.get_readme("v1@rc#2")
+
+        assert requested_paths(client) == [f"{SRC}/v1%40rc%232/", f"{SRC}/v1%40rc%232/README.md"]
+
     def test_no_readme(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("directory_docs")
         with pytest.raises(ReadmeNotFound):
