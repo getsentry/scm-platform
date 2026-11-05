@@ -318,10 +318,9 @@ class BitbucketProvider:
         *,
         include_reactions: bool = False,
     ) -> PaginatedActionResult[list[ReviewThread]]:
-        """Return the inline comment threads.
+        """Return the inline comment threads, reading every page since a thread can span pages.
 
-        A thread can span pages, so this reads every page and ignores ``pagination``. Bitbucket
-        has no comment reactions, so ``include_reactions`` is unused.
+        ``pagination`` and ``include_reactions`` are unused; Bitbucket has no comment reactions.
         """
         comments: list[dict[str, Any]] = []
         page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
