@@ -12,6 +12,7 @@ Configuration (CLI args override env vars):
     --repo / BITBUCKET_REPO             Bitbucket repository as <workspace>/<repo_slug>
 
 Commands:
+    get-authenticated-actor
     get-repository
     get-app-installation
     get-pull-request <id>
@@ -20,6 +21,10 @@ Commands:
     get-pull-request-commits <id>
     get-pull-request-diff <id>
     get-pull-request-url <id>
+    get-pull-request-comments <pr_id>
+    create-pull-request-comment <pr_id> <body>
+    delete-pull-request-comment <pr_id> <comment_id>
+    get-pull-request-review-threads <pr_id>
 """
 
 import argparse
@@ -31,11 +36,16 @@ import sys
 from scm import Secret
 from scm.manager import SourceCodeManager
 from scm.types import (
+    CreatePullRequestCommentProtocol,
+    DeletePullRequestCommentProtocol,
     GetAppInstallationProtocol,
+    GetAuthenticatedActorProtocol,
+    GetPullRequestCommentsProtocol,
     GetPullRequestCommitsProtocol,
     GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
+    GetPullRequestReviewThreadsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
     GetRepositoryProtocol,
@@ -80,6 +90,7 @@ def main():
     )
 
     sub = parser.add_subparsers(dest="command")
+    sub.add_parser("get-authenticated-actor")
     sub.add_parser("get-repository")
     sub.add_parser("get-app-installation")
 
@@ -101,6 +112,20 @@ def main():
     p = sub.add_parser("get-pull-request-url")
     p.add_argument("id")
 
+    p = sub.add_parser("get-pull-request-comments")
+    p.add_argument("pr_id")
+
+    p = sub.add_parser("create-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("body")
+
+    p = sub.add_parser("delete-pull-request-comment")
+    p.add_argument("pr_id")
+    p.add_argument("comment_id")
+
+    p = sub.add_parser("get-pull-request-review-threads")
+    p.add_argument("pr_id")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -117,7 +142,11 @@ def main():
         **kwargs,
     )
 
-    if args.command == "get-repository":
+    if args.command == "get-authenticated-actor":
+        assert isinstance(scm, GetAuthenticatedActorProtocol)
+        dump(scm.get_authenticated_actor())
+
+    elif args.command == "get-repository":
         assert isinstance(scm, GetRepositoryProtocol)
         dump(scm.get_repository())
 
@@ -148,6 +177,22 @@ def main():
     elif args.command == "get-pull-request-url":
         assert isinstance(scm, GetPullRequestUrlProtocol)
         dump(scm.get_pull_request_url(args.id))
+
+    elif args.command == "get-pull-request-comments":
+        assert isinstance(scm, GetPullRequestCommentsProtocol)
+        dump(scm.get_pull_request_comments(args.pr_id))
+
+    elif args.command == "create-pull-request-comment":
+        assert isinstance(scm, CreatePullRequestCommentProtocol)
+        dump(scm.create_pull_request_comment(args.pr_id, args.body))
+
+    elif args.command == "delete-pull-request-comment":
+        assert isinstance(scm, DeletePullRequestCommentProtocol)
+        scm.delete_pull_request_comment(args.pr_id, args.comment_id)
+
+    elif args.command == "get-pull-request-review-threads":
+        assert isinstance(scm, GetPullRequestReviewThreadsProtocol)
+        dump(scm.get_pull_request_review_threads(args.pr_id))
 
 
 if __name__ == "__main__":

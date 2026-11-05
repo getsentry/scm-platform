@@ -14,7 +14,9 @@ from scm.types import (
     AppInstallation,
     Author,
     BranchName,
+    Comment,
     CommitAuthor,
+    CoPilotChatExtension,
     CredentialsSet,
     FileStatus,
     GitRepository,
@@ -28,6 +30,8 @@ from scm.types import (
     PullRequestState,
     Repository,
     RequestOptions,
+    ReviewThread,
+    ReviewThreadComment,
 )
 
 PROVIDER_TYPE: ProviderName = "bitbucket"
@@ -160,6 +164,10 @@ class BitbucketProvider:
     def delete(self, path: str) -> requests.Response:
         return self.request("DELETE", path=path)
 
+    def get_authenticated_actor(self) -> ActionResult[Author]:
+        response = self.get("/2.0/user")
+        return map_action(response, map_author)
+
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/2.0/repositories/{self.repository_path}")
         return map_action(response, map_repository)
@@ -255,11 +263,75 @@ class BitbucketProvider:
             "meta": {},
         }
 
+    def get_pull_request_comments(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Comment]]:
+        """Return the general comments. Bitbucket lists inline comments in the same list."""
+        response = self.get(
+            self._comments_path(pull_request_id),
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, map_comment, keep=lambda raw: _is_visible(raw) and "inline" not in raw)
+
+    def create_pull_request_comment(
+        self,
+        pull_request_id: str,
+        body: str,
+        extensions: list[CoPilotChatExtension] | None = None,
+    ) -> ActionResult[Comment]:
+        response = self.post(self._comments_path(pull_request_id), data={"content": {"raw": body}})
+        return map_action(response, map_comment)
+
+    def delete_pull_request_comment(self, pull_request_id: str, comment_id: str) -> None:
+        self.delete(f"{self._comments_path(pull_request_id)}/{comment_id}")
+
+    def get_pull_request_review_threads(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+        *,
+        include_reactions: bool = False,
+    ) -> PaginatedActionResult[list[ReviewThread]]:
+        """Return the inline comment threads.
+
+        A thread can span pages, so this reads every page and ignores ``pagination``. Bitbucket
+        has no comment reactions, so ``include_reactions`` is unused.
+        """
+        comments: list[dict[str, Any]] = []
+        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+        while True:
+            # The list leaves out resolution and outdated unless asked for.
+            response = self.get(
+                self._comments_path(pull_request_id),
+                params={"fields": "+values.resolution.type,+values.inline.*"},
+                pagination=page,
+                request_options=request_options,
+            )
+            raw = response.json()
+            comments.extend(raw["values"])
+            if not (cursor := next_cursor(raw)):
+                break
+            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
+        return {
+            "data": map_review_threads(comments),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": {"values": comments}, "headers": dict(response.headers)},
+            "meta": {"next_cursor": None},
+        }
+
     def get_pull_request_url(self, pull_request_id: str) -> str:
         return f"{self._web_base_url}/{self.repository_path}/pull-requests/{pull_request_id}"
 
     def _pull_request_path(self, pull_request_id: str) -> str:
         return f"/2.0/repositories/{self.repository_path}/pullrequests/{pull_request_id}"
+
+    def _comments_path(self, pull_request_id: str) -> str:
+        return f"{self._pull_request_path(pull_request_id)}/comments"
 
 
 def parse_scopes(header: str) -> set[str]:
@@ -335,6 +407,68 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
     )
 
 
+def _is_visible(raw: dict[str, Any]) -> bool:
+    # Bitbucket keeps deleted comments in the list, and pending ones are unpublished drafts.
+    return not raw["deleted"] and not raw["pending"]
+
+
+def map_comment(raw: dict[str, Any]) -> Comment:
+    return Comment(
+        id=str(raw["id"]),
+        body=raw["content"]["raw"],
+        author=map_author(raw["user"]),
+        created_at=raw["created_on"],
+        author_association=None,
+    )
+
+
+def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
+    return ReviewThreadComment(
+        id=str(raw["id"]),
+        unique_id=str(raw["id"]),
+        body=raw["content"]["raw"],
+        author=map_author(raw["user"]),
+        is_bot=raw["user"]["type"] != "user",
+        created_at=raw["created_on"],
+        updated_at=raw["updated_on"],
+        is_minimized=False,
+        commit_sha=raw["inline"].get("src_rev") or "",
+    )
+
+
+def map_review_threads(comments: list[dict[str, Any]]) -> list[ReviewThread]:
+    """Group inline comments under their top-level comment, which holds the thread's state."""
+    by_id = {raw["id"]: raw for raw in comments}
+
+    def root(raw: dict[str, Any]) -> dict[str, Any]:
+        while (parent := raw.get("parent")) and parent["id"] in by_id:
+            raw = by_id[parent["id"]]
+        return raw
+
+    # A deleted top-level comment still anchors the replies under it.
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for raw in comments:
+        if "inline" in raw and _is_visible(raw):
+            grouped.setdefault(root(raw)["id"], []).append(raw)
+
+    threads = []
+    for root_id, thread_comments in grouped.items():
+        head = by_id[root_id]
+        inline = head["inline"]
+        threads.append(
+            ReviewThread(
+                id=str(root_id),
+                is_resolved=bool(head.get("resolution")),
+                is_outdated=bool(inline.get("outdated")),
+                file_path=inline["path"],
+                line=inline["to"] or inline["from"],
+                start_line=inline["start_to"] or inline["start_from"],
+                comments=[map_review_thread_comment(raw) for raw in thread_comments],
+            )
+        )
+    return threads
+
+
 def next_cursor(raw: dict[str, Any]) -> str | None:
     """Read the `page` value out of the `next` link, which is a page number or an opaque token."""
     if not (next_url := raw.get("next")):
@@ -354,11 +488,13 @@ def map_action[T](response: requests.Response, fn: Callable[[dict[str, Any]], T]
 
 
 def map_paginated_action[T](
-    response: requests.Response, fn: Callable[[dict[str, Any]], T]
+    response: requests.Response,
+    fn: Callable[[dict[str, Any]], T],
+    keep: Callable[[dict[str, Any]], bool] = lambda _: True,
 ) -> PaginatedActionResult[list[T]]:
     raw = response.json()
     return {
-        "data": [fn(item) for item in raw.get("values", [])],
+        "data": [fn(item) for item in raw.get("values", []) if keep(item)],
         "type": PROVIDER_TYPE,
         "raw": {"data": raw, "headers": dict(response.headers)},
         "meta": {"next_cursor": next_cursor(raw)},
