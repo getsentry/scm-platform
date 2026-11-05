@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 
-from scm.errors import UnexpectedResponseFormat, error_class_for_status
+from scm.errors import ResourceForbidden, ResourceNotFound, UnexpectedResponseFormat, error_class_for_status
 from scm.types import (
     ActionResult,
     ApiClient,
@@ -187,7 +187,12 @@ class BitbucketProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[PullRequest]:
         response = self.get(self._pull_request_path(pull_request_id), request_options=request_options)
-        return map_action(response, map_pull_request)
+        result = map_action(response, map_pull_request)
+        raw = result["raw"]["data"]
+        for side, branch in (("source", result["data"]["head"]), ("destination", result["data"]["base"])):
+            if branch["sha"] and (repository := raw[side].get("repository")):
+                branch["sha"] = self._full_hash(repository["full_name"], branch["sha"], request_options)
+        return result
 
     def get_pull_requests(
         self,
@@ -215,10 +220,12 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestFile]]:
+        # Bitbucket answers with a redirect to the repository diffstat endpoint.
         response = self.get(
             f"{self._pull_request_path(pull_request_id)}/diffstat",
             pagination=pagination,
             request_options=request_options,
+            allow_redirects=True,
         )
         return map_paginated_action(response, map_pull_request_file)
 
@@ -228,22 +235,33 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestCommit]]:
-        response = self.get(
-            f"{self._pull_request_path(pull_request_id)}/commits",
-            pagination=pagination,
-            request_options=request_options,
-        )
-        result = map_paginated_action(response, map_pull_request_commit)
+        """List every commit on the pull request, oldest first. ``pagination`` is unused.
+
+        Bitbucket lists newest first, so all pages are read to return them oldest first.
+        """
+        path = f"{self._pull_request_path(pull_request_id)}/commits"
+        values: list[dict[str, Any]] = []
+        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+        while True:
+            response = self.get(path, pagination=page, request_options=request_options)
+            raw = response.json()
+            values.extend(raw.get("values", []))
+            if not (cursor := next_cursor(raw)):
+                break
+            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
         # Once merged, Bitbucket lists its own merge commit first. Other providers leave it out.
-        values = result["raw"]["data"].get("values", [])
+        # A squash merge lists only the squash commit, which has one parent, so it stays.
         if values and len(values[0]["parents"]) > 1:
             pull_request = self.get(self._pull_request_path(pull_request_id), request_options=request_options).json()
             merge_hash = (pull_request.get("merge_commit") or {}).get("hash")
             if merge_hash and values[0]["hash"].startswith(merge_hash):
-                result["data"].pop(0)
-        # Bitbucket lists newest first; other providers list oldest first.
-        result["data"].reverse()
-        return result
+                values.pop(0)
+        return {
+            "data": [map_pull_request_commit(value) for value in reversed(values)],
+            "type": PROVIDER_TYPE,
+            "raw": {"data": values, "headers": dict(response.headers)},
+            "meta": {"next_cursor": None},
+        }
 
     def get_pull_request_diff(
         self,
@@ -336,6 +354,19 @@ class BitbucketProvider:
     def _comments_path(self, pull_request_id: str) -> str:
         return f"{self._pull_request_path(pull_request_id)}/comments"
 
+    def _full_hash(self, repository_path: str, short_hash: str, request_options: RequestOptions | None) -> str:
+        """Expand one of the 12-character hashes Bitbucket puts on pull requests."""
+        try:
+            response = self.get(
+                f"/2.0/repositories/{repository_path}/commit/{short_hash}",
+                params={"fields": "hash"},
+                request_options=request_options,
+            )
+        except (ResourceForbidden, ResourceNotFound):
+            # The commit can live in a fork we can't read, or be gone with a deleted branch.
+            return short_hash
+        return response.json()["hash"]
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -366,7 +397,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 
 def map_author(raw: dict[str, Any]) -> Author:
-    # App users, such as Connect apps and access tokens, have no nickname.
+    # App users have no nickname.
     return Author(id=raw["uuid"], username=raw.get("nickname") or raw.get("display_name") or "")
 
 
@@ -381,7 +412,7 @@ def map_authenticated_actor(raw: dict[str, Any]) -> Author:
 
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
-    # Bitbucket abbreviates these hashes to 12 characters.
+    # Bitbucket abbreviates these hashes to 12 characters. Only get_pull_request expands them.
     return PullRequestBranch(ref=raw["branch"]["name"], sha=(raw.get("commit") or {}).get("hash"))
 
 
