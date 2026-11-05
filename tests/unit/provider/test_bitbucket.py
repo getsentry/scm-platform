@@ -281,9 +281,17 @@ class TestGetPullRequest:
             provider.get_pull_request("999")
 
 
-def test_app_user_author_falls_back_to_display_name() -> None:
-    raw = {"type": "app_user", "uuid": "{00000000-0000-0000-0000-000000000002}", "display_name": "Test App"}
-    assert map_author(raw) == {"id": "{00000000-0000-0000-0000-000000000002}", "username": "Test App"}
+@pytest.mark.parametrize(
+    ("raw", "username"),
+    [
+        ({"nickname": "test-user", "display_name": "Test User"}, "test-user"),
+        ({"type": "app_user", "display_name": "Test App"}, "Test App"),
+        ({}, ""),
+    ],
+)
+def test_map_author(raw: dict[str, Any], username: str) -> None:
+    raw = {"uuid": "{00000000-0000-0000-0000-000000000002}", **raw}
+    assert map_author(raw) == {"id": "{00000000-0000-0000-0000-000000000002}", "username": username}
 
 
 class TestGetPullRequests:

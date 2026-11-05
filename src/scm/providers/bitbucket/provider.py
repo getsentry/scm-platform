@@ -228,9 +228,9 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestCommit]]:
-        """List every commit on the pull request, oldest first. ``pagination`` is unused.
+        """Read every page, since Bitbucket lists newest first and callers expect oldest first.
 
-        Bitbucket lists newest first, so all pages are read to return them oldest first.
+        ``pagination`` is unused.
         """
         path = f"{self._pull_request_path(pull_request_id)}/commits"
         values: list[dict[str, Any]] = []
@@ -242,8 +242,8 @@ class BitbucketProvider:
             if not (cursor := next_cursor(raw)):
                 break
             page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
-        # Once merged, Bitbucket lists its own merge commit first. Other providers leave it out.
-        # A squash merge lists only the squash commit, which has one parent, so it stays.
+        # Once merged, Bitbucket lists its own merge commit first; other providers leave it out.
+        # A squash commit has one parent, so it stays.
         if values and len(values[0]["parents"]) > 1:
             pull_request = self.get(self._pull_request_path(pull_request_id), request_options=request_options).json()
             merge_hash = (pull_request.get("merge_commit") or {}).get("hash")
@@ -281,7 +281,6 @@ class BitbucketProvider:
         return f"/2.0/repositories/{self.repository_path}/pullrequests/{pull_request_id}"
 
     def _full_hash(self, repository_path: str, short_hash: str, request_options: RequestOptions | None) -> str:
-        """Expand one of the 12-character hashes Bitbucket puts on pull requests."""
         try:
             response = self.get(
                 f"/2.0/repositories/{repository_path}/commit/{short_hash}",
@@ -324,7 +323,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 def map_author(raw: dict[str, Any]) -> Author:
     # App users have no nickname.
-    return Author(id=raw["uuid"], username=raw.get("nickname") or raw["display_name"])
+    return Author(id=raw["uuid"], username=raw.get("nickname") or raw.get("display_name") or "")
 
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
