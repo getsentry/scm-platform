@@ -240,16 +240,9 @@ class BitbucketProvider:
 
         ``pagination`` is unused.
         """
-        path = f"{self._pull_request_path(pull_request_id)}/commits"
-        values: list[dict[str, Any]] = []
-        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
-        while True:
-            response = self.get(path, pagination=page, request_options=request_options)
-            raw = response.json()
-            values.extend(raw.get("values", []))
-            if not (cursor := next_cursor(raw)):
-                break
-            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
+        values, response = self._get_every_page(
+            f"{self._pull_request_path(pull_request_id)}/commits", request_options=request_options
+        )
         # Once merged, Bitbucket lists its own merge commit first; other providers leave it out.
         # A squash commit has one parent, so it stays.
         if values and len(values[0]["parents"]) > 1:
@@ -323,25 +316,16 @@ class BitbucketProvider:
 
         ``pagination`` and ``include_reactions`` are unused; Bitbucket has no comment reactions.
         """
-        comments: list[dict[str, Any]] = []
-        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
-        while True:
+        comments, response = self._get_every_page(
+            self._comments_path(pull_request_id),
             # The list leaves out resolution and outdated unless asked for.
-            response = self.get(
-                self._comments_path(pull_request_id),
-                params={"q": "inline.path != null", "fields": "+values.resolution.type,+values.inline.*"},
-                pagination=page,
-                request_options=request_options,
-            )
-            raw = response.json()
-            comments.extend(raw["values"])
-            if not (cursor := next_cursor(raw)):
-                break
-            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
+            params={"q": "inline.path != null", "fields": "+values.resolution.type,+values.inline.*"},
+            request_options=request_options,
+        )
         return {
             "data": map_review_threads(comments),
             "type": PROVIDER_TYPE,
-            "raw": {"data": {"values": comments}, "headers": dict(response.headers)},
+            "raw": {"data": comments, "headers": dict(response.headers)},
             "meta": {"next_cursor": None},
         }
 
@@ -350,6 +334,23 @@ class BitbucketProvider:
 
     def _pull_request_path(self, pull_request_id: str) -> str:
         return f"/2.0/repositories/{self.repository_path}/pullrequests/{pull_request_id}"
+
+    def _get_every_page(
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> tuple[list[dict[str, Any]], requests.Response]:
+        """Return the values from every page, and the last page's response."""
+        values: list[dict[str, Any]] = []
+        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+        while True:
+            response = self.get(path, params=params, pagination=page, request_options=request_options)
+            raw = response.json()
+            values.extend(raw.get("values", []))
+            if not (cursor := next_cursor(raw)):
+                return values, response
+            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
 
     def _comments_path(self, pull_request_id: str) -> str:
         return f"{self._pull_request_path(pull_request_id)}/comments"
