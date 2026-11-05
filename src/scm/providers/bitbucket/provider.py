@@ -317,9 +317,10 @@ class BitbucketProvider:
         if body is not None:
             data["description"] = body
         response = self.get(self._pull_request_path(pull_request_id))
-        # Bitbucket can't reopen a declined pull request, so the PUT fails for one.
-        if data or state == "open":
-            response = self._put_pull_request(pull_request_id, response.json(), data)
+        current = response.json()
+        # Bitbucket can't reopen a declined pull request, so let the PUT fail with its error.
+        if data or (state == "open" and current["state"] != "OPEN"):
+            response = self._put_pull_request(pull_request_id, current, data)
         if state == "closed" and response.json()["state"] == "OPEN":
             response = self.post(f"{self._pull_request_path(pull_request_id)}/decline", data={})
         return map_action(response, map_pull_request)

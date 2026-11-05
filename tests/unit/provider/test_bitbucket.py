@@ -534,13 +534,23 @@ class TestUpdatePullRequest:
         assert client.request.call_count == 1
         assert result["data"]["state"] == "closed"
 
-    def test_reopen_open_pull_request(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        client.request.side_effect = [recorded("pull_request_created"), recorded("pull_request_created")]
+    def test_reopen_open_pull_request_sends_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = recorded("pull_request_created")
 
         result = provider.update_pull_request("5", state="open")
 
-        assert client.request.call_args_list[1].kwargs["data"] == {"reviewers": []}
+        assert client.request.call_count == 1
         assert result["data"]["state"] == "open"
+
+    def test_reopen_declined_fails(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_declined"), recorded("pull_request_not_open")]
+
+        with pytest.raises(ResourceBadRequest, match="Can only update an open pull request"):
+            provider.update_pull_request("5", state="open")
+
+        assert client.request.call_args_list[1].kwargs["method"] == "PUT"
 
     def test_nothing_to_change_only_reads(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("pull_request_created")
