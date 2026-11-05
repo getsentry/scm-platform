@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import ResourceNotFound
+from scm.errors import ResourceForbidden, ResourceNotFound, UnexpectedResponseFormat
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -54,6 +54,18 @@ SUPPORTED_PROTOCOLS = [
     GetRepositoryProtocol,
 ]
 TEST_USER = {"id": "{00000000-0000-0000-0000-000000000001}", "username": "test-user"}
+APP_USER = {
+    "type": "app_user",
+    "uuid": "{00000000-0000-0000-0000-000000000002}",
+    "display_name": "Test App",
+    "account_id": "557058:00000000-0000-0000-0000-000000000002",
+    "kind": "connect_app",
+}
+
+
+def with_body(response: requests.Response, body: Any) -> requests.Response:
+    response._content = json.dumps(body).encode()
+    return response
 
 
 def recorded(name: str) -> requests.Response:
@@ -148,6 +160,29 @@ def test_get_authenticated_actor(provider: BitbucketProvider, client: unittest.m
 
     assert request_kwargs(client)["path"] == "/2.0/user"
     assert result["data"] == TEST_USER
+
+
+def test_get_authenticated_actor_app_user(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = with_body(recorded("user"), APP_USER)
+
+    result = provider.get_authenticated_actor()
+
+    assert result["data"] == {"id": APP_USER["uuid"], "username": "Test App"}
+
+
+def test_get_authenticated_actor_without_uuid(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = with_body(recorded("user"), {"type": "app_user"})
+
+    with pytest.raises(UnexpectedResponseFormat):
+        provider.get_authenticated_actor()
+
+
+def test_get_authenticated_actor_forbidden(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = with_body(recorded("user"), {"type": "error"})
+    client.request.return_value.status_code = 403
+
+    with pytest.raises(ResourceForbidden):
+        provider.get_authenticated_actor()
 
 
 class TestGetRepository:
@@ -421,6 +456,7 @@ class TestPullRequestComments:
         result = provider.get_pull_request_comments("1")
 
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments"
+        assert request_kwargs(client)["params"] == {"q": "inline.path = null AND deleted = false"}
         assert result["data"] == [
             {
                 "id": "897197941",
@@ -443,12 +479,25 @@ class TestPullRequestComments:
         response = recorded("pull_request_comments")
         body = response.json()
         body["values"][0]["pending"] = True
-        response._content = json.dumps(body).encode()
-        client.request.return_value = response
+        client.request.return_value = with_body(response, body)
 
         result = provider.get_pull_request_comments("1")
 
         assert [comment["id"] for comment in result["data"]] == ["897197945"]
+
+    def test_maps_app_and_missing_authors(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = recorded("pull_request_comments")
+        body = response.json()
+        body["values"][0]["user"] = APP_USER
+        del body["values"][1]["user"]
+        client.request.return_value = with_body(response, body)
+
+        result = provider.get_pull_request_comments("1")
+
+        assert [comment["author"] for comment in result["data"]] == [
+            {"id": APP_USER["uuid"], "username": "Test App"},
+            None,
+        ]
 
     def test_create(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("pull_request_comment_created")
@@ -481,6 +530,7 @@ class TestGetPullRequestReviewThreads:
 
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments"
         assert request_kwargs(client)["params"] == {
+            "q": "inline.path != null",
             "fields": "+values.resolution.type,+values.inline.*",
             "pagelen": "100",
         }
@@ -514,12 +564,28 @@ class TestGetPullRequestReviewThreads:
             (body["values"][:3], "https://api.bitbucket.org/2.0/x?page=2"),
             (body["values"][3:], None),
         ]:
-            response = recorded("pull_request_comments_inline")
-            response._content = json.dumps({**body, "values": values, "next": next_url}).encode()
-            pages.append(response)
+            pages.append(
+                with_body(recorded("pull_request_comments_inline"), {**body, "values": values, "next": next_url})
+            )
         client.request.side_effect = pages
 
         threads = provider.get_pull_request_review_threads("1")["data"]
 
         assert client.request.call_args_list[1].kwargs["params"]["page"] == "2"
         assert [c["body"] for c in threads[0]["comments"]] == ["Test inline comment", "Test inline reply"]
+
+    def test_maps_app_users_and_outdated(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = recorded("pull_request_comments_inline")
+        body = response.json()
+        body["values"][0]["user"] = APP_USER
+        body["values"][0]["inline"]["outdated"] = True
+        del body["values"][1]["user"]
+        client.request.return_value = with_body(response, body)
+
+        thread = provider.get_pull_request_review_threads("1")["data"][0]
+
+        assert thread["is_outdated"] is True
+        assert [(c["author"], c["is_bot"]) for c in thread["comments"]] == [
+            ({"id": APP_USER["uuid"], "username": "Test App"}, True),
+            (None, False),
+        ]

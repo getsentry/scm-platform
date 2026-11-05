@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import UnexpectedResponseFormat, error_class_for_status
 from scm.types import (
     ActionResult,
     ApiClient,
@@ -166,7 +166,7 @@ class BitbucketProvider:
 
     def get_authenticated_actor(self) -> ActionResult[Author]:
         response = self.get("/2.0/user")
-        return map_action(response, map_author)
+        return map_action(response, map_authenticated_actor)
 
     def get_repository(self) -> ActionResult[GitRepository]:
         response = self.get(f"/2.0/repositories/{self.repository_path}")
@@ -269,13 +269,16 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[Comment]]:
-        """Return the general comments. Bitbucket lists inline comments in the same list."""
+        """Return the general comments, leaving out inline ones."""
         response = self.get(
             self._comments_path(pull_request_id),
+            # Filter on the server so a page of inline comments doesn't come back empty.
+            params={"q": "inline.path = null AND deleted = false"},
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(response, map_comment, keep=lambda raw: _is_visible(raw) and "inline" not in raw)
+        # Pending comments are the caller's own unpublished drafts, and Bitbucket can't filter on them.
+        return map_paginated_action(response, map_comment, keep=lambda raw: not raw.get("pending"))
 
     def create_pull_request_comment(
         self,
@@ -308,7 +311,7 @@ class BitbucketProvider:
             # The list leaves out resolution and outdated unless asked for.
             response = self.get(
                 self._comments_path(pull_request_id),
-                params={"fields": "+values.resolution.type,+values.inline.*"},
+                params={"q": "inline.path != null", "fields": "+values.resolution.type,+values.inline.*"},
                 pagination=page,
                 request_options=request_options,
             )
@@ -363,7 +366,18 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 
 def map_author(raw: dict[str, Any]) -> Author:
-    return Author(id=raw["uuid"], username=raw["nickname"])
+    # App users, such as Connect apps and access tokens, have no nickname.
+    return Author(id=raw["uuid"], username=raw.get("nickname") or raw.get("display_name") or "")
+
+
+def map_user(raw: dict[str, Any] | None) -> Author | None:
+    return map_author(raw) if raw and raw.get("uuid") else None
+
+
+def map_authenticated_actor(raw: dict[str, Any]) -> Author:
+    if not (author := map_user(raw)):
+        raise UnexpectedResponseFormat(detail="Bitbucket /2.0/user response has no uuid")
+    return author
 
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
@@ -407,16 +421,11 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
     )
 
 
-def _is_visible(raw: dict[str, Any]) -> bool:
-    # Bitbucket keeps deleted comments in the list, and pending ones are unpublished drafts.
-    return not raw["deleted"] and not raw["pending"]
-
-
 def map_comment(raw: dict[str, Any]) -> Comment:
     return Comment(
         id=str(raw["id"]),
         body=raw["content"]["raw"],
-        author=map_author(raw["user"]),
+        author=map_user(raw.get("user")),
         created_at=raw["created_on"],
         author_association=None,
     )
@@ -427,8 +436,8 @@ def map_review_thread_comment(raw: dict[str, Any]) -> ReviewThreadComment:
         id=str(raw["id"]),
         unique_id=str(raw["id"]),
         body=raw["content"]["raw"],
-        author=map_author(raw["user"]),
-        is_bot=raw["user"]["type"] != "user",
+        author=map_user(raw.get("user")),
+        is_bot=(raw.get("user") or {}).get("type") == "app_user",
         created_at=raw["created_on"],
         updated_at=raw["updated_on"],
         is_minimized=False,
@@ -448,7 +457,7 @@ def map_review_threads(comments: list[dict[str, Any]]) -> list[ReviewThread]:
     # A deleted top-level comment still anchors the replies under it.
     grouped: dict[int, list[dict[str, Any]]] = {}
     for raw in comments:
-        if "inline" in raw and _is_visible(raw):
+        if not raw.get("deleted") and not raw.get("pending"):
             grouped.setdefault(root(raw)["id"], []).append(raw)
 
     threads = []
@@ -461,8 +470,8 @@ def map_review_threads(comments: list[dict[str, Any]]) -> list[ReviewThread]:
                 is_resolved=bool(head.get("resolution")),
                 is_outdated=bool(inline.get("outdated")),
                 file_path=inline["path"],
-                line=inline["to"] or inline["from"],
-                start_line=inline["start_to"] or inline["start_from"],
+                line=inline.get("to") or inline.get("from"),
+                start_line=inline.get("start_to") or inline.get("start_from"),
                 comments=[map_review_thread_comment(raw) for raw in thread_comments],
             )
         )
