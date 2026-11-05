@@ -1,0 +1,10 @@
+{
+  "body": {
+    "error": {
+      "message": "s5-missing"
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 404
+}
