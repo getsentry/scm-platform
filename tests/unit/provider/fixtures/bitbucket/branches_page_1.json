@@ -3,7 +3,7 @@
     "next": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/branches?pagelen=2&page=2",
     "page": 1,
     "pagelen": 2,
-    "size": 4,
+    "size": 10,
     "values": [
       {
         "default_merge_strategy": "merge_commit",
@@ -39,22 +39,16 @@
             "raw": "Test User <test@example.com>",
             "type": "author",
             "user": {
-              "account_id": "557058:7ee82aa9-e4f9-49a3-9673-f03ad05c7cd0",
-              "display_name": "testt",
+              "account_id": "557058:00000000-0000-0000-0000-000000000001",
+              "display_name": "Test User",
               "links": {
                 "avatar": {
                   "href": "https://avatar.example.com/test-user.png"
-                },
-                "html": {
-                  "href": "https://bitbucket.org/%7B504ca573-8d97-4b1d-8512-b2dce79d1fe0%7D/"
-                },
-                "self": {
-                  "href": "https://api.bitbucket.org/2.0/users/%7B504ca573-8d97-4b1d-8512-b2dce79d1fe0%7D"
                 }
               },
-              "nickname": "testt",
+              "nickname": "test-user",
               "type": "user",
-              "uuid": "{504ca573-8d97-4b1d-8512-b2dce79d1fe0}"
+              "uuid": "{00000000-0000-0000-0000-000000000001}"
             }
           },
           "date": "2026-11-05T20:00:34+00:00",
@@ -152,22 +146,16 @@
             "raw": "Test User <test@example.com>",
             "type": "author",
             "user": {
-              "account_id": "557058:7ee82aa9-e4f9-49a3-9673-f03ad05c7cd0",
-              "display_name": "testt",
+              "account_id": "557058:00000000-0000-0000-0000-000000000001",
+              "display_name": "Test User",
               "links": {
                 "avatar": {
                   "href": "https://avatar.example.com/test-user.png"
-                },
-                "html": {
-                  "href": "https://bitbucket.org/%7B504ca573-8d97-4b1d-8512-b2dce79d1fe0%7D/"
-                },
-                "self": {
-                  "href": "https://api.bitbucket.org/2.0/users/%7B504ca573-8d97-4b1d-8512-b2dce79d1fe0%7D"
                 }
               },
-              "nickname": "testt",
+              "nickname": "test-user",
               "type": "user",
-              "uuid": "{504ca573-8d97-4b1d-8512-b2dce79d1fe0}"
+              "uuid": "{00000000-0000-0000-0000-000000000001}"
             }
           },
           "date": "2026-11-05T20:00:34+00:00",
