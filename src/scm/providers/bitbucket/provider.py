@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import ResourceForbidden, ResourceNotFound, error_class_for_status
 from scm.types import (
     ActionResult,
     ApiClient,
@@ -179,7 +179,12 @@ class BitbucketProvider:
         request_options: RequestOptions | None = None,
     ) -> ActionResult[PullRequest]:
         response = self.get(self._pull_request_path(pull_request_id), request_options=request_options)
-        return map_action(response, map_pull_request)
+        result = map_action(response, map_pull_request)
+        raw = result["raw"]["data"]
+        for side, branch in (("source", result["data"]["head"]), ("destination", result["data"]["base"])):
+            if branch["sha"] and (repository := raw[side].get("repository")):
+                branch["sha"] = self._full_hash(repository["full_name"], branch["sha"], request_options)
+        return result
 
     def get_pull_requests(
         self,
@@ -207,10 +212,12 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestFile]]:
+        # Bitbucket answers with a redirect to the repository diffstat endpoint.
         response = self.get(
             f"{self._pull_request_path(pull_request_id)}/diffstat",
             pagination=pagination,
             request_options=request_options,
+            allow_redirects=True,
         )
         return map_paginated_action(response, map_pull_request_file)
 
@@ -272,6 +279,19 @@ class BitbucketProvider:
     def _pull_request_path(self, pull_request_id: str) -> str:
         return f"/2.0/repositories/{self.repository_path}/pullrequests/{pull_request_id}"
 
+    def _full_hash(self, repository_path: str, short_hash: str, request_options: RequestOptions | None) -> str:
+        """Expand one of the 12-character hashes Bitbucket puts on pull requests."""
+        try:
+            response = self.get(
+                f"/2.0/repositories/{repository_path}/commit/{short_hash}",
+                params={"fields": "hash"},
+                request_options=request_options,
+            )
+        except (ResourceForbidden, ResourceNotFound):
+            # The commit can live in a fork we can't read, or be gone with a deleted branch.
+            return short_hash
+        return response.json()["hash"]
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -302,11 +322,12 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 
 def map_author(raw: dict[str, Any]) -> Author:
-    return Author(id=raw["uuid"], username=raw["nickname"])
+    # App users have no nickname.
+    return Author(id=raw["uuid"], username=raw.get("nickname") or raw["display_name"])
 
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
-    # Bitbucket abbreviates these hashes to 12 characters.
+    # Bitbucket abbreviates these hashes to 12 characters. Only get_pull_request expands them.
     return PullRequestBranch(ref=raw["branch"]["name"], sha=(raw.get("commit") or {}).get("hash"))
 
 
