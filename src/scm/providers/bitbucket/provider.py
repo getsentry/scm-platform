@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
-from scm.errors import PathIsNotDirectory, error_class_for_status
+from scm.errors import PathIsNotDirectory, ResourceNotFound, error_class_for_status
 from scm.helpers import iter_all_pages
 from scm.types import (
     SHA,
@@ -183,12 +183,60 @@ class BitbucketProvider:
 
         Bitbucket has no tree SHAs, so each entry's `sha` is its `<commit>:<path>` git revision.
         """
-        commit, _, path = tree_sha.partition(":")
+        commit, path = self._split_tree_sha(tree_sha, request_options)
+        return self._get_tree_page(commit, path, tree_sha, recursive, pagination, request_options)
+
+    def get_full_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitTree]:
+        """List a whole tree, walking every page."""
+        commit, path = self._split_tree_sha(tree_sha, request_options)
+        entries: list[TreeEntry] = []
+        raw_entries: list[dict[str, Any]] = []
+        for page in iter_all_pages(
+            lambda pagination: self._get_tree_page(commit, path, tree_sha, recursive, pagination, request_options),
+            per_page=MAX_PAGE_SIZE,
+        ):
+            entries.extend(page["data"]["tree"])
+            raw_entries.extend(page["raw"]["data"]["values"])
+        return {
+            "data": GitTree(sha=tree_sha, tree=entries, truncated=False),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": raw_entries, "headers": None},
+            "meta": {},
+        }
+
+    def _split_tree_sha(self, tree_sha: SHA, request_options: RequestOptions | None) -> tuple[SHA, str]:
+        ref, _, path = tree_sha.partition(":")
+        if "/" not in ref:
+            return ref, path
+        # `src` reads the first path segment as the revision, so resolve refs like `feature/x` first.
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/commits/{quote(ref)}",
+            params={"pagelen": "1", "fields": "values.hash"},
+            request_options=request_options,
+        )
+        if not (values := response.json()["values"]):
+            raise ResourceNotFound(detail=f"No commit for {ref!r}")
+        return values[0]["hash"], path
+
+    def _get_tree_page(
+        self,
+        commit: SHA,
+        path: str,
+        tree_sha: SHA,
+        recursive: bool,
+        pagination: PaginationParams | None,
+        request_options: RequestOptions | None,
+    ) -> PaginatedActionResult[GitTree]:
         params = {"fields": _TREE_FIELDS}
         if recursive:
             params["max_depth"] = _MAX_TREE_DEPTH
         response = self.get(
-            f"/2.0/repositories/{self.repository_path}/src/{commit}/{quote(f'{path}/' if path else '')}",
+            f"/2.0/repositories/{self.repository_path}/src/{quote(commit)}/{quote(f'{path}/' if path else '')}",
             params=params,
             pagination=pagination or {"per_page": MAX_PAGE_SIZE},
             request_options=request_options,
@@ -206,28 +254,6 @@ class BitbucketProvider:
             "type": PROVIDER_TYPE,
             "raw": {"data": raw, "headers": dict(response.headers)},
             "meta": {"next_cursor": cursor},
-        }
-
-    def get_full_tree(
-        self,
-        tree_sha: SHA,
-        recursive: bool = True,
-        request_options: RequestOptions | None = None,
-    ) -> ActionResult[GitTree]:
-        """List a whole tree, walking every page."""
-        entries: list[TreeEntry] = []
-        raw_entries: list[dict[str, Any]] = []
-        for page in iter_all_pages(
-            lambda pagination: self.get_tree(tree_sha, recursive, pagination, request_options),
-            per_page=MAX_PAGE_SIZE,
-        ):
-            entries.extend(page["data"]["tree"])
-            raw_entries.extend(page["raw"]["data"]["values"])
-        return {
-            "data": GitTree(sha=tree_sha, tree=entries, truncated=False),
-            "type": PROVIDER_TYPE,
-            "raw": {"data": raw_entries, "headers": None},
-            "meta": {},
         }
 
 

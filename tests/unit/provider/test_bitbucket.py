@@ -256,6 +256,18 @@ class TestGetTree:
 
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/a%20dir/"
 
+    def test_resolves_ref_with_slash(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("commits_branch_head"), recorded("src_subdirectory")]
+
+        result = provider.get_tree("feature/x:src")
+
+        paths = [call.kwargs["path"] for call in client.request.call_args_list]
+        assert paths == [
+            f"/2.0/repositories/{REPO}/commits/feature/x",
+            f"/2.0/repositories/{REPO}/src/{COMMIT}/src/",
+        ]
+        assert result["data"]["sha"] == "feature/x:src"
+
     def test_file_path_is_not_a_tree(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         response = requests.Response()
         response.status_code = 200
@@ -287,3 +299,21 @@ class TestGetFullTree:
             "src/test_app/__init__.py",
             "src/test_app/math.py",
         ]
+
+    def test_resolves_ref_with_slash_once(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            recorded("commits_branch_head"),
+            recorded("src_recursive_page_1"),
+            recorded("src_recursive_page_2"),
+        ]
+
+        result = provider.get_full_tree("feature/x")
+
+        paths = [call.kwargs["path"] for call in client.request.call_args_list]
+        assert paths == [
+            f"/2.0/repositories/{REPO}/commits/feature/x",
+            f"/2.0/repositories/{REPO}/src/{COMMIT}/",
+            f"/2.0/repositories/{REPO}/src/{COMMIT}/",
+        ]
+        assert result["data"]["sha"] == "feature/x"
+        assert len(result["data"]["tree"]) == 8
