@@ -1,15 +1,18 @@
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import ResourceNotFound, error_class_for_status
 from scm.types import (
+    SHA,
     ActionResult,
     ApiClient,
     AppInstallation,
+    BranchName,
     CredentialsSet,
+    GitRef,
     GitRepository,
     PaginatedActionResult,
     PaginationParams,
@@ -43,6 +46,8 @@ _REPOSITORY_WRITE_SCOPES = {
     "admin:repository:bitbucket",
 }
 _PULL_REQUEST_WRITE_SCOPES = {"pullrequest:write", "write:pullrequest:bitbucket"}
+
+_REF_KINDS = {"heads": "branches", "tags": "tags"}
 
 
 class BitbucketProvider:
@@ -149,6 +154,47 @@ class BitbucketProvider:
         scopes = parse_scopes(response.headers.get("x-oauth-scopes", ""))
         return map_action(response, lambda _: map_app_installation(scopes))
 
+    def get_branch(
+        self,
+        branch: BranchName,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/refs/branches/{quote_ref(branch)}",
+            request_options=request_options,
+        )
+        return map_action(response, map_branch)
+
+    def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
+        response = self.post(
+            f"/2.0/repositories/{self.repository_path}/refs/branches",
+            data={"name": branch, "target": {"hash": sha}},
+        )
+        return map_action(response, map_branch)
+
+    def delete_branch(self, branch: BranchName) -> None:
+        self.delete(f"/2.0/repositories/{self.repository_path}/refs/branches/{quote_ref(branch)}")
+
+    def get_git_ref(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        """Get a `heads/<branch>` or `tags/<tag>` ref."""
+        kind, _, name = ref.partition("/")
+        if kind not in _REF_KINDS or not name:
+            raise ResourceNotFound(detail=f"Unsupported ref '{ref}'.")
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/refs/{_REF_KINDS[kind]}/{quote_ref(name)}",
+            request_options=request_options,
+        )
+        return map_action(response, lambda raw: GitRef(ref=f"refs/{kind}/{raw['name']}", sha=raw["target"]["hash"]))
+
+
+def quote_ref(name: str) -> str:
+    """Percent-encode a branch or tag name for a URL path, keeping `/` literal as Bitbucket expects."""
+    return quote(name, safe="/")
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -176,6 +222,10 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         description=raw.get("description") or None,
         topics=[],
     )
+
+
+def map_branch(raw: dict[str, Any]) -> GitRef:
+    return GitRef(ref=raw["name"], sha=raw["target"]["hash"])
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:

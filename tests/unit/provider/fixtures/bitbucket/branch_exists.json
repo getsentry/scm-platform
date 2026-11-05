@@ -1,0 +1,17 @@
+{
+  "body": {
+    "data": {
+      "key": "BRANCH_ALREADY_EXISTS"
+    },
+    "error": {
+      "code": "BRANCH_ALREADY_EXISTS",
+      "data": {
+        "key": "BRANCH_ALREADY_EXISTS"
+      },
+      "message": "Branch \"s5-create\" already exists"
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 400
+}
