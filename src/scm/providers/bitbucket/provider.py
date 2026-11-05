@@ -10,6 +10,7 @@ from scm.types import (
     ApiClient,
     AppInstallation,
     CredentialsSet,
+    GitRemote,
     GitRepository,
     PaginatedActionResult,
     PaginationParams,
@@ -148,6 +149,9 @@ class BitbucketProvider:
         response = self.get(f"/2.0/repositories/{self.repository_path}")
         scopes = parse_scopes(response.headers.get("x-oauth-scopes", ""))
         return map_action(response, lambda _: map_app_installation(scopes))
+
+    def get_git_remote(self) -> GitRemote:
+        return GitRemote(url=f"{self._web_base_url}/{self.repository_path}.git", basic_auth_username="x-token-auth")
 
 
 def parse_scopes(header: str) -> set[str]:

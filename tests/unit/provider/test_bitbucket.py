@@ -17,6 +17,7 @@ from scm.providers.bitbucket.provider import (
 )
 from scm.types import (
     GetAppInstallationProtocol,
+    GetGitRemoteProtocol,
     GetRepositoryProtocol,
     Repository,
 )
@@ -26,6 +27,7 @@ REPO = "test-workspace/test-repo"
 
 SUPPORTED_PROTOCOLS = [
     GetAppInstallationProtocol,
+    GetGitRemoteProtocol,
     GetRepositoryProtocol,
 ]
 
@@ -169,3 +171,10 @@ class TestGetAppInstallation:
         installation = map_app_installation(parse_scopes(header))
         assert installation["has_read_access"] is read
         assert installation["has_write_access"] is write
+
+
+def test_get_git_remote(provider: BitbucketProvider) -> None:
+    assert provider.get_git_remote() == {
+        "url": f"https://bitbucket.org/{REPO}.git",
+        "basic_auth_username": "x-token-auth",
+    }
