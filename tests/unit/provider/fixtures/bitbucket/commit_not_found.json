@@ -1,0 +1,20 @@
+{
+  "body": {
+    "data": {
+      "shas": [
+        "deadbeef"
+      ]
+    },
+    "error": {
+      "data": {
+        "shas": [
+          "deadbeef"
+        ]
+      },
+      "message": "Commit not found"
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 404
+}

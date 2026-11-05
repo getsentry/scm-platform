@@ -1,15 +1,24 @@
+import re
 from collections.abc import Callable
+from datetime import date, datetime
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import ResourceBadRequest, error_class_for_status
 from scm.types import (
+    SHA,
     ActionResult,
     ApiClient,
     AppInstallation,
+    Commit,
+    CommitAuthor,
+    CommitComparison,
+    CommitFile,
+    CommitWithChanges,
     CredentialsSet,
+    FileStatus,
     GitRepository,
     PaginatedActionResult,
     PaginationParams,
@@ -43,6 +52,14 @@ _REPOSITORY_WRITE_SCOPES = {
     "admin:repository:bitbucket",
 }
 _PULL_REQUEST_WRITE_SCOPES = {"pullrequest:write", "write:pullrequest:bitbucket"}
+
+_FILE_STATUSES: dict[str, FileStatus] = {
+    "added": "added",
+    "removed": "removed",
+    "modified": "modified",
+    "renamed": "renamed",
+}
+_RAW_AUTHOR = re.compile(r"^(?P<name>.*?)\s*<(?P<email>[^>]*)>\s*$")
 
 
 class BitbucketProvider:
@@ -149,6 +166,152 @@ class BitbucketProvider:
         scopes = parse_scopes(response.headers.get("x-oauth-scopes", ""))
         return map_action(response, lambda _: map_app_installation(scopes))
 
+    def get_commit_url(self, commit_sha: SHA) -> str:
+        return f"{self._web_base_url}/{self.repository_path}/commits/{commit_sha}"
+
+    def get_commits_url(
+        self,
+        commit_sha: SHA,
+        *,
+        file_path: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> str:
+        """Link to a file's history. Bitbucket only has a history page per branch or tag, not per commit."""
+        if file_path is None or since is not None or until is not None:
+            raise ResourceBadRequest(detail="Bitbucket's commit history page needs a file path and takes no dates.")
+        return f"{self._web_base_url}/{self.repository_path}/history-node/{commit_sha}/{quote(file_path)}"
+
+    def get_commit(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[CommitWithChanges]:
+        """Return a commit with its first page of changed files."""
+        response = self.get(f"/2.0/repositories/{self.repository_path}/commit/{sha}", request_options=request_options)
+        changes = self.get_commit_changes(sha, {"per_page": MAX_PAGE_SIZE}, request_options)
+        files = changes["data"]
+        complete = changes["meta"]["next_cursor"] is None
+
+        return map_action(
+            response,
+            lambda raw: CommitWithChanges(
+                id=raw["hash"],
+                message=raw["message"],
+                author=map_commit_author(raw["author"], raw["date"]),
+                additions=sum(f["additions"] or 0 for f in files) if complete else None,
+                deletions=sum(f["deletions"] or 0 for f in files) if complete else None,
+                files=files,
+            ),
+        )
+
+    def get_commit_changes(
+        self,
+        sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[CommitFile]]:
+        return self._get_changes(sha, pagination, request_options)
+
+    def get_commits(
+        self,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Commit]]:
+        return self._get_commits(ref, {}, pagination, since, until, request_options)
+
+    def get_commits_by_path(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[Commit]]:
+        return self._get_commits(ref, {"path": path}, pagination, since, until, request_options)
+
+    def compare_commits(
+        self,
+        start_sha: SHA,
+        end_sha: SHA,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+        *,
+        include_behind: bool = False,
+    ) -> PaginatedActionResult[CommitComparison]:
+        """Compare two commits against their merge base.
+
+        Bitbucket returns no counts, so they're the length of a commit list and cap at one page.
+        """
+        if include_behind and pagination is not None:
+            raise ResourceBadRequest(
+                detail="'include_behind' cannot be combined with 'pagination': 'ahead_by' would count one page "
+                "while 'behind_by' counts the whole range.",
+            )
+        commits_path = f"/2.0/repositories/{self.repository_path}/commits"
+        response = self.get(
+            commits_path,
+            params={"include": end_sha, "exclude": start_sha},
+            pagination=pagination or {"per_page": MAX_PAGE_SIZE},
+            request_options=request_options,
+        )
+        raw = response.json()
+        commits = [map_commit(commit) for commit in raw["values"]]
+        # A range spec diffs the first commit against the merge base, so the head goes first.
+        changes = self._get_changes(f"{end_sha}..{start_sha}", {"per_page": MAX_PAGE_SIZE}, request_options)
+        comparison = CommitComparison(ahead_by=len(commits), commits=commits, diff=changes["data"])
+        if include_behind:
+            behind = self.get(
+                commits_path,
+                params={"include": start_sha, "exclude": end_sha},
+                pagination={"per_page": MAX_PAGE_SIZE},
+                request_options=request_options,
+            )
+            comparison["behind_by"] = len(behind.json()["values"])
+        return {
+            "data": comparison,
+            "type": PROVIDER_TYPE,
+            "raw": {"data": {**raw, "diffstat": changes["raw"]["data"]}, "headers": dict(response.headers)},
+            "meta": {"next_cursor": next_cursor(raw)},
+        }
+
+    def _get_commits(
+        self,
+        ref: str | None,
+        params: dict[str, str],
+        pagination: PaginationParams | None,
+        since: datetime | None,
+        until: datetime | None,
+        request_options: RequestOptions | None,
+    ) -> PaginatedActionResult[list[Commit]]:
+        if since is not None or until is not None:
+            raise ResourceBadRequest(detail="Bitbucket cannot list commits by date.")
+        # Without a revision Bitbucket lists commits on every branch; HEAD is the main branch.
+        revision = quote(ref or "HEAD", safe="")
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/commits/{revision}",
+            params=params,
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, map_commit)
+
+    def _get_changes(
+        self,
+        spec: str,
+        pagination: PaginationParams | None,
+        request_options: RequestOptions | None,
+    ) -> PaginatedActionResult[list[CommitFile]]:
+        """Read one page of a diffstat, with each file's patch cut from the full diff."""
+        repository_api = f"/2.0/repositories/{self.repository_path}"
+        response = self.get(f"{repository_api}/diffstat/{spec}", pagination=pagination, request_options=request_options)
+        patches = split_patches(self.get(f"{repository_api}/diff/{spec}", request_options=request_options).text)
+        return map_paginated_action(response, lambda raw: map_commit_file(raw, patches))
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -176,6 +339,48 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         description=raw.get("description") or None,
         topics=[],
     )
+
+
+def map_commit_author(raw: dict[str, Any], date: str) -> CommitAuthor:
+    """Parse the git author, which is a raw `Name <email>` string whether or not it links to a Bitbucket user."""
+    if match := _RAW_AUTHOR.match(raw["raw"]):
+        name, email = match["name"], match["email"]
+    else:
+        name, email = raw["raw"], ""
+    return CommitAuthor(name=name, email=email, date=datetime.fromisoformat(date))
+
+
+def map_commit(raw: dict[str, Any]) -> Commit:
+    return Commit(
+        id=raw["hash"],
+        message=raw["message"],
+        author=map_commit_author(raw["author"], raw["date"]),
+        additions=None,
+        deletions=None,
+    )
+
+
+def map_commit_file(raw: dict[str, Any], patches: dict[str, str]) -> CommitFile:
+    old, new = raw["old"], raw["new"]
+    filename = (new or old)["path"]
+    return CommitFile(
+        filename=filename,
+        status=_FILE_STATUSES.get(raw["status"], "unknown"),
+        patch=patches.get(filename),
+        additions=raw["lines_added"],
+        deletions=raw["lines_removed"],
+        previous_filename=old["path"] if raw["status"] == "renamed" else None,
+    )
+
+
+def split_patches(diff: str) -> dict[str, str]:
+    """Split a unified diff into each file's hunks, keyed by the file's new path."""
+    patches = {}
+    for section in re.split(r"^(?=diff --git )", diff, flags=re.MULTILINE):
+        header, _, body = section.partition("\n")
+        if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
+            patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
+    return patches
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
