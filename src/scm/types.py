@@ -1745,15 +1745,16 @@ class ApiClient(Protocol):
         method: str,
         path: str,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | None = None,
+        data: dict[str, Any] | bytes | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
-        json: bool = True,
-    ) -> requests.Response: ...
+    ) -> requests.Response:
+        """Send a dict `data` as JSON and bytes as the raw body, with its Content-Type set in `headers`."""
+        ...
 
 
 class Provider(ApiClient, Protocol):

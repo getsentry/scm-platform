@@ -264,22 +264,6 @@ class TestRpcApiClient:
         assert call_args.kwargs["stream"] is False
         assert msgspec.json.decode(call_args.kwargs["data"])["data"]["stream"] is False
 
-    @pytest.mark.parametrize("json", [True, False])
-    def test_request_forwards_json(self, json):
-        client = RpcApiClient(
-            full_url="http://base/api/0/internal/scm-rpc",
-            signing_secret=Secret("secret"),
-            organization_id=1,
-            referrer="shared",
-            repository_id=1,
-        )
-        client.session = MagicMock()
-        client.session.post.return_value = MagicMock()
-
-        client.request(method="POST", path="/test", data={"message": "m"}, json=json)
-
-        assert msgspec.json.decode(client.session.post.call_args.kwargs["data"])["data"]["json"] is json
-
 
 class TestRpcApiClientTransportRetry:
     """A transient blip between us and the proxy surfaces either as a transport ``ConnectionError``

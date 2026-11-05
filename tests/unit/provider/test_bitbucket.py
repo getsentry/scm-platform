@@ -90,12 +90,6 @@ class TestRequests:
         with pytest.raises(ResourceNotFound):
             provider.get_repository()
 
-    @pytest.mark.parametrize("json", [True, False])
-    def test_forwards_json(self, provider: BitbucketProvider, client: unittest.mock.MagicMock, json: bool) -> None:
-        client.request.return_value = recorded("repository")
-        provider.request("POST", "/2.0/x", data={"message": "m"}, json=json)
-        assert request_kwargs(client)["json"] is json
-
     def test_first_page_sends_no_page(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("branches_page_1")
         provider.get("/2.0/x", pagination={"cursor": "1", "per_page": 2})

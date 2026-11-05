@@ -459,14 +459,13 @@ class GitHubProvider:
         method: str,
         path: str,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | None = None,
+        data: dict[str, Any] | bytes | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
-        json: bool = True,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -479,7 +478,6 @@ class GitHubProvider:
             stream=stream,
             credentials_set=credentials_set,
             timeout=timeout,
-            json=json,
         )
 
         if response.status_code >= 400:
