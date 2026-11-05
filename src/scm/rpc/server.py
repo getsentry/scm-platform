@@ -135,6 +135,7 @@ class RpcServer:
                 raw_response=True,
                 credentials_set=headers.get("X-Credentials-Set", "installation"),
                 timeout=action.timeout,
+                json=action.json,
             ),
             referrer=scm.referrer,
             record_count=scm.record_count,

@@ -268,6 +268,7 @@ class GitLabProvider:
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
+        json: bool = True,
     ) -> requests.Response:
         response = self.client.request(
             method=method,
@@ -280,6 +281,7 @@ class GitLabProvider:
             stream=stream,
             credentials_set=credentials_set,
             timeout=timeout,
+            json=json,
         )
         if response.status_code >= 400:
             error_cls = error_class_for_status(response.status_code)

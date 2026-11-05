@@ -63,6 +63,7 @@ class BitbucketApiClient:
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
+        json: bool = True,
     ) -> requests.Response:
         url = f"{self.base_url}{path}"
 
@@ -70,7 +71,7 @@ class BitbucketApiClient:
         if headers:
             kwargs["headers"] = headers
         if data is not None:
-            kwargs["json"] = data
+            kwargs["json" if json else "data"] = data
         if params is not None:
             kwargs["params"] = params
         if allow_redirects is not None:

@@ -280,6 +280,32 @@ class TestPost:
             "If-None-Match": '"etag"',
         }
 
+    @pytest.mark.parametrize(("overrides", "expected"), [({}, True), ({"json": False}, False)])
+    def test_action_json_reaches_the_provider(self, overrides, expected):
+        repo = make_repository()
+        provider = MagicMock()
+        provider.repository = repo
+        provider.__class__.__name__ = "BitbucketProvider"
+
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.headers = {}
+        mock_response.iter_content.return_value = []
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        provider.request.return_value = mock_response
+
+        server = make_server(
+            fetch_repository=lambda org_id, repo_id: repo,
+            fetch_provider=lambda org_id, r: provider,
+        )
+
+        body = self._make_action_body(method="POST", data={"message": "m"}, **overrides)
+        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+
+        assert response.status_code == 201
+        assert provider.request.call_args.kwargs["json"] is expected
+
     def test_successful_post_streams_response(self):
         repo = make_repository()
         provider = MagicMock()

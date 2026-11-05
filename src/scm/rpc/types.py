@@ -16,6 +16,7 @@ class ActionAttributes(msgspec.Struct):
     allow_redirects: bool | None
     stream: bool | None
     timeout: float | tuple[float, float] | None = None
+    json: bool = True
 
 
 class ActionRequest(msgspec.Struct):
