@@ -307,6 +307,7 @@ class BitbucketProvider:
         request_options: RequestOptions | None,
     ) -> PaginatedActionResult[list[CommitFile]]:
         """Read one page of a diffstat, with each file's patch cut from the full diff."""
+        # Filtering the diff by the page's paths fails: Bitbucket rejects query strings over about 4KB.
         repository_api = f"/2.0/repositories/{self.repository_path}"
         response = self.get(f"{repository_api}/diffstat/{spec}", pagination=pagination, request_options=request_options)
         patches = split_patches(self.get(f"{repository_api}/diff/{spec}", request_options=request_options).text)
@@ -341,13 +342,13 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
     )
 
 
-def map_commit_author(raw: dict[str, Any], date: str) -> CommitAuthor:
+def map_commit_author(raw: dict[str, Any], raw_date: str) -> CommitAuthor:
     """Parse the git author, which is a raw `Name <email>` string whether or not it links to a Bitbucket user."""
     if match := _RAW_AUTHOR.match(raw["raw"]):
         name, email = match["name"], match["email"]
     else:
         name, email = raw["raw"], ""
-    return CommitAuthor(name=name, email=email, date=datetime.fromisoformat(date))
+    return CommitAuthor(name=name, email=email, date=datetime.fromisoformat(raw_date))
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:
