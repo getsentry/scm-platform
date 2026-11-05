@@ -1,8 +1,12 @@
+import base64
+import binascii
+import posixpath
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
 
 import requests
+from urllib3 import encode_multipart_formdata
 
 from scm.errors import (
     ResourceBadRequest,
@@ -178,7 +182,7 @@ class BitbucketProvider:
     ) -> ActionResult[Commit]:
         """Commit `actions` onto `branch`. See :func:`scm.actions.create_commit`.
 
-        Bitbucket only commits at the branch head, so `parent_sha` must match it. Only UTF-8 text can be written.
+        Bitbucket only commits at the branch head, so `parent_sha` must match it.
         """
         if force:
             raise ResourceBadRequest(detail="Bitbucket cannot force a branch to a new commit.")
@@ -197,27 +201,32 @@ class BitbucketProvider:
         if not create_branch and not exists:
             raise ResourceNotFound(detail=f"Branch '{branch}' does not exist.")
 
-        data: dict[str, Any] = {"message": message, "branch": branch, "parents": parent_sha}
+        fields: list[tuple[str, str | tuple[str, bytes, str]]] = [
+            ("message", message),
+            ("branch", branch),
+            ("parents", parent_sha),
+        ]
         if author is not None:
-            data["author"] = f"{author['name']} <{author['email']}>"
-        deleted: list[str] = []
+            fields.append(("author", f"{author['name']} <{author['email']}>"))
         for action in actions:
             if isinstance(action, WriteCommitAction):
-                if action.encoding != "utf-8":
-                    raise ResourceBadRequest(detail=f"Bitbucket can only commit UTF-8 text, not '{action.filename}'.")
-                data[file_field(action.filename)] = action.content
+                fields.append(file_part(action.filename, decode_content(action)))
             elif isinstance(action, DeleteCommitAction):
-                deleted.append(action.filename)
+                fields.append(("files", action.filename))
             elif isinstance(action, MoveCommitAction):
-                deleted.append(action.old_filename)
-                data[file_field(action.new_filename)] = self._text_file(action.old_filename, parent_sha)
+                fields.append(("files", action.old_filename))
+                fields.append(file_part(action.new_filename, self._file_content(action.old_filename, parent_sha)))
             else:
                 raise ResourceBadRequest(detail="Bitbucket cannot change a file's mode through its commit API.")
-        if deleted:
-            data["files"] = deleted
 
+        body, content_type = encode_multipart_formdata(fields)
         try:
-            response = self.request("POST", f"/2.0/repositories/{self.repository_path}/src", data=data, json=False)
+            response = self.request(
+                "POST",
+                f"/2.0/repositories/{self.repository_path}/src",
+                headers={"Content-Type": content_type},
+                data=body,
+            )
         except ResourceBadRequest as e:
             if "is not the head of branch" not in e.detail:
                 raise
@@ -239,18 +248,17 @@ class BitbucketProvider:
             return False
         return True
 
-    def _text_file(self, path: str, ref: SHA) -> str:
-        """Read a file to rewrite it elsewhere, refusing what a plain-text upload can't recreate."""
+    def _file_content(self, path: str, ref: SHA) -> bytes:
+        """Read a file to rewrite it elsewhere, refusing what an upload can't recreate."""
         file_path = f"/2.0/repositories/{self.repository_path}/src/{ref}/{quote(path)}"
-        # A text upload can't set attributes, so a moved executable or symlink would lose them.
-        if attributes := self.get(file_path, params={"format": "meta"}).json().get("attributes"):
+        # An upload can't set attributes, so a moved executable or symlink would lose them.
+        # `binary` only describes the content, which the upload keeps.
+        attributes = set(self.get(file_path, params={"format": "meta"}).json().get("attributes", [])) - {"binary"}
+        if attributes:
             raise ResourceBadRequest(
-                detail=f"Bitbucket cannot move '{path}' and keep its {', '.join(attributes)} attribute."
+                detail=f"Bitbucket cannot move '{path}' and keep its {', '.join(sorted(attributes))} attribute."
             )
-        try:
-            return self.get(file_path).content.decode("utf-8")
-        except UnicodeDecodeError as e:
-            raise ResourceBadRequest(detail=f"Bitbucket can only commit UTF-8 text, not '{path}'.") from e
+        return self.get(file_path).content
 
 
 def parse_scopes(header: str) -> set[str]:
@@ -266,9 +274,22 @@ def map_app_installation(scopes: set[str]) -> AppInstallation:
     )
 
 
-def file_field(path: str) -> str:
-    """A leading slash keeps a file named like a form field, such as `message`, from being read as that field."""
-    return f"/{path.lstrip('/')}"
+def decode_content(action: WriteCommitAction) -> bytes:
+    if action.encoding == "base64":
+        try:
+            return base64.b64decode(action.content, validate=True)
+        except binascii.Error as e:
+            raise ResourceBadRequest(detail=f"'{action.filename}' is not valid base64.") from e
+    return action.content.encode("utf-8")
+
+
+def file_part(path: str, content: bytes) -> tuple[str, tuple[str, bytes, str]]:
+    """A form part that Bitbucket writes to `path`.
+
+    The leading slash keeps a file named like a form field, such as `message`, from being read as that field.
+    """
+    # Bitbucket decodes a part without a filename as text, which mangles binary content.
+    return f"/{path.lstrip('/')}", (posixpath.basename(path), content, "application/octet-stream")
 
 
 def map_repository(raw: dict[str, Any]) -> GitRepository:

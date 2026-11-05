@@ -15,7 +15,7 @@ Commands:
     get-repository
     get-app-installation
     create-commit <branch> <parent_sha> <message>
-        [--create <filename>=<content> ...]
+        [--create <filename>=<content> ...]   (<content> of @<path> uploads that local file)
         [--update <filename>=<content> ...]
         [--delete <filename> ...]
         [--move <old_filename>:<new_filename> ...]
@@ -25,6 +25,7 @@ Commands:
 """
 
 import argparse
+import base64
 import json
 import logging
 import pathlib
@@ -124,12 +125,15 @@ def main():
     elif args.command == "create-commit":
         assert isinstance(scm, CreateCommitProtocol)
         actions: list = []
-        for spec in args.creates or []:
-            filename, _, content = spec.partition("=")
-            actions.append(WriteCommitAction(action="create", filename=filename, content=content, encoding="utf-8"))
-        for spec in args.updates or []:
-            filename, _, content = spec.partition("=")
-            actions.append(WriteCommitAction(action="update", filename=filename, content=content, encoding="utf-8"))
+        for kind, specs in (("create", args.creates), ("update", args.updates)):
+            for spec in specs or []:
+                filename, _, content = spec.partition("=")
+                if content.startswith("@"):
+                    with open(content[1:], "rb") as f:
+                        content = base64.b64encode(f.read()).decode()
+                    actions.append(WriteCommitAction(action=kind, filename=filename, content=content, encoding="base64"))
+                else:
+                    actions.append(WriteCommitAction(action=kind, filename=filename, content=content, encoding="utf-8"))
         for filename in args.deletes or []:
             actions.append(DeleteCommitAction(filename=filename))
         for spec in args.moves or []:

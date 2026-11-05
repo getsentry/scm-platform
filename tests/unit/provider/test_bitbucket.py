@@ -1,3 +1,6 @@
+import base64
+import email
+import email.policy
 import json
 import pathlib
 import unittest.mock
@@ -29,6 +32,8 @@ from scm.types import (
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "bitbucket"
 REPO = "test-workspace/test-repo"
 PARENT = "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\xff\xfe"
+PNG_BASE64 = base64.b64encode(PNG).decode()
 
 SUPPORTED_PROTOCOLS = [
     CreateCommitProtocol,
@@ -75,6 +80,30 @@ def provider(client: unittest.mock.MagicMock) -> BitbucketProvider:
 
 def request_kwargs(client: unittest.mock.MagicMock) -> dict[str, Any]:
     return client.request.call_args.kwargs
+
+
+def sent_parts(client: unittest.mock.MagicMock) -> list[tuple[str, str | None, bytes]]:
+    """The (name, filename, content) of each part of the multipart body sent to Bitbucket."""
+    kwargs = request_kwargs(client)
+    head = f"Content-Type: {kwargs['headers']['Content-Type']}\r\n\r\n".encode()
+    message = email.message_from_bytes(head + kwargs["data"], policy=email.policy.HTTP)
+    parts = []
+    for part in message.walk():
+        if part.is_multipart():
+            continue
+        name = part.get_param("name", header="content-disposition")
+        payload = part.get_payload(decode=True)
+        assert isinstance(name, str) and isinstance(payload, bytes)
+        parts.append((name, part.get_filename(), payload))
+    return parts
+
+
+def sent_form(client: unittest.mock.MagicMock) -> list[tuple[str, bytes]]:
+    return [(name, content) for name, _, content in sent_parts(client)]
+
+
+def sent_filenames(client: unittest.mock.MagicMock) -> dict[str, str]:
+    return {name: filename for name, filename, _ in sent_parts(client) if filename}
 
 
 @pytest.mark.parametrize("protocol", SUPPORTED_PROTOCOLS, ids=lambda p: p.__name__)
@@ -188,6 +217,7 @@ class TestCreateCommit:
             "Add notes",
             [
                 WriteCommitAction(action="create", filename="notes.txt", content="hello\n", encoding="utf-8"),
+                WriteCommitAction(action="create", filename="logo.png", content=PNG_BASE64, encoding="base64"),
                 DeleteCommitAction(filename="PULL_REQUEST_TEMPLATE.md"),
             ],
             author={"name": "Test User", "email": "test@example.com"},
@@ -197,15 +227,17 @@ class TestCreateCommit:
         assert branch_call.kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches/s6-fixture"
         assert commit_call.kwargs["method"] == "POST"
         assert commit_call.kwargs["path"] == f"/2.0/repositories/{REPO}/src"
-        assert commit_call.kwargs["json"] is False
-        assert commit_call.kwargs["data"] == {
-            "message": "Add notes",
-            "branch": "s6-fixture",
-            "parents": PARENT,
-            "author": "Test User <test@example.com>",
-            "/notes.txt": "hello\n",
-            "files": ["PULL_REQUEST_TEMPLATE.md"],
-        }
+        assert commit_call.kwargs["headers"]["Content-Type"].startswith("multipart/form-data; boundary=")
+        assert sent_form(client) == [
+            ("message", b"Add notes"),
+            ("branch", b"s6-fixture"),
+            ("parents", PARENT.encode()),
+            ("author", b"Test User <test@example.com>"),
+            ("/notes.txt", b"hello\n"),
+            ("/logo.png", PNG),
+            ("files", b"PULL_REQUEST_TEMPLATE.md"),
+        ]
+        assert sent_filenames(client) == {"/notes.txt": "notes.txt", "/logo.png": "logo.png"}
         assert result["data"] == {
             "id": "25a878f7635147b9eef09e958ca34395bc67b705",
             "message": "Add notes",
@@ -221,7 +253,7 @@ class TestCreateCommit:
 
         assert result["data"]["id"] == "25a878f7635147b9eef09e958ca34395bc67b705"
         assert result["data"]["author"] is None
-        assert "author" not in request_kwargs(client)["data"]
+        assert "author" not in dict(sent_form(client))
 
     def test_create_branch_conflicts_with_existing_branch(
         self, provider: BitbucketProvider, client: unittest.mock.MagicMock
@@ -244,7 +276,7 @@ class TestCreateCommit:
         with pytest.raises(StaleBranchHead):
             provider.create_commit("s6-fixture", PARENT, "m", [], expected_head_sha=PARENT)
 
-    def test_moves_text_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    def test_moves_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
             recorded("branch"),
             recorded("src_meta"),
@@ -259,9 +291,22 @@ class TestCreateCommit:
         meta_call = client.request.call_args_list[1]
         assert meta_call.kwargs["path"] == f"/2.0/repositories/{REPO}/src/{PARENT}/README.md"
         assert meta_call.kwargs["params"] == {"format": "meta"}
-        data = request_kwargs(client)["data"]
-        assert data["files"] == ["README.md"]
-        assert data["/docs/README.md"] == "# test-repo\n\nA test repository.\n"
+        form = sent_form(client)
+        assert ("files", b"README.md") in form
+        assert ("/docs/README.md", b"# test-repo\n\nA test repository.\n") in form
+
+    def test_moves_binary_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        meta = recorded("src_meta")
+        meta._content = json.dumps({**meta.json(), "attributes": ["binary"]}).encode()
+        binary_file = recorded("src_file")
+        binary_file._content = PNG
+        client.request.side_effect = [recorded("branch"), meta, binary_file, recorded("commit_created")]
+
+        provider.create_commit(
+            "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="logo.png", new_filename="img/logo.png")]
+        )
+
+        assert ("/img/logo.png", PNG) in sent_form(client)
 
     def test_refuses_to_move_executable(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [recorded("branch"), recorded("src_meta_executable")]
@@ -274,12 +319,12 @@ class TestCreateCommit:
     @pytest.mark.parametrize(
         "action",
         [
-            WriteCommitAction(action="create", filename="logo.png", content="iVBORw0K", encoding="base64"),
+            WriteCommitAction(action="create", filename="logo.png", content="not base64!", encoding="base64"),
             ChmodCommitAction(executable=True, filename="run.sh"),
         ],
-        ids=["base64", "chmod"],
+        ids=["invalid_base64", "chmod"],
     )
-    def test_refuses_what_a_text_upload_cannot_write(
+    def test_refuses_what_an_upload_cannot_write(
         self,
         provider: BitbucketProvider,
         client: unittest.mock.MagicMock,
