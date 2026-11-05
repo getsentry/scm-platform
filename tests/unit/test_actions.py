@@ -1070,6 +1070,7 @@ class MinimalProvider:
         raw_response=True,
         credentials_set="installation",
         timeout: float | tuple[float, float] | None = None,
+        json: bool = True,
     ):
         raise NotImplementedError("MinimalProvider does not support request")
 
