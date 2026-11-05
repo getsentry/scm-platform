@@ -1,3 +1,4 @@
+import base64
 import json
 from unittest.mock import MagicMock
 
@@ -15,6 +16,7 @@ from scm.rpc.server import (
     normalize_headers,
     serialize_repository,
 )
+from scm.rpc.types import ActionAttributes, ActionRequest
 from scm.secret import Secret
 from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
@@ -530,3 +532,40 @@ class TestIsSafePath:
 
     def test_path_with_encoded_characters(self):
         assert is_safe_path("/repos/org/repo%20name") is True
+
+
+class TestActionRequestBody:
+    def _request(self, data: dict[str, int] | bytes | None) -> ActionRequest:
+        return ActionRequest(
+            type="action",
+            data=ActionAttributes(
+                method="POST",
+                path="/2.0/x",
+                headers=None,
+                data=data,
+                params=None,
+                allow_redirects=None,
+                stream=None,
+            ),
+        )
+
+    def test_bytes_cross_json_as_base64(self):
+        body = bytes(range(256))
+
+        wire = msgspec.json.encode(self._request(body))
+
+        assert json.loads(wire)["data"]["data"] == base64.b64encode(body).decode()
+        decoded = msgspec.json.decode(wire, type=ActionRequest)
+        assert decoded.data.data == body
+        assert type(decoded.data.data) is bytes
+
+    def test_dict_stays_a_dict(self):
+        wire = msgspec.json.encode(self._request({"a": 1}))
+
+        assert msgspec.json.decode(wire, type=ActionRequest).data.data == {"a": 1}
+
+    def test_invalid_base64_is_rejected(self):
+        wire = msgspec.json.encode(self._request(b"x")).replace(b'"eA=="', b'"not base64!"')
+
+        with pytest.raises(msgspec.DecodeError):
+            msgspec.json.decode(wire, type=ActionRequest)
