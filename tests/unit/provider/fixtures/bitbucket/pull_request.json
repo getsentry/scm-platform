@@ -1,0 +1,169 @@
+{
+  "body": {
+    "author": {
+      "account_id": "557058:00000000-0000-0000-0000-000000000001",
+      "display_name": "Test User",
+      "links": {
+        "avatar": {
+          "href": "https://avatar.example.com/test-user.png"
+        }
+      },
+      "nickname": "test-user",
+      "type": "user",
+      "uuid": "{00000000-0000-0000-0000-000000000001}"
+    },
+    "close_source_branch": false,
+    "closed_by": null,
+    "comment_count": 0,
+    "created_on": "2026-11-05T20:16:19.134981+00:00",
+    "description": "A test pull request.",
+    "destination": {
+      "branch": {
+        "name": "main"
+      },
+      "commit": {
+        "hash": "a682892aa0f4",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo/commits/a682892aa0f4"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/a682892aa0f4"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      }
+    },
+    "draft": false,
+    "id": 1,
+    "links": {
+      "activity": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/activity"
+      },
+      "approve": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/approve"
+      },
+      "comments": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/comments"
+      },
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/commits"
+      },
+      "decline": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/decline"
+      },
+      "diff": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diff/test-workspace/test-repo:c495d0431cfa%0Da682892aa0f4?from_pullrequest_id=1&topic=true"
+      },
+      "diffstat": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diffstat/test-workspace/test-repo:c495d0431cfa%0Da682892aa0f4?from_pullrequest_id=1&topic=true"
+      },
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/1"
+      },
+      "merge": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/merge"
+      },
+      "mergeability_checks": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/mergeability/checks"
+      },
+      "request-changes": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/request-changes"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1"
+      },
+      "statuses": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/statuses"
+      }
+    },
+    "merge_commit": null,
+    "participants": [],
+    "queued": false,
+    "reason": "",
+    "rendered": {
+      "description": {
+        "html": "<p>A test pull request.</p>",
+        "markup": "markdown",
+        "raw": "A test pull request.",
+        "type": "rendered"
+      },
+      "title": {
+        "html": "<p>Test pull request</p>",
+        "markup": "markdown",
+        "raw": "Test pull request",
+        "type": "rendered"
+      }
+    },
+    "reviewers": [],
+    "source": {
+      "branch": {
+        "links": {},
+        "name": "test-branch-1",
+        "sync_strategies": [
+          "merge_commit",
+          "rebase"
+        ]
+      },
+      "commit": {
+        "hash": "c495d0431cfa",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo/commits/c495d0431cfa"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/c495d0431cfa"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      }
+    },
+    "state": "OPEN",
+    "summary": {
+      "html": "<p>A test pull request.</p>",
+      "markup": "markdown",
+      "raw": "A test pull request.",
+      "type": "rendered"
+    },
+    "task_count": 0,
+    "title": "Test pull request",
+    "type": "pullrequest",
+    "updated_on": "2026-11-05T20:16:19.660756+00:00"
+  },
+  "headers": {},
+  "status": 200
+}
