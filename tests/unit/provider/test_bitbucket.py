@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import ResourceNotFound
+from scm.errors import ResourceBadRequest, ResourceNotFound
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -18,6 +18,8 @@ from scm.providers.bitbucket.provider import (
     parse_scopes,
 )
 from scm.types import (
+    CreatePullRequestDraftProtocol,
+    CreatePullRequestProtocol,
     GetAppInstallationProtocol,
     GetPullRequestCommitsProtocol,
     GetPullRequestDiffProtocol,
@@ -26,14 +28,19 @@ from scm.types import (
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
     GetRepositoryProtocol,
+    MarkPullRequestDraftStateProtocol,
     PullRequestState,
     Repository,
+    RequestReviewProtocol,
+    UpdatePullRequestProtocol,
 )
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "bitbucket"
 REPO = "test-workspace/test-repo"
 
 SUPPORTED_PROTOCOLS = [
+    CreatePullRequestDraftProtocol,
+    CreatePullRequestProtocol,
     GetAppInstallationProtocol,
     GetPullRequestCommitsProtocol,
     GetPullRequestDiffProtocol,
@@ -42,6 +49,9 @@ SUPPORTED_PROTOCOLS = [
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
     GetRepositoryProtocol,
+    MarkPullRequestDraftStateProtocol,
+    RequestReviewProtocol,
+    UpdatePullRequestProtocol,
 ]
 TEST_USER = {"id": "{00000000-0000-0000-0000-000000000001}", "username": "test-user"}
 
@@ -393,3 +403,153 @@ class TestGetPullRequestDiff:
 
 def test_get_pull_request_url(provider: BitbucketProvider) -> None:
     assert provider.get_pull_request_url("1") == f"https://bitbucket.org/{REPO}/pull-requests/1"
+
+
+def with_reviewers(name: str, *uuids: str) -> requests.Response:
+    response = recorded(name)
+    body = response.json()
+    body["reviewers"] = [{"type": "user", "uuid": uuid} for uuid in uuids]
+    response._content = json.dumps(body).encode()
+    return response
+
+
+class TestCreatePullRequest:
+    def test_creates_pull_request(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_created")
+
+        result = provider.create_pull_request("S8 create", "A pull request from S8.", "s8-create", "main")
+
+        assert request_kwargs(client)["method"] == "POST"
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests"
+        assert request_kwargs(client)["data"] == {
+            "title": "S8 create",
+            "description": "A pull request from S8.",
+            "source": {"branch": {"name": "s8-create"}},
+            "destination": {"branch": {"name": "main"}},
+            "draft": False,
+        }
+        assert result["data"]["id"] == "5"
+        assert result["data"]["state"] == "open"
+        assert result["data"]["head"]["ref"] == "s8-create"
+
+    def test_creates_draft(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_draft")
+
+        result = provider.create_pull_request_draft("S8 draft probe", "Draft probe.", "s8-draft", "main")
+
+        assert request_kwargs(client)["data"]["draft"] is True
+        assert result["data"]["id"] == "4"
+
+
+class TestMarkPullRequestDraftState:
+    def test_marks_ready_and_keeps_reviewers(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_draft", "{r1}"), recorded("pull_request_created")]
+
+        provider.mark_pull_request_ready_for_review("4")
+
+        put = client.request.call_args_list[1].kwargs
+        assert put["method"] == "PUT"
+        assert put["path"] == f"/2.0/repositories/{REPO}/pullrequests/4"
+        assert put["data"] == {"draft": False, "reviewers": [{"uuid": "{r1}"}]}
+
+    def test_marks_draft(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_created"), recorded("pull_request_draft")]
+
+        provider.mark_pull_request_as_draft("5")
+
+        assert client.request.call_args_list[1].kwargs["data"] == {"draft": True, "reviewers": []}
+
+    @pytest.mark.parametrize(
+        ("fixture", "method"),
+        [
+            ("pull_request_draft", "mark_pull_request_as_draft"),
+            ("pull_request_created", "mark_pull_request_ready_for_review"),
+        ],
+    )
+    def test_already_in_state_sends_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, fixture: str, method: str
+    ) -> None:
+        client.request.return_value = recorded(fixture)
+
+        getattr(provider, method)("1")
+
+        assert client.request.call_count == 1
+
+
+class TestUpdatePullRequest:
+    def test_updates_title_and_body(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_created", "{r1}"), recorded("pull_request_updated")]
+
+        result = provider.update_pull_request("5", title="S8 create, renamed", body="An updated description.")
+
+        assert client.request.call_args_list[1].kwargs["data"] == {
+            "title": "S8 create, renamed",
+            "description": "An updated description.",
+            "reviewers": [{"uuid": "{r1}"}],
+        }
+        assert result["data"]["title"] == "S8 create, renamed"
+        assert result["data"]["body"] == "An updated description."
+
+    def test_close_declines(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_updated"), recorded("pull_request_declined")]
+
+        result = provider.update_pull_request("5", state="closed")
+
+        decline = client.request.call_args_list[1].kwargs
+        assert (decline["method"], decline["path"]) == ("POST", f"/2.0/repositories/{REPO}/pullrequests/5/decline")
+        assert result["data"]["state"] == "closed"
+        assert result["data"]["merged"] is False
+
+    def test_close_closed_pull_request_sends_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = recorded("pull_request_declined")
+
+        result = provider.update_pull_request("5", state="closed")
+
+        assert client.request.call_count == 1
+        assert result["data"]["state"] == "closed"
+
+    def test_reopen_open_pull_request(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_created"), recorded("pull_request_created")]
+
+        result = provider.update_pull_request("5", state="open")
+
+        assert client.request.call_args_list[1].kwargs["data"] == {"reviewers": []}
+        assert result["data"]["state"] == "open"
+
+    def test_nothing_to_change_only_reads(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_created")
+
+        result = provider.update_pull_request("5")
+
+        assert client.request.call_count == 1
+        assert result["data"]["id"] == "5"
+
+
+class TestRequestReview:
+    def test_adds_to_existing_reviewers(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_created", "{r1}"), recorded("pull_request_created")]
+
+        provider.request_review("5", ["{r2}", "{r1}", "{r2}"])
+
+        put = client.request.call_args_list[1].kwargs
+        assert put["method"] == "PUT"
+        assert put["data"] == {"reviewers": [{"uuid": "{r1}"}, {"uuid": "{r2}"}]}
+
+    def test_existing_reviewers_send_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = with_reviewers("pull_request_created", "{r1}")
+
+        provider.request_review("5", ["{r1}"])
+
+        assert client.request.call_count == 1
+
+    def test_author_cannot_review(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_draft"), recorded("pull_request_author_reviewer")]
+
+        with pytest.raises(ResourceBadRequest):
+            provider.request_review("4", [TEST_USER["id"]])
