@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import Callable
 from datetime import datetime
 from email.utils import parseaddr
@@ -212,14 +213,14 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestFile]]:
-        # Bitbucket answers with a redirect to the repository diffstat endpoint.
         response = self.get(
             f"{self._pull_request_path(pull_request_id)}/diffstat",
             pagination=pagination,
             request_options=request_options,
             allow_redirects=True,
         )
-        return map_paginated_action(response, map_pull_request_file)
+        patches = split_patches(self.get_pull_request_diff(pull_request_id, request_options)["data"])
+        return map_paginated_action(response, lambda raw: map_pull_request_file(raw, patches))
 
     def get_pull_request_commits(
         self,
@@ -227,9 +228,9 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestCommit]]:
-        """List every commit on the pull request, oldest first. ``pagination`` is unused.
+        """Read every page, since Bitbucket lists newest first and callers expect oldest first.
 
-        Bitbucket lists newest first, so all pages are read to return them oldest first.
+        ``pagination`` is unused.
         """
         path = f"{self._pull_request_path(pull_request_id)}/commits"
         values: list[dict[str, Any]] = []
@@ -241,8 +242,8 @@ class BitbucketProvider:
             if not (cursor := next_cursor(raw)):
                 break
             page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
-        # Once merged, Bitbucket lists its own merge commit first. Other providers leave it out.
-        # A squash merge lists only the squash commit, which has one parent, so it stays.
+        # Once merged, Bitbucket lists its own merge commit first; other providers leave it out.
+        # A squash commit has one parent, so it stays.
         if values and len(values[0]["parents"]) > 1:
             pull_request = self.get(self._pull_request_path(pull_request_id), request_options=request_options).json()
             merge_hash = (pull_request.get("merge_commit") or {}).get("hash")
@@ -371,7 +372,6 @@ class BitbucketProvider:
         return f"/2.0/repositories/{self.repository_path}/pullrequests/{pull_request_id}"
 
     def _full_hash(self, repository_path: str, short_hash: str, request_options: RequestOptions | None) -> str:
-        """Expand one of the 12-character hashes Bitbucket puts on pull requests."""
         try:
             response = self.get(
                 f"/2.0/repositories/{repository_path}/commit/{short_hash}",
@@ -414,7 +414,7 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
 
 def map_author(raw: dict[str, Any]) -> Author:
     # App users have no nickname.
-    return Author(id=raw["uuid"], username=raw.get("nickname") or raw["display_name"])
+    return Author(id=raw["uuid"], username=raw.get("nickname") or raw.get("display_name") or "")
 
 
 def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
@@ -437,12 +437,13 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
     )
 
 
-def map_pull_request_file(raw: dict[str, Any]) -> PullRequestFile:
+def map_pull_request_file(raw: dict[str, Any], patches: dict[str, str]) -> PullRequestFile:
     status = _FILE_STATUSES.get(raw["status"], "unknown")
+    filename = (raw["new"] or raw["old"])["path"]
     return PullRequestFile(
-        filename=(raw["new"] or raw["old"])["path"],
+        filename=filename,
         status=status,
-        patch=None,
+        patch=patches.get(filename),
         changes=raw["lines_added"] + raw["lines_removed"],
         sha="",
         previous_filename=raw["old"]["path"] if status == "renamed" else None,
@@ -456,6 +457,16 @@ def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
         message=raw["message"],
         author=CommitAuthor(name=name, email=email, date=datetime.fromisoformat(raw["date"])),
     )
+
+
+def split_patches(diff: str) -> dict[str, str]:
+    """Split a unified diff into each file's hunks, keyed by the file's new path."""
+    patches = {}
+    for section in re.split(r"^(?=diff --git )", diff, flags=re.MULTILINE):
+        header, _, body = section.partition("\n")
+        if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
+            patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
+    return patches
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
