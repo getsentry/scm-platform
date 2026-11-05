@@ -1,21 +1,36 @@
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import (
+    ResourceBadRequest,
+    ResourceConflict,
+    ResourceNotFound,
+    StaleBranchHead,
+    error_class_for_status,
+)
 from scm.types import (
+    SHA,
     ActionResult,
     ApiClient,
     AppInstallation,
+    BranchName,
+    ChmodCommitAction,
+    Commit,
+    CommitAuthor,
+    CommitAuthorParam,
     CredentialsSet,
+    DeleteCommitAction,
     GitRepository,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
     Repository,
     RequestOptions,
+    WriteCommitAction,
 )
 
 PROVIDER_TYPE: ProviderName = "bitbucket"
@@ -151,6 +166,94 @@ class BitbucketProvider:
         scopes = parse_scopes(response.headers.get("x-oauth-scopes", ""))
         return map_action(response, lambda _: map_app_installation(scopes))
 
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+        create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
+    ) -> ActionResult[Commit]:
+        """Commit `actions` onto `branch`. See :func:`scm.actions.create_commit`.
+
+        Bitbucket only commits at the branch head, so `parent_sha` must match it. Only UTF-8 text can be written.
+        """
+        if force:
+            raise ResourceBadRequest(detail="Bitbucket cannot force a branch to a new commit.")
+        if expected_head_sha is not None:
+            if create_branch:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            if expected_head_sha != parent_sha:
+                raise ResourceBadRequest(detail="Bitbucket commits onto the branch head, so it must be 'parent_sha'.")
+
+        # Bitbucket creates a missing branch from `parents` rather than failing.
+        exists = self._branch_exists(branch)
+        if create_branch and exists:
+            raise ResourceConflict(detail=f"Branch '{branch}' already exists.")
+        if not create_branch and not exists:
+            raise ResourceNotFound(detail=f"Branch '{branch}' does not exist.")
+
+        data: dict[str, Any] = {"message": message, "branch": branch, "parents": parent_sha}
+        if author is not None:
+            data["author"] = f"{author['name']} <{author['email']}>"
+        deleted: list[str] = []
+        for action in actions:
+            if isinstance(action, WriteCommitAction):
+                if action.encoding != "utf-8":
+                    raise ResourceBadRequest(detail=f"Bitbucket can only commit UTF-8 text, not '{action.filename}'.")
+                data[file_field(action.filename)] = action.content
+            elif isinstance(action, DeleteCommitAction):
+                deleted.append(action.filename)
+            elif isinstance(action, MoveCommitAction):
+                deleted.append(action.old_filename)
+                data[file_field(action.new_filename)] = self._text_file(action.old_filename, parent_sha)
+            else:
+                raise ResourceBadRequest(detail="Bitbucket cannot change a file's mode through its commit API.")
+        if deleted:
+            data["files"] = deleted
+
+        try:
+            response = self.request("POST", f"/2.0/repositories/{self.repository_path}/src", data=data, json=False)
+        except ResourceBadRequest as e:
+            if "is not the head of branch" not in e.detail:
+                raise
+            raise StaleBranchHead(detail=f"Branch '{branch}' is not at {parent_sha}.") from e
+
+        sha = response.headers["Location"].rstrip("/").rsplit("/", 1)[-1]
+        commit_author = CommitAuthor(name=author["name"], email=author["email"], date=None) if author else None
+        return {
+            "data": Commit(id=sha, message=message, author=commit_author, additions=None, deletions=None),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": None, "headers": dict(response.headers)},
+            "meta": {},
+        }
+
+    def _branch_exists(self, branch: BranchName) -> bool:
+        try:
+            self.get(f"/2.0/repositories/{self.repository_path}/refs/branches/{quote(branch, safe='/')}")
+        except ResourceNotFound:
+            return False
+        return True
+
+    def _text_file(self, path: str, ref: SHA) -> str:
+        """Read a file to rewrite it elsewhere, refusing what a plain-text upload can't recreate."""
+        file_path = f"/2.0/repositories/{self.repository_path}/src/{ref}/{quote(path)}"
+        # A text upload can't set attributes, so a moved executable or symlink would lose them.
+        if attributes := self.get(file_path, params={"format": "meta"}).json().get("attributes"):
+            raise ResourceBadRequest(
+                detail=f"Bitbucket cannot move '{path}' and keep its {', '.join(attributes)} attribute."
+            )
+        try:
+            return self.get(file_path).content.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise ResourceBadRequest(detail=f"Bitbucket can only commit UTF-8 text, not '{path}'.") from e
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -163,6 +266,11 @@ def map_app_installation(scopes: set[str]) -> AppInstallation:
         has_write_access=can_write_repository and bool(scopes & _PULL_REQUEST_WRITE_SCOPES),
         has_check_run_write_access=can_write_repository,
     )
+
+
+def file_field(path: str) -> str:
+    """A leading slash keeps a file named like a form field, such as `message`, from being read as that field."""
+    return f"/{path.lstrip('/')}"
 
 
 def map_repository(raw: dict[str, Any]) -> GitRepository:
