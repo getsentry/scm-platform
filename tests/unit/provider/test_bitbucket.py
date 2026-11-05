@@ -82,6 +82,14 @@ def provider(client: unittest.mock.MagicMock) -> BitbucketProvider:
     )
 
 
+def json_response(body: dict[str, Any], status: int = 200) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status
+    response._content = json.dumps(body).encode()
+    response.request = requests.Request("GET", "https://api.bitbucket.org/2.0/x").prepare()
+    return response
+
+
 def request_kwargs(client: unittest.mock.MagicMock) -> dict[str, Any]:
     return client.request.call_args.kwargs
 
@@ -321,6 +329,9 @@ class TestGetPullRequestCommits:
         result = provider.get_pull_request_commits("2")
 
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/2/commits"
+        assert request_kwargs(client)["params"] == {"pagelen": "100"}
+        assert client.request.call_count == 1
+        assert result["meta"]["next_cursor"] is None
         assert result["data"] == [
             {
                 "sha": "f1ee80b1c7c743738fb49d063f9a30a880343314",
@@ -341,6 +352,20 @@ class TestGetPullRequestCommits:
                 },
             },
         ]
+
+    def test_reads_every_page_oldest_first(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        newest, oldest = recorded("pull_request_commits").json()["values"]
+        next_url = f"https://api.bitbucket.org/2.0/repositories/{REPO}/pullrequests/2/commits?page=67Fg"
+        client.request.side_effect = [
+            json_response({"values": [newest], "next": next_url}),
+            json_response({"values": [oldest]}),
+        ]
+
+        result = provider.get_pull_request_commits("2", pagination={"per_page": 1})
+
+        assert client.request.call_args_list[1].kwargs["params"] == {"pagelen": "100", "page": "67Fg"}
+        assert [commit["sha"] for commit in result["data"]] == [oldest["hash"], newest["hash"]]
+        assert result["meta"]["next_cursor"] is None
 
     @staticmethod
     def with_merge_commit(merge_hash: str) -> requests.Response:

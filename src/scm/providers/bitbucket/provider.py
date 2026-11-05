@@ -220,22 +220,33 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[PullRequestCommit]]:
-        response = self.get(
-            f"{self._pull_request_path(pull_request_id)}/commits",
-            pagination=pagination,
-            request_options=request_options,
-        )
-        result = map_paginated_action(response, map_pull_request_commit)
+        """List every commit on the pull request, oldest first. ``pagination`` is unused.
+
+        Bitbucket lists newest first, so all pages are read to return them oldest first.
+        """
+        path = f"{self._pull_request_path(pull_request_id)}/commits"
+        values: list[dict[str, Any]] = []
+        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+        while True:
+            response = self.get(path, pagination=page, request_options=request_options)
+            raw = response.json()
+            values.extend(raw.get("values", []))
+            if not (cursor := next_cursor(raw)):
+                break
+            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
         # Once merged, Bitbucket lists its own merge commit first. Other providers leave it out.
-        values = result["raw"]["data"].get("values", [])
+        # A squash merge lists only the squash commit, which has one parent, so it stays.
         if values and len(values[0]["parents"]) > 1:
             pull_request = self.get(self._pull_request_path(pull_request_id), request_options=request_options).json()
             merge_hash = (pull_request.get("merge_commit") or {}).get("hash")
             if merge_hash and values[0]["hash"].startswith(merge_hash):
-                result["data"].pop(0)
-        # Bitbucket lists newest first; other providers list oldest first.
-        result["data"].reverse()
-        return result
+                values.pop(0)
+        return {
+            "data": [map_pull_request_commit(value) for value in reversed(values)],
+            "type": PROVIDER_TYPE,
+            "raw": {"data": values, "headers": dict(response.headers)},
+            "meta": {"next_cursor": None},
+        }
 
     def get_pull_request_diff(
         self,
