@@ -332,17 +332,19 @@ class TestGetPullRequests:
 
 class TestGetPullRequestFiles:
     def test_maps_diffstat(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        client.request.return_value = recorded("pull_request_diffstat")
+        client.request.side_effect = [recorded("pull_request_diffstat"), recorded("pull_request_merged_diff")]
 
         result = provider.get_pull_request_files("2")
 
-        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/2/diffstat"
-        assert request_kwargs(client)["allow_redirects"] is True
+        assert [(c.kwargs["path"], c.kwargs["allow_redirects"]) for c in client.request.call_args_list] == [
+            (f"/2.0/repositories/{REPO}/pullrequests/2/diffstat", True),
+            (f"/2.0/repositories/{REPO}/pullrequests/2/diff", True),
+        ]
         assert result["data"] == [
             {
                 "filename": "PULL_REQUEST_TEMPLATE.md",
                 "status": "removed",
-                "patch": None,
+                "patch": "@@ -1,3 +0,0 @@\n-## Summary\n-\n-## Test plan\n",
                 "changes": 3,
                 "sha": "",
                 "previous_filename": None,
@@ -350,7 +352,7 @@ class TestGetPullRequestFiles:
             {
                 "filename": "README.md",
                 "status": "modified",
-                "patch": None,
+                "patch": "@@ -1,3 +1,4 @@\n # test-repo\n \n A test repository.\n+More docs.\n",
                 "changes": 1,
                 "sha": "",
                 "previous_filename": None,
@@ -358,7 +360,7 @@ class TestGetPullRequestFiles:
             {
                 "filename": "src/test_app/greet.py",
                 "status": "added",
-                "patch": None,
+                "patch": '@@ -0,0 +1,2 @@\n+def greet(name):\n+    return f"Hello, {name}"\n',
                 "changes": 2,
                 "sha": "",
                 "previous_filename": None,
@@ -376,7 +378,7 @@ class TestGetPullRequestFiles:
 
     def test_conflict_status_is_unknown(self) -> None:
         raw = {"status": "merge conflict", "old": None, "new": {"path": "a.py"}, "lines_added": 1, "lines_removed": 0}
-        assert map_pull_request_file(raw)["status"] == "unknown"
+        assert map_pull_request_file(raw, {})["status"] == "unknown"
 
 
 class TestGetPullRequestCommits:
