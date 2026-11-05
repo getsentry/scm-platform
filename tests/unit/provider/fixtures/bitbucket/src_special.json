@@ -1,0 +1,41 @@
+{
+  "body": {
+    "values": [
+      {
+        "attributes": [
+          "subrepository"
+        ],
+        "commit": {
+          "hash": "01a69636e47e2c25b7000087e2386c393dc46624"
+        },
+        "path": "generated/special/sub",
+        "size": 40,
+        "type": "commit_file"
+      },
+      {
+        "attributes": [
+          "link"
+        ],
+        "commit": {
+          "hash": "01a69636e47e2c25b7000087e2386c393dc46624"
+        },
+        "path": "generated/special/link",
+        "size": 6,
+        "type": "commit_file"
+      },
+      {
+        "attributes": [
+          "executable"
+        ],
+        "commit": {
+          "hash": "01a69636e47e2c25b7000087e2386c393dc46624"
+        },
+        "path": "generated/special/run.sh",
+        "size": 18,
+        "type": "commit_file"
+      }
+    ]
+  },
+  "headers": {},
+  "status": 200
+}

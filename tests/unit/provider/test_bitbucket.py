@@ -17,16 +17,24 @@ from scm.providers.bitbucket.provider import (
 )
 from scm.types import (
     GetAppInstallationProtocol,
+    GetFullTreeProtocol,
+    GetGitCommitProtocol,
     GetRepositoryProtocol,
+    GetTreeProtocol,
     Repository,
 )
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "bitbucket"
 REPO = "test-workspace/test-repo"
 
+COMMIT = "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+
 SUPPORTED_PROTOCOLS = [
     GetAppInstallationProtocol,
+    GetFullTreeProtocol,
+    GetGitCommitProtocol,
     GetRepositoryProtocol,
+    GetTreeProtocol,
 ]
 
 
@@ -169,3 +177,103 @@ class TestGetAppInstallation:
         installation = map_app_installation(parse_scopes(header))
         assert installation["has_read_access"] is read
         assert installation["has_write_access"] is write
+
+
+class TestGetGitCommit:
+    def test_names_tree_by_commit(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("git_commit")
+
+        result = provider.get_git_commit(COMMIT)
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/commit/{COMMIT}"
+        assert result["data"] == {
+            "sha": COMMIT,
+            "tree": {"sha": COMMIT},
+            "message": "Add pull request template\n",
+        }
+
+
+class TestGetTree:
+    def test_recursive_page(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("src_recursive_page_1")
+
+        result = provider.get_tree(COMMIT, pagination={"cursor": "1", "per_page": 5})
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/"
+        assert request_kwargs(client)["params"]["max_depth"] == str(2**31 - 1)
+        assert request_kwargs(client)["params"]["pagelen"] == "5"
+        assert result["meta"]["next_cursor"] == "rXtr"
+        assert result["data"]["truncated"] is True
+        assert result["data"]["sha"] == COMMIT
+        assert result["data"]["tree"][:3] == [
+            {"path": "src", "mode": "040000", "type": "tree", "sha": f"{COMMIT}:src", "size": None},
+            {"path": "tests", "mode": "040000", "type": "tree", "sha": f"{COMMIT}:tests", "size": None},
+            {
+                "path": "PULL_REQUEST_TEMPLATE.md",
+                "mode": "100644",
+                "type": "blob",
+                "sha": f"{COMMIT}:PULL_REQUEST_TEMPLATE.md",
+                "size": 25,
+            },
+        ]
+
+    def test_not_recursive(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("src_special")
+
+        provider.get_tree(COMMIT, recursive=False)
+
+        assert "max_depth" not in request_kwargs(client)["params"]
+        assert request_kwargs(client)["params"]["pagelen"] == "100"
+
+    def test_subtree_paths_are_relative(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("src_subdirectory")
+
+        result = provider.get_tree(f"{COMMIT}:src")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/src/"
+        assert result["data"]["truncated"] is False
+        assert [(e["path"], e["sha"]) for e in result["data"]["tree"]] == [
+            ("test_app", f"{COMMIT}:src/test_app"),
+            ("test_app/__init__.py", f"{COMMIT}:src/test_app/__init__.py"),
+            ("test_app/math.py", f"{COMMIT}:src/test_app/math.py"),
+        ]
+
+    def test_entry_modes(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("src_special")
+
+        result = provider.get_tree("01a69636e47e2c25b7000087e2386c393dc46624:generated/special", recursive=False)
+
+        assert [(e["path"], e["mode"], e["type"], e["size"]) for e in result["data"]["tree"]] == [
+            ("sub", "160000", "commit", None),
+            ("link", "120000", "blob", 6),
+            ("run.sh", "100755", "blob", 18),
+        ]
+
+    def test_quotes_path(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("src_subdirectory")
+
+        provider.get_tree(f"{COMMIT}:a dir")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/a%20dir/"
+
+
+class TestGetFullTree:
+    def test_walks_every_page(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("src_recursive_page_1"), recorded("src_recursive_page_2")]
+
+        result = provider.get_full_tree(COMMIT)
+
+        pages = [call.kwargs["params"] for call in client.request.call_args_list]
+        assert "page" not in pages[0]
+        assert pages[1]["page"] == "rXtr"
+        assert result["data"]["truncated"] is False
+        assert [e["path"] for e in result["data"]["tree"]] == [
+            "src",
+            "tests",
+            "PULL_REQUEST_TEMPLATE.md",
+            "README.md",
+            "src/test_app",
+            "tests/test_math.py",
+            "src/test_app/__init__.py",
+            "src/test_app/math.py",
+        ]

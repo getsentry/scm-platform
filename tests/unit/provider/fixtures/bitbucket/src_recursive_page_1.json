@@ -1,0 +1,48 @@
+{
+  "body": {
+    "next": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a682892aa0f4502ef7a242f75d72d0b41eaa27b9/?max_depth=2147483647&pagelen=5&fields=next%2Cvalues.path%2Cvalues.type%2Cvalues.size%2Cvalues.attributes%2Cvalues.commit.hash&page=rXtr",
+    "values": [
+      {
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "src",
+        "type": "commit_directory"
+      },
+      {
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "tests",
+        "type": "commit_directory"
+      },
+      {
+        "attributes": [],
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "PULL_REQUEST_TEMPLATE.md",
+        "size": 25,
+        "type": "commit_file"
+      },
+      {
+        "attributes": [],
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "README.md",
+        "size": 32,
+        "type": "commit_file"
+      },
+      {
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "src/test_app",
+        "type": "commit_directory"
+      }
+    ]
+  },
+  "headers": {},
+  "status": 200
+}
