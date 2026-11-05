@@ -11,14 +11,17 @@ symmetric across providers and tools:
 2. `src/scm/providers/github/provider.py` — GitHub implementation.
 3. `src/scm/providers/gitlab/provider.py` — GitLab implementation.
 4. `src/scm/providers/cursor_origin/provider.py` — Cursor Origin implementation.
-5. `src/scm/test_fixtures.py` — `FakeProvider` signature.
-6. `bin/github-client` and `bin/gitlab-client` — CLI usage docstring,
+5. `src/scm/providers/bitbucket/provider.py` — Bitbucket implementation, if it
+   supports the protocol.
+6. `src/scm/test_fixtures.py` — `FakeProvider` signature.
+7. `bin/github-client`, `bin/gitlab-client` and `bin/bitbucket-client` — CLI usage docstring,
    `argparse` definition, and the call site that invokes the provider. **No
    test enforces this**, so it fails silently and is easy to miss — do not
    skip it.
-7. Tests under `tests/unit/provider/test_github.py`,
-   `tests/unit/provider/test_gitlab.py` and
-   `tests/unit/provider/test_cursor_origin.py` covering each branch of the new
+8. Tests under `tests/unit/provider/test_github.py`,
+   `tests/unit/provider/test_gitlab.py`,
+   `tests/unit/provider/test_cursor_origin.py` and
+   `tests/unit/provider/test_bitbucket.py` covering each branch of the new
    parameter.
 
 Run `uv run pytest tests/`, `uv run ruff check src tests`, and

@@ -1,0 +1,132 @@
+{
+  "body": {
+    "created_on": "2026-11-05T20:00:17.197813+00:00",
+    "description": "",
+    "enforced_signed_commits": null,
+    "fork_policy": "allow_forks",
+    "full_name": "test-workspace/test-repo",
+    "is_private": true,
+    "language": "",
+    "links": {
+      "avatar": {
+        "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+      },
+      "branches": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/branches"
+      },
+      "clone": [
+        {
+          "href": "https://test-user@bitbucket.org/test-workspace/test-repo.git",
+          "name": "https"
+        },
+        {
+          "href": "git@ssh.bitbucket.org:test-workspace/test-repo.git",
+          "name": "ssh"
+        }
+      ],
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits"
+      },
+      "downloads": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/downloads"
+      },
+      "forks": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/forks"
+      },
+      "hooks": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/hooks"
+      },
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo"
+      },
+      "pullrequests": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+      },
+      "source": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src"
+      },
+      "tags": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/tags"
+      },
+      "watchers": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/watchers"
+      }
+    },
+    "mainbranch": {
+      "name": "main",
+      "type": "branch"
+    },
+    "name": "test-repo",
+    "override_settings": {
+      "branching_model": true,
+      "default_merge_strategy": true
+    },
+    "owner": {
+      "display_name": "test-workspace",
+      "links": {
+        "avatar": {
+          "href": "https://bitbucket.org/account/test-workspace/avatar/"
+        },
+        "html": {
+          "href": "https://bitbucket.org/%7B3888cc5d-f967-4219-bd25-0814dbfad869%7D/"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/workspaces/%7B3888cc5d-f967-4219-bd25-0814dbfad869%7D"
+        }
+      },
+      "type": "team",
+      "username": "test-workspace",
+      "uuid": "{3888cc5d-f967-4219-bd25-0814dbfad869}"
+    },
+    "parent": null,
+    "project": {
+      "key": "PROJ",
+      "links": {
+        "avatar": {
+          "href": "https://bitbucket.org/test-workspace/workspace/projects/PROJ/avatar/32?ts=1793824340"
+        },
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/workspace/projects/PROJ"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/workspaces/test-workspace/projects/PROJ"
+        }
+      },
+      "name": "Untitled project",
+      "type": "project",
+      "uuid": "{b0b0a394-e56c-4f5e-9423-bb3306dce0f5}"
+    },
+    "scm": "git",
+    "size": 2239,
+    "slug": "test-repo",
+    "type": "repository",
+    "updated_on": "2026-11-05T20:00:37.014544+00:00",
+    "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}",
+    "website": null,
+    "workspace": {
+      "links": {
+        "avatar": {
+          "href": "https://bitbucket.org/workspaces/test-workspace/avatar/?ts=1793822351"
+        },
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/workspaces/test-workspace"
+        }
+      },
+      "name": "test-workspace",
+      "slug": "test-workspace",
+      "type": "workspace",
+      "uuid": "{3888cc5d-f967-4219-bd25-0814dbfad869}"
+    }
+  },
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+    "x-oauth-scopes": "write:issue:bitbucket, read:issue:bitbucket, read:workspace:bitbucket, read:user:bitbucket, admin:repository:bitbucket, read:repository:bitbucket, write:repository:bitbucket, read:pullrequest:bitbucket, write:pullrequest:bitbucket"
+  },
+  "status": 200
+}
