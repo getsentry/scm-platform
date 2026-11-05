@@ -24,6 +24,7 @@ Commands:
 import argparse
 import json
 import logging
+import os
 import pathlib
 import sys
 
@@ -107,8 +108,8 @@ def main():
         sys.exit(1)
 
     kwargs = {
-        "base_url": args.base_url if args.base_url else "http://127.0.0.1:8080",
-        "signing_secret": Secret(args.secret if args.secret else "secret"),
+        "base_url": args.base_url or os.environ.get("SCM_RPC_BASE_URL") or "http://127.0.0.1:8080",
+        "signing_secret": Secret(args.secret or os.environ.get("SCM_RPC_SIGNING_SECRET") or "secret"),
     }
 
     scm = SourceCodeManager.make_proxy_client(
