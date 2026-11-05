@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import ResourceConflict, error_class_for_status
 from scm.types import (
     ActionResult,
     ApiClient,
@@ -268,6 +268,19 @@ class BitbucketProvider:
     def _create_pull_request(
         self, title: str, body: str, head: BranchName, base: BranchName, draft: bool
     ) -> ActionResult[PullRequest]:
+        # Bitbucket overwrites an open pull request between the same branches instead of
+        # failing, so check first.
+        query = (
+            f"source.branch.name={json.dumps(head, ensure_ascii=False)}"
+            f' AND destination.branch.name={json.dumps(base, ensure_ascii=False)} AND state="OPEN"'
+        )
+        existing = self.get(
+            f"/2.0/repositories/{self.repository_path}/pullrequests",
+            params={"q": query},
+            pagination={"per_page": 1},
+        ).json()
+        if existing["values"]:
+            raise ResourceConflict(detail=f"A pull request already exists for {head}.")
         response = self.post(
             f"/2.0/repositories/{self.repository_path}/pullrequests",
             data={

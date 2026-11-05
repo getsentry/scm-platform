@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import ResourceBadRequest, ResourceNotFound
+from scm.errors import ResourceBadRequest, ResourceConflict, ResourceNotFound
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -413,12 +413,23 @@ def with_reviewers(name: str, *uuids: str) -> requests.Response:
     return response
 
 
+def pull_requests_page(*names: str) -> requests.Response:
+    response = recorded("pull_requests_page_1")
+    response._content = json.dumps({"values": [recorded(name).json() for name in names]}).encode()
+    return response
+
+
 class TestCreatePullRequest:
     def test_creates_pull_request(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        client.request.return_value = recorded("pull_request_created")
+        client.request.side_effect = [pull_requests_page(), recorded("pull_request_created")]
 
         result = provider.create_pull_request("S8 create", "A pull request from S8.", "s8-create", "main")
 
+        check = client.request.call_args_list[0].kwargs
+        assert (check["method"], check["path"]) == ("GET", f"/2.0/repositories/{REPO}/pullrequests")
+        assert check["params"]["q"] == (
+            'source.branch.name="s8-create" AND destination.branch.name="main" AND state="OPEN"'
+        )
         assert request_kwargs(client)["method"] == "POST"
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests"
         assert request_kwargs(client)["data"] == {
@@ -433,12 +444,23 @@ class TestCreatePullRequest:
         assert result["data"]["head"]["ref"] == "s8-create"
 
     def test_creates_draft(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        client.request.return_value = recorded("pull_request_draft")
+        client.request.side_effect = [pull_requests_page(), recorded("pull_request_draft")]
 
         result = provider.create_pull_request_draft("S8 draft probe", "Draft probe.", "s8-draft", "main")
 
         assert request_kwargs(client)["data"]["draft"] is True
         assert result["data"]["id"] == "4"
+
+    @pytest.mark.parametrize("method", ["create_pull_request", "create_pull_request_draft"])
+    def test_open_pull_request_for_branches_conflicts(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, method: str
+    ) -> None:
+        client.request.return_value = pull_requests_page("pull_request_created")
+
+        with pytest.raises(ResourceConflict):
+            getattr(provider, method)("S8 create", "", "s8-create", "main")
+
+        assert client.request.call_count == 1
 
 
 class TestMarkPullRequestDraftState:
