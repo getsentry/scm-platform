@@ -16,8 +16,8 @@ Commands:
     get-app-installation
     get-commit <sha>
     get-commit-changes <sha> [--cursor <cursor>] [--per-page <n>]
-    get-commits [--ref <ref>] [--cursor <cursor>] [--per-page <n>]
-    get-commits-by-path <path> [--ref <ref>] [--cursor <cursor>] [--per-page <n>]
+    get-commits [--ref <ref>] [--since <iso>] [--until <iso>] [--cursor <cursor>] [--per-page <n>]
+    get-commits-by-path <path> [--ref <ref>] [--since <iso>] [--until <iso>] [--cursor <cursor>] [--per-page <n>]
     get-commit-url <sha>
     get-commits-url <sha> [--file-path <path>] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
     compare-commits <start_sha> <end_sha> [--include-behind]
@@ -28,7 +28,7 @@ import json
 import logging
 import pathlib
 import sys
-from datetime import date
+from datetime import date, datetime
 
 from scm import Secret
 from scm.manager import SourceCodeManager
@@ -64,6 +64,11 @@ def pagination_args(args) -> PaginationParams | None:
 def add_pagination(p: argparse.ArgumentParser) -> None:
     p.add_argument("--cursor", default=None)
     p.add_argument("--per-page", type=int, default=None)
+
+
+def add_date_range(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--since", type=datetime.fromisoformat, default=None)
+    p.add_argument("--until", type=datetime.fromisoformat, default=None)
 
 
 def load_credentials() -> dict[str, str]:
@@ -110,11 +115,13 @@ def main():
 
     p = sub.add_parser("get-commits")
     p.add_argument("--ref", default=None)
+    add_date_range(p)
     add_pagination(p)
 
     p = sub.add_parser("get-commits-by-path")
     p.add_argument("path")
     p.add_argument("--ref", default=None)
+    add_date_range(p)
     add_pagination(p)
 
     p = sub.add_parser("get-commit-url")
@@ -165,11 +172,15 @@ def main():
 
     elif args.command == "get-commits":
         assert isinstance(scm, GetCommitsProtocol)
-        dump(scm.get_commits(ref=args.ref, pagination=pagination_args(args)))
+        dump(scm.get_commits(ref=args.ref, pagination=pagination_args(args), since=args.since, until=args.until))
 
     elif args.command == "get-commits-by-path":
         assert isinstance(scm, GetCommitsByPathProtocol)
-        dump(scm.get_commits_by_path(args.path, ref=args.ref, pagination=pagination_args(args)))
+        dump(
+            scm.get_commits_by_path(
+                args.path, ref=args.ref, pagination=pagination_args(args), since=args.since, until=args.until
+            )
+        )
 
     elif args.command == "get-commit-url":
         assert isinstance(scm, GetCommitUrlProtocol)

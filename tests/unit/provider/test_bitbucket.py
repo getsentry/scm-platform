@@ -200,21 +200,14 @@ class TestCommitUrls:
     def test_commit_url(self, provider: BitbucketProvider) -> None:
         assert provider.get_commit_url("abc") == f"https://bitbucket.org/{REPO}/commits/abc"
 
-    def test_file_history_url(self, provider: BitbucketProvider) -> None:
-        url = provider.get_commits_url("abc", file_path="src/my file.py")
+    def test_file_history_url_ignores_dates(self, provider: BitbucketProvider) -> None:
+        url = provider.get_commits_url(
+            "abc", file_path="src/my file.py", since=date(2026, 1, 1), until=date(2026, 2, 1)
+        )
         assert url == f"https://bitbucket.org/{REPO}/history-node/abc/src/my%20file.py"
 
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {},
-            {"file_path": "README.md", "since": date(2026, 1, 1)},
-            {"file_path": "README.md", "until": date(2026, 1, 1)},
-        ],
-    )
-    def test_unsupported_history_url(self, provider: BitbucketProvider, kwargs: dict[str, Any]) -> None:
-        with pytest.raises(ResourceBadRequest):
-            provider.get_commits_url("abc", **kwargs)
+    def test_commits_url_without_path(self, provider: BitbucketProvider) -> None:
+        assert provider.get_commits_url("abc", since=date(2026, 1, 1)) == f"https://bitbucket.org/{REPO}/commits"
 
 
 class TestGetCommit:
@@ -327,12 +320,33 @@ class TestGetCommits:
         assert [c["id"] for c in result["data"]] == [COMMIT_SHA]
         assert result["meta"]["next_cursor"] == "2"
 
-    @pytest.mark.parametrize("kwargs", [{"since": datetime(2026, 1, 1)}, {"until": datetime(2026, 1, 1)}])
-    def test_no_date_filters(self, provider: BitbucketProvider, kwargs: dict[str, Any]) -> None:
-        with pytest.raises(ResourceBadRequest):
-            provider.get_commits(**kwargs)
-        with pytest.raises(ResourceBadRequest):
-            provider.get_commits_by_path("README.md", **kwargs)
+    @pytest.mark.parametrize(
+        ("kwargs", "ids", "next_cursor"),
+        [
+            ({"since": datetime(2026, 11, 3, tzinfo=UTC)}, [HEAD_SHA], None),
+            ({"since": datetime(2026, 11, 1)}, [HEAD_SHA, COMMIT_SHA], "2"),
+            ({"until": datetime(2026, 11, 3, tzinfo=UTC)}, [COMMIT_SHA], "2"),
+            ({"since": datetime(2026, 11, 6, tzinfo=UTC)}, [], None),
+        ],
+    )
+    def test_filters_by_date(
+        self,
+        provider: BitbucketProvider,
+        client: unittest.mock.MagicMock,
+        kwargs: dict[str, Any],
+        ids: list[str],
+        next_cursor: str | None,
+    ) -> None:
+        page = recorded("commits_page_1")
+        body = json.loads(page.content)
+        body["values"][1]["date"] = "2026-11-02T08:00:00+00:00"
+        page._content = json.dumps(body).encode()
+        client.request.return_value = page
+
+        result = provider.get_commits_by_path("README.md", **kwargs)
+
+        assert [c["id"] for c in result["data"]] == ids
+        assert result["meta"]["next_cursor"] == next_cursor
 
 
 class TestCompareCommits:

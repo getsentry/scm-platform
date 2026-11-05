@@ -1,6 +1,6 @@
 import re
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -177,9 +177,12 @@ class BitbucketProvider:
         since: date | None = None,
         until: date | None = None,
     ) -> str:
-        """Link to a file's history. Bitbucket only has a history page per branch or tag, not per commit."""
-        if file_path is None or since is not None or until is not None:
-            raise ResourceBadRequest(detail="Bitbucket's commit history page needs a file path and takes no dates.")
+        """Link to a file's history at the commit, or else the repository's commits page.
+
+        Bitbucket's history pages take no dates, and its commits page can't start at a commit.
+        """
+        if file_path is None:
+            return f"{self._web_base_url}/{self.repository_path}/commits"
         return f"{self._web_base_url}/{self.repository_path}/history-node/{commit_sha}/{quote(file_path)}"
 
     def get_commit(
@@ -288,8 +291,7 @@ class BitbucketProvider:
         until: datetime | None,
         request_options: RequestOptions | None,
     ) -> PaginatedActionResult[list[Commit]]:
-        if since is not None or until is not None:
-            raise ResourceBadRequest(detail="Bitbucket cannot list commits by date.")
+        """List a page of commits, filtered by date here since Bitbucket's API can't."""
         # Without a revision Bitbucket lists commits on every branch; HEAD is the main branch.
         revision = quote(ref or "HEAD", safe="")
         response = self.get(
@@ -298,7 +300,16 @@ class BitbucketProvider:
             pagination=pagination,
             request_options=request_options,
         )
-        return map_paginated_action(response, map_commit)
+        result = map_paginated_action(response, map_commit)
+        if since is None and until is None:
+            return result
+        # Commits come newest first, so a page that reaches past `since` is the last one we need.
+        dates = [committed_at(raw) for raw in result["raw"]["data"].get("values", [])]
+        start, end = as_utc(since or datetime.min), as_utc(until or datetime.max)
+        result["data"] = [commit for commit, d in zip(result["data"], dates, strict=True) if start <= d <= end]
+        if any(d < start for d in dates):
+            result["meta"]["next_cursor"] = None
+        return result
 
     def _get_changes(
         self,
@@ -349,6 +360,15 @@ def map_commit_author(raw: dict[str, Any], raw_date: str) -> CommitAuthor:
     else:
         name, email = raw["raw"], ""
     return CommitAuthor(name=name, email=email, date=datetime.fromisoformat(raw_date))
+
+
+def committed_at(raw: dict[str, Any]) -> datetime:
+    # Bitbucket's commit `date` is the committer date; the API has no author date.
+    return datetime.fromisoformat(raw["date"])
+
+
+def as_utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def map_commit(raw: dict[str, Any]) -> Commit:
