@@ -5,6 +5,7 @@ import msgspec
 import pytest
 
 from scm.errors import ResourceServiceUnavailable, SCMCodedError
+from scm.rpc.client import RpcApiClient
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.server import (
     RpcServer,
@@ -280,8 +281,14 @@ class TestPost:
             "If-None-Match": '"etag"',
         }
 
-    @pytest.mark.parametrize(("overrides", "expected"), [({}, True), ({"json": False}, False)])
-    def test_action_json_reaches_the_provider(self, overrides, expected):
+    @pytest.mark.parametrize(
+        ("data", "headers"),
+        [
+            ({"message": "m"}, None),
+            (b"\x00\xff\x89PNG\r\n", {"Content-Type": "multipart/form-data; boundary=b"}),
+        ],
+    )
+    def test_request_body_round_trips_to_the_provider(self, data, headers):
         repo = make_repository()
         provider = MagicMock()
         provider.repository = repo
@@ -299,12 +306,23 @@ class TestPost:
             fetch_repository=lambda org_id, repo_id: repo,
             fetch_provider=lambda org_id, r: provider,
         )
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret=TEST_SECRET,
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+        )
+        client.session = MagicMock()
+        client.session.post.side_effect = lambda url, data, headers, stream: server.post(data, headers)
 
-        body = self._make_action_body(method="POST", data={"message": "m"}, **overrides)
-        response = server.post(body, make_headers(Authorization=sign_post(TEST_SECRET, body)))
+        response = client.request(method="POST", path="/2.0/x", headers=headers, data=data)
 
         assert response.status_code == 201
-        assert provider.request.call_args.kwargs["json"] is expected
+        kwargs = provider.request.call_args.kwargs
+        assert kwargs["data"] == data
+        assert type(kwargs["data"]) is type(data)
+        assert kwargs["headers"] == (headers or {})
 
     def test_successful_post_streams_response(self):
         repo = make_repository()

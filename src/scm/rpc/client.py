@@ -185,14 +185,13 @@ class RpcApiClient(ApiClient):
         method: str,
         path: str,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | None = None,
+        data: dict[str, Any] | bytes | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         stream: bool = True,
         raw_response: bool = True,
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
-        json: bool = True,
     ) -> requests.Response:
         body = msgspec.json.encode(
             ActionRequest(
@@ -206,7 +205,6 @@ class RpcApiClient(ApiClient):
                     allow_redirects=allow_redirects,
                     stream=stream,
                     timeout=timeout,
-                    json=json,
                 ),
             )
         )
