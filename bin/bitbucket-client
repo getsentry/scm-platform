@@ -34,6 +34,7 @@ import sys
 from scm import Secret
 from scm.manager import SourceCodeManager
 from scm.types import (
+    ChmodCommitAction,
     CommitAuthorParam,
     CreateCommitProtocol,
     DeleteCommitAction,
@@ -124,7 +125,7 @@ def main():
 
     elif args.command == "create-commit":
         assert isinstance(scm, CreateCommitProtocol)
-        actions: list = []
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction] = []
         for kind, specs in (("create", args.creates), ("update", args.updates)):
             for spec in specs or []:
                 filename, _, content = spec.partition("=")
