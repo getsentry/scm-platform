@@ -298,7 +298,7 @@ class TestGetCommits:
 
         result = provider.get_commits("feature/x", pagination={"per_page": 2})
 
-        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/commits/feature%2Fx"
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/commits/feature/x"
         assert request_kwargs(client)["params"] == {"pagelen": "2"}
         assert [c["id"] for c in result["data"]] == [HEAD_SHA, COMMIT_SHA]
         assert result["data"][0]["message"] == "Update README\n"
@@ -355,19 +355,20 @@ class TestCompareCommits:
             recorded("compare_commits"),
             recorded("compare_diffstat"),
             recorded("compare_diff"),
+            recorded("compare_behind"),
         ]
 
         result = provider.compare_commits(BRANCH_SHA, HEAD_SHA)
 
         calls = client.request.call_args_list
         assert calls[0].kwargs["params"] == {"include": HEAD_SHA, "exclude": BRANCH_SHA, "pagelen": "100"}
-        assert requested_paths(client)[1:] == [
+        assert requested_paths(client)[1:3] == [
             f"/2.0/repositories/{REPO}/diffstat/{HEAD_SHA}..{BRANCH_SHA}",
             f"/2.0/repositories/{REPO}/diff/{HEAD_SHA}..{BRANCH_SHA}",
         ]
+        assert calls[3].kwargs["params"] == {"include": BRANCH_SHA, "exclude": HEAD_SHA, "pagelen": "100"}
         comparison = result["data"]
-        assert comparison["ahead_by"] == 2
-        assert "behind_by" not in comparison
+        assert (comparison["ahead_by"], comparison["behind_by"]) == (2, 1)
         assert [c["id"] for c in comparison["commits"]] == [HEAD_SHA, COMMIT_SHA]
         assert [(f["filename"], f["status"]) for f in comparison["diff"]] == [
             ("README.md", "modified"),
@@ -379,18 +380,17 @@ class TestCompareCommits:
         assert all(f["patch"] for f in comparison["diff"] if f["status"] != "renamed")
         assert result["meta"]["next_cursor"] is None
 
-    def test_include_behind(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    def test_paged_compare_skips_behind(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
             recorded("compare_commits"),
             recorded("compare_diffstat"),
             recorded("compare_diff"),
-            recorded("compare_behind"),
         ]
 
-        result = provider.compare_commits(BRANCH_SHA, HEAD_SHA, include_behind=True)
+        result = provider.compare_commits(BRANCH_SHA, HEAD_SHA, pagination={"per_page": 2})
 
-        assert request_kwargs(client)["params"] == {"include": BRANCH_SHA, "exclude": HEAD_SHA, "pagelen": "100"}
-        assert (result["data"]["ahead_by"], result["data"]["behind_by"]) == (2, 1)
+        assert client.request.call_count == 3
+        assert "behind_by" not in result["data"]
 
     def test_include_behind_with_pagination(self, provider: BitbucketProvider) -> None:
         with pytest.raises(ResourceBadRequest):

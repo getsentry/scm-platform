@@ -195,18 +195,9 @@ class BitbucketProvider:
         changes = self.get_commit_changes(sha, {"per_page": MAX_PAGE_SIZE}, request_options)
         files = changes["data"]
         complete = changes["meta"]["next_cursor"] is None
-
-        return map_action(
-            response,
-            lambda raw: CommitWithChanges(
-                id=raw["hash"],
-                message=raw["message"],
-                author=map_commit_author(raw["author"], raw["date"]),
-                additions=sum(f["additions"] or 0 for f in files) if complete else None,
-                deletions=sum(f["deletions"] or 0 for f in files) if complete else None,
-                files=files,
-            ),
-        )
+        additions = sum(f["additions"] or 0 for f in files) if complete else None
+        deletions = sum(f["deletions"] or 0 for f in files) if complete else None
+        return map_action(response, lambda raw: CommitWithChanges(**map_commit(raw, additions, deletions), files=files))
 
     def get_commit_changes(
         self,
@@ -214,7 +205,12 @@ class BitbucketProvider:
         pagination: PaginationParams | None = None,
         request_options: RequestOptions | None = None,
     ) -> PaginatedActionResult[list[CommitFile]]:
-        return self._get_changes(sha, pagination, request_options)
+        """Read one page of a diffstat, with each file's patch cut from the full diff."""
+        # Filtering the diff by the page's paths fails: Bitbucket rejects query strings over about 4KB.
+        repository_api = f"/2.0/repositories/{self.repository_path}"
+        response = self.get(f"{repository_api}/diffstat/{sha}", pagination=pagination, request_options=request_options)
+        patches = split_patches(self.get(f"{repository_api}/diff/{sha}", request_options=request_options).text)
+        return map_paginated_action(response, lambda raw: map_commit_file(raw, patches))
 
     def get_commits(
         self,
@@ -249,6 +245,7 @@ class BitbucketProvider:
         """Compare two commits against their merge base.
 
         Bitbucket returns no counts, so they're the length of a commit list and cap at one page.
+        `behind_by` takes a second request and is only counted when the commits aren't paged.
         """
         if include_behind and pagination is not None:
             raise ResourceBadRequest(
@@ -265,9 +262,9 @@ class BitbucketProvider:
         raw = response.json()
         commits = [map_commit(commit) for commit in raw["values"]]
         # A range spec diffs the first commit against the merge base, so the head goes first.
-        changes = self._get_changes(f"{end_sha}..{start_sha}", {"per_page": MAX_PAGE_SIZE}, request_options)
+        changes = self.get_commit_changes(f"{end_sha}..{start_sha}", {"per_page": MAX_PAGE_SIZE}, request_options)
         comparison = CommitComparison(ahead_by=len(commits), commits=commits, diff=changes["data"])
-        if include_behind:
+        if pagination is None:
             behind = self.get(
                 commits_path,
                 params={"include": start_sha, "exclude": end_sha},
@@ -291,9 +288,8 @@ class BitbucketProvider:
         until: datetime | None,
         request_options: RequestOptions | None,
     ) -> PaginatedActionResult[list[Commit]]:
-        """List a page of commits, filtered by date here since Bitbucket's API can't."""
         # Without a revision Bitbucket lists commits on every branch; HEAD is the main branch.
-        revision = quote(ref or "HEAD", safe="")
+        revision = quote(ref or "HEAD", safe="/")
         response = self.get(
             f"/2.0/repositories/{self.repository_path}/commits/{revision}",
             params=params,
@@ -304,25 +300,13 @@ class BitbucketProvider:
         if since is None and until is None:
             return result
         # Commits come newest first, so a page that reaches past `since` is the last one we need.
-        dates = [committed_at(raw) for raw in result["raw"]["data"].get("values", [])]
+        # Bitbucket's commit `date` is the committer date; the API has no author date.
+        dates = [datetime.fromisoformat(raw["date"]) for raw in result["raw"]["data"].get("values", [])]
         start, end = as_utc(since or datetime.min), as_utc(until or datetime.max)
         result["data"] = [commit for commit, d in zip(result["data"], dates, strict=True) if start <= d <= end]
         if any(d < start for d in dates):
             result["meta"]["next_cursor"] = None
         return result
-
-    def _get_changes(
-        self,
-        spec: str,
-        pagination: PaginationParams | None,
-        request_options: RequestOptions | None,
-    ) -> PaginatedActionResult[list[CommitFile]]:
-        """Read one page of a diffstat, with each file's patch cut from the full diff."""
-        # Filtering the diff by the page's paths fails: Bitbucket rejects query strings over about 4KB.
-        repository_api = f"/2.0/repositories/{self.repository_path}"
-        response = self.get(f"{repository_api}/diffstat/{spec}", pagination=pagination, request_options=request_options)
-        patches = split_patches(self.get(f"{repository_api}/diff/{spec}", request_options=request_options).text)
-        return map_paginated_action(response, lambda raw: map_commit_file(raw, patches))
 
 
 def parse_scopes(header: str) -> set[str]:
@@ -362,22 +346,17 @@ def map_commit_author(raw: dict[str, Any], raw_date: str) -> CommitAuthor:
     return CommitAuthor(name=name, email=email, date=datetime.fromisoformat(raw_date))
 
 
-def committed_at(raw: dict[str, Any]) -> datetime:
-    # Bitbucket's commit `date` is the committer date; the API has no author date.
-    return datetime.fromisoformat(raw["date"])
-
-
 def as_utc(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
-def map_commit(raw: dict[str, Any]) -> Commit:
+def map_commit(raw: dict[str, Any], additions: int | None = None, deletions: int | None = None) -> Commit:
     return Commit(
         id=raw["hash"],
         message=raw["message"],
         author=map_commit_author(raw["author"], raw["date"]),
-        additions=None,
-        deletions=None,
+        additions=additions,
+        deletions=deletions,
     )
 
 
