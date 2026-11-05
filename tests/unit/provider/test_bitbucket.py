@@ -11,6 +11,7 @@ from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
     map_paginated_action,
+    map_repository,
     next_cursor,
     parse_scopes,
 )
@@ -131,6 +132,12 @@ class TestGetRepository:
             "description": None,
             "topics": [],
         }
+
+    def test_empty_repository_has_no_default_branch(self) -> None:
+        raw = json.loads((FIXTURES / "repository.json").read_text())["body"]
+        raw["mainbranch"] = None
+
+        assert map_repository(raw)["default_branch"] == ""
 
 
 class TestGetAppInstallation:

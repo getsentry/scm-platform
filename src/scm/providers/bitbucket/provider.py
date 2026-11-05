@@ -166,7 +166,8 @@ def map_app_installation(scopes: set[str]) -> AppInstallation:
 def map_repository(raw: dict[str, Any]) -> GitRepository:
     return GitRepository(
         full_name=raw["full_name"],
-        default_branch=raw["mainbranch"]["name"],
+        # Empty repositories have no main branch.
+        default_branch=(raw.get("mainbranch") or {}).get("name", ""),
         # The `clone` links carry the requesting user's name, so don't use them.
         clone_url=f"{BITBUCKET_WEB_BASE_URL}/{raw['full_name']}.git",
         private=raw["is_private"],
