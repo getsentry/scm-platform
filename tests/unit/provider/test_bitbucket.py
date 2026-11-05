@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import ResourceNotFound
+from scm.errors import PathIsNotDirectory, ResourceNotFound
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -255,6 +255,16 @@ class TestGetTree:
         provider.get_tree(f"{COMMIT}:a dir")
 
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/a%20dir/"
+
+    def test_file_path_is_not_a_tree(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = requests.Response()
+        response.status_code = 200
+        response.headers["content-type"] = "text/plain"
+        response._content = b"#!/bin/sh\necho hi\n"
+        client.request.return_value = response
+
+        with pytest.raises(PathIsNotDirectory):
+            provider.get_tree(f"{COMMIT}:run.sh")
 
 
 class TestGetFullTree:

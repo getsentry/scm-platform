@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import PathIsNotDirectory, error_class_for_status
 from scm.helpers import iter_all_pages
 from scm.types import (
     SHA,
@@ -193,6 +193,8 @@ class BitbucketProvider:
             pagination=pagination or {"per_page": MAX_PAGE_SIZE},
             request_options=request_options,
         )
+        if not _is_listing(response):
+            raise PathIsNotDirectory(detail=path)
         raw = response.json()
         cursor = next_cursor(raw)
         return {
@@ -285,6 +287,11 @@ def tree_entry_kind(raw: dict[str, Any]) -> tuple[TreeEntryMode, TreeEntryType]:
     if "executable" in attributes:
         return "100755", "blob"
     return "100644", "blob"
+
+
+def _is_listing(response: requests.Response) -> bool:
+    # File bodies come back as text/plain or their own media type, even for JSON files.
+    return response.headers.get("content-type", "").startswith("application/json")
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
