@@ -7,6 +7,7 @@ import requests
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from scm.errors import ErrorCode, ResourceServiceUnavailable, SCMCodedError
+from scm.providers.bitbucket.provider import BitbucketProvider
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -175,9 +176,15 @@ class TestFetchProvider:
             fetch_provider(client, 1, repo)
         assert exc_info.value.code == "rpc_invalid_grant"
 
-    def test_unknown_provider_returns_none(self):
+    def test_bitbucket_returns_bitbucket_provider(self):
         client = MagicMock()
         repo = make_repository(provider_name="bitbucket")
+        provider = fetch_provider(client, 1, repo)
+        assert isinstance(provider, BitbucketProvider)
+
+    def test_unknown_provider_returns_none(self):
+        client = MagicMock()
+        repo = make_repository(provider_name="perforce")
         provider = fetch_provider(client, 1, repo)
         assert provider is None
 

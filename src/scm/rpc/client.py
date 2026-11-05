@@ -12,6 +12,7 @@ from scm.errors import (
     RpcInvalidGrant,
     SCMCodedError,
 )
+from scm.providers.bitbucket.provider import BitbucketProvider
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -113,7 +114,9 @@ def fetch_provider(client: ApiClient, organization_id: int, repository: Reposito
     makes requests to SCM Platform's RPC server. The RPC server will initialize its own SourceCodeManager and process
     the request.
     """
-    if repository["provider_name"] == "github":
+    if repository["provider_name"] == "bitbucket":
+        return BitbucketProvider(client, organization_id, repository)
+    elif repository["provider_name"] == "github":
         return GitHubProvider(client, organization_id, repository)
     elif repository["provider_name"] == "github_enterprise":
         web_base_url = repository["web_base_url"]
