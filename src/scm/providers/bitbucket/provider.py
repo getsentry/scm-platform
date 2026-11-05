@@ -286,8 +286,8 @@ class BitbucketProvider:
     def _create_pull_request(
         self, title: str, body: str, head: BranchName, base: BranchName, draft: bool
     ) -> ActionResult[PullRequest]:
-        # Bitbucket overwrites an open pull request between the same branches instead of
-        # failing, so check first.
+        # Bitbucket silently overwrites an open pull request between the same branches,
+        # so check first.
         query = (
             f"source.branch.name={json.dumps(head, ensure_ascii=False)}"
             f' AND destination.branch.name={json.dumps(base, ensure_ascii=False)} AND state="OPEN"'
