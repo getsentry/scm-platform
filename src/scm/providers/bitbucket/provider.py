@@ -269,7 +269,7 @@ class BitbucketProvider:
     def _resolve_ref(self, ref: str, request_options: RequestOptions | None) -> str:
         """Look up the commit for a ref with a slash, since `src` takes everything after the first slash as the path."""
         if "/" not in ref:
-            return quote(ref)
+            return ref
         response = self.get(
             f"/2.0/repositories/{self.repository_path}/commits/{quote(ref)}",
             params={"pagelen": "1", "fields": "values.hash"},
@@ -280,7 +280,7 @@ class BitbucketProvider:
         return values[0]["hash"]
 
     def _src_path(self, commit: str, path: str) -> str:
-        return f"/2.0/repositories/{self.repository_path}/src/{commit}/{quote(path.strip('/'))}"
+        return f"/2.0/repositories/{self.repository_path}/src/{quote(commit, safe='')}/{quote(path.strip('/'))}"
 
 
 def parse_scopes(header: str) -> set[str]:
