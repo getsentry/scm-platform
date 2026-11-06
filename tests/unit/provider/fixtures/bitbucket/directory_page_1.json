@@ -1,0 +1,140 @@
+{
+  "body": {
+    "next": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/s2-file-types/?pagelen=5&page=rXtr",
+    "page": 1,
+    "pagelen": 5,
+    "values": [
+      {
+        "commit": {
+          "hash": "92093036dfecb2e9d84979a7fea5e9e933e01012",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            }
+          },
+          "type": "commit"
+        },
+        "links": {
+          "meta": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/docs/?format=meta"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/docs/"
+          }
+        },
+        "path": "docs",
+        "type": "commit_directory"
+      },
+      {
+        "commit": {
+          "hash": "92093036dfecb2e9d84979a7fea5e9e933e01012",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            }
+          },
+          "type": "commit"
+        },
+        "links": {
+          "meta": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/src/?format=meta"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/src/"
+          }
+        },
+        "path": "src",
+        "type": "commit_directory"
+      },
+      {
+        "commit": {
+          "hash": "92093036dfecb2e9d84979a7fea5e9e933e01012",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            }
+          },
+          "type": "commit"
+        },
+        "links": {
+          "meta": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/tests/?format=meta"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/tests/"
+          }
+        },
+        "path": "tests",
+        "type": "commit_directory"
+      },
+      {
+        "commit": {
+          "hash": "92093036dfecb2e9d84979a7fea5e9e933e01012",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            }
+          },
+          "type": "commit"
+        },
+        "links": {
+          "meta": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/vendor/?format=meta"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/vendor/"
+          }
+        },
+        "path": "vendor",
+        "type": "commit_directory"
+      },
+      {
+        "attributes": [],
+        "commit": {
+          "hash": "92093036dfecb2e9d84979a7fea5e9e933e01012",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/92093036dfecb2e9d84979a7fea5e9e933e01012"
+            }
+          },
+          "type": "commit"
+        },
+        "escaped_path": ".gitmodules",
+        "links": {
+          "history": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/filehistory/92093036dfecb2e9d84979a7fea5e9e933e01012/.gitmodules"
+          },
+          "meta": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/.gitmodules?format=meta"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/92093036dfecb2e9d84979a7fea5e9e933e01012/.gitmodules"
+          }
+        },
+        "mimetype": null,
+        "path": ".gitmodules",
+        "size": 79,
+        "type": "commit_file"
+      }
+    ]
+  },
+  "headers": {
+    "content-type": "application/json; charset=utf-8"
+  },
+  "status": 200
+}

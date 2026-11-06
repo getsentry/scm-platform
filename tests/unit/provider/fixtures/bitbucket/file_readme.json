@@ -1,0 +1,7 @@
+{
+  "body": "# test-repo\n\nA test repository.\n",
+  "headers": {
+    "content-type": "text/plain"
+  },
+  "status": 200
+}

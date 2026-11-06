@@ -1,0 +1,7 @@
+{
+  "body": "## Bug fix\n\nWhat broke?\n",
+  "headers": {
+    "content-type": "text/plain"
+  },
+  "status": 200
+}

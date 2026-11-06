@@ -1,0 +1,12 @@
+{
+  "body": {
+    "error": {
+      "message": "No such file or directory: nope.md"
+    },
+    "type": "error"
+  },
+  "headers": {
+    "content-type": "application/json; charset=utf-8"
+  },
+  "status": 404
+}
