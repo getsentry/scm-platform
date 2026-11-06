@@ -1,3 +1,4 @@
+import base64
 import json
 from unittest.mock import MagicMock
 
@@ -5,6 +6,7 @@ import msgspec
 import pytest
 
 from scm.errors import ResourceServiceUnavailable, SCMCodedError
+from scm.rpc.client import RpcApiClient
 from scm.rpc.helpers import deserialize_repository, sign_get, sign_post
 from scm.rpc.server import (
     RpcServer,
@@ -14,6 +16,7 @@ from scm.rpc.server import (
     normalize_headers,
     serialize_repository,
 )
+from scm.rpc.types import ActionAttributes, ActionRequest
 from scm.secret import Secret
 from scm.test_fixtures import BaseTestProvider
 from scm.types import Repository
@@ -280,6 +283,49 @@ class TestPost:
             "If-None-Match": '"etag"',
         }
 
+    @pytest.mark.parametrize(
+        ("data", "headers"),
+        [
+            ({"message": "m"}, None),
+            (b"\x00\xff\x89PNG\r\n", {"Content-Type": "multipart/form-data; boundary=b"}),
+        ],
+    )
+    def test_request_body_round_trips_to_the_provider(self, data, headers):
+        repo = make_repository()
+        provider = MagicMock()
+        provider.repository = repo
+        provider.__class__.__name__ = "BitbucketProvider"
+
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.headers = {}
+        mock_response.iter_content.return_value = []
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        provider.request.return_value = mock_response
+
+        server = make_server(
+            fetch_repository=lambda org_id, repo_id: repo,
+            fetch_provider=lambda org_id, r: provider,
+        )
+        client = RpcApiClient(
+            full_url="http://base/api/0/internal/scm-rpc",
+            signing_secret=TEST_SECRET,
+            organization_id=1,
+            referrer="shared",
+            repository_id=1,
+        )
+        client.session = MagicMock()
+        client.session.post.side_effect = lambda url, data, headers, stream: server.post(data, headers)
+
+        response = client.request(method="POST", path="/2.0/x", headers=headers, data=data)
+
+        assert response.status_code == 201
+        kwargs = provider.request.call_args.kwargs
+        assert kwargs["data"] == data
+        assert type(kwargs["data"]) is type(data)
+        assert kwargs["headers"] == (headers or {})
+
     def test_successful_post_streams_response(self):
         repo = make_repository()
         provider = MagicMock()
@@ -486,3 +532,40 @@ class TestIsSafePath:
 
     def test_path_with_encoded_characters(self):
         assert is_safe_path("/repos/org/repo%20name") is True
+
+
+class TestActionRequestBody:
+    def _request(self, data: dict[str, int] | bytes | None) -> ActionRequest:
+        return ActionRequest(
+            type="action",
+            data=ActionAttributes(
+                method="POST",
+                path="/2.0/x",
+                headers=None,
+                data=data,
+                params=None,
+                allow_redirects=None,
+                stream=None,
+            ),
+        )
+
+    def test_bytes_cross_json_as_base64(self):
+        body = bytes(range(256))
+
+        wire = msgspec.json.encode(self._request(body))
+
+        assert json.loads(wire)["data"]["data"] == base64.b64encode(body).decode()
+        decoded = msgspec.json.decode(wire, type=ActionRequest)
+        assert decoded.data.data == body
+        assert type(decoded.data.data) is bytes
+
+    def test_dict_stays_a_dict(self):
+        wire = msgspec.json.encode(self._request({"a": 1}))
+
+        assert msgspec.json.decode(wire, type=ActionRequest).data.data == {"a": 1}
+
+    def test_invalid_base64_is_rejected(self):
+        wire = msgspec.json.encode(self._request(b"x")).replace(b'"eA=="', b'"not base64!"')
+
+        with pytest.raises(msgspec.DecodeError):
+            msgspec.json.decode(wire, type=ActionRequest)

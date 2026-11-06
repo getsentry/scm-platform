@@ -459,7 +459,7 @@ class GitHubProvider:
         method: str,
         path: str,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | None = None,
+        data: dict[str, Any] | bytes | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         stream: bool = True,

@@ -56,7 +56,7 @@ class BitbucketApiClient:
         method: str,
         path: str,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | None = None,
+        data: dict[str, Any] | bytes | None = None,
         params: dict[str, str] | None = None,
         allow_redirects: bool | None = None,
         stream: bool = True,
@@ -70,7 +70,7 @@ class BitbucketApiClient:
         if headers:
             kwargs["headers"] = headers
         if data is not None:
-            kwargs["json"] = data
+            kwargs["data" if isinstance(data, bytes) else "json"] = data
         if params is not None:
             kwargs["params"] = params
         if allow_redirects is not None:

@@ -11,7 +11,7 @@ class ActionAttributes(msgspec.Struct):
     method: str
     path: str
     headers: dict[str, str] | None
-    data: dict[str, Any] | None
+    data: dict[str, Any] | bytes | None
     params: dict[str, Any] | None
     allow_redirects: bool | None
     stream: bool | None
