@@ -742,6 +742,40 @@ class TestGetPullRequest:
         assert pull_request["head"]["sha"] == "c495d0431cfa"
         assert pull_request["base"]["sha"] == BASE_HASH
 
+    def test_other_errors_expanding_a_hash_raise(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [recorded("pull_request"), json_response({"type": "error"}, status=400)]
+        with pytest.raises(ResourceBadRequest):
+            provider.get_pull_request("1")
+
+    def test_skips_expanding_a_missing_commit(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        body = recorded("pull_request").json()
+        body["source"]["commit"] = None
+        client.request.side_effect = [json_response(body), json_response({"hash": BASE_HASH})]
+
+        pull_request = provider.get_pull_request("1")["data"]
+
+        assert pull_request["head"]["sha"] is None
+        assert pull_request["base"]["sha"] == BASE_HASH
+        assert client.request.call_count == 2
+
+    @pytest.mark.parametrize("repository", [{}, {"repository": None}], ids=["missing", "null"])
+    def test_keeps_short_hash_without_a_repository(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, repository: dict[str, Any]
+    ) -> None:
+        body = recorded("pull_request").json()
+        del body["source"]["repository"]
+        body["source"].update(repository)
+        client.request.side_effect = [json_response(body), json_response({"hash": BASE_HASH})]
+
+        pull_request = provider.get_pull_request("1")["data"]
+
+        assert pull_request["head"]["sha"] == "c495d0431cfa"
+        assert client.request.call_count == 2
+
     def test_merged_pull_request_is_closed(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
             recorded("pull_request_merged"),
@@ -753,7 +787,7 @@ class TestGetPullRequest:
 
         assert pull_request["state"] == "closed"
         assert pull_request["merged"] is True
-        assert pull_request["base"]["ref"] == "s7-merge-base"
+        assert pull_request["base"]["ref"] == "merge-base"
 
     def test_not_found(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("pull_request_not_found")
@@ -778,8 +812,10 @@ class TestGetPullRequests:
     def test_maps_page(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("pull_requests_page_1")
 
-        result = provider.get_pull_requests(state=None, pagination={"per_page": 2})
+        result = provider.get_pull_requests(state=None, pagination={"cursor": "5", "per_page": 2})
 
+        assert request_kwargs(client)["params"]["pagelen"] == "2"
+        assert request_kwargs(client)["params"]["page"] == "5"
         assert [(pr["id"], pr["state"], pr["merged"]) for pr in result["data"]] == [
             ("3", "closed", False),
             ("2", "closed", True),
@@ -816,6 +852,11 @@ class TestGetPullRequests:
         client.request.return_value = recorded("pull_requests_page_1")
         provider.get_pull_requests(head='a"b')
         assert request_kwargs(client)["params"]["q"].startswith('source.branch.name="a\\"b" AND ')
+
+    def test_head_filter_keeps_non_ascii(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_requests_page_1")
+        provider.get_pull_requests(head="feature/é")
+        assert request_kwargs(client)["params"]["q"].startswith('source.branch.name="feature/é" AND ')
 
 
 class TestGetPullRequestFiles:
@@ -863,6 +904,13 @@ class TestGetPullRequestFiles:
             },
         ]
         assert result["meta"]["next_cursor"] is None
+
+    def test_passes_pagination_to_diffstat(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_diffstat"), recorded("pull_request_merged_diff")]
+
+        provider.get_pull_request_files("2", pagination={"cursor": "3", "per_page": 5})
+
+        assert client.request.call_args_list[0].kwargs["params"] == {"pagelen": "5", "page": "3"}
 
     def test_conflict_status_is_unknown(self) -> None:
         raw = {"status": "merge conflict", "old": None, "new": {"path": "a.py"}, "lines_added": 1, "lines_removed": 0}
@@ -916,17 +964,15 @@ class TestGetPullRequestCommits:
 
     @staticmethod
     def with_merge_commit(merge_hash: str) -> requests.Response:
-        response = recorded("pull_request_commits")
-        body = response.json()
+        body = recorded("pull_request_commits").json()
         merge_commit = {
             **body["values"][0],
             "hash": merge_hash,
-            "message": "Merged in s7-file-changes (pull request #2)\n",
-            "parents": [{"hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"}, {"hash": body["values"][0]["hash"]}],
+            "message": "Merged in file-changes (pull request #2)\n",
+            "parents": [{"hash": BASE_HASH}, {"hash": body["values"][0]["hash"]}],
         }
         body["values"].insert(0, merge_commit)
-        response._content = json.dumps(body).encode()
-        return response
+        return json_response(body)
 
     def test_drops_bitbucket_merge_commit(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
@@ -947,6 +993,16 @@ class TestGetPullRequestCommits:
         client.request.side_effect = [self.with_merge_commit(merge_hash), recorded("pull_request_merged")]
 
         result = provider.get_pull_request_commits("2")
+
+        assert result["data"][-1]["sha"] == merge_hash
+
+    def test_keeps_merge_commit_on_open_pull_request(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        merge_hash = "2222222222222222222222222222222222222222"
+        client.request.side_effect = [self.with_merge_commit(merge_hash), recorded("pull_request")]
+
+        result = provider.get_pull_request_commits("1")
 
         assert result["data"][-1]["sha"] == merge_hash
 

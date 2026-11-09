@@ -30,7 +30,7 @@
     "description": "Adds, removes, renames and modifies files.",
     "destination": {
       "branch": {
-        "name": "s7-merge-base"
+        "name": "merge-base"
       },
       "commit": {
         "hash": "a682892aa0f4",
@@ -138,7 +138,7 @@
     "source": {
       "branch": {
         "links": {},
-        "name": "s7-file-changes",
+        "name": "file-changes",
         "sync_strategies": [
           "merge_commit",
           "rebase"
