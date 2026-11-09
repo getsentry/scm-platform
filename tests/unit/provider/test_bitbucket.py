@@ -1050,11 +1050,6 @@ def test_get_pull_request_url(provider: BitbucketProvider) -> None:
     assert provider.get_pull_request_url("1") == f"https://bitbucket.org/{REPO}/pull-requests/1"
 
 
-def with_body(response: requests.Response, body: Any) -> requests.Response:
-    response._content = json.dumps(body).encode()
-    return response
-
-
 def test_get_authenticated_actor(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
     client.request.return_value = recorded("user")
 
@@ -1065,7 +1060,7 @@ def test_get_authenticated_actor(provider: BitbucketProvider, client: unittest.m
 
 
 def test_get_authenticated_actor_app_user(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-    client.request.return_value = with_body(recorded("user"), APP_USER)
+    client.request.return_value = json_response(APP_USER)
 
     result = provider.get_authenticated_actor()
 
@@ -1073,15 +1068,14 @@ def test_get_authenticated_actor_app_user(provider: BitbucketProvider, client: u
 
 
 def test_get_authenticated_actor_without_uuid(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-    client.request.return_value = with_body(recorded("user"), {"type": "app_user"})
+    client.request.return_value = json_response({"type": "app_user"})
 
     with pytest.raises(UnexpectedResponseFormat):
         provider.get_authenticated_actor()
 
 
 def test_get_authenticated_actor_forbidden(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-    client.request.return_value = with_body(recorded("user"), {"type": "error"})
-    client.request.return_value.status_code = 403
+    client.request.return_value = json_response({"type": "error"}, status=403)
 
     with pytest.raises(ResourceForbidden):
         provider.get_authenticated_actor()
@@ -1113,22 +1107,31 @@ class TestPullRequestComments:
         ]
         assert result["meta"]["next_cursor"] == "2"
 
+    def test_passes_pagination(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_comments")
+
+        provider.get_pull_request_comments("1", pagination={"cursor": "3", "per_page": 5})
+
+        assert request_kwargs(client)["params"] == {
+            "q": "inline.path = null AND deleted = false",
+            "pagelen": "5",
+            "page": "3",
+        }
+
     def test_skips_pending_comments(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        response = recorded("pull_request_comments")
-        body = response.json()
+        body = recorded("pull_request_comments").json()
         body["values"][0]["pending"] = True
-        client.request.return_value = with_body(response, body)
+        client.request.return_value = json_response(body)
 
         result = provider.get_pull_request_comments("1")
 
         assert [comment["id"] for comment in result["data"]] == ["897197945"]
 
     def test_maps_app_and_missing_authors(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        response = recorded("pull_request_comments")
-        body = response.json()
+        body = recorded("pull_request_comments").json()
         body["values"][0]["user"] = APP_USER
         del body["values"][1]["user"]
-        client.request.return_value = with_body(response, body)
+        client.request.return_value = json_response(body)
 
         result = provider.get_pull_request_comments("1")
 
@@ -1199,12 +1202,10 @@ class TestGetPullRequestReviewThreads:
         body = recorded("pull_request_comments_inline").json()
         pages = []
         for values, next_url in [
-            (body["values"][:3], "https://api.bitbucket.org/2.0/x?page=2"),
-            (body["values"][3:], None),
+            (body["values"][:1], "https://api.bitbucket.org/2.0/x?page=2"),
+            (body["values"][1:], None),
         ]:
-            pages.append(
-                with_body(recorded("pull_request_comments_inline"), {**body, "values": values, "next": next_url})
-            )
+            pages.append(json_response({**body, "values": values, "next": next_url}))
         client.request.side_effect = pages
 
         threads = provider.get_pull_request_review_threads("1")["data"]
@@ -1212,13 +1213,44 @@ class TestGetPullRequestReviewThreads:
         assert client.request.call_args_list[1].kwargs["params"]["page"] == "2"
         assert [c["body"] for c in threads[0]["comments"]] == ["Test inline comment", "Test inline reply"]
 
+    def test_skips_pending_comments(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        body = recorded("pull_request_comments_inline").json()
+        body["values"][1]["pending"] = True
+        client.request.return_value = json_response(body)
+
+        thread = provider.get_pull_request_review_threads("1")["data"][0]
+
+        assert [c["body"] for c in thread["comments"]] == ["Test inline comment"]
+
+    def test_reply_without_its_parent_starts_a_thread(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        body = recorded("pull_request_comments_inline").json()
+        client.request.return_value = json_response({**body, "values": body["values"][1:2]})
+
+        threads = provider.get_pull_request_review_threads("1")["data"]
+
+        assert [(t["id"], [c["body"] for c in t["comments"]]) for t in threads] == [
+            ("897197952", ["Test inline reply"]),
+        ]
+
+    def test_multiline_comment_on_removed_lines(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        body = recorded("pull_request_comments_inline").json()
+        body["values"][0]["inline"].update({"to": None, "from": 5, "start_to": None, "start_from": 4})
+        client.request.return_value = json_response(body)
+
+        thread = provider.get_pull_request_review_threads("1")["data"][0]
+
+        assert (thread["line"], thread["start_line"]) == (5, 4)
+
     def test_maps_app_users_and_outdated(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        response = recorded("pull_request_comments_inline")
-        body = response.json()
+        body = recorded("pull_request_comments_inline").json()
         body["values"][0]["user"] = APP_USER
         body["values"][0]["inline"]["outdated"] = True
         del body["values"][1]["user"]
-        client.request.return_value = with_body(response, body)
+        client.request.return_value = json_response(body)
 
         thread = provider.get_pull_request_review_threads("1")["data"][0]
 
