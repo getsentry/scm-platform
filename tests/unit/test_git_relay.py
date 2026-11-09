@@ -26,7 +26,7 @@ from scm.errors import (
     SCMCodedError,
 )
 from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
-from scm.git.types import FetchRule, PushRule
+from scm.git.types import GrantV2FetchRule, GrantV2PushRule
 from scm.secret import Secret
 from scm.types import GitRemote
 from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, reported_local
@@ -742,8 +742,8 @@ class TestClose:
 
 FETCH_ROUTES = [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-upload-pack", "")]
 PUSH_ROUTES = [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")]
-FETCH_ANY = FetchRule(repository=5, any_object=True)
-PUSH_BRANCH = PushRule(repository=5, branches=["seer/fix"])
+FETCH_ANY = GrantV2FetchRule(repository=5, any_object=True)
+PUSH_BRANCH = GrantV2PushRule(repository=5, branches=["seer/fix"])
 
 
 class TestAuthorizeRequest:
@@ -767,24 +767,26 @@ class TestAuthorizeRequest:
             authorize_request(make_grant(rules=[PUSH_BRANCH]), 5, *route)
 
     def test_rule_for_another_repository_does_not_apply(self):
-        grant = make_grant(rules=[FETCH_ANY, PushRule(repository=6, branches=["seer/fix"])])
+        grant = make_grant(rules=[FETCH_ANY, GrantV2PushRule(repository=6, branches=["seer/fix"])])
         with pytest.raises(GitOperationNotGranted, match="allows fetch on this repository, not push"):
             authorize_request(grant, 5, "POST", "git-receive-pack", "")
 
     def test_any_of_several_rules(self):
         grant = make_grant(
             rules=[
-                FetchRule(repository=5, branches=["main"]),
+                GrantV2FetchRule(repository=5, branches=["main"]),
                 FETCH_ANY,
                 PUSH_BRANCH,
-                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
             ]
         )
         assert authorize_request(grant, 5, "POST", "git-upload-pack", "") == "fetch"
         assert authorize_request(grant, 5, "POST", "git-receive-pack", "") == "push"
 
     def test_fetch_rules_that_all_list_branches_are_refused(self):
-        grant = make_grant(rules=[FetchRule(repository=5, branches=["main"]), FetchRule(repository=5, branches=["a"])])
+        grant = make_grant(
+            rules=[GrantV2FetchRule(repository=5, branches=["main"]), GrantV2FetchRule(repository=5, branches=["a"])]
+        )
         with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches"):
             authorize_request(grant, 5, "POST", "git-upload-pack", "")
 
@@ -792,7 +794,7 @@ class TestAuthorizeRequest:
     def test_fetch_rule_that_lists_branches_is_refused(self, route):
         # Nothing reads a fetch's body, so nothing would keep the fetch to the rule's branches.
         with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches"):
-            authorize_request(make_grant(rules=[FetchRule(repository=5, branches=["main"])]), 5, *route)
+            authorize_request(make_grant(rules=[GrantV2FetchRule(repository=5, branches=["main"])]), 5, *route)
 
     @pytest.mark.parametrize(
         "method,route,query",
@@ -823,7 +825,7 @@ class TestAuthorizeRequest:
     def test_repository_named_another_way_is_not_in_grant(self):
         # The rule and the request must name a repository the same way, since matching a database id to a provider
         # id would mean resolving every repository the grant names.
-        grant = make_grant(rules=[FetchRule(repository=("github", "123"), any_object=True)])
+        grant = make_grant(rules=[GrantV2FetchRule(repository=("github", "123"), any_object=True)])
         with pytest.raises(GitRepositoryNotGranted):
             authorize_request(grant, 5, "POST", "git-upload-pack", "")
         assert authorize_request(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
@@ -831,7 +833,8 @@ class TestAuthorizeRequest:
     def test_any_repository_with_a_rule(self):
         grant = make_grant(
             rules=[
-                FetchRule(repository=repository, any_object=True) for repository in (5, 6, ("gitlab", "gitlab.com:7"))
+                GrantV2FetchRule(repository=repository, any_object=True)
+                for repository in (5, 6, ("gitlab", "gitlab.com:7"))
             ]
         )
         assert authorize_request(grant, 6, "POST", "git-upload-pack", "") == "fetch"

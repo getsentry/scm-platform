@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
 from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
-from scm.git.types import PushRule, Readable
+from scm.git.types import GrantV2PushRule, Readable
 
 MAX_UPDATES_LENGTH = 64 * 1024
 """The most bytes a push may send before its pack. An update takes under 100 bytes plus its ref's name, and a push
@@ -75,7 +75,7 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
     return PushRequest(updates=updates, capabilities=capabilities, head=reader.read_so_far())
 
 
-def refused_updates(rules: Sequence[PushRule], request: PushRequest) -> dict[bytes, str]:
+def refused_updates(rules: Sequence[GrantV2PushRule], request: PushRequest) -> dict[bytes, str]:
     """Return why ``rules`` refuse each ref of ``request``, or nothing if every update has a rule that allows it.
 
     A push is relayed whole or not at all, so once one update is refused, every other ref gets a reason too.
@@ -102,7 +102,7 @@ _NOT_NEW = (2, "the git grant allows only creating this branch")
 _DELETES = (3, "the git grant does not allow deleting a branch")
 
 
-def _refusal(rule: PushRule, update: RefUpdate) -> tuple[int, str] | None:
+def _refusal(rule: GrantV2PushRule, update: RefUpdate) -> tuple[int, str] | None:
     """Return why ``rule`` refuses ``update``, ranked by how far the update got, or None if the rule allows it."""
     if not update.ref.startswith(b"refs/heads/"):
         return _NOT_A_BRANCH

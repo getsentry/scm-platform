@@ -20,7 +20,7 @@ from scm.errors import (
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
-from scm.git.types import GRANT_HEADER, FetchRule, GitOperation, PushRule, Readable
+from scm.git.types import GRANT_HEADER, GitOperation, GrantV2FetchRule, GrantV2PushRule, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
@@ -246,7 +246,7 @@ class TestRefusedBeforeTheProvider:
 
     def test_fetch_rule_that_lists_branches(self):
         recorder = Recorder()
-        grant = signed_grant(rules=[FetchRule(repository=5, branches=["main"])])
+        grant = signed_grant(rules=[GrantV2FetchRule(repository=5, branches=["main"])])
         assert_refused(request(make_server(recorder), grant), 403, "cannot keep a fetch to a rule's branches")
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
@@ -740,7 +740,7 @@ class TestKeptOutOfErrorReports:
         ]
 
 
-PUSH_GRANT = sign_grant(KEY.private, make_grant(rules=[PushRule(repository=5, branches=["seer/fix"])]))
+PUSH_GRANT = sign_grant(KEY.private, make_grant(rules=[GrantV2PushRule(repository=5, branches=["seer/fix"])]))
 
 
 def push_body(ref: str, capabilities: str = "report-status side-band-64k") -> bytes:
@@ -844,8 +844,8 @@ class TestPushRules:
             KEY.private,
             make_grant(
                 rules=[
-                    PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
-                    PushRule(repository=5, branches=["seer/fix"]),
+                    GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                    GrantV2PushRule(repository=5, branches=["seer/fix"]),
                 ]
             ),
         )

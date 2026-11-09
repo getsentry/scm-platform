@@ -20,7 +20,7 @@ from scm.errors import (
     RpcMalformedRequestHeaders,
     SCMCodedError,
 )
-from scm.git.types import FetchRule, GitOperation, GrantV1, GrantV2, Readable
+from scm.git.types import GitOperation, GrantV1, GrantV2, GrantV2FetchRule, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, RepositoryId
@@ -94,7 +94,7 @@ def authorize_request(
             raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
         raise GitOperationNotGranted(detail=f"The git grant allows {other} on this repository, not {operation}.")
     # Delete this once GitServer keeps a fetch to its rule's branches.
-    if operation == "fetch" and not any(isinstance(rule, FetchRule) and rule.any_object for rule in rules):
+    if operation == "fetch" and not any(isinstance(rule, GrantV2FetchRule) and rule.any_object for rule in rules):
         raise GitOperationNotGranted(
             detail="The git endpoint cannot keep a fetch to a rule's branches yet, so it refuses the rule."
         )

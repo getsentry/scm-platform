@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_private_key
 
 from scm.git.grant import generate_private_key
-from scm.git.types import FetchRule, GrantV1, GrantV2
+from scm.git.types import GrantV1, GrantV2, GrantV2FetchRule
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -52,7 +52,10 @@ def make_grant(**overrides) -> GrantV2:
     fields = {
         "organization_id": 1,
         "referrer": "seer.coding_job",
-        "rules": [FetchRule(repository=5, any_object=True), FetchRule(repository=("github", "123"), any_object=True)],
+        "rules": [
+            GrantV2FetchRule(repository=5, any_object=True),
+            GrantV2FetchRule(repository=("github", "123"), any_object=True),
+        ],
         "expires_at": FAR_FUTURE,
     }
     fields.update(overrides)

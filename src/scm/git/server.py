@@ -20,7 +20,7 @@ from scm.git.push import (
     refused_updates,
 )
 from scm.git.relay import DEFAULT_CHUNK_SIZE, GitRelay, ResponseBody, authorize_request
-from scm.git.types import GRANT_HEADER, GetToken, GrantV2, PushRule, Readable
+from scm.git.types import GRANT_HEADER, GetToken, GrantV2, GrantV2PushRule, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -165,7 +165,7 @@ class GitServer:
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
             push_rules = (
-                [rule for rule in grant.rules_for(repository_id, operation) if isinstance(rule, PushRule)]
+                [rule for rule in grant.rules_for(repository_id, operation) if isinstance(rule, GrantV2PushRule)]
                 if isinstance(grant, GrantV2)
                 else []
             )

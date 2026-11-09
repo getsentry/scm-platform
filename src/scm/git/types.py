@@ -28,7 +28,7 @@ conservative pick rather than a measured ceiling: header limits further along th
 8 KiB."""
 
 
-class FetchRule(
+class GrantV2FetchRule(
     msgspec.Struct,
     frozen=True,
     kw_only=True,
@@ -60,7 +60,7 @@ class FetchRule(
             _check_branches(self.branches)
 
 
-class PushRule(
+class GrantV2PushRule(
     msgspec.Struct,
     frozen=True,
     kw_only=True,
@@ -108,9 +108,6 @@ class PushRule(
         if self.branches is not None:
             return branch in self.branches
         return any(re.fullmatch(pattern, branch) for pattern in self.branch_patterns or ())
-
-
-type Rule = FetchRule | PushRule
 
 
 @warnings.deprecated("GrantV1 is deprecated. Sign a GrantV2, whose rules can keep a push to branches.")
@@ -170,7 +167,7 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     """Who the grant is for, e.g. a coding job or Seer itself, as ``referrer`` is elsewhere in this library.
     Sentry tags the git endpoint's metrics with it. Seer sets it, because git requests carry nothing else that
     tells callers apart."""
-    rules: list[Rule]
+    rules: list[GrantV2FetchRule | GrantV2PushRule]
     expires_at: int
     """Unix time in seconds. Every grant expires."""
     version: Literal[2] = 2
@@ -181,7 +178,7 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
         if not self.rules:
             raise ValueError("A git grant must hold at least one rule.")
 
-    def rules_for(self, repository: RepositoryId, operation: GitOperation) -> list[Rule]:
+    def rules_for(self, repository: RepositoryId, operation: GitOperation) -> list[GrantV2FetchRule | GrantV2PushRule]:
         """Return the rules for ``operation`` on ``repository``, named as the rules name it."""
         return [rule for rule in self.rules if rule.repository == repository and rule.operation == operation]
 

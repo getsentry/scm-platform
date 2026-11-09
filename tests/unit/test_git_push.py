@@ -13,10 +13,10 @@ from scm.git.push import (
     refusal_report,
     refused_updates,
 )
-from scm.git.types import PushRule
+from scm.git.types import GrantV2PushRule
 from tests.unit.git_builders import NEW_ID, OLD_ID, PACK, ZERO_ID, make_push_body, pkt
 
-RULES = [PushRule(repository=5, branches=["seer/fix", "seer/other"])]
+RULES = [GrantV2PushRule(repository=5, branches=["seer/fix", "seer/other"])]
 
 
 def read(body: bytes, headers: dict[str, str] | None = None) -> tuple[PushRequest, io.BytesIO]:
@@ -204,19 +204,19 @@ class TestRefusedUpdates:
         ],
     )
     def test_create_only_pattern(self, old_id, ref, reason):
-        rules = [PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True)]
+        rules = [GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True)]
         refused = refused_updates(rules, request_for((old_id, NEW_ID, ref)))
         assert refused == ({} if reason is None else {ref.encode(): reason})
 
     def test_create_only_listed_branch(self):
-        rules = [PushRule(repository=5, branches=["seer/fix"], create_only=True)]
+        rules = [GrantV2PushRule(repository=5, branches=["seer/fix"], create_only=True)]
         assert refused_updates(rules, request_for((ZERO_ID, NEW_ID, "refs/heads/seer/fix"))) == {}
         assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"))) == {
             b"refs/heads/seer/fix": "the git grant allows only creating this branch"
         }
 
     def test_non_utf8_branch_against_a_pattern(self):
-        rules = [PushRule(repository=5, branch_patterns=[".+"])]
+        rules = [GrantV2PushRule(repository=5, branch_patterns=[".+"])]
         ref = b"refs/heads/\xff"
         request = PushRequest(
             updates=[RefUpdate(old_id=OLD_ID.encode(), new_id=NEW_ID.encode(), ref=ref)],
@@ -228,8 +228,8 @@ class TestRefusedUpdates:
     def test_any_rule_allows_an_update(self):
         # The agent may start branches under seer/ and keep pushing to the one Seer added after its first push.
         rules = [
-            PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
-            PushRule(repository=5, branches=["seer/fix"]),
+            GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+            GrantV2PushRule(repository=5, branches=["seer/fix"]),
         ]
         request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (ZERO_ID, NEW_ID, "refs/heads/seer/next"))
         assert refused_updates(rules, request) == {}
@@ -237,8 +237,8 @@ class TestRefusedUpdates:
 
     def test_reason_of_the_rule_the_update_came_closest_to_passing(self):
         rules = [
-            PushRule(repository=5, branches=["other"]),
-            PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+            GrantV2PushRule(repository=5, branches=["other"]),
+            GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
         ]
         assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/heads/seer/old"))) == {
             b"refs/heads/seer/old": "the git grant allows only creating this branch"
