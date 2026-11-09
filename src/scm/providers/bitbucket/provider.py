@@ -398,8 +398,20 @@ class BitbucketProvider:
         raw = response.json()
         commits = [map_commit(commit) for commit in raw["values"]]
         # A range spec diffs the first commit against the merge base, so the head goes first.
-        changes = self.get_commit_changes(f"{end_sha}..{start_sha}", {"per_page": MAX_PAGE_SIZE}, request_options)
-        comparison = CommitComparison(ahead_by=len(commits), commits=commits, diff=changes["data"])
+        spec = f"{end_sha}..{start_sha}"
+        repository_api = f"/2.0/repositories/{self.repository_path}"
+        patches = split_patches(self.get(f"{repository_api}/diff/{spec}", request_options=request_options).text)
+        diffstats = list(
+            iter_all_pages(
+                lambda page: map_paginated_action(
+                    self.get(f"{repository_api}/diffstat/{spec}", pagination=page, request_options=request_options),
+                    lambda file: map_commit_file(file, patches),
+                ),
+                per_page=MAX_PAGE_SIZE,
+            )
+        )
+        diff = [file for page in diffstats for file in page["data"]]
+        comparison = CommitComparison(ahead_by=len(commits), commits=commits, diff=diff)
         if pagination is None:
             behind = self.get(
                 commits_path,
@@ -411,7 +423,10 @@ class BitbucketProvider:
         return {
             "data": comparison,
             "type": PROVIDER_TYPE,
-            "raw": {"data": {**raw, "diffstat": changes["raw"]["data"]}, "headers": dict(response.headers)},
+            "raw": {
+                "data": {**raw, "diffstat": [file for page in diffstats for file in page["raw"]["data"]["values"]]},
+                "headers": dict(response.headers),
+            },
             "meta": {"next_cursor": next_cursor(raw)},
         }
 
@@ -426,23 +441,27 @@ class BitbucketProvider:
     ) -> PaginatedActionResult[list[Commit]]:
         # Without a revision Bitbucket lists commits on every branch; HEAD is the main branch.
         revision = quote(ref or "HEAD", safe="/")
-        response = self.get(
-            f"/2.0/repositories/{self.repository_path}/commits/{revision}",
-            params=params,
-            pagination=pagination,
-            request_options=request_options,
-        )
-        result = map_paginated_action(response, map_commit)
-        if since is None and until is None:
-            return result
-        # Commits aren't strictly date-ordered, so only a page that's entirely past `since` ends the walk.
-        # Bitbucket's commit `date` is the committer date; the API has no author date.
-        dates = [datetime.fromisoformat(raw["date"]) for raw in result["raw"]["data"].get("values", [])]
-        start, end = as_utc(since or datetime.min), as_utc(until or datetime.max)
-        result["data"] = [commit for commit, d in zip(result["data"], dates, strict=True) if start <= d <= end]
-        if dates and all(d < start for d in dates):
-            result["meta"]["next_cursor"] = None
-        return result
+        while True:
+            response = self.get(
+                f"/2.0/repositories/{self.repository_path}/commits/{revision}",
+                params=params,
+                pagination=pagination,
+                request_options=request_options,
+            )
+            result = map_paginated_action(response, map_commit)
+            if since is None and until is None:
+                return result
+            # Commits aren't strictly date-ordered, so only a page that's entirely past `since` ends the walk.
+            # Bitbucket's commit `date` is the committer date; the API has no author date.
+            dates = [datetime.fromisoformat(raw["date"]) for raw in result["raw"]["data"].get("values", [])]
+            start, end = as_utc(since or datetime.min), as_utc(until or datetime.max)
+            result["data"] = [commit for commit, d in zip(result["data"], dates, strict=True) if start <= d <= end]
+            if dates and all(d < start for d in dates):
+                result["meta"]["next_cursor"] = None
+            # Callers stop at an empty page, so skip the ones that only hold commits after `until`.
+            if result["data"] or not (cursor := result["meta"]["next_cursor"]):
+                return result
+            pagination = {**(pagination or {}), "cursor": cursor}
 
 
 def parse_scopes(header: str) -> set[str]:

@@ -489,6 +489,29 @@ class TestGetCommits:
         provider.get_commits()
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/commits/HEAD"
 
+    def test_date_filter_skips_pages_after_until(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        def page(date: str, next_url: str | None) -> requests.Response:
+            response = requests.Response()
+            response.status_code = 200
+            commit = {"hash": date, "message": "m", "author": {"raw": "Test User <test@example.com>"}, "date": date}
+            body: dict[str, Any] = {"values": [commit]}
+            if next_url:
+                body["next"] = next_url
+            response._content = json.dumps(body).encode()
+            return response
+
+        client.request.side_effect = [
+            page("2026-11-05T00:00:00+00:00", "https://api.bitbucket.org/2.0/commits?page=2"),
+            page("2026-11-01T00:00:00+00:00", None),
+        ]
+
+        result = provider.get_commits(until=datetime(2026, 11, 2, tzinfo=UTC), pagination={"per_page": 1})
+
+        assert [c["id"] for c in result["data"]] == ["2026-11-01T00:00:00+00:00"]
+        assert client.request.call_args_list[1].kwargs["params"] == {"pagelen": "1", "page": "2"}
+
     def test_lists_commits_by_path(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("commits_by_path_page_1")
 
@@ -532,8 +555,8 @@ class TestCompareCommits:
     def test_compares_against_merge_base(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
             recorded("compare_commits"),
-            recorded("compare_diffstat"),
             recorded("compare_diff"),
+            recorded("compare_diffstat"),
             recorded("compare_behind"),
         ]
 
@@ -542,8 +565,8 @@ class TestCompareCommits:
         calls = client.request.call_args_list
         assert calls[0].kwargs["params"] == {"include": HEAD_SHA, "exclude": BRANCH_SHA, "pagelen": "100"}
         assert requested_paths(client)[1:3] == [
-            f"/2.0/repositories/{REPO}/diffstat/{HEAD_SHA}..{BRANCH_SHA}",
             f"/2.0/repositories/{REPO}/diff/{HEAD_SHA}..{BRANCH_SHA}",
+            f"/2.0/repositories/{REPO}/diffstat/{HEAD_SHA}..{BRANCH_SHA}",
         ]
         assert calls[3].kwargs["params"] == {"include": BRANCH_SHA, "exclude": HEAD_SHA, "pagelen": "100"}
         comparison = result["data"]
@@ -562,14 +585,27 @@ class TestCompareCommits:
     def test_paged_compare_skips_behind(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
             recorded("compare_commits"),
-            recorded("compare_diffstat"),
             recorded("compare_diff"),
+            recorded("compare_diffstat"),
         ]
 
         result = provider.compare_commits(BRANCH_SHA, HEAD_SHA, pagination={"per_page": 2})
 
         assert client.request.call_count == 3
         assert "behind_by" not in result["data"]
+
+    def test_reads_every_changed_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            recorded("compare_commits"),
+            recorded("compare_diff"),
+            recorded("diffstat_page_1"),
+            recorded("diffstat"),
+        ]
+
+        result = provider.compare_commits(BRANCH_SHA, HEAD_SHA, pagination={"per_page": 2})
+
+        files = len(recorded("diffstat_page_1").json()["values"]) + len(recorded("diffstat").json()["values"])
+        assert len(result["data"]["diff"]) == files
 
     def test_include_behind_with_pagination(self, provider: BitbucketProvider) -> None:
         with pytest.raises(ResourceBadRequest):
