@@ -1,5 +1,4 @@
 import re
-import warnings
 from collections.abc import Callable
 from typing import ClassVar, Literal, Protocol
 
@@ -12,8 +11,8 @@ type GitOperation = Literal["fetch", "push"]
 """What a grant or rule lets its holder do. ``scm.git.relay`` maps each to its git routes."""
 
 GRANT_VERSION: Literal[1] = 1
-"""Deprecated: the version of ``GrantV1``, which its ``version`` field already holds. Remove it together with
-``GrantV1``."""
+"""Deprecated: the version of a grant without rules, which ``Grant.version`` gives. Remove it together with
+``Grant.operation`` and ``Grant.repositories``."""
 
 GRANT_HEADER = "X-Scm-Git-Grant"
 """The request header that carries a signed grant to the git endpoint."""
@@ -113,40 +112,7 @@ class PushRule(
 type Rule = FetchRule | PushRule
 
 
-@warnings.deprecated("GrantV1 is deprecated. Sign a GrantV2, whose rules can keep a push to branches.")
-class GrantV1(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
-    """Permission to run one git operation against a fixed set of an organization's repositories.
-
-    Deprecated: sign a ``GrantV2``, which can also keep a push to branches. Verifiers still accept this version, so a
-    signer can switch once they can read both.
-
-    A push grant lets its holder update any ref of its repositories, including tags and deletions, since GitServer
-    relays its pushes unread. Each repository is a ``RepositoryId`` under the grant's organization, as in the RPC
-    endpoint: Sentry's repository id or a ``(provider, external id)`` pair.
-
-    A grant with a field this version does not know is refused rather than read without it. If a later version
-    adds a field that restricts a grant, a verifier that ignored the field would allow more than the grant does.
-    """
-
-    organization_id: int
-    referrer: Referrer
-    """Who the grant is for, e.g. a coding job or Seer itself, as ``referrer`` is elsewhere in this library.
-    Sentry tags the git endpoint's metrics with it. Seer sets it, because git requests carry nothing else that
-    tells callers apart."""
-    operation: GitOperation
-    repositories: list[RepositoryId]
-    expires_at: int
-    """Unix time in seconds. Every grant expires."""
-    version: Literal[1] = 1
-    """The format version. A verifier refuses a version it does not know."""
-
-
-Grant = GrantV1
-"""The name ``GrantV1`` had before ``GrantV2``, kept so code that imports it keeps working. Remove it together with
-``GrantV1`` rather than pointing it at ``GrantV2``."""
-
-
-class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
+class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True, omit_defaults=True):
     """Permission to run git operations on an organization's repositories, as a list of rules.
 
     Seer signs a grant for each sandbox, and for its own git requests, and Sentry's git endpoint verifies it on
@@ -160,7 +126,11 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     git-based dependencies, but only from repositories Sentry has connected for the organization: naming any other
     repository, such as a public dependency, would need a new kind of rule.
 
-    A grant or rule with a field this version does not know is refused rather than read without it, because a
+    A grant sets ``rules`` or, in the deprecated version 1 form, ``operation`` and ``repositories``, which allow one
+    operation on every listed repository. A version 1 push lets its holder update any ref, including tags and
+    deletions, since GitServer relays it unread. Verifiers read both forms, so a signer can switch once they do.
+
+    A grant or rule with a field the verifier does not know is refused rather than read without it, because a
     verifier that ignored a field restricting the grant would allow more than the grant does. So a new field needs
     only the verifiers to know it before the signer uses it, and a new version only when a field changes meaning.
     """
@@ -170,20 +140,34 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     """Who the grant is for, e.g. a coding job or Seer itself, as ``referrer`` is elsewhere in this library.
     Sentry tags the git endpoint's metrics with it. Seer sets it, because git requests carry nothing else that
     tells callers apart."""
-    rules: list[Rule]
     expires_at: int
     """Unix time in seconds. Every grant expires."""
-    version: Literal[2] = 2
-    """The format version. A verifier refuses a version it does not know, so one that knows only ``GrantV1`` refuses
-    this one rather than reading its rules as broader than they are."""
+    rules: list[Rule] | None = None
+    operation: GitOperation | None = None
+    """Deprecated, with ``repositories``: the version 1 form. Remove both once no signer sets them, and make
+    ``rules`` required."""
+    repositories: list[RepositoryId] | None = None
+    """Deprecated, with ``operation``."""
 
     def __post_init__(self) -> None:
-        if not self.rules:
-            raise ValueError("A git grant must hold at least one rule.")
+        if self.rules is not None:
+            if self.operation is not None or self.repositories is not None:
+                raise ValueError("A git grant sets either rules or operation and repositories, not both.")
+            if not self.rules:
+                raise ValueError("A git grant must hold at least one rule.")
+        elif self.operation is None or self.repositories is None:
+            raise ValueError("A git grant must set rules, or both operation and repositories.")
+
+    @property
+    def version(self) -> Literal[1, 2]:
+        """The format the grant is signed in: 2 with rules, and 1 with operation and repositories."""
+        return 1 if self.rules is None else 2
 
     def rules_for(self, repository: RepositoryId, operation: GitOperation) -> list[Rule]:
-        """Return the rules for ``operation`` on ``repository``, named as the rules name it."""
-        return [rule for rule in self.rules if rule.repository == repository and rule.operation == operation]
+        """Return the rules for ``operation`` on ``repository``, named as the rules name it.
+
+        A version 1 grant has no rules, so it returns none."""
+        return [rule for rule in self.rules or () if rule.repository == repository and rule.operation == operation]
 
 
 # What git check-ref-format refuses in a ref name: control characters, space, ~ ^ : ? * [ \, "..", "@{" and "//".

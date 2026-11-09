@@ -37,7 +37,7 @@ from cryptography.hazmat.primitives.serialization import (
 )
 
 from scm.errors import GitGrantExpired, GitGrantKeyError, GitInvalidGrant
-from scm.git.types import GRANT_MAX_LENGTH, GrantV1, GrantV2
+from scm.git.types import GRANT_MAX_LENGTH, Grant
 from scm.secret import Secret
 
 GRANT_AUDIENCE = "scm-git-grant"
@@ -48,7 +48,7 @@ _ALGORITHM = "EdDSA"
 _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
-def sign_grant(private_key: Secret, grant: GrantV1 | GrantV2, *, now: float | None = None) -> str:
+def sign_grant(private_key: Secret, grant: Grant, *, now: float | None = None) -> str:
     """Sign ``grant`` with ``private_key``, an Ed25519 private key in PEM.
 
     The ``kid`` header is derived from the key, so a signer needs no key id setting next to it. Raises
@@ -57,6 +57,7 @@ def sign_grant(private_key: Secret, grant: GrantV1 | GrantV2, *, now: float | No
     """
     key = _load_private_key(private_key)
     claims: dict[str, Any] = msgspec.to_builtins(grant)
+    claims["version"] = grant.version
     claims["exp"] = claims.pop("expires_at")
     claims["iat"] = int(time.time() if now is None else now)
     claims["aud"] = GRANT_AUDIENCE
@@ -111,10 +112,8 @@ def require_private_key(private_key: Secret) -> Secret:
     return private_key
 
 
-def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> GrantV1 | GrantV2:
+def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> Grant:
     """Return the grant if the private key of one of ``public_keys`` signed it and it has not expired.
-
-    The grant is a ``GrantV2`` if its version is 2, and a ``GrantV1`` otherwise.
 
     Verification takes a list of Ed25519 public keys in PEM, so a new key can be added before the signer switches to
     it and the old one removed after its grants expire. Raises GitGrantKeyError, rather than refusing the grant, if
@@ -157,14 +156,16 @@ def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = 
         raise GitInvalidGrant(detail=f"The git grant is invalid: {e}") from None
 
     fields = {name: value for name, value in claims.items() if name not in _JWT_CLAIMS}
-    payload = {**fields, "expires_at": claims["exp"]}
+    # A grant from before there was a second version carries no version claim.
+    version = fields.pop("version", 1)
     try:
-        grant: GrantV1 | GrantV2
-        if fields.get("version") == 2:
-            grant = msgspec.convert(payload, type=GrantV2, strict=True)
-        else:
-            # GrantV1's version field refuses any version but 1.
-            grant = msgspec.convert(payload, type=GrantV1, strict=True)
+        if type(version) is not int or version not in (1, 2):
+            raise msgspec.ValidationError(f"Unknown version {version!r}")
+        grant = msgspec.convert({**fields, "expires_at": claims["exp"]}, type=Grant, strict=True)
+        if grant.version != version:
+            raise msgspec.ValidationError(
+                f"A version {version} grant cannot hold the fields of version {grant.version}"
+            )
     except msgspec.ValidationError as e:
         # The signature matched, so the holder of the private key wrote these claims; telling them why they are
         # invalid gives nothing away.
@@ -172,7 +173,7 @@ def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = 
 
     if grant.expires_at <= now:
         raise GitGrantExpired(detail="The git grant has expired.")
-    if isinstance(grant, GrantV1) and not grant.repositories:
+    if grant.repositories is not None and not grant.repositories:
         raise GitInvalidGrant(detail="The git grant names no repositories.")
     return grant
 

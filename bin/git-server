@@ -103,7 +103,7 @@ from scm.errors import GitGrantKeyError
 from scm.git.grant import generate_private_key, public_key_of, sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
-from scm.git.types import GRANT_HEADER, FetchRule, GetToken, GrantV2, PushRule, Readable, Rule
+from scm.git.types import GRANT_HEADER, FetchRule, GetToken, Grant, PushRule, Readable, Rule
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.types import GetGitRemoteProtocol, Provider, ProviderName, Repository, RepositoryId
@@ -282,7 +282,7 @@ def make_git_server(
 
 
 def grant_for(private_key: Secret, rule: Rule) -> str:
-    grant = GrantV2(
+    grant = Grant(
         organization_id=ORGANIZATION_ID,
         referrer=REFERRER,
         rules=[rule],

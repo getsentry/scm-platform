@@ -31,7 +31,7 @@ from scm.git.grant import (
     sign_grant,
     verify_grant,
 )
-from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, GrantV1, GrantV2, PushRule
+from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, PushRule
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
 from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair, make_v1_grant
@@ -50,8 +50,8 @@ def expected_key_id(key: KeyPair) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
-def claims_of(grant: Grant | GrantV2) -> dict:
-    claims = msgspec.to_builtins(grant)
+def claims_of(grant: Grant) -> dict:
+    claims = msgspec.to_builtins(grant) | {"version": grant.version}
     claims["exp"] = claims.pop("expires_at")
     return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
 
@@ -275,7 +275,7 @@ class TestAlgorithms:
         assert_invalid(token, "alg value is not allowed")
 
 
-def grant_with_repositories(count: int) -> GrantV2:
+def grant_with_repositories(count: int) -> Grant:
     # Names of one length, so each rule adds the same to the grant.
     return make_grant(
         rules=[FetchRule(repository=("github", f"getsentry/repository-{i:04d}"), any_object=True) for i in range(count)]
@@ -733,27 +733,46 @@ class TestBranchNames:
         assert PushRule(repository=5, branches=[name]).branches == [name]
 
 
-def sign_v1(grant: GrantV1) -> str:
+def sign_v1(grant: Grant) -> str:
     return sign_grant(KEY.private, grant, now=NOW)
 
 
 class TestVersion1:
-    """Grant, which GrantV2 replaces, still signs and verifies as it did."""
+    """A grant with operation and repositories instead of rules, as before rules, still signs and verifies."""
 
     @pytest.mark.parametrize("operation", ["fetch", "push"])
     def test_verifies_what_it_signed(self, operation):
         grant = make_v1_grant(operation=operation)
         verified = verify_grant([KEY.public], sign_v1(grant), now=NOW)
         assert verified == grant
-        assert isinstance(verified, GrantV1)
+        assert verified.version == 1
+        assert verified.rules is None
 
-    def test_deprecated(self):
-        # Type checkers and IDEs flag code that uses it, by either name.
-        assert "Sign a GrantV2" in GrantV1.__deprecated__  # type: ignore[attr-defined]
+    @pytest.mark.parametrize(
+        "fields,error",
+        [
+            ({"operation": "fetch"}, "must set rules, or both operation and repositories"),
+            ({"repositories": [5]}, "must set rules, or both operation and repositories"),
+            ({}, "must set rules, or both operation and repositories"),
+            (
+                {"operation": "fetch", "repositories": [5], "rules": [FetchRule(repository=5, any_object=True)]},
+                "either rules or operation and repositories, not both",
+            ),
+        ],
+    )
+    def test_one_form_or_the_other(self, fields, error):
+        with pytest.raises(ValueError, match=error):
+            Grant(organization_id=1, referrer="seer.coding_job", expires_at=FAR_FUTURE, **fields)
 
-    def test_old_name(self):
-        assert Grant is GrantV1
-        assert Grant(**msgspec.to_builtins(make_v1_grant())) == make_v1_grant()
+    @pytest.mark.parametrize(
+        "change",
+        [
+            {"version": 2},
+            {"rules": [{"operation": "fetch", "repository": 5, "any_object": True}]},
+        ],
+    )
+    def test_version_must_match_the_form(self, change):
+        assert_invalid(sign_claims(claims_of(make_v1_grant()) | change), "payload is invalid")
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_v1(make_v1_grant())
