@@ -573,7 +573,7 @@ class Checks:
             self.git(
                 push_grant, "-c", "http.postBuffer=65536", "push", url, f"HEAD:refs/heads/{branch}-unlisted", cwd=clone
             ),
-            "the git grant does not list this branch",
+            "the git grant does not cover this branch",
         )
         pushed = self.expect_success(
             "chunked push with a push grant",

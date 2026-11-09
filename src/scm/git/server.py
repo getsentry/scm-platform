@@ -76,9 +76,10 @@ class GitServer:
     does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
     refuses internal addresses; see ``GitRelay``.
 
-    A push under a ``GrantV2`` is kept to its rule's branches. The server reads the push's ref updates, which come
-    before the pack, and refuses the whole push if one of them updates a branch the rule does not list, deletes a
-    branch, or updates any other ref, such as a tag, and refuses push options and signed pushes too. A client that
+    A push under a ``GrantV2`` is kept to its push rules. The server reads the push's ref updates, which come before
+    the pack, and refuses the whole push if no rule allows one of them: a branch no rule covers, an existing branch
+    under a ``create_only`` rule, a deletion, or any ref that isn't a branch, such as a tag. It refuses push options
+    and signed pushes too. A client that
     asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the rule
     allows is relayed with the updates the server read followed by the rest of the body, unread. A push under a
     ``Grant`` is relayed unread, as before rules.
@@ -164,11 +165,15 @@ class GitServer:
             operation = authorize_request(grant, repository_id, method, route, query)
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
-            rule = grant.rule_for(repository_id, operation) if isinstance(grant, GrantV2) else None
-            if isinstance(rule, PushRule) and method == "POST" and counted_body is not None:
+            push_rules = (
+                [rule for rule in grant.rules_for(repository_id, operation) if isinstance(rule, PushRule)]
+                if isinstance(grant, GrantV2)
+                else []
+            )
+            if push_rules and method == "POST" and counted_body is not None:
                 push_body = bounded_body(headers, counted_body)
                 push = read_push_request(headers, push_body)
-                refused = refused_updates(rule, push)
+                refused = refused_updates(push_rules, push)
                 if refused:
                     ref, reason = next(iter(refused.items()))
                     raise GitPushNotGranted(

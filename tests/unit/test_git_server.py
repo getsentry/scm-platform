@@ -801,7 +801,7 @@ class TestPushRules:
             pkt(
                 b"\1"
                 + pkt(b"unpack ok\n")
-                + pkt(b"ng refs/heads/main the git grant does not list this branch\n")
+                + pkt(b"ng refs/heads/main the git grant does not cover this branch\n")
                 + b"0000"
             )
             + b"0000"
@@ -816,7 +816,7 @@ class TestPushRules:
         ]
         [(error, context)] = recorder.errors
         assert error.detail == (  # type: ignore[attr-defined]
-            "The git grant does not allow this push: refs/heads/main (the git grant does not list this branch)."
+            "The git grant does not allow this push: refs/heads/main (the git grant does not cover this branch)."
         )
         assert context == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER, "operation": "push"}
 
@@ -838,6 +838,28 @@ class TestPushRules:
         response = self.send(make_server(Recorder()), stream, headers={"Content-Length": str(len(body))})
         assert response.status_code == 200
         assert stream.tell() == len(body)
+
+    def test_create_only_pattern_and_listed_branch(self):
+        grant = sign_grant(
+            KEY.private,
+            make_grant(
+                rules=[
+                    PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                    PushRule(repository=5, branches=["seer/fix"]),
+                ]
+            ),
+        )
+        server = make_server(Recorder())
+        for body in (
+            make_push_body(("0" * 40, NEW_ID, "refs/heads/seer/next")),
+            make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")),
+        ):
+            response = request(server, grant, method="POST", route="git-receive-pack", query="", body=io.BytesIO(body))
+            assert response.status_code == 200
+        assert server.relay.forward.call_count == 2  # type: ignore[attr-defined]
+        refused = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/next"), capabilities="report-status")
+        response = request(server, grant, method="POST", route="git-receive-pack", query="", body=io.BytesIO(refused))
+        assert b"the git grant allows only creating this branch" in b"".join(response.content)
 
     def test_client_that_asked_for_no_report(self):
         recorder = Recorder()
@@ -868,7 +890,8 @@ class TestPushRules:
     def test_version_1_push_grant_relays_unread(self):
         recorder = Recorder()
         server = make_server(recorder)
-        grant = sign_grant(KEY.private, make_v1_grant(operation="push"))
+        with pytest.deprecated_call():
+            grant = sign_grant(KEY.private, make_v1_grant(operation="push"))
         body = io.BytesIO(b"not a push the server could read")
         request(server, grant, method="POST", route="git-receive-pack", query="", body=body)
         assert body.tell() == 0

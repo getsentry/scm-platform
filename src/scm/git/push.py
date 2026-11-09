@@ -7,7 +7,7 @@ receive-pack speaks in protocol versions 0 and 1 alike, the only ones it has.
 """
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
 from scm.errors import ClientClosedRequest, GitPushNotGranted, GitRequestMalformed, RpcMalformedRequestHeaders
@@ -28,6 +28,10 @@ class RefUpdate(NamedTuple):
     old_id: bytes
     new_id: bytes
     ref: bytes
+
+    @property
+    def creates(self) -> bool:
+        return not self.old_id.strip(b"0")
 
     @property
     def deletes(self) -> bool:
@@ -71,27 +75,48 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
     return PushRequest(updates=updates, capabilities=capabilities, head=reader.read_so_far())
 
 
-def refused_updates(rule: PushRule, request: PushRequest) -> dict[bytes, str]:
-    """Return why ``rule`` refuses each ref of ``request``, or nothing if it allows every update.
+def refused_updates(rules: Sequence[PushRule], request: PushRequest) -> dict[bytes, str]:
+    """Return why ``rules`` refuse each ref of ``request``, or nothing if every update has a rule that allows it.
 
     A push is relayed whole or not at all, so once one update is refused, every other ref gets a reason too.
     """
     if "push-options" in request.capabilities:
         # Push options ask the provider to act on the push, such as GitLab opening a merge request or skipping CI.
         return {update.ref: "the git endpoint does not relay push options" for update in request.updates}
-    branches = {f"refs/heads/{branch}".encode() for branch in rule.branches}
     refused: dict[bytes, str] = {}
     for update in request.updates:
-        if not update.ref.startswith(b"refs/heads/"):
-            refused[update.ref] = "the git grant allows pushing branches only"
-        elif update.ref not in branches:
-            refused[update.ref] = "the git grant does not list this branch"
-        elif update.deletes:
-            refused[update.ref] = "the git grant does not allow deleting a branch"
+        refusals = [_refusal(rule, update) for rule in rules]
+        reasons = [refusal for refusal in refusals if refusal is not None]
+        if len(reasons) == len(refusals):
+            # The reason of the rule the update came closest to passing says the most.
+            refused[update.ref] = max(reasons, default=_NOT_COVERED)[1]
     if refused:
         for update in request.updates:
             refused.setdefault(update.ref, "refused with the rest of the push")
     return refused
+
+
+_NOT_A_BRANCH = (0, "the git grant allows pushing branches only")
+_NOT_COVERED = (1, "the git grant does not cover this branch")
+_NOT_NEW = (2, "the git grant allows only creating this branch")
+_DELETES = (3, "the git grant does not allow deleting a branch")
+
+
+def _refusal(rule: PushRule, update: RefUpdate) -> tuple[int, str] | None:
+    """Return why ``rule`` refuses ``update``, ranked by how far the update got, or None if the rule allows it."""
+    if not update.ref.startswith(b"refs/heads/"):
+        return _NOT_A_BRANCH
+    try:
+        branch = update.ref.removeprefix(b"refs/heads/").decode()
+    except UnicodeDecodeError:
+        return _NOT_COVERED
+    if not rule.covers(branch):
+        return _NOT_COVERED
+    if update.deletes:
+        return _DELETES
+    if rule.create_only and not update.creates:
+        return _NOT_NEW
+    return None
 
 
 def refusal_report(request: PushRequest, refused: Mapping[bytes, str]) -> bytes | None:

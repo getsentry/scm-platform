@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import time
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -555,11 +556,20 @@ class TestRules:
 
     def test_claims_hold_only_what_a_rule_sets(self):
         # Shorter, and a reader sees which fetch rules reach any object.
-        grant = make_grant(rules=[FetchRule(repository=5, branches=["main"]), FetchRule(repository=6, any_object=True)])
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main"]),
+                FetchRule(repository=6, any_object=True),
+                PushRule(repository=5, branches=["seer/fix"]),
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+            ]
+        )
         claims = jwt.decode(sign_grant(KEY.private, grant, now=NOW), options={"verify_signature": False})
         assert claims["rules"] == [
             {"operation": "fetch", "repository": 5, "branches": ["main"]},
             {"operation": "fetch", "repository": 6, "any_object": True},
+            {"operation": "push", "repository": 5, "branches": ["seer/fix"]},
+            {"operation": "push", "repository": 5, "branch_patterns": ["seer/.+"], "create_only": True},
         ]
 
     @pytest.mark.parametrize(
@@ -574,9 +584,29 @@ class TestRules:
             ),
             ({"operation": "fetch", "repository": 5, "branches": []}, "must not be empty"),
             ({"operation": "push", "repository": 5, "branches": []}, "must not be empty"),
-            ({"operation": "push", "repository": 5}, "missing required field `branches`"),
-            ({"operation": "push", "repository": 5, "branches": None}, "Expected `array`, got `null`"),
-            ({"operation": "push", "repository": 5, "any_object": True}, "unknown field `any_object`"),
+            ({"operation": "push", "repository": 5}, "must list its branches or set branch_patterns"),
+            ({"operation": "push", "repository": 5, "branches": None}, "must list its branches or set branch_patterns"),
+            (
+                {"operation": "push", "repository": 5, "create_only": True},
+                "must list its branches or set branch_patterns",
+            ),
+            (
+                {"operation": "push", "repository": 5, "branches": ["a"], "branch_patterns": ["a"]},
+                "must not both list branches and set branch_patterns",
+            ),
+            ({"operation": "push", "repository": 5, "branch_patterns": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "branch_patterns": [""]}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "branch_patterns": ["seer/("]}, "is not a regular expression"),
+            ({"operation": "push", "repository": 5, "branches": ["a"], "create_only": 1}, "Expected `bool`"),
+            (
+                {"operation": "push", "repository": 5, "branches": ["a"], "any_object": True},
+                "unknown field `any_object`",
+            ),
+            ({"operation": "fetch", "repository": 5, "any_object": True, "create_only": True}, "unknown field"),
+            (
+                {"operation": "fetch", "repository": 5, "branch_patterns": ["seer/.+"]},
+                "unknown field `branch_patterns`",
+            ),
             ({"operation": "fetch", "repository": 5, "branches": ["main"], "deepen": 50}, "unknown field `deepen`"),
             ({"operation": "delete", "repository": 5, "branches": ["main"]}, "Invalid value 'delete'"),
             ({"repository": 5, "any_object": True}, "missing required field `operation`"),
@@ -604,36 +634,19 @@ class TestRules:
             make_grant(rules=[])
         assert_invalid(sign_claims(rule_claims()), "at least one rule")
 
-    @pytest.mark.parametrize(
-        "rules,error",
-        [
-            (
-                [{"operation": "fetch", "repository": 5, "any_object": True}] * 2,
-                "more than one fetch rule for 5",
-            ),
-            (
-                [
-                    {"operation": "fetch", "repository": 5, "any_object": True},
-                    {"operation": "fetch", "repository": 5, "branches": ["main"]},
-                ],
-                "more than one fetch rule for 5",
-            ),
-            (
-                [
-                    {"operation": "push", "repository": ["github", "123"], "branches": ["a"]},
-                    {"operation": "push", "repository": ["github", "123"], "branches": ["b"]},
-                ],
-                "more than one push rule for ('github', '123')",
-            ),
-        ],
-    )
-    def test_two_rules_for_one_repository_and_operation(self, rules, error):
-        # Otherwise which one applies would depend on the order of the rules.
-        assert_invalid(sign_claims(rule_claims(*rules)), error)
-
-    def test_two_rules_for_one_repository_and_operation_cannot_be_built(self):
-        with pytest.raises(ValueError, match="more than one push rule for 5"):
-            make_grant(rules=[PushRule(repository=5, branches=["a"]), PushRule(repository=5, branches=["b"])])
+    def test_several_rules_for_one_repository_and_operation(self):
+        # A request passes if any of them allows it, so their order doesn't matter.
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, any_object=True),
+                FetchRule(repository=5, branches=["main"]),
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                PushRule(repository=5, branches=["seer/fix"]),
+            ]
+        )
+        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
+        assert grant.rules_for(5, "push") == grant.rules[2:]
+        assert grant.rules_for(("github", "123"), "push") == []
 
     def test_one_repository_named_both_ways(self):
         # Nothing matches a database id to a provider id, so the two are separate repositories here, as in requests.
@@ -672,6 +685,34 @@ INVALID_BRANCH_NAMES = [
 ]
 
 
+class TestBranchPatterns:
+    @pytest.mark.parametrize(
+        "patterns,branch,covered",
+        [
+            (["seer/.+"], "seer/fix", True),
+            (["seer/.+"], "seer/fix/deeper", True),
+            (["seer/.+"], "seer/", False),
+            # Matched against the whole name, not searched for in it.
+            (["seer/.+"], "main-seer/fix", False),
+            (["seer/[a-z-]+"], "seer/fix/deeper", False),
+            (["seer"], "seer/fix", False),
+            (["seer/[a-z]+", "cursor/.+"], "cursor/x", True),
+            (["seer/.+"], "Seer/fix", False),
+        ],
+    )
+    def test_covers(self, patterns, branch, covered):
+        assert PushRule(repository=5, branch_patterns=patterns).covers(branch) is covered
+
+    def test_listed_branches(self):
+        rule = PushRule(repository=5, branches=["seer/fix"])
+        assert rule.covers("seer/fix")
+        assert not rule.covers("seer/fix2")
+
+    def test_cannot_be_built_with_an_invalid_pattern(self):
+        with pytest.raises(ValueError, match="'seer/\\(' is not a regular expression"):
+            PushRule(repository=5, branch_patterns=["seer/("])
+
+
 class TestBranchNames:
     @pytest.mark.parametrize("name", INVALID_BRANCH_NAMES)
     def test_invalid(self, name):
@@ -693,18 +734,31 @@ class TestBranchNames:
         assert PushRule(repository=5, branches=[name]).branches == [name]
 
 
+def sign_v1(grant: Grant, **kwargs) -> str:
+    with pytest.deprecated_call(match="Sign a GrantV2"):
+        return sign_grant(KEY.private, grant, now=NOW, **kwargs)
+
+
 class TestVersion1:
     """Grant, which GrantV2 replaces, still signs and verifies as it did."""
 
     @pytest.mark.parametrize("operation", ["fetch", "push"])
     def test_verifies_what_it_signed(self, operation):
         grant = make_v1_grant(operation=operation)
-        verified = verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW)
+        verified = verify_grant([KEY.public], sign_v1(grant), now=NOW)
         assert verified == grant
         assert isinstance(verified, Grant)
 
+    def test_deprecated(self):
+        # Type checkers and IDEs flag code that uses it, and signing one warns, but verifying one doesn't.
+        assert "Sign a GrantV2" in Grant.__deprecated__  # type: ignore[attr-defined]
+        token = sign_v1(make_v1_grant())
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            verify_grant([KEY.public], token, now=NOW)
+
     def test_token_is_a_jwt_with_the_grants_claims(self):
-        token = sign_grant(KEY.private, make_v1_grant(), now=NOW)
+        token = sign_v1(make_v1_grant())
         assert jwt.decode(token, options={"verify_signature": False}) == {
             "organization_id": 1,
             "referrer": "seer.coding_job",
@@ -724,7 +778,7 @@ class TestVersion1:
 
     def test_expired(self):
         with pytest.raises(GitGrantExpired):
-            verify_grant([KEY.public], sign_grant(KEY.private, make_v1_grant(expires_at=NOW), now=NOW), now=NOW)
+            verify_grant([KEY.public], sign_v1(make_v1_grant(expires_at=NOW)), now=NOW)
 
     @pytest.mark.parametrize(
         "change",
@@ -739,4 +793,4 @@ class TestVersion1:
         assert_invalid(sign_claims(claims_of(make_v1_grant()) | change), "payload is invalid")
 
     def test_no_repositories(self):
-        assert_invalid(sign_grant(KEY.private, make_v1_grant(repositories=[]), now=NOW), "names no repositories")
+        assert_invalid(sign_v1(make_v1_grant(repositories=[])), "names no repositories")

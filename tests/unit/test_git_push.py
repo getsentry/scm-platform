@@ -16,7 +16,7 @@ from scm.git.push import (
 from scm.git.types import PushRule
 from tests.unit.git_builders import NEW_ID, OLD_ID, PACK, ZERO_ID, make_push_body, pkt
 
-RULE = PushRule(repository=5, branches=["seer/fix", "seer/other"])
+RULES = [PushRule(repository=5, branches=["seer/fix", "seer/other"])]
 
 
 def read(body: bytes, headers: dict[str, str] | None = None) -> tuple[PushRequest, io.BytesIO]:
@@ -153,22 +153,22 @@ def request_for(*updates: tuple[str, str, str], capabilities: str = "report-stat
 class TestRefusedUpdates:
     def test_listed_branches(self):
         request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (ZERO_ID, NEW_ID, "refs/heads/seer/other"))
-        assert refused_updates(RULE, request) == {}
+        assert refused_updates(RULES, request) == {}
 
     def test_force_push_to_a_listed_branch(self):
         # Nothing here knows whether the new commit descends from the old one, so the provider's protection decides.
-        assert refused_updates(RULE, request_for(("3" * 40, NEW_ID, "refs/heads/seer/fix"))) == {}
+        assert refused_updates(RULES, request_for(("3" * 40, NEW_ID, "refs/heads/seer/fix"))) == {}
 
     def test_probe(self):
-        assert refused_updates(RULE, read(b"0000")[0]) == {}
+        assert refused_updates(RULES, read(b"0000")[0]) == {}
 
     @pytest.mark.parametrize(
         "ref,reason",
         [
-            ("refs/heads/main", "the git grant does not list this branch"),
-            ("refs/heads/seer/fix/deeper", "the git grant does not list this branch"),
-            ("refs/heads/seer", "the git grant does not list this branch"),
-            ("refs/heads/Seer/fix", "the git grant does not list this branch"),
+            ("refs/heads/main", "the git grant does not cover this branch"),
+            ("refs/heads/seer/fix/deeper", "the git grant does not cover this branch"),
+            ("refs/heads/seer", "the git grant does not cover this branch"),
+            ("refs/heads/Seer/fix", "the git grant does not cover this branch"),
             ("refs/tags/seer/fix", "the git grant allows pushing branches only"),
             ("refs/pull/1/head", "the git grant allows pushing branches only"),
             ("refs/notes/commits", "the git grant allows pushing branches only"),
@@ -177,22 +177,79 @@ class TestRefusedUpdates:
         ],
     )
     def test_refs_the_rule_does_not_list(self, ref, reason):
-        assert refused_updates(RULE, request_for((OLD_ID, NEW_ID, ref))) == {ref.encode(): reason}
+        assert refused_updates(RULES, request_for((OLD_ID, NEW_ID, ref))) == {ref.encode(): reason}
 
     def test_deleting_a_listed_branch(self):
-        refused = refused_updates(RULE, request_for((OLD_ID, ZERO_ID, "refs/heads/seer/fix")))
+        refused = refused_updates(RULES, request_for((OLD_ID, ZERO_ID, "refs/heads/seer/fix")))
         assert refused == {b"refs/heads/seer/fix": "the git grant does not allow deleting a branch"}
 
     def test_one_refused_update_refuses_the_push(self):
         request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (OLD_ID, NEW_ID, "refs/heads/main"))
-        assert refused_updates(RULE, request) == {
-            b"refs/heads/main": "the git grant does not list this branch",
+        assert refused_updates(RULES, request) == {
+            b"refs/heads/main": "the git grant does not cover this branch",
             b"refs/heads/seer/fix": "refused with the rest of the push",
+        }
+
+    def test_no_rules(self):
+        refused = refused_updates([], request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix")))
+        assert refused == {b"refs/heads/seer/fix": "the git grant does not cover this branch"}
+
+    @pytest.mark.parametrize(
+        "old_id,ref,reason",
+        [
+            (ZERO_ID, "refs/heads/seer/new", None),
+            (OLD_ID, "refs/heads/seer/new", "the git grant allows only creating this branch"),
+            (ZERO_ID, "refs/heads/main", "the git grant does not cover this branch"),
+            (ZERO_ID, "refs/tags/seer/new", "the git grant allows pushing branches only"),
+        ],
+    )
+    def test_create_only_pattern(self, old_id, ref, reason):
+        rules = [PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True)]
+        refused = refused_updates(rules, request_for((old_id, NEW_ID, ref)))
+        assert refused == ({} if reason is None else {ref.encode(): reason})
+
+    def test_create_only_listed_branch(self):
+        rules = [PushRule(repository=5, branches=["seer/fix"], create_only=True)]
+        assert refused_updates(rules, request_for((ZERO_ID, NEW_ID, "refs/heads/seer/fix"))) == {}
+        assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"))) == {
+            b"refs/heads/seer/fix": "the git grant allows only creating this branch"
+        }
+
+    def test_non_utf8_branch_against_a_pattern(self):
+        rules = [PushRule(repository=5, branch_patterns=[".+"])]
+        ref = b"refs/heads/\xff"
+        request = PushRequest(
+            updates=[RefUpdate(old_id=OLD_ID.encode(), new_id=NEW_ID.encode(), ref=ref)],
+            capabilities=frozenset(),
+            head=b"",
+        )
+        assert refused_updates(rules, request) == {ref: "the git grant does not cover this branch"}
+
+    def test_any_rule_allows_an_update(self):
+        # The agent may start branches under seer/ and keep pushing to the one Seer added after its first push.
+        rules = [
+            PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+            PushRule(repository=5, branches=["seer/fix"]),
+        ]
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (ZERO_ID, NEW_ID, "refs/heads/seer/next"))
+        assert refused_updates(rules, request) == {}
+        assert refused_updates(list(reversed(rules)), request) == {}
+
+    def test_reason_of_the_rule_the_update_came_closest_to_passing(self):
+        rules = [
+            PushRule(repository=5, branches=["other"]),
+            PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+        ]
+        assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/heads/seer/old"))) == {
+            b"refs/heads/seer/old": "the git grant allows only creating this branch"
+        }
+        assert refused_updates(rules, request_for((OLD_ID, ZERO_ID, "refs/heads/seer/old"))) == {
+            b"refs/heads/seer/old": "the git grant does not allow deleting a branch"
         }
 
     def test_push_options(self):
         request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), capabilities="report-status push-options")
-        assert refused_updates(RULE, request) == {
+        assert refused_updates(RULES, request) == {
             b"refs/heads/seer/fix": "the git endpoint does not relay push options"
         }
 
@@ -210,8 +267,8 @@ def unband(response: bytes) -> bytes:
 
 
 class TestRefusalReport:
-    REFUSED = {b"refs/heads/main": "the git grant does not list this branch"}
-    REPORT = pkt(b"unpack ok\n") + pkt(b"ng refs/heads/main the git grant does not list this branch\n") + b"0000"
+    REFUSED = {b"refs/heads/main": "the git grant does not cover this branch"}
+    REPORT = pkt(b"unpack ok\n") + pkt(b"ng refs/heads/main the git grant does not cover this branch\n") + b"0000"
 
     def test_report_status(self):
         request = request_for((OLD_ID, NEW_ID, "refs/heads/main"), capabilities="report-status")
@@ -229,7 +286,7 @@ class TestRefusalReport:
     def test_side_band_splits_at_1000_bytes(self):
         updates = [(OLD_ID, NEW_ID, f"refs/heads/branch-{i:03d}") for i in range(40)]
         request = request_for(*updates, capabilities="report-status side-band")
-        refused = {update.ref: "the git grant does not list this branch" for update in request.updates}
+        refused = {update.ref: "the git grant does not cover this branch" for update in request.updates}
         response = refusal_report(request, refused)
         assert response is not None
         assert max(int(response[i : i + 4], 16) for i in range(0, len(response) - 4, 1000)) <= 1000
@@ -238,12 +295,12 @@ class TestRefusalReport:
 
     def test_every_update_in_order(self):
         request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (OLD_ID, NEW_ID, "refs/heads/main"))
-        response = refusal_report(request, refused_updates(RULE, request))
+        response = refusal_report(request, refused_updates(RULES, request))
         assert response is not None
         assert unband(response) == (
             pkt(b"unpack ok\n")
             + pkt(b"ng refs/heads/seer/fix refused with the rest of the push\n")
-            + pkt(b"ng refs/heads/main the git grant does not list this branch\n")
+            + pkt(b"ng refs/heads/main the git grant does not cover this branch\n")
             + b"0000"
         )
 

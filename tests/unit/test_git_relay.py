@@ -771,6 +771,23 @@ class TestAuthorizeRequest:
         with pytest.raises(GitOperationNotGranted, match="allows fetch on this repository, not push"):
             authorize_request(grant, 5, "POST", "git-receive-pack", "")
 
+    def test_any_of_several_rules(self):
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main"]),
+                FETCH_ANY,
+                PUSH_BRANCH,
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+            ]
+        )
+        assert authorize_request(grant, 5, "POST", "git-upload-pack", "") == "fetch"
+        assert authorize_request(grant, 5, "POST", "git-receive-pack", "") == "push"
+
+    def test_fetch_rules_that_all_list_branches_are_refused(self):
+        grant = make_grant(rules=[FetchRule(repository=5, branches=["main"]), FetchRule(repository=5, branches=["a"])])
+        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches"):
+            authorize_request(grant, 5, "POST", "git-upload-pack", "")
+
     @pytest.mark.parametrize("route", FETCH_ROUTES)
     def test_fetch_rule_that_lists_branches_is_refused(self, route):
         # Nothing reads a fetch's body, so nothing would keep the fetch to the rule's branches.

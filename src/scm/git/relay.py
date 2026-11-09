@@ -72,10 +72,10 @@ def authorize_request(
     Fetches reach only upload-pack and pushes only receive-pack. The grant must name the repository in the same form
     the request uses: a database id does not match the same repository's ``(provider, external id)`` pair.
 
-    A ``GrantV2`` allows a request only if it has a rule for the request's repository and operation. A push rule's
+    A ``GrantV2`` allows a request only if it has a rule for the request's repository and operation. Push rules'
     branches are kept by GitServer, which reads the push's ref updates before it relays the push, so a caller that
-    relays a push some other way must check them itself. A fetch rule that lists branches is refused, since nothing
-    reads a fetch's body to keep it to them.
+    relays a push some other way must check them itself. A fetch needs a fetch rule for any object, since nothing
+    reads a fetch's body to keep it to a rule's branches.
     """
     operation = _ROUTES.get((method, route, query))
     if operation is None:
@@ -87,16 +87,14 @@ def authorize_request(
             raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
         return operation
 
-    rule = grant.rule_for(repository_id, operation)
-    if rule is None:
-        other = grant.rule_for(repository_id, "push" if operation == "fetch" else "fetch")
-        if other is None:
+    rules = grant.rules_for(repository_id, operation)
+    if not rules:
+        other: GitOperation = "push" if operation == "fetch" else "fetch"
+        if not grant.rules_for(repository_id, other):
             raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
-        raise GitOperationNotGranted(
-            detail=f"The git grant allows {other.operation} on this repository, not {operation}."
-        )
+        raise GitOperationNotGranted(detail=f"The git grant allows {other} on this repository, not {operation}.")
     # Delete this once GitServer keeps a fetch to its rule's branches.
-    if isinstance(rule, FetchRule) and rule.branches is not None:
+    if operation == "fetch" and not any(isinstance(rule, FetchRule) and rule.any_object for rule in rules):
         raise GitOperationNotGranted(
             detail="The git endpoint cannot keep a fetch to a rule's branches yet, so it refuses the rule."
         )
