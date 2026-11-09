@@ -21,6 +21,7 @@ from scm.errors import (
 )
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
+    decode_content,
     map_app_installation,
     map_commit_author,
     map_paginated_action,
@@ -855,3 +856,8 @@ class TestCreateCommit:
         with pytest.raises(ResourceBadRequest):
             provider.create_commit("test-branch", PARENT, "m", [], **kwargs)
         client.request.assert_not_called()
+
+
+def test_decode_content_ignores_line_wrapping() -> None:
+    action = WriteCommitAction(action="create", filename="a.bin", content="aGVs\nbG8=\n", encoding="base64")
+    assert decode_content(action) == b"hello"
