@@ -4,8 +4,7 @@ import json
 import re
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime
-from email.utils import parseaddr
-from typing import Any
+from typing import Any, cast, get_args
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import requests
@@ -82,15 +81,7 @@ VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
 PULL_REQUEST_TEMPLATE_PARENT_DIRS = (".github", "", "docs")
 PULL_REQUEST_TEMPLATE_FILENAME = "pull_request_template.md"
 PULL_REQUEST_TEMPLATE_DIRNAME = "pull_request_template"
-_FILE_STATUSES: dict[str, FileStatus] = {
-    "added": "added",
-    "removed": "removed",
-    "modified": "modified",
-    "renamed": "renamed",
-}
 _RAW_AUTHOR = re.compile(r"^(?P<name>.*?)\s*<(?P<email>[^>]*)>\s*$")
-
-
 _PULL_REQUEST_STATE_QUERIES: dict[PullRequestState | None, str] = {
     "open": 'state="OPEN"',
     "closed": '(state="MERGED" OR state="DECLINED" OR state="SUPERSEDED")',
@@ -687,12 +678,16 @@ def map_commit(raw: dict[str, Any], additions: int | None = None, deletions: int
     )
 
 
+def map_file_status(raw: str) -> FileStatus:
+    return cast(FileStatus, raw) if raw in get_args(FileStatus.__value__) else "unknown"
+
+
 def map_commit_file(raw: dict[str, Any], patches: dict[str, str]) -> CommitFile:
     old, new = raw["old"], raw["new"]
     filename = (new or old)["path"]
     return CommitFile(
         filename=filename,
-        status=_FILE_STATUSES.get(raw["status"], "unknown"),
+        status=map_file_status(raw["status"]),
         patch=patches.get(filename),
         additions=raw["lines_added"],
         deletions=raw["lines_removed"],
@@ -704,9 +699,15 @@ def split_patches(diff: str) -> dict[str, str]:
     """Split a unified diff into each file's hunks, keyed by the file's new path."""
     patches = {}
     for section in re.split(r"^(?=diff --git )", diff, flags=re.MULTILINE):
-        header, _, body = section.partition("\n")
-        if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
-            patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
+        if not (hunks := re.search(r"^@@", section, flags=re.MULTILINE)):
+            continue
+        # The `diff --git` line is ambiguous when a path contains " b/". Git ends a path with spaces in a tab.
+        header = section[: hunks.start()]
+        path = re.search(r"^\+\+\+ b/(.*?)\t?$", header, re.MULTILINE) or re.search(
+            r"^--- a/(.*?)\t?$", header, re.MULTILINE
+        )
+        if path:
+            patches[path[1]] = section[hunks.start() :]
     return patches
 
 
@@ -736,7 +737,7 @@ def map_pull_request(raw: dict[str, Any]) -> PullRequest:
 
 
 def map_pull_request_file(raw: dict[str, Any], patches: dict[str, str]) -> PullRequestFile:
-    status = _FILE_STATUSES.get(raw["status"], "unknown")
+    status = map_file_status(raw["status"])
     filename = (raw["new"] or raw["old"])["path"]
     return PullRequestFile(
         filename=filename,
@@ -749,11 +750,10 @@ def map_pull_request_file(raw: dict[str, Any], patches: dict[str, str]) -> PullR
 
 
 def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
-    name, email = parseaddr(raw["author"]["raw"])
     return PullRequestCommit(
         sha=raw["hash"],
         message=raw["message"],
-        author=CommitAuthor(name=name, email=email, date=datetime.fromisoformat(raw["date"])),
+        author=map_commit_author(raw["author"], raw["date"]),
     )
 
 
