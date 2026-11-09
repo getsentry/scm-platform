@@ -647,6 +647,22 @@ class TestCommitMapping:
         author = map_commit_author(raw, "2026-11-05T20:16:34+00:00")
         assert (author["name"], author["email"]) == (name, email)
 
+    def test_split_patches_reads_paths_containing_b_slash(self) -> None:
+        diff = (
+            "diff --git a/Appendix b/notes.md b/Appendix b/notes.md\n"
+            "--- a/Appendix b/notes.md\t\n"
+            "+++ b/Appendix b/notes.md\t\n"
+            "@@ -1 +1 @@\n-x\n+y\n"
+            "diff --git a/gone.py b/gone.py\n"
+            "--- a/gone.py\n"
+            "+++ /dev/null\n"
+            "@@ -1 +0,0 @@\n-x\n"
+        )
+        assert split_patches(diff) == {
+            "Appendix b/notes.md": "@@ -1 +1 @@\n-x\n+y\n",
+            "gone.py": "@@ -1 +0,0 @@\n-x\n",
+        }
+
     def test_split_patches_skips_files_without_hunks(self) -> None:
         diff = (
             "diff --git a/old.md b/new.md\nsimilarity index 100%\nrename from old.md\nrename to new.md\n"
