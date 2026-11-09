@@ -3,17 +3,17 @@
     "date": "2026-11-05T20:16:26+00:00",
     "links": {
       "commits": {
-        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits/s5-tag"
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits/test-tag"
       },
       "html": {
-        "href": "https://bitbucket.org/test-workspace/test-repo/commits/tag/s5-tag"
+        "href": "https://bitbucket.org/test-workspace/test-repo/commits/tag/test-tag"
       },
       "self": {
-        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/tags/s5-tag"
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/tags/test-tag"
       }
     },
-    "message": "Added tag s5-tag for changeset 1c0671c60997\n",
-    "name": "s5-tag",
+    "message": "Added tag test-tag for changeset 1c0671c60997\n",
+    "name": "test-tag",
     "tagger": {
       "raw": "Test User <test@example.com>",
       "type": "author",

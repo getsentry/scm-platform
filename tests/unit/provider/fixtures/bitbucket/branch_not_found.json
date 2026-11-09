@@ -1,7 +1,7 @@
 {
   "body": {
     "error": {
-      "message": "s5-missing"
+      "message": "missing-branch"
     },
     "type": "error"
   },

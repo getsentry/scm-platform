@@ -8,7 +8,7 @@
       "data": {
         "key": "BRANCH_ALREADY_EXISTS"
       },
-      "message": "Branch \"s5-create\" already exists"
+      "message": "Branch \"new-branch\" already exists"
     },
     "type": "error"
   },

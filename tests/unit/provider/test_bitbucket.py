@@ -669,23 +669,23 @@ class TestBranches:
     def test_get_missing_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("branch_not_found")
         with pytest.raises(ResourceNotFound):
-            provider.get_branch("s5-missing")
+            provider.get_branch("missing-branch")
 
     def test_create_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("branch_created")
 
-        result = provider.create_branch("s5-create", MAIN_SHA)
+        result = provider.create_branch("new-branch", MAIN_SHA)
 
         kwargs = request_kwargs(client)
         assert kwargs["method"] == "POST"
         assert kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches"
-        assert kwargs["data"] == {"name": "s5-create", "target": {"hash": MAIN_SHA}}
-        assert result["data"] == {"ref": "s5-create", "sha": MAIN_SHA}
+        assert kwargs["data"] == {"name": "new-branch", "target": {"hash": MAIN_SHA}}
+        assert result["data"] == {"ref": "new-branch", "sha": MAIN_SHA}
 
     def test_create_existing_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("branch_exists")
         with pytest.raises(ResourceBadRequest):
-            provider.create_branch("s5-create", MAIN_SHA)
+            provider.create_branch("new-branch", MAIN_SHA)
 
     def test_delete_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("branch_deleted")
@@ -709,10 +709,15 @@ class TestGetGitRef:
     def test_tag_ref(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("tag")
 
-        result = provider.get_git_ref("tags/s5-tag")
+        result = provider.get_git_ref("tags/test-tag")
 
-        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/tags/s5-tag"
-        assert result["data"] == {"ref": "refs/tags/s5-tag", "sha": FEATURE_SHA}
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/tags/test-tag"
+        assert result["data"] == {"ref": "refs/tags/test-tag", "sha": FEATURE_SHA}
+
+    def test_encodes_ref_name(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("tag")
+        provider.get_git_ref("tags/v#1")
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/tags/v%231"
 
     @pytest.mark.parametrize("ref", ["main", "heads/", "pull/1/head", "refs/heads/main"])
     def test_unsupported_ref(self, provider: BitbucketProvider, client: unittest.mock.MagicMock, ref: str) -> None:
