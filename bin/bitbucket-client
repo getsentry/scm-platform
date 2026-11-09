@@ -27,6 +27,9 @@ Commands:
     get-commit-url <sha>
     get-commits-url <sha> [--file-path <path>] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
     compare-commits <start_sha> <end_sha> [--include-behind]
+    get-git-commit <sha>
+    get-tree <tree_sha> [--non-recursive] [--cursor <cursor>] [--per-page <n>]
+    get-full-tree <tree_sha> [--non-recursive]
 """
 
 import argparse
@@ -51,10 +54,13 @@ from scm.types import (
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
+    GetFullTreeProtocol,
+    GetGitCommitProtocol,
     GetGitRemoteProtocol,
     GetPullRequestTemplateProtocol,
     GetReadmeProtocol,
     GetRepositoryProtocol,
+    GetTreeProtocol,
     PaginationParams,
 )
 
@@ -163,6 +169,18 @@ def main():
     p.add_argument("start_sha")
     p.add_argument("end_sha")
     p.add_argument("--include-behind", action="store_true", dest="include_behind")
+    p = sub.add_parser("get-git-commit")
+    p.add_argument("sha")
+
+    p = sub.add_parser("get-tree")
+    p.add_argument("tree_sha")
+    p.add_argument("--non-recursive", action="store_true")
+    p.add_argument("--cursor", default=None)
+    p.add_argument("--per-page", type=int, default=None)
+
+    p = sub.add_parser("get-full-tree")
+    p.add_argument("tree_sha")
+    p.add_argument("--non-recursive", action="store_true")
 
     args = parser.parse_args()
     if not args.command:
@@ -239,6 +257,23 @@ def main():
     elif args.command == "compare-commits":
         assert isinstance(scm, CompareCommitsProtocol)
         dump(scm.compare_commits(args.start_sha, args.end_sha, include_behind=args.include_behind))
+
+    elif args.command == "get-git-commit":
+        assert isinstance(scm, GetGitCommitProtocol)
+        dump(scm.get_git_commit(args.sha))
+
+    elif args.command == "get-tree":
+        assert isinstance(scm, GetTreeProtocol)
+        pagination: PaginationParams = {}
+        if args.cursor is not None:
+            pagination["cursor"] = args.cursor
+        if args.per_page is not None:
+            pagination["per_page"] = args.per_page
+        dump(scm.get_tree(args.tree_sha, recursive=not args.non_recursive, pagination=pagination or None))
+
+    elif args.command == "get-full-tree":
+        assert isinstance(scm, GetFullTreeProtocol)
+        dump(scm.get_full_tree(args.tree_sha, recursive=not args.non_recursive))
 
 
 if __name__ == "__main__":
