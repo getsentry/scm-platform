@@ -12,9 +12,9 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, SCMCodedError
+from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders, SCMCodedError
 from scm.git.relay import DEFAULT_CHUNK_SIZE, _read
-from scm.git.types import GrantV2PushRule, Readable, _is_branch_name
+from scm.git.types import GrantV2PushRule, Readable, _follows_ref_format, _is_branch_name
 
 MAX_UPDATES_LENGTH = 64 * 1024
 """The most bytes a push may send before its pack. An update takes under 100 bytes plus its ref's name, and a push
@@ -28,6 +28,19 @@ _CAPABILITIES = frozenset(
 _CAPABILITIES_WITH_VALUES = frozenset({"agent", "object-format", "session-id"})
 # The object formats git names in object-format=, and the length of an object id in each, in hex.
 _OBJECT_ID_LENGTHS = {"sha1": 40, "sha256": 64}
+# What git puts in a capability list: printable ASCII, the capabilities split by spaces.
+_CAPABILITY_LIST = re.compile(rb"[\x20-\x7e]*")
+# The headers the relay passes on that git sends with a push, each with the only values git sends. Any other value
+# refuses the push rather than reach the provider. Content-Encoding is checked apart, to say why.
+_HEADER_VALUES = {
+    "accept": frozenset({"application/x-git-receive-pack-result"}),
+    "content-type": frozenset({"application/x-git-receive-pack-request"}),
+    # A push has no protocol version 2, so git asks for version 1 at most.
+    "git-protocol": frozenset({"version=0", "version=1"}),
+}
+# The longest branch name a push may update, in bytes. A rule's pattern runs on the name the client chose, and one
+# that backtracks takes time that grows with the name's length.
+_MAX_BRANCH_LENGTH = 255
 
 _FLUSH = b"0000"
 # A pkt-line's length, in 4 hex digits, counts the 4 digits too.
@@ -37,6 +50,7 @@ _OBJECT_ID = re.compile(rb"[0-9a-f]{40}|[0-9a-f]{64}")
 # The most of a ref's name a refusal's detail shows. The pushing client chooses the name, and the detail reaches
 # error reports and logs.
 _SHOWN_REF_LENGTH = 200
+_SHOWN_CAPABILITY_LENGTH = 40
 
 
 class PushRefused(GitOperationNotGranted):
@@ -92,7 +106,7 @@ def check_push(rules: Sequence[GrantV2PushRule], headers: Mapping[str, str], bod
                 detail=f"The git grant does not allow this push: {_shown(ref)} ({reason}).",
                 report=refusal_report(request, refused),
             )
-    except (GitOperationNotGranted, GitMalformedRequestBody):
+    except (GitOperationNotGranted, GitMalformedRequestBody, RpcMalformedRequestHeaders):
         _drain(body)
         raise
     return ReplayedBody(request.head, body)
@@ -102,13 +116,11 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
     """Read a push's ref updates from ``body``, leaving the pack unread.
 
     Raises GitMalformedRequestBody for a body that does not start with a list of ref updates, GitOperationNotGranted
-    for a compressed body, PushRefused for a signed push, whose updates come inside a certificate, and
-    ClientClosedRequest if reading the body fails.
+    for a compressed body, RpcMalformedRequestHeaders for any other header value git doesn't send with a push,
+    PushRefused for a signed push, whose updates come inside a certificate, and ClientClosedRequest if reading the
+    body fails.
     """
-    encoding = next((value for name, value in headers.items() if name.lower() == "content-encoding"), "identity")
-    if encoding.strip().lower() not in ("", "identity"):
-        # git compresses fetches but never pushes.
-        raise GitOperationNotGranted(detail="The git endpoint does not read a compressed push.")
+    _check_headers(headers)
     reader = _PktReader(body)
     shallow: list[bytes] = []
     updates: list[RefUpdate] = []
@@ -273,7 +285,20 @@ def _supported(capability: str) -> bool:
 def _capability_name(capability: str) -> str:
     if capability == "push-options":
         return "push options"
-    return f"the {capability.partition('=')[0]} capability"
+    # The client chose the name, and the reason goes in every refused ref's line of the report.
+    return f"the {_cut(capability.partition('=')[0], _SHOWN_CAPABILITY_LENGTH)} capability"
+
+
+def _check_headers(headers: Mapping[str, str]) -> None:
+    # Every value counts, since a mapping can hold one header under two spellings and the relay passes on one of them.
+    for name, value in headers.items():
+        lowered = name.lower()
+        if lowered == "content-encoding" and value.strip().lower() not in ("", "identity"):
+            # git compresses fetches but never pushes.
+            raise GitOperationNotGranted(detail="The git endpoint does not read a compressed push.")
+        allowed = _HEADER_VALUES.get(lowered)
+        if allowed is not None and value.strip() not in allowed:
+            raise RpcMalformedRequestHeaders(detail=f"The push's {lowered} header holds a value git doesn't send.")
 
 
 def _error_report(capabilities: frozenset[str], message: str) -> bytes | None:
@@ -294,10 +319,9 @@ def _on_side_band(capabilities: frozenset[str], band: int, data: bytes) -> bytes
 
 
 def _capabilities(requested: bytes) -> frozenset[str]:
-    try:
-        return frozenset(requested.decode("ascii").split())
-    except UnicodeDecodeError:
-        raise GitMalformedRequestBody(detail="The push's capabilities are not ASCII.") from None
+    if not _CAPABILITY_LIST.fullmatch(requested):
+        raise GitMalformedRequestBody(detail="The push's capabilities hold characters git doesn't send.")
+    return frozenset(requested.decode("ascii").split(" ")) - {""}
 
 
 def _ref_update(line: bytes) -> RefUpdate:
@@ -305,21 +329,30 @@ def _ref_update(line: bytes) -> RefUpdate:
     new_id, _, ref = rest.partition(b" ")
     if not (_OBJECT_ID.fullmatch(old_id) and _OBJECT_ID.fullmatch(new_id) and len(old_id) == len(new_id) and ref):
         raise GitMalformedRequestBody(detail="The push's ref updates are malformed.")
-    if ref.startswith(b"refs/heads/"):
-        # A rule checks the branch the push names, and a name git wouldn't take might not be the branch the
-        # provider updates.
-        try:
-            branch = ref.removeprefix(b"refs/heads/").decode()
-        except UnicodeDecodeError:
-            branch = ""
-        if not _is_branch_name(branch):
+    # A rule checks the ref the push names, and a name git wouldn't take might not be the ref the provider updates.
+    # It also goes into the refusal's detail, which reaches logs.
+    try:
+        name = ref.decode()
+    except UnicodeDecodeError:
+        name = ""
+    if not (name.startswith("refs/") and _follows_ref_format(name)):
+        raise GitMalformedRequestBody(detail="The push updates a ref whose name git wouldn't take.")
+    if name.startswith("refs/heads/"):
+        if not _is_branch_name(name.removeprefix("refs/heads/")):
             raise GitMalformedRequestBody(detail="The push updates a branch whose name git wouldn't take.")
+        if len(ref.removeprefix(b"refs/heads/")) > _MAX_BRANCH_LENGTH:
+            raise GitMalformedRequestBody(
+                detail=f"The push updates a branch whose name is longer than {_MAX_BRANCH_LENGTH} bytes."
+            )
     return RefUpdate(old_id=old_id, new_id=new_id, ref=ref)
 
 
 def _shown(ref: bytes) -> str:
-    name = ref.decode(errors="replace")
-    return name if len(name) <= _SHOWN_REF_LENGTH else f"{name[:_SHOWN_REF_LENGTH]}..."
+    return _cut(ref.decode(errors="replace"), _SHOWN_REF_LENGTH)
+
+
+def _cut(text: str, length: int) -> str:
+    return text if len(text) <= length else f"{text[:length]}..."
 
 
 def _pkt(payload: bytes) -> bytes:

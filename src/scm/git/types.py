@@ -210,12 +210,17 @@ def _check_branches(branches: list[BranchName]) -> None:
 
 
 def _is_branch_name(name: str) -> bool:
-    # git check-ref-format's rules for refs/heads/<name>, with what git branch refuses on top (a leading "-" and
-    # "HEAD"). A name starting with refs/ is a valid branch, but it's far more likely a full ref name by mistake.
+    # What git branch refuses on top of git check-ref-format's rules: a leading "-" and "HEAD". A name starting with
+    # refs/ is a valid branch, but it's far more likely a full ref name by mistake.
+    return _follows_ref_format(name) and name != "HEAD" and not name.startswith(("-", "refs/"))
+
+
+def _follows_ref_format(name: str) -> bool:
+    """Return whether git check-ref-format takes ``name``, a ref name or the part of one below refs/heads/."""
     return not (
         not name
-        or name in ("@", "HEAD")
-        or name.startswith(("-", "/", "refs/"))
+        or name == "@"
+        or name.startswith("/")
         or name.endswith(("/", "."))
         or _NOT_IN_A_REF.search(name)
         or any(part.startswith(".") or part.endswith(".lock") for part in name.split("/"))

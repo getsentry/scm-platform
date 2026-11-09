@@ -222,8 +222,6 @@ class TestRefusedUpdates:
             ("refs/tags/seer/fix", "the git grant allows pushing branches only"),
             ("refs/pull/1/head", "the git grant allows pushing branches only"),
             ("refs/notes/commits", "the git grant allows pushing branches only"),
-            ("HEAD", "the git grant allows pushing branches only"),
-            ("seer/fix", "the git grant allows pushing branches only"),
         ],
     )
     def test_refs_the_rule_does_not_list(self, ref, reason):
@@ -475,11 +473,23 @@ class TestCheckPush:
             self.check(body[:20])
 
     def test_long_ref_is_cut_short_in_the_detail(self):
-        ref = "refs/heads/" + "x" * 1000
+        ref = "refs/tags/" + "x" * 1000
         with pytest.raises(PushRefused) as exc_info:
             self.check(make_push_body((OLD_ID, NEW_ID, ref), capabilities="report-status"))
         assert exc_info.value.detail == (
-            f"The git grant does not allow this push: {ref[:200]}... (the git grant does not cover this branch)."
+            f"The git grant does not allow this push: {ref[:200]}... (the git grant allows pushing branches only)."
         )
         # The report names the whole ref, since git matches it to the ref it pushed.
         assert ref.encode() in (exc_info.value.report or b"")
+
+    @pytest.mark.parametrize("ref", ["HEAD", "seer/fix", "refs/heads/" + "x" * 256], ids=["head", "bare", "too-long"])
+    def test_ref_git_would_not_send(self, ref):
+        # git sends refs under refs/, and a branch name past the cap would make a rule's pattern slow.
+        with pytest.raises(GitMalformedRequestBody):
+            self.check(make_push_body((OLD_ID, NEW_ID, ref)))
+
+    def test_longest_branch_name(self):
+        ref = "refs/heads/seer/" + "x" * 250
+        rules = [GrantV2PushRule(repository=5, branch_patterns=["seer/x+"])]
+        relayed, _ = self.check(make_push_body((OLD_ID, NEW_ID, ref)), rules=rules)
+        assert ref.encode() in relayed

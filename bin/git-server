@@ -640,6 +640,8 @@ class Checks:
             headers={
                 GRANT_HEADER: grant_for(self.args.private_key, rule),
                 "Content-Type": "application/x-git-receive-pack-request",
+                # As git sends it. requests would otherwise send its own, which GitServer refuses on a push.
+                "Accept": "application/x-git-receive-pack-result",
             },
             timeout=60,
         )

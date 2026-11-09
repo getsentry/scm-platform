@@ -42,9 +42,12 @@ class TestCapabilityValues:
 
 def long_capability_push() -> bytes:
     """A push whose one unsupported capability takes half the update budget, followed by as many updates as fit."""
-    lines = [first_update(b"report-status " + b"x" * (MAX_UPDATES_LENGTH // 2), ref=b"r0")]
+    lines = [first_update(b"report-status " + b"x" * (MAX_UPDATES_LENGTH // 2), ref=b"refs/heads/r0")]
     index = 1
-    while sum(map(len, lines)) + len(line := pkt(f"{OLD_ID} {NEW_ID} r{index}".encode())) + 4 <= MAX_UPDATES_LENGTH:
+    while (
+        sum(map(len, lines)) + len(line := pkt(f"{OLD_ID} {NEW_ID} refs/heads/r{index}".encode())) + 4
+        <= MAX_UPDATES_LENGTH
+    ):
         lines.append(line)
         index += 1
     return b"".join(lines) + b"0000"
