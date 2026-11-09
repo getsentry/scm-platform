@@ -8,7 +8,14 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, ResourceBadRequest, ResourceNotFound
+from scm.errors import (
+    PathIsDirectory,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceConflict,
+    ResourceNotFound,
+)
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -23,6 +30,8 @@ from scm.providers.bitbucket.provider import (
 )
 from scm.types import (
     CompareCommitsProtocol,
+    CreatePullRequestDraftProtocol,
+    CreatePullRequestProtocol,
     GetAppInstallationProtocol,
     GetCommitChangesProtocol,
     GetCommitProtocol,
@@ -43,8 +52,11 @@ from scm.types import (
     GetPullRequestUrlProtocol,
     GetReadmeProtocol,
     GetRepositoryProtocol,
+    MarkPullRequestDraftStateProtocol,
     PullRequestState,
     Repository,
+    RequestReviewProtocol,
+    UpdatePullRequestProtocol,
 )
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "bitbucket"
@@ -73,6 +85,11 @@ SUPPORTED_PROTOCOLS = [
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
+    CreatePullRequestDraftProtocol,
+    CreatePullRequestProtocol,
+    MarkPullRequestDraftStateProtocol,
+    RequestReviewProtocol,
+    UpdatePullRequestProtocol,
 ]
 COMMIT_SHA = "e723f15089c22737bb51aee8db06e0eab91e4ba1"
 HEAD_SHA = "e3ef83d1a831b7b26c838372f668b1627bbf9a1a"
@@ -1021,3 +1038,221 @@ class TestGetPullRequestDiff:
 
 def test_get_pull_request_url(provider: BitbucketProvider) -> None:
     assert provider.get_pull_request_url("1") == f"https://bitbucket.org/{REPO}/pull-requests/1"
+
+
+def with_reviewers(name: str, *uuids: str) -> requests.Response:
+    body = recorded(name).json()
+    body["reviewers"] = [{"type": "user", "uuid": uuid} for uuid in uuids]
+    return json_response(body)
+
+
+def pull_requests_page(*names: str) -> requests.Response:
+    return json_response({"values": [recorded(name).json() for name in names]})
+
+
+class TestCreatePullRequest:
+    def test_creates_pull_request(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [pull_requests_page(), recorded("pull_request_created")]
+
+        result = provider.create_pull_request("New pull request", "A new pull request.", "new-feature", "main")
+
+        check = client.request.call_args_list[0].kwargs
+        assert (check["method"], check["path"]) == ("GET", f"/2.0/repositories/{REPO}/pullrequests")
+        assert check["params"]["q"] == (
+            'source.branch.name="new-feature" AND destination.branch.name="main" AND state="OPEN"'
+        )
+        assert request_kwargs(client)["method"] == "POST"
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests"
+        assert request_kwargs(client)["data"] == {
+            "title": "New pull request",
+            "description": "A new pull request.",
+            "source": {"branch": {"name": "new-feature"}},
+            "destination": {"branch": {"name": "main"}},
+            "draft": False,
+        }
+        assert result["data"]["id"] == "5"
+        assert result["data"]["state"] == "open"
+        assert result["data"]["head"]["ref"] == "new-feature"
+
+    def test_creates_draft(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [pull_requests_page(), recorded("pull_request_draft")]
+
+        result = provider.create_pull_request_draft(
+            "Draft pull request", "A draft pull request.", "draft-feature", "main"
+        )
+
+        assert request_kwargs(client)["data"]["draft"] is True
+        assert result["data"]["id"] == "4"
+
+    def test_escapes_branch_names_when_checking_for_a_pull_request(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [pull_requests_page(), recorded("pull_request_created")]
+
+        provider.create_pull_request("Title", "", 'a"b', 'c"d')
+
+        assert client.request.call_args_list[0].kwargs["params"]["q"] == (
+            'source.branch.name="a\\"b" AND destination.branch.name="c\\"d" AND state="OPEN"'
+        )
+
+    @pytest.mark.parametrize("method", ["create_pull_request", "create_pull_request_draft"])
+    def test_open_pull_request_for_branches_conflicts(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, method: str
+    ) -> None:
+        client.request.return_value = pull_requests_page("pull_request_created")
+
+        with pytest.raises(ResourceConflict):
+            getattr(provider, method)("New pull request", "", "new-feature", "main")
+
+        assert client.request.call_count == 1
+
+
+class TestMarkPullRequestDraftState:
+    def test_marks_ready_and_keeps_reviewers(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_draft", "{r1}"), recorded("pull_request_created")]
+
+        provider.mark_pull_request_ready_for_review("4")
+
+        put = client.request.call_args_list[1].kwargs
+        assert put["method"] == "PUT"
+        assert put["path"] == f"/2.0/repositories/{REPO}/pullrequests/4"
+        assert put["data"] == {"draft": False, "reviewers": [{"uuid": "{r1}"}]}
+
+    def test_marks_draft(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_created"), recorded("pull_request_draft")]
+
+        provider.mark_pull_request_as_draft("5")
+
+        assert client.request.call_args_list[1].kwargs["data"] == {"draft": True, "reviewers": []}
+
+    @pytest.mark.parametrize(
+        ("fixture", "method"),
+        [
+            ("pull_request_draft", "mark_pull_request_as_draft"),
+            ("pull_request_created", "mark_pull_request_ready_for_review"),
+        ],
+    )
+    def test_already_in_state_sends_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, fixture: str, method: str
+    ) -> None:
+        client.request.return_value = recorded(fixture)
+
+        getattr(provider, method)("1")
+
+        assert client.request.call_count == 1
+
+
+class TestUpdatePullRequest:
+    def test_updates_title_and_body(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_created", "{r1}"), recorded("pull_request_updated")]
+
+        result = provider.update_pull_request("5", title="Renamed pull request", body="An updated description.")
+
+        assert client.request.call_args_list[1].kwargs["data"] == {
+            "title": "Renamed pull request",
+            "description": "An updated description.",
+            "reviewers": [{"uuid": "{r1}"}],
+        }
+        assert result["data"]["title"] == "Renamed pull request"
+        assert result["data"]["body"] == "An updated description."
+
+    def test_close_declines(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_updated"), recorded("pull_request_declined")]
+
+        result = provider.update_pull_request("5", state="closed")
+
+        decline = client.request.call_args_list[1].kwargs
+        assert (decline["method"], decline["path"]) == ("POST", f"/2.0/repositories/{REPO}/pullrequests/5/decline")
+        assert result["data"]["state"] == "closed"
+        assert result["data"]["merged"] is False
+
+    def test_updates_then_declines(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            recorded("pull_request_created"),
+            recorded("pull_request_updated"),
+            recorded("pull_request_declined"),
+        ]
+
+        result = provider.update_pull_request("5", title="New title", state="closed")
+
+        put, decline = client.request.call_args_list[1:]
+        assert (put.kwargs["method"], put.kwargs["data"]["title"]) == ("PUT", "New title")
+        assert (decline.kwargs["method"], decline.kwargs["path"]) == (
+            "POST",
+            f"/2.0/repositories/{REPO}/pullrequests/5/decline",
+        )
+        assert result["data"]["state"] == "closed"
+
+    def test_no_decline_when_update_shows_closed(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [recorded("pull_request_created"), recorded("pull_request_declined")]
+
+        result = provider.update_pull_request("5", title="New title", state="closed")
+
+        assert client.request.call_count == 2
+        assert result["data"]["state"] == "closed"
+
+    def test_close_closed_pull_request_sends_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = recorded("pull_request_declined")
+
+        result = provider.update_pull_request("5", state="closed")
+
+        assert client.request.call_count == 1
+        assert result["data"]["state"] == "closed"
+
+    def test_reopen_open_pull_request_sends_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = recorded("pull_request_created")
+
+        result = provider.update_pull_request("5", state="open")
+
+        assert client.request.call_count == 1
+        assert result["data"]["state"] == "open"
+
+    def test_reopen_declined_fails(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_declined"), recorded("pull_request_not_open")]
+
+        with pytest.raises(ResourceBadRequest, match="Can only update an open pull request"):
+            provider.update_pull_request("5", state="open")
+
+        assert client.request.call_args_list[1].kwargs["method"] == "PUT"
+
+    def test_nothing_to_change_only_reads(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_created")
+
+        result = provider.update_pull_request("5")
+
+        assert client.request.call_count == 1
+        assert result["data"]["id"] == "5"
+
+
+class TestRequestReview:
+    def test_adds_to_existing_reviewers(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_created", "{r1}"), recorded("pull_request_created")]
+
+        provider.request_review("5", ["{r2}", "{r1}", "{r2}"])
+
+        put = client.request.call_args_list[1].kwargs
+        assert put["method"] == "PUT"
+        assert put["data"] == {"reviewers": [{"uuid": "{r1}"}, {"uuid": "{r2}"}]}
+
+    def test_existing_reviewers_send_nothing(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = with_reviewers("pull_request_created", "{r1}")
+
+        provider.request_review("5", ["{r1}"])
+
+        assert client.request.call_count == 1
+
+    def test_author_cannot_review(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_draft"), recorded("pull_request_author_reviewer")]
+
+        with pytest.raises(ResourceBadRequest):
+            provider.request_review("4", [TEST_USER["id"]])
