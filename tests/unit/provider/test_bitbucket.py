@@ -15,6 +15,7 @@ from scm.providers.bitbucket.provider import (
     map_commit_author,
     map_paginated_action,
     map_repository,
+    map_tree_entry,
     next_cursor,
     parse_scopes,
     split_patches,
@@ -666,6 +667,9 @@ class TestGetTree:
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/"
         assert request_kwargs(client)["params"]["max_depth"] == str(2**31 - 1)
         assert request_kwargs(client)["params"]["pagelen"] == "5"
+        assert request_kwargs(client)["params"]["fields"] == (
+            "next,values.path,values.type,values.size,values.attributes,values.commit.hash"
+        )
         assert result["meta"]["next_cursor"] == "rXtr"
         assert result["data"]["truncated"] is True
         assert result["data"]["sha"] == COMMIT
@@ -712,6 +716,10 @@ class TestGetTree:
             ("link", "120000", "blob", 6),
             ("run.sh", "100755", "blob", 18),
         ]
+
+    def test_null_attributes_is_a_regular_file(self) -> None:
+        raw = {"path": "a.py", "type": "commit_file", "size": 1, "attributes": None, "commit": {"hash": COMMIT}}
+        assert map_tree_entry(raw, "")["mode"] == "100644"
 
     def test_quotes_path(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("src_subdirectory")

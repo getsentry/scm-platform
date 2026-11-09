@@ -175,8 +175,7 @@ def main():
     p = sub.add_parser("get-tree")
     p.add_argument("tree_sha")
     p.add_argument("--non-recursive", action="store_true")
-    p.add_argument("--cursor", default=None)
-    p.add_argument("--per-page", type=int, default=None)
+    add_pagination(p)
 
     p = sub.add_parser("get-full-tree")
     p.add_argument("tree_sha")
@@ -264,12 +263,7 @@ def main():
 
     elif args.command == "get-tree":
         assert isinstance(scm, GetTreeProtocol)
-        pagination: PaginationParams = {}
-        if args.cursor is not None:
-            pagination["cursor"] = args.cursor
-        if args.per_page is not None:
-            pagination["per_page"] = args.per_page
-        dump(scm.get_tree(args.tree_sha, recursive=not args.non_recursive, pagination=pagination or None))
+        dump(scm.get_tree(args.tree_sha, recursive=not args.non_recursive, pagination=pagination_args(args)))
 
     elif args.command == "get-full-tree":
         assert isinstance(scm, GetFullTreeProtocol)
