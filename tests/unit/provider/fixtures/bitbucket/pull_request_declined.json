@@ -1,0 +1,181 @@
+{
+  "body": {
+    "author": {
+      "account_id": "557058:00000000-0000-0000-0000-000000000001",
+      "display_name": "Test User",
+      "links": {
+        "avatar": {
+          "href": "https://avatar.example.com/test-user.png"
+        }
+      },
+      "nickname": "test-user",
+      "type": "user",
+      "uuid": "{00000000-0000-0000-0000-000000000001}"
+    },
+    "close_source_branch": false,
+    "closed_by": {
+      "account_id": "557058:00000000-0000-0000-0000-000000000001",
+      "display_name": "Test User",
+      "links": {
+        "avatar": {
+          "href": "https://avatar.example.com/test-user.png"
+        }
+      },
+      "nickname": "test-user",
+      "type": "user",
+      "uuid": "{00000000-0000-0000-0000-000000000001}"
+    },
+    "closed_on": "2026-11-05T20:43:15.485010+00:00",
+    "comment_count": 0,
+    "created_on": "2026-11-05T20:43:01.374064+00:00",
+    "description": "An updated description.",
+    "destination": {
+      "branch": {
+        "name": "main"
+      },
+      "commit": {
+        "hash": "a682892aa0f4",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo/commits/a682892aa0f4"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/a682892aa0f4"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      }
+    },
+    "draft": false,
+    "id": 5,
+    "links": {
+      "activity": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/activity"
+      },
+      "approve": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/approve"
+      },
+      "comments": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/comments"
+      },
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/commits"
+      },
+      "decline": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/decline"
+      },
+      "diff": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diff/test-workspace/test-repo:9fbd8db00325%0Da682892aa0f4?from_pullrequest_id=5&topic=true"
+      },
+      "diffstat": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diffstat/test-workspace/test-repo:9fbd8db00325%0Da682892aa0f4?from_pullrequest_id=5&topic=true"
+      },
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/5"
+      },
+      "merge": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/merge"
+      },
+      "mergeability_checks": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/mergeability/checks"
+      },
+      "request-changes": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/request-changes"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5"
+      },
+      "statuses": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/5/statuses"
+      }
+    },
+    "merge_commit": null,
+    "participants": [],
+    "queued": false,
+    "reason": "",
+    "rendered": {
+      "description": {
+        "html": "<p>An updated description.</p>",
+        "markup": "markdown",
+        "raw": "An updated description.",
+        "type": "rendered"
+      },
+      "title": {
+        "html": "<p>S8 create, renamed</p>",
+        "markup": "markdown",
+        "raw": "S8 create, renamed",
+        "type": "rendered"
+      }
+    },
+    "reviewers": [],
+    "source": {
+      "branch": {
+        "links": {},
+        "name": "s8-create",
+        "sync_strategies": [
+          "merge_commit",
+          "rebase"
+        ]
+      },
+      "commit": {
+        "hash": "9fbd8db00325",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo/commits/9fbd8db00325"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/9fbd8db00325"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      }
+    },
+    "state": "DECLINED",
+    "summary": {
+      "html": "<p>An updated description.</p>",
+      "markup": "markdown",
+      "raw": "An updated description.",
+      "type": "rendered"
+    },
+    "task_count": 0,
+    "title": "S8 create, renamed",
+    "type": "pullrequest",
+    "updated_on": "2026-11-05T20:43:15.485016+00:00"
+  },
+  "headers": {},
+  "status": 200
+}
