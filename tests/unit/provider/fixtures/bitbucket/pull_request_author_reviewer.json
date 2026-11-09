@@ -1,0 +1,15 @@
+{
+  "body": {
+    "error": {
+      "fields": {
+        "reviewers": [
+          "Test User is the author and cannot be included as a reviewer."
+        ]
+      },
+      "message": "reviewers: Test User is the author and cannot be included as a reviewer."
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 400
+}

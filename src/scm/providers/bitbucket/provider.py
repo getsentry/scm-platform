@@ -14,6 +14,7 @@ from scm.errors import (
     PathIsNotDirectory,
     ReadmeNotFound,
     ResourceBadRequest,
+    ResourceConflict,
     ResourceForbidden,
     ResourceNotFound,
     SCMCodedError,
@@ -588,6 +589,97 @@ class BitbucketProvider:
             # The commit can live in a fork we can't read, or be gone with a deleted branch.
             return short_hash
         return response.json()["hash"]
+
+    def create_pull_request(
+        self, title: str, body: str, head: BranchName, base: BranchName
+    ) -> ActionResult[PullRequest]:
+        return self._create_pull_request(title, body, head, base, draft=False)
+
+    def create_pull_request_draft(
+        self, title: str, body: str, head: BranchName, base: BranchName
+    ) -> ActionResult[PullRequest]:
+        return self._create_pull_request(title, body, head, base, draft=True)
+
+    def _create_pull_request(
+        self, title: str, body: str, head: BranchName, base: BranchName, draft: bool
+    ) -> ActionResult[PullRequest]:
+        # Bitbucket silently overwrites an open pull request between the same branches,
+        # so check first.
+        query = (
+            f"source.branch.name={json.dumps(head, ensure_ascii=False)}"
+            f' AND destination.branch.name={json.dumps(base, ensure_ascii=False)} AND state="OPEN"'
+        )
+        existing = self.get(
+            f"/2.0/repositories/{self.repository_path}/pullrequests",
+            params={"q": query},
+            pagination={"per_page": 1},
+        ).json()
+        if existing["values"]:
+            raise ResourceConflict(detail=f"A pull request already exists for {head}.")
+        response = self.post(
+            f"/2.0/repositories/{self.repository_path}/pullrequests",
+            data={
+                "title": title,
+                "description": body,
+                "source": {"branch": {"name": head}},
+                "destination": {"branch": {"name": base}},
+                "draft": draft,
+            },
+        )
+        return map_action(response, map_pull_request)
+
+    def mark_pull_request_ready_for_review(self, pull_request_id: str) -> None:
+        self._set_draft(pull_request_id, False)
+
+    def mark_pull_request_as_draft(self, pull_request_id: str) -> None:
+        self._set_draft(pull_request_id, True)
+
+    def _set_draft(self, pull_request_id: str, draft: bool) -> None:
+        current = self.get(self._pull_request_path(pull_request_id)).json()
+        if current["draft"] is not draft:
+            self._put_pull_request(pull_request_id, current, {"draft": draft})
+
+    def update_pull_request(
+        self,
+        pull_request_id: str,
+        title: str | None = None,
+        body: str | None = None,
+        state: PullRequestState | None = None,
+    ) -> ActionResult[PullRequest]:
+        data: dict[str, Any] = {}
+        if title is not None:
+            data["title"] = title
+        if body is not None:
+            data["description"] = body
+        response = self.get(self._pull_request_path(pull_request_id))
+        current = response.json()
+        # Bitbucket can't reopen a declined pull request, so let the PUT fail with its error.
+        if data or (state == "open" and current["state"] != "OPEN"):
+            response = self._put_pull_request(pull_request_id, current, data)
+        if state == "closed" and response.json()["state"] == "OPEN":
+            response = self.post(f"{self._pull_request_path(pull_request_id)}/decline", data={})
+        return map_action(response, map_pull_request)
+
+    def request_review(self, pull_request_id: str, reviewers: list[str]) -> None:
+        """Add reviewers by account UUID, keeping the ones already on the pull request."""
+        current = self.get(self._pull_request_path(pull_request_id)).json()
+        existing = [reviewer["uuid"] for reviewer in current["reviewers"]]
+        added = [uuid for uuid in dict.fromkeys(reviewers) if uuid not in existing]
+        if added:
+            self._put_pull_request(pull_request_id, current, {}, reviewers=existing + added)
+
+    def _put_pull_request(
+        self,
+        pull_request_id: str,
+        current: dict[str, Any],
+        data: dict[str, Any],
+        reviewers: list[str] | None = None,
+    ) -> requests.Response:
+        # A PUT without `reviewers` can clear them, so always send the full list.
+        if reviewers is None:
+            reviewers = [reviewer["uuid"] for reviewer in current["reviewers"]]
+        data = {**data, "reviewers": [{"uuid": uuid} for uuid in reviewers]}
+        return self.put(self._pull_request_path(pull_request_id), data=data)
 
 
 def parse_scopes(header: str) -> set[str]:
