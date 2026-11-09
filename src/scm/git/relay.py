@@ -93,12 +93,20 @@ def _authorize(
     if operation is None:
         raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
     if isinstance(grant, GrantV1):
-        if operation != grant.operation:
-            raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
-        if repository_id not in grant.repositories:
-            raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
-        return operation
+        _authorize_v1(grant, repository_id, operation)
+    else:
+        _authorize_v2(grant, repository_id, operation)
+    return operation
 
+
+def _authorize_v1(grant: GrantV1, repository_id: RepositoryId, operation: GitOperation) -> None:
+    if operation != grant.operation:
+        raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
+    if repository_id not in grant.repositories:
+        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
+
+
+def _authorize_v2(grant: GrantV2, repository_id: RepositoryId, operation: GitOperation) -> None:
     rules = grant.rules_for(repository_id, operation)
     if not rules:
         other: GitOperation = "push" if operation == "fetch" else "fetch"
@@ -110,7 +118,6 @@ def _authorize(
         raise GitOperationNotGranted(
             detail="The git endpoint cannot keep a fetch to a rule's branches yet, so it refuses the rule."
         )
-    return operation
 
 
 class ResponseBody(Iterator[bytes], Protocol):
