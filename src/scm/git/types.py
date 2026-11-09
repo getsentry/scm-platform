@@ -12,7 +12,7 @@ type GitOperation = Literal["fetch", "push"]
 """What a grant or rule lets its holder do. ``scm.git.relay`` maps each to its git routes."""
 
 GRANT_VERSION: Literal[1] = 1
-"""The version of ``Grant``, which ``GrantV2`` replaces."""
+"""The version of ``GrantV1``, which ``GrantV2`` replaces."""
 
 GRANT_HEADER = "X-Scm-Git-Grant"
 """The request header that carries a signed grant to the git endpoint."""
@@ -112,8 +112,8 @@ class PushRule(
 type Rule = FetchRule | PushRule
 
 
-@warnings.deprecated("Grant is version 1 of the git grant. Sign a GrantV2, whose rules can keep a push to branches.")
-class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
+@warnings.deprecated("GrantV1 is deprecated. Sign a GrantV2, whose rules can keep a push to branches.")
+class GrantV1(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
     """Permission to run one git operation against a fixed set of an organization's repositories.
 
     Deprecated: sign a ``GrantV2``, which can also keep a push to branches. Verifiers still accept this version, so a
@@ -138,6 +138,10 @@ class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=Tru
     """Unix time in seconds. Every grant expires."""
     version: Literal[1] = GRANT_VERSION
     """The format version. A verifier refuses a version it does not know."""
+
+
+Grant = GrantV1
+"""The name ``GrantV1`` had before ``GrantV2``, kept so code that imports it keeps working."""
 
 
 class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
@@ -168,7 +172,7 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     expires_at: int
     """Unix time in seconds. Every grant expires."""
     version: Literal[2] = 2
-    """The format version. A verifier refuses a version it does not know, so one that knows only ``Grant`` refuses
+    """The format version. A verifier refuses a version it does not know, so one that knows only ``GrantV1`` refuses
     this one rather than reading its rules as broader than they are."""
 
     def __post_init__(self) -> None:

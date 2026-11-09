@@ -31,7 +31,7 @@ from scm.git.grant import (
     sign_grant,
     verify_grant,
 )
-from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, GrantV2, PushRule
+from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, GrantV1, GrantV2, PushRule
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
 from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair, make_v1_grant
@@ -733,7 +733,7 @@ class TestBranchNames:
         assert PushRule(repository=5, branches=[name]).branches == [name]
 
 
-def sign_v1(grant: Grant) -> str:
+def sign_v1(grant: GrantV1) -> str:
     return sign_grant(KEY.private, grant, now=NOW)
 
 
@@ -745,11 +745,15 @@ class TestVersion1:
         grant = make_v1_grant(operation=operation)
         verified = verify_grant([KEY.public], sign_v1(grant), now=NOW)
         assert verified == grant
-        assert isinstance(verified, Grant)
+        assert isinstance(verified, GrantV1)
 
     def test_deprecated(self):
-        # Type checkers and IDEs flag code that uses it.
-        assert "Sign a GrantV2" in Grant.__deprecated__  # type: ignore[attr-defined]
+        # Type checkers and IDEs flag code that uses it, by either name.
+        assert "Sign a GrantV2" in GrantV1.__deprecated__  # type: ignore[attr-defined]
+
+    def test_old_name(self):
+        assert Grant is GrantV1
+        assert Grant(**msgspec.to_builtins(make_v1_grant())) == make_v1_grant()
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_v1(make_v1_grant())

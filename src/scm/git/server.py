@@ -82,7 +82,7 @@ class GitServer:
     and signed pushes too. A client that
     asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the rule
     allows is relayed with the updates the server read followed by the rest of the body, unread. A push under a
-    ``Grant`` is relayed unread, as before rules.
+    ``GrantV1`` is relayed unread, as before rules.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.

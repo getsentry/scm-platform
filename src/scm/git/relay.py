@@ -20,7 +20,7 @@ from scm.errors import (
     RpcMalformedRequestHeaders,
     SCMCodedError,
 )
-from scm.git.types import FetchRule, GitOperation, Grant, GrantV2, Readable
+from scm.git.types import FetchRule, GitOperation, GrantV1, GrantV2, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, RepositoryId
@@ -65,7 +65,7 @@ _RESPONSE_HEADERS = frozenset(
 
 
 def authorize_request(
-    grant: Grant | GrantV2, repository_id: RepositoryId, method: str, route: str, query: str
+    grant: GrantV1 | GrantV2, repository_id: RepositoryId, method: str, route: str, query: str
 ) -> GitOperation:
     """Return the git operation a request belongs to, refusing the request unless the grant allows it.
 
@@ -80,7 +80,7 @@ def authorize_request(
     operation = _ROUTES.get((method, route, query))
     if operation is None:
         raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
-    if isinstance(grant, Grant):
+    if isinstance(grant, GrantV1):
         if operation != grant.operation:
             raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
         if repository_id not in grant.repositories:
