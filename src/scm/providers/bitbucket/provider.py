@@ -2,7 +2,7 @@ import base64
 import hashlib
 from collections.abc import Callable, Iterator
 from typing import Any
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import requests
 
@@ -10,6 +10,7 @@ from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
     ReadmeNotFound,
+    ResourceBadRequest,
     ResourceNotFound,
     SCMCodedError,
     error_class_for_status,
@@ -96,6 +97,10 @@ class BitbucketProvider:
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
+        # `requests` collapses dot segments, which could point the call at another repository.
+        if any(unquote(segment) in {".", ".."} for segment in path.split("/")):
+            raise ResourceBadRequest(detail=path)
+
         response = self.client.request(
             method=method,
             path=path,

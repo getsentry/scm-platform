@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, ResourceNotFound
+from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, ResourceBadRequest, ResourceNotFound
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -227,6 +227,12 @@ class TestGetFileContent:
         client.request.return_value = recorded("directory_docs")
         with pytest.raises(PathIsDirectory):
             provider.get_file_content("docs", "s2-file-types")
+
+    @pytest.mark.parametrize("path", ["../../../other-repo/src/HEAD/README.md", "docs/./README.md"])
+    def test_dot_segments_raise(self, provider: BitbucketProvider, client: unittest.mock.MagicMock, path: str) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.get_file_content(path, "main")
+        client.request.assert_not_called()
 
     def test_missing_file_raises(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("file_not_found")
