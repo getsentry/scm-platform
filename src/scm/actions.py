@@ -718,6 +718,10 @@ def create_commit(
       still wins, and `stale_branch_head` is then raised *after* the commit
       exists and the branch has already moved. Treat the error as "the commit
       landed on an unexpected parent", not as "nothing happened".
+    - Bitbucket is atomic: it only commits onto the branch head, so
+      `parent_sha` must be the head (and `expected_head_sha`, if given, must
+      equal it), and a moved head raises `stale_branch_head` with nothing
+      written.
     """
     return scm.create_commit(
         branch,

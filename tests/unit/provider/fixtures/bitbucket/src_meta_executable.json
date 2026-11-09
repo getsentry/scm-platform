@@ -1,0 +1,38 @@
+{
+  "body": {
+    "attributes": [
+      "executable"
+    ],
+    "commit": {
+      "hash": "09f3712b91703e74794d7f8aa5d9c7c65c3edd1b",
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/test-repo/commits/09f3712b91703e74794d7f8aa5d9c7c65c3edd1b"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/09f3712b91703e74794d7f8aa5d9c7c65c3edd1b"
+        }
+      },
+      "type": "commit"
+    },
+    "escaped_path": "s6-run.sh",
+    "has_malware_warning": false,
+    "links": {
+      "history": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/filehistory/09f3712b91703e74794d7f8aa5d9c7c65c3edd1b/s6-run.sh"
+      },
+      "meta": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/09f3712b91703e74794d7f8aa5d9c7c65c3edd1b/s6-run.sh?format=meta"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/09f3712b91703e74794d7f8aa5d9c7c65c3edd1b/s6-run.sh"
+      }
+    },
+    "mimetype": "text/x-sh",
+    "path": "s6-run.sh",
+    "size": 18,
+    "type": "commit_file"
+  },
+  "headers": {},
+  "status": 200
+}

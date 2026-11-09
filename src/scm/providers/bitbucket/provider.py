@@ -1,5 +1,7 @@
 import base64
+import binascii
 import hashlib
+import posixpath
 import re
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime
@@ -7,14 +9,17 @@ from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import requests
+from urllib3 import encode_multipart_formdata
 
 from scm.errors import (
     PathIsDirectory,
     PathIsNotDirectory,
     ReadmeNotFound,
     ResourceBadRequest,
+    ResourceConflict,
     ResourceNotFound,
     SCMCodedError,
+    StaleBranchHead,
     error_class_for_status,
 )
 from scm.helpers import iter_all_pages
@@ -23,22 +28,28 @@ from scm.types import (
     ActionResult,
     ApiClient,
     AppInstallation,
+    BranchName,
+    ChmodCommitAction,
     Commit,
     CommitAuthor,
+    CommitAuthorParam,
     CommitComparison,
     CommitFile,
     CommitWithChanges,
     CredentialsSet,
+    DeleteCommitAction,
     FileContent,
     FileContentType,
     FileStatus,
     GitRemote,
     GitRepository,
+    MoveCommitAction,
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
     Repository,
     RequestOptions,
+    WriteCommitAction,
 )
 
 PROVIDER_TYPE: ProviderName = "bitbucket"
@@ -463,6 +474,98 @@ class BitbucketProvider:
                 return result
             pagination = {**(pagination or {}), "cursor": cursor}
 
+    def create_commit(
+        self,
+        branch: BranchName,
+        parent_sha: SHA,
+        message: str,
+        actions: list[ChmodCommitAction | DeleteCommitAction | MoveCommitAction | WriteCommitAction],
+        force: bool = False,
+        create_branch: bool = False,
+        author: CommitAuthorParam | None = None,
+        *,
+        expected_head_sha: SHA | None = None,
+    ) -> ActionResult[Commit]:
+        """Commit `actions` onto `branch`. See :func:`scm.actions.create_commit`.
+
+        Bitbucket only commits at the branch head, so `parent_sha` must match it.
+        """
+        if force:
+            raise ResourceBadRequest(detail="Bitbucket cannot force a branch to a new commit.")
+        if expected_head_sha is not None:
+            if create_branch:
+                raise ResourceBadRequest(
+                    detail="'expected_head_sha' cannot be combined with 'create_branch': the branch has no head yet.",
+                )
+            if expected_head_sha != parent_sha:
+                raise ResourceBadRequest(detail="Bitbucket commits onto the branch head, so it must be 'parent_sha'.")
+
+        # Bitbucket creates a missing branch from `parents` rather than failing.
+        exists = self._branch_exists(branch)
+        if create_branch and exists:
+            raise ResourceConflict(detail=f"Branch '{branch}' already exists.")
+        if not create_branch and not exists:
+            raise ResourceNotFound(detail=f"Branch '{branch}' does not exist.")
+
+        fields: list[tuple[str, str | tuple[str, bytes, str]]] = [
+            ("message", message),
+            ("branch", branch),
+            ("parents", parent_sha),
+        ]
+        if author is not None:
+            fields.append(("author", f"{author['name']} <{author['email']}>"))
+        for action in actions:
+            if isinstance(action, WriteCommitAction):
+                fields.append(file_part(action.filename, decode_content(action)))
+            elif isinstance(action, DeleteCommitAction):
+                fields.append(("files", action.filename))
+            elif isinstance(action, MoveCommitAction):
+                fields.append(("files", action.old_filename))
+                fields.append(file_part(action.new_filename, self._file_content(action.old_filename, parent_sha)))
+            else:
+                raise ResourceBadRequest(detail="Bitbucket cannot change a file's mode through its commit API.")
+
+        body, content_type = encode_multipart_formdata(fields)
+        try:
+            response = self.request(
+                "POST",
+                f"/2.0/repositories/{self.repository_path}/src",
+                headers={"Content-Type": content_type},
+                data=body,
+            )
+        except ResourceBadRequest as e:
+            if "is not the head of branch" not in e.detail:
+                raise
+            raise StaleBranchHead(detail=f"Branch '{branch}' is not at {parent_sha}.") from e
+
+        sha = response.headers["Location"].rstrip("/").rsplit("/", 1)[-1]
+        commit_author = CommitAuthor(name=author["name"], email=author["email"], date=None) if author else None
+        return {
+            "data": Commit(id=sha, message=message, author=commit_author, additions=None, deletions=None),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": None, "headers": dict(response.headers)},
+            "meta": {},
+        }
+
+    def _branch_exists(self, branch: BranchName) -> bool:
+        try:
+            self.get(f"/2.0/repositories/{self.repository_path}/refs/branches/{quote(branch, safe='/')}")
+        except ResourceNotFound:
+            return False
+        return True
+
+    def _file_content(self, path: str, ref: SHA) -> bytes:
+        """Read a file to rewrite it elsewhere, refusing what an upload can't recreate."""
+        file_path = f"/2.0/repositories/{self.repository_path}/src/{ref}/{quote(path)}"
+        # An upload can't set attributes, so a moved executable or symlink would lose them.
+        # `binary` only describes the content, which the upload keeps.
+        attributes = set(self.get(file_path, params={"format": "meta"}).json().get("attributes", [])) - {"binary"}
+        if attributes:
+            raise ResourceBadRequest(
+                detail=f"Bitbucket cannot move '{path}' and keep its {', '.join(sorted(attributes))} attribute."
+            )
+        return self.get(file_path).content
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -573,6 +676,24 @@ def split_patches(diff: str) -> dict[str, str]:
         if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
             patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
     return patches
+
+
+def decode_content(action: WriteCommitAction) -> bytes:
+    if action.encoding == "base64":
+        try:
+            return base64.b64decode(action.content, validate=True)
+        except binascii.Error as e:
+            raise ResourceBadRequest(detail=f"'{action.filename}' is not valid base64.") from e
+    return action.content.encode("utf-8")
+
+
+def file_part(path: str, content: bytes) -> tuple[str, tuple[str, bytes, str]]:
+    """A form part that Bitbucket writes to `path`.
+
+    The leading slash keeps a file named like a form field, such as `message`, from being read as that field.
+    """
+    # Bitbucket decodes a part without a filename as text, which mangles binary content.
+    return f"/{path.lstrip('/')}", (posixpath.basename(path), content, "application/octet-stream")
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
