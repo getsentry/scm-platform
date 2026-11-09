@@ -1,0 +1,5 @@
+{
+  "body": "diff --git a/README.md b/README.md\nindex 836111e..5d06a84 100644\n--- a/README.md\n+++ b/README.md\n@@ -1,3 +1,3 @@\n-# test-repo\n+# Test repo\n \n-A test repository.\n+Made-up content for tests.\ndiff --git a/PULL_REQUEST_TEMPLATE.md b/docs_PULL_REQUEST_TEMPLATE.md\nsimilarity index 100%\nrename from PULL_REQUEST_TEMPLATE.md\nrename to docs_PULL_REQUEST_TEMPLATE.md\ndiff --git a/src/test_app/math.py b/src/test_app/math.py\nindex 4693ad3..3581473 100644\n--- a/src/test_app/math.py\n+++ b/src/test_app/math.py\n@@ -1,2 +1,6 @@\n def add(a, b):\n     return a + b\n+\n+\n+def multiply(a, b):\n+    return a * b\ndiff --git a/src/test_app/ops.py b/src/test_app/ops.py\nnew file mode 100644\nindex 0000000..6078a09\n--- /dev/null\n+++ b/src/test_app/ops.py\n@@ -0,0 +1,2 @@\n+def subtract(a, b):\n+    return a - b\ndiff --git a/tests/test_math.py b/tests/test_math.py\ndeleted file mode 100644\nindex cfac67c..0000000\n--- a/tests/test_math.py\n+++ /dev/null\n@@ -1,5 +0,0 @@\n-from test_app.math import add\n-\n-\n-def test_add():\n-    assert add(1, 2) == 3\n",
+  "headers": {},
+  "status": 200
+}
