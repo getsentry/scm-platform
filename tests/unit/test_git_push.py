@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitPushNotGranted, RpcMalformedRequestHeaders
+from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
 from scm.git.push import (
     MAX_UPDATES_LENGTH,
     PushRequest,
@@ -97,12 +97,12 @@ class TestRead:
 
     @pytest.mark.parametrize("encoding", ["gzip", "deflate"])
     def test_compressed(self, encoding):
-        with pytest.raises(GitPushNotGranted, match="compressed push"):
+        with pytest.raises(GitOperationNotGranted, match="compressed push"):
             read(make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")), {"content-encoding": encoding})
 
     def test_signed_push(self):
         body = pkt(b"push-cert\0report-status") + pkt(b"certificate version 0.1\n") + b"0000"
-        with pytest.raises(GitPushNotGranted, match="signed pushes"):
+        with pytest.raises(GitOperationNotGranted, match="signed pushes"):
             read(body)
 
     @pytest.mark.parametrize(

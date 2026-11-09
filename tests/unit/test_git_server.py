@@ -812,7 +812,7 @@ class TestPushRules:
         assert recorder.token_lookups == []
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
         assert recorder.counts == [
-            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_push_not_granted"})
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
         ]
         [(error, context)] = recorder.errors
         assert error.detail == (  # type: ignore[attr-defined]

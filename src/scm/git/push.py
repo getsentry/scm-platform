@@ -10,7 +10,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitPushNotGranted, RpcMalformedRequestHeaders
+from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
 from scm.git.types import PushRule, Readable
 
 MAX_UPDATES_LENGTH = 64 * 1024
@@ -49,14 +49,14 @@ class PushRequest(NamedTuple):
 def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest:
     """Read a push's ref updates from ``body``, leaving the pack unread.
 
-    Raises GitMalformedRequestBody for a body that does not start with a list of ref updates, GitPushNotGranted for a
-    compressed body or a signed push, whose updates come inside a certificate, and ClientClosedRequest if reading the
-    body fails.
+    Raises GitMalformedRequestBody for a body that does not start with a list of ref updates, GitOperationNotGranted
+    for a compressed body or a signed push, whose updates come inside a certificate, and ClientClosedRequest if
+    reading the body fails.
     """
     encoding = next((value for name, value in headers.items() if name.lower() == "content-encoding"), "identity")
     if encoding.strip().lower() not in ("", "identity"):
         # git compresses fetches but never pushes.
-        raise GitPushNotGranted(detail="The git endpoint does not read a compressed push.")
+        raise GitOperationNotGranted(detail="The git endpoint does not read a compressed push.")
     reader = _PktReader(body)
     updates: list[RefUpdate] = []
     capabilities: frozenset[str] = frozenset()
@@ -67,7 +67,7 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
                 raise GitMalformedRequestBody(detail="The push lists a shallow commit that is not an object id.")
             continue
         if not updates and line.startswith(b"push-cert"):
-            raise GitPushNotGranted(detail="The git endpoint does not relay signed pushes.")
+            raise GitOperationNotGranted(detail="The git endpoint does not relay signed pushes.")
         if not updates:
             line, _, requested = line.partition(b"\0")
             capabilities = _capabilities(requested)

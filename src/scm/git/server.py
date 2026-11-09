@@ -4,8 +4,8 @@ from urllib.parse import urlsplit
 
 from scm.errors import (
     ErrorCode,
+    GitOperationNotGranted,
     GitProviderNotSupported,
-    GitPushNotGranted,
     GitTokenRejected,
     GitTokenUnavailable,
     SCMCodedError,
@@ -38,7 +38,6 @@ _STATUS: dict[ErrorCode, int] = {
     "git_grant_expired": 403,
     "git_operation_not_granted": 403,
     "git_repository_not_granted": 403,
-    "git_push_not_granted": 403,
     # The grant allows it, but there is no repository to serve.
     "repository_not_found": 404,
     "repository_inactive": 404,
@@ -176,7 +175,7 @@ class GitServer:
                 refused = refused_updates(push_rules, push)
                 if refused:
                     ref, reason = next(iter(refused.items()))
-                    raise GitPushNotGranted(
+                    raise GitOperationNotGranted(
                         detail=f"The git grant does not allow this push: {ref.decode(errors='replace')} ({reason})."
                     )
                 relayed_body = ReplayedBody(push.head, push_body)

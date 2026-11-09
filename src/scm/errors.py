@@ -6,7 +6,6 @@ type ErrorCode = Literal[
     "git_malformed_request_body",
     "git_operation_not_granted",
     "git_provider_not_supported",
-    "git_push_not_granted",
     "git_remote_not_https",
     "git_remote_refused",
     "git_repository_not_granted",
@@ -56,7 +55,6 @@ ERROR_CODES: dict[ErrorCode, str] = {
     "git_malformed_request_body": "The request body is not one the git endpoint can read.",
     "git_operation_not_granted": "The git grant does not allow this operation.",
     "git_provider_not_supported": "The repository's provider has no git remote.",
-    "git_push_not_granted": "The git grant does not allow the push's ref updates.",
     "git_remote_not_https": "The repository's git remote is not an https URL.",
     "git_remote_refused": "The repository's git remote is at an address Sentry does not connect to.",
     "git_repository_not_granted": "The git grant does not cover this repository.",
@@ -184,10 +182,6 @@ class GitOperationNotGranted(GitSCMCodedError):
 
 class GitProviderNotSupported(GitSCMCodedError):
     code = "git_provider_not_supported"
-
-
-class GitPushNotGranted(GitSCMCodedError):
-    code = "git_push_not_granted"
 
 
 class GitRemoteNotHttps(GitSCMCodedError):
