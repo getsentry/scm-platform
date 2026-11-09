@@ -16,7 +16,7 @@
     "closed_by": null,
     "comment_count": 0,
     "created_on": "2026-11-05T20:42:18.749868+00:00",
-    "description": "Draft probe.",
+    "description": "A draft pull request.",
     "destination": {
       "branch": {
         "name": "main"
@@ -100,15 +100,15 @@
     "reason": "",
     "rendered": {
       "description": {
-        "html": "<p>Draft probe.</p>",
+        "html": "<p>A draft pull request.</p>",
         "markup": "markdown",
-        "raw": "Draft probe.",
+        "raw": "A draft pull request.",
         "type": "rendered"
       },
       "title": {
-        "html": "<p>S8 draft probe</p>",
+        "html": "<p>Draft pull request</p>",
         "markup": "markdown",
-        "raw": "S8 draft probe",
+        "raw": "Draft pull request",
         "type": "rendered"
       }
     },
@@ -116,7 +116,7 @@
     "source": {
       "branch": {
         "links": {},
-        "name": "s8-draft",
+        "name": "draft-feature",
         "sync_strategies": [
           "merge_commit",
           "rebase"
@@ -154,13 +154,13 @@
     },
     "state": "OPEN",
     "summary": {
-      "html": "<p>Draft probe.</p>",
+      "html": "<p>A draft pull request.</p>",
       "markup": "markdown",
-      "raw": "Draft probe.",
+      "raw": "A draft pull request.",
       "type": "rendered"
     },
     "task_count": 0,
-    "title": "S8 draft probe",
+    "title": "Draft pull request",
     "type": "pullrequest",
     "updated_on": "2026-11-05T20:43:11.832767+00:00"
   },

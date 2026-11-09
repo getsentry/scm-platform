@@ -106,9 +106,9 @@
         "type": "rendered"
       },
       "title": {
-        "html": "<p>S8 create, renamed</p>",
+        "html": "<p>Renamed pull request</p>",
         "markup": "markdown",
-        "raw": "S8 create, renamed",
+        "raw": "Renamed pull request",
         "type": "rendered"
       }
     },
@@ -116,7 +116,7 @@
     "source": {
       "branch": {
         "links": {},
-        "name": "s8-create",
+        "name": "new-feature",
         "sync_strategies": [
           "merge_commit",
           "rebase"
@@ -160,7 +160,7 @@
       "type": "rendered"
     },
     "task_count": 0,
-    "title": "S8 create, renamed",
+    "title": "Renamed pull request",
     "type": "pullrequest",
     "updated_on": "2026-11-05T20:43:14.437007+00:00"
   },
