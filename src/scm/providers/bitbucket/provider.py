@@ -85,10 +85,7 @@ _FILE_STATUSES: dict[str, FileStatus] = {
     "renamed": "renamed",
 }
 _RAW_AUTHOR = re.compile(r"^(?P<name>.*?)\s*<(?P<email>[^>]*)>\s*$")
-
-
 _MAX_TREE_DEPTH = str(2**31 - 1)
-
 _TREE_FIELDS = "next,values.path,values.type,values.size,values.attributes,values.commit.hash"
 
 
@@ -525,17 +522,7 @@ class BitbucketProvider:
 
     def _split_tree_sha(self, tree_sha: SHA, request_options: RequestOptions | None) -> tuple[SHA, str]:
         ref, _, path = tree_sha.partition(":")
-        if "/" not in ref:
-            return ref, path
-        # `src` reads the first path segment as the revision, so resolve refs like `feature/x` first.
-        response = self.get(
-            f"/2.0/repositories/{self.repository_path}/commits/{quote(ref)}",
-            params={"pagelen": "1", "fields": "values.hash"},
-            request_options=request_options,
-        )
-        if not (values := response.json()["values"]):
-            raise ResourceNotFound(detail=f"No commit for {ref!r}")
-        return values[0]["hash"], path
+        return self._resolve_ref(ref, request_options), path
 
     def _get_tree_page(
         self,
@@ -550,7 +537,7 @@ class BitbucketProvider:
         if recursive:
             params["max_depth"] = _MAX_TREE_DEPTH
         response = self.get(
-            f"/2.0/repositories/{self.repository_path}/src/{quote(commit)}/{quote(f'{path}/' if path else '')}",
+            self._src_path(commit, path).rstrip("/") + "/",
             params=params,
             pagination=pagination or {"per_page": MAX_PAGE_SIZE},
             request_options=request_options,
@@ -702,7 +689,7 @@ def map_tree_entry(raw: dict[str, Any], tree_path: str) -> TreeEntry:
 def tree_entry_kind(raw: dict[str, Any]) -> tuple[TreeEntryMode, TreeEntryType]:
     if raw["type"] == "commit_directory":
         return "040000", "tree"
-    attributes = raw.get("attributes", [])
+    attributes = raw.get("attributes") or []
     if "subrepository" in attributes:
         return "160000", "commit"
     if "link" in attributes:
