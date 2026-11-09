@@ -1,0 +1,16 @@
+{
+  "body": {
+    "account_id": "557058:00000000-0000-0000-0000-000000000001",
+    "display_name": "Test User",
+    "links": {
+      "avatar": {
+        "href": "https://avatar.example.com/test-user.png"
+      }
+    },
+    "nickname": "test-user",
+    "type": "user",
+    "uuid": "{00000000-0000-0000-0000-000000000001}"
+  },
+  "headers": {},
+  "status": 200
+}

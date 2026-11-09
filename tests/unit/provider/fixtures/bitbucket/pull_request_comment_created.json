@@ -1,0 +1,53 @@
+{
+  "body": {
+    "content": {
+      "html": "<p>Test created comment</p>",
+      "markup": "markdown",
+      "raw": "Test created comment",
+      "type": "rendered"
+    },
+    "created_on": "2026-11-05T20:45:56.879502+00:00",
+    "deleted": false,
+    "id": 897199302,
+    "links": {
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/1/_/diff#comment-897199302"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1/comments/897199302"
+      }
+    },
+    "pending": false,
+    "pullrequest": {
+      "draft": false,
+      "id": 1,
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/1"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/1"
+        }
+      },
+      "queued": false,
+      "title": "Test pull request",
+      "type": "pullrequest"
+    },
+    "type": "pullrequest_comment",
+    "updated_on": "2026-11-05T20:45:56.887497+00:00",
+    "user": {
+      "account_id": "557058:00000000-0000-0000-0000-000000000001",
+      "display_name": "Test User",
+      "links": {
+        "avatar": {
+          "href": "https://avatar.example.com/test-user.png"
+        }
+      },
+      "nickname": "test-user",
+      "type": "user",
+      "uuid": "{00000000-0000-0000-0000-000000000001}"
+    }
+  },
+  "headers": {},
+  "status": 201
+}
