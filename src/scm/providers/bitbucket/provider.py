@@ -681,7 +681,8 @@ def split_patches(diff: str) -> dict[str, str]:
 def decode_content(action: WriteCommitAction) -> bytes:
     if action.encoding == "base64":
         try:
-            return base64.b64decode(action.content, validate=True)
+            # GitHub wraps its base64 file content in newlines.
+            return base64.b64decode("".join(action.content.split()), validate=True)
         except binascii.Error as e:
             raise ResourceBadRequest(detail=f"'{action.filename}' is not valid base64.") from e
     return action.content.encode("utf-8")
