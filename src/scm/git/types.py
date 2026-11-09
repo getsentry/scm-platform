@@ -141,7 +141,8 @@ class GrantV1(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
 
 
 Grant = GrantV1
-"""The name ``GrantV1`` had before ``GrantV2``, kept so code that imports it keeps working."""
+"""The name ``GrantV1`` had before ``GrantV2``, kept so code that imports it keeps working. Remove it together with
+``GrantV1`` rather than pointing it at ``GrantV2``."""
 
 
 class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
