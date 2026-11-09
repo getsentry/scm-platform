@@ -8,7 +8,15 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, ResourceBadRequest, ResourceNotFound
+from scm.errors import (
+    PathIsDirectory,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceForbidden,
+    ResourceNotFound,
+    UnexpectedResponseFormat,
+)
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -23,7 +31,10 @@ from scm.providers.bitbucket.provider import (
 )
 from scm.types import (
     CompareCommitsProtocol,
+    CreatePullRequestCommentProtocol,
+    DeletePullRequestCommentProtocol,
     GetAppInstallationProtocol,
+    GetAuthenticatedActorProtocol,
     GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
@@ -34,10 +45,12 @@ from scm.types import (
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetGitRemoteProtocol,
+    GetPullRequestCommentsProtocol,
     GetPullRequestCommitsProtocol,
     GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
+    GetPullRequestReviewThreadsProtocol,
     GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
     GetPullRequestUrlProtocol,
@@ -73,6 +86,11 @@ SUPPORTED_PROTOCOLS = [
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
     GetPullRequestUrlProtocol,
+    CreatePullRequestCommentProtocol,
+    DeletePullRequestCommentProtocol,
+    GetAuthenticatedActorProtocol,
+    GetPullRequestCommentsProtocol,
+    GetPullRequestReviewThreadsProtocol,
 ]
 COMMIT_SHA = "e723f15089c22737bb51aee8db06e0eab91e4ba1"
 HEAD_SHA = "e3ef83d1a831b7b26c838372f668b1627bbf9a1a"
@@ -85,6 +103,15 @@ TEST_USER = {"id": "{00000000-0000-0000-0000-000000000001}", "username": "test-u
 HEAD_HASH = "c495d0431cfae535ec9a05e4def54229d0eb2ad2"
 
 BASE_HASH = "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+
+
+APP_USER = {
+    "type": "app_user",
+    "uuid": "{00000000-0000-0000-0000-000000000002}",
+    "display_name": "Test App",
+    "account_id": "557058:00000000-0000-0000-0000-000000000002",
+    "kind": "connect_app",
+}
 
 
 def recorded(name: str) -> requests.Response:
@@ -1021,3 +1048,182 @@ class TestGetPullRequestDiff:
 
 def test_get_pull_request_url(provider: BitbucketProvider) -> None:
     assert provider.get_pull_request_url("1") == f"https://bitbucket.org/{REPO}/pull-requests/1"
+
+
+def with_body(response: requests.Response, body: Any) -> requests.Response:
+    response._content = json.dumps(body).encode()
+    return response
+
+
+def test_get_authenticated_actor(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = recorded("user")
+
+    result = provider.get_authenticated_actor()
+
+    assert request_kwargs(client)["path"] == "/2.0/user"
+    assert result["data"] == TEST_USER
+
+
+def test_get_authenticated_actor_app_user(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = with_body(recorded("user"), APP_USER)
+
+    result = provider.get_authenticated_actor()
+
+    assert result["data"] == {"id": APP_USER["uuid"], "username": "Test App"}
+
+
+def test_get_authenticated_actor_without_uuid(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = with_body(recorded("user"), {"type": "app_user"})
+
+    with pytest.raises(UnexpectedResponseFormat):
+        provider.get_authenticated_actor()
+
+
+def test_get_authenticated_actor_forbidden(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    client.request.return_value = with_body(recorded("user"), {"type": "error"})
+    client.request.return_value.status_code = 403
+
+    with pytest.raises(ResourceForbidden):
+        provider.get_authenticated_actor()
+
+
+class TestPullRequestComments:
+    def test_lists_general_comments(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_comments")
+
+        result = provider.get_pull_request_comments("1")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments"
+        assert request_kwargs(client)["params"] == {"q": "inline.path = null AND deleted = false"}
+        assert result["data"] == [
+            {
+                "id": "897197941",
+                "body": "Test comment",
+                "author": TEST_USER,
+                "created_at": "2026-11-05T20:42:57.357805+00:00",
+                "author_association": None,
+            },
+            {
+                "id": "897197945",
+                "body": "Test reply",
+                "author": TEST_USER,
+                "created_at": "2026-11-05T20:42:57.876427+00:00",
+                "author_association": None,
+            },
+        ]
+        assert result["meta"]["next_cursor"] == "2"
+
+    def test_skips_pending_comments(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = recorded("pull_request_comments")
+        body = response.json()
+        body["values"][0]["pending"] = True
+        client.request.return_value = with_body(response, body)
+
+        result = provider.get_pull_request_comments("1")
+
+        assert [comment["id"] for comment in result["data"]] == ["897197945"]
+
+    def test_maps_app_and_missing_authors(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = recorded("pull_request_comments")
+        body = response.json()
+        body["values"][0]["user"] = APP_USER
+        del body["values"][1]["user"]
+        client.request.return_value = with_body(response, body)
+
+        result = provider.get_pull_request_comments("1")
+
+        assert [comment["author"] for comment in result["data"]] == [
+            {"id": APP_USER["uuid"], "username": "Test App"},
+            None,
+        ]
+
+    def test_create(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_comment_created")
+
+        result = provider.create_pull_request_comment("1", "Test created comment")
+
+        assert request_kwargs(client)["method"] == "POST"
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments"
+        assert request_kwargs(client)["data"] == {"content": {"raw": "Test created comment"}}
+        assert result["data"]["id"] == "897199302"
+        assert result["data"]["body"] == "Test created comment"
+        assert result["data"]["author"] == TEST_USER
+
+    def test_delete(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = requests.Response()
+        response.status_code = 204
+        client.request.return_value = response
+
+        provider.delete_pull_request_comment("1", "897199302")
+
+        assert request_kwargs(client)["method"] == "DELETE"
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments/897199302"
+
+
+class TestGetPullRequestReviewThreads:
+    def test_groups_inline_comments(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_comments_inline")
+
+        result = provider.get_pull_request_review_threads("1")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments"
+        assert request_kwargs(client)["params"] == {
+            "q": "inline.path != null",
+            "fields": "+values.resolution.type,+values.inline.*",
+            "pagelen": "100",
+        }
+        threads = result["data"]
+        assert [
+            (t["id"], t["is_resolved"], t["file_path"], t["line"], t["start_line"], [c["body"] for c in t["comments"]])
+            for t in threads
+        ] == [
+            ("897197949", True, "src/test_app/math.py", 3, None, ["Test inline comment", "Test inline reply"]),
+            ("897199175", False, "src/test_app/math.py", 4, 3, ["Test multiline comment"]),
+            ("897199181", False, "src/test_app/math.py", 2, None, ["Test reply to removed comment"]),
+        ]
+        assert threads[0]["is_outdated"] is False
+        assert threads[0]["comments"][1] == {
+            "id": "897197952",
+            "unique_id": "897197952",
+            "body": "Test inline reply",
+            "author": TEST_USER,
+            "is_bot": False,
+            "created_at": "2026-11-05T20:42:59.180418+00:00",
+            "updated_at": "2026-11-05T20:42:59.190806+00:00",
+            "is_minimized": False,
+            "commit_sha": "c495d0431cfa",
+        }
+        assert result["meta"]["next_cursor"] is None
+
+    def test_reads_every_page(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        body = recorded("pull_request_comments_inline").json()
+        pages = []
+        for values, next_url in [
+            (body["values"][:3], "https://api.bitbucket.org/2.0/x?page=2"),
+            (body["values"][3:], None),
+        ]:
+            pages.append(
+                with_body(recorded("pull_request_comments_inline"), {**body, "values": values, "next": next_url})
+            )
+        client.request.side_effect = pages
+
+        threads = provider.get_pull_request_review_threads("1")["data"]
+
+        assert client.request.call_args_list[1].kwargs["params"]["page"] == "2"
+        assert [c["body"] for c in threads[0]["comments"]] == ["Test inline comment", "Test inline reply"]
+
+    def test_maps_app_users_and_outdated(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = recorded("pull_request_comments_inline")
+        body = response.json()
+        body["values"][0]["user"] = APP_USER
+        body["values"][0]["inline"]["outdated"] = True
+        del body["values"][1]["user"]
+        client.request.return_value = with_body(response, body)
+
+        thread = provider.get_pull_request_review_threads("1")["data"][0]
+
+        assert thread["is_outdated"] is True
+        assert [(c["author"], c["is_bot"]) for c in thread["comments"]] == [
+            ({"id": APP_USER["uuid"], "username": "Test App"}, True),
+            (None, False),
+        ]
