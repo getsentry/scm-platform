@@ -1,27 +1,48 @@
-"""Reading a push's ref updates, so GitServer can keep a push to its rule's branches.
+"""Checking a push's ref updates, so GitServer can keep a push to its grant's push rules.
 
-A push's request body lists the ref updates as pkt-lines, then holds the pack. GitServer reads the updates before it
-looks anything up, refuses the push unless the rule allows every update, and otherwise relays the updates it read
-followed by the rest of the body, which it never reads. gitprotocol-pack(5) describes the format, which
-receive-pack speaks in protocol versions 0 and 1 alike, the only ones it has.
+A push's request body lists the ref updates as pkt-lines, then holds the pack. ``check_push`` reads the updates
+before GitServer looks anything up, refuses the push unless a rule allows every update, and otherwise returns a body
+that sends the updates it read followed by the rest, which it never reads. Anything it doesn't recognise refuses the
+push. gitprotocol-pack(5) describes the format, which receive-pack speaks in protocol versions 0 and 1 alike, the
+only ones it has.
 """
 
+import contextlib
 import re
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
+from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, SCMCodedError
+from scm.git.relay import DEFAULT_CHUNK_SIZE, _read
 from scm.git.types import GrantV2PushRule, Readable
 
 MAX_UPDATES_LENGTH = 64 * 1024
 """The most bytes a push may send before its pack. An update takes under 100 bytes plus its ref's name, and a push
 from a shallow clone also lists the clone's shallow commits, about 50 bytes each."""
 
+# The capabilities git asks for in a push, apart from push options, which ask the provider to act on the push, such
+# as GitLab opening a merge request or skipping CI. Any other is refused, since it could change what a push does.
+_CAPABILITIES = frozenset(
+    {"atomic", "ofs-delta", "quiet", "report-status", "report-status-v2", "side-band", "side-band-64k"}
+)
+_CAPABILITIES_WITH_VALUES = frozenset({"agent", "object-format", "session-id"})
+
 _FLUSH = b"0000"
 # A pkt-line's length, in 4 hex digits, counts the 4 digits too.
 _PKT_LENGTH = re.compile(rb"[0-9a-fA-F]{4}")
 _MAX_PKT_LENGTH = 65520
 _OBJECT_ID = re.compile(rb"[0-9a-f]{40}|[0-9a-f]{64}")
+# The most of a ref's name a refusal's detail shows. The pushing client chooses the name, and the detail reaches
+# error reports and logs.
+_SHOWN_REF_LENGTH = 200
+
+
+class PushRefused(GitOperationNotGranted):
+    """A push the grant does not allow, with the response that tells git why, if the client can read one."""
+
+    def __init__(self, *, detail: str, report: bytes | None) -> None:
+        super().__init__(detail=detail)
+        self.report = report
 
 
 class RefUpdate(NamedTuple):
@@ -46,12 +67,41 @@ class PushRequest(NamedTuple):
     """The bytes read from the body, to send on before the rest of it."""
 
 
+def check_push(rules: Sequence[GrantV2PushRule], headers: Mapping[str, str], body: Readable | None) -> Readable:
+    """Return the body to relay for a push that ``rules`` allow, and refuse any other.
+
+    ``body`` must end where the request body ends. A refused push's body is read to the end first, because git reads
+    the answer only once it has sent the whole push, and a connection closed before then shows git only a broken
+    pipe. Raises PushRefused when no rule allows an update, or for a signed push, and GitMalformedRequestBody for a
+    body that is missing or not a list of ref updates. A push with no rules is refused like any other.
+    """
+    if body is None:
+        raise GitMalformedRequestBody(detail="The push has no body.")
+    try:
+        request = read_push_request(headers, body)
+        if not request.updates and _read(body, 1):
+            # git's probe before a large push is a lone flush, and a provider reads nothing after a flush that
+            # updates no ref.
+            raise GitMalformedRequestBody(detail="The push updates no ref but goes on after its ref updates.")
+        refused = refused_updates(rules, request)
+        if refused:
+            ref, reason = next(iter(refused.items()))
+            raise PushRefused(
+                detail=f"The git grant does not allow this push: {_shown(ref)} ({reason}).",
+                report=refusal_report(request, refused),
+            )
+    except (GitOperationNotGranted, GitMalformedRequestBody):
+        _drain(body)
+        raise
+    return ReplayedBody(request.head, body)
+
+
 def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest:
     """Read a push's ref updates from ``body``, leaving the pack unread.
 
     Raises GitMalformedRequestBody for a body that does not start with a list of ref updates, GitOperationNotGranted
-    for a compressed body or a signed push, whose updates come inside a certificate, and ClientClosedRequest if
-    reading the body fails.
+    for a compressed body, PushRefused for a signed push, whose updates come inside a certificate, and
+    ClientClosedRequest if reading the body fails.
     """
     encoding = next((value for name, value in headers.items() if name.lower() == "content-encoding"), "identity")
     if encoding.strip().lower() not in ("", "identity"):
@@ -66,11 +116,13 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
             if not _OBJECT_ID.fullmatch(line.removeprefix(b"shallow ")):
                 raise GitMalformedRequestBody(detail="The push lists a shallow commit that is not an object id.")
             continue
-        if not updates and line.startswith(b"push-cert"):
-            raise GitOperationNotGranted(detail="The git endpoint does not relay signed pushes.")
+        if not updates and line.startswith(b"push-cert\0"):
+            message = "The git endpoint does not relay signed pushes."
+            requested = _capabilities(line.partition(b"\0")[2])
+            raise PushRefused(detail=message, report=_error_report(requested, message))
         if not updates:
-            line, _, requested = line.partition(b"\0")
-            capabilities = _capabilities(requested)
+            line, _, requested_bytes = line.partition(b"\0")
+            capabilities = _capabilities(requested_bytes)
         updates.append(_ref_update(line))
     return PushRequest(updates=updates, capabilities=capabilities, head=reader.read_so_far())
 
@@ -78,11 +130,13 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
 def refused_updates(rules: Sequence[GrantV2PushRule], request: PushRequest) -> dict[bytes, str]:
     """Return why ``rules`` refuse each ref of ``request``, or nothing if every update has a rule that allows it.
 
-    A push is relayed whole or not at all, so once one update is refused, every other ref gets a reason too.
+    A push is relayed whole or not at all, so once one update is refused, every other ref gets a reason too. With no
+    rules, every update is refused.
     """
-    if "push-options" in request.capabilities:
-        # Push options ask the provider to act on the push, such as GitLab opening a merge request or skipping CI.
-        return {update.ref: "the git endpoint does not relay push options" for update in request.updates}
+    unsupported = sorted(name for name in request.capabilities if not _supported(name))
+    if unsupported:
+        reason = f"the git endpoint does not relay {_capability_name(unsupported[0])}"
+        return {update.ref: reason for update in request.updates}
     refused: dict[bytes, str] = {}
     for update in request.updates:
         refusals = [_refusal(rule, update) for rule in rules]
@@ -134,46 +188,7 @@ def refusal_report(request: PushRequest, refused: Mapping[bytes, str]) -> bytes 
         + b"".join(_pkt(b"ng %s %s\n" % (update.ref, refused[update.ref].encode())) for update in request.updates)
         + _FLUSH
     )
-    if "side-band-64k" in request.capabilities:
-        band_size = _MAX_PKT_LENGTH - 5
-    elif "side-band" in request.capabilities:
-        band_size = 1000 - 5
-    else:
-        return report
-    # On a side band the report travels on band 1, and the response ends with a flush of its own.
-    return b"".join(_pkt(b"\1" + report[i : i + band_size]) for i in range(0, len(report), band_size)) + _FLUSH
-
-
-def bounded_body(headers: Mapping[str, str], body: Readable) -> Readable:
-    """Return ``body``, ending after its Content-Length if it has one, as the relay reads it.
-
-    A caller may pass a stream that goes on past the body, such as a connection's socket, and reading the pushed
-    updates or a refused pack past the body's end would wait for bytes that never come.
-    """
-    raw_length = next((value for name, value in headers.items() if name.lower() == "content-length"), None)
-    if raw_length is None:
-        return body
-    try:
-        length = int(raw_length)
-    except ValueError:
-        raise RpcMalformedRequestHeaders(detail="Could not parse Content-Length header") from None
-    if length < 0:
-        raise RpcMalformedRequestHeaders(detail="Could not parse Content-Length header")
-    return _BoundedBody(body, length)
-
-
-class _BoundedBody:
-    def __init__(self, body: Readable, length: int) -> None:
-        self.body = body
-        self.remaining = length
-
-    def read(self, size: int = -1, /) -> bytes:
-        size = self.remaining if size < 0 else min(size, self.remaining)
-        if size == 0:
-            return b""
-        data = self.body.read(size)
-        self.remaining -= len(data)
-        return data
+    return _on_side_band(request.capabilities, 1, report) or report
 
 
 class ReplayedBody:
@@ -219,15 +234,46 @@ class _PktReader:
             raise GitMalformedRequestBody(detail=f"The push's ref updates are longer than {MAX_UPDATES_LENGTH} bytes.")
         data = bytearray()
         while len(data) < size:
-            try:
-                chunk = self.body.read(size - len(data))
-            except OSError:
-                raise ClientClosedRequest(detail="The client's connection failed while it sent its push.") from None
+            chunk = _read(self.body, size - len(data))
             if not chunk:
                 raise GitMalformedRequestBody(detail="The push ended before its ref updates did.")
             data += chunk
         self.read_bytes += data
         return bytes(data)
+
+
+def _drain(body: Readable) -> None:
+    with contextlib.suppress(OSError, SCMCodedError):
+        while body.read(DEFAULT_CHUNK_SIZE):
+            pass
+
+
+def _supported(capability: str) -> bool:
+    name, has_value, _ = capability.partition("=")
+    return name in _CAPABILITIES_WITH_VALUES if has_value else name in _CAPABILITIES
+
+
+def _capability_name(capability: str) -> str:
+    if capability == "push-options":
+        return "push options"
+    return f"the {capability.partition('=')[0]} capability"
+
+
+def _error_report(capabilities: frozenset[str], message: str) -> bytes | None:
+    """Return a response that shows git ``message`` before it gives up, or None if the client can read none."""
+    # Band 3 carries a message git prints as "remote: <message>" before it stops.
+    return _on_side_band(capabilities, 3, f"{message}\n".encode())
+
+
+def _on_side_band(capabilities: frozenset[str], band: int, data: bytes) -> bytes | None:
+    """Return ``data`` on side band ``band``, ending with a flush, or None if the client asked for no side band."""
+    if "side-band-64k" in capabilities:
+        band_size = _MAX_PKT_LENGTH - 5
+    elif "side-band" in capabilities:
+        band_size = 1000 - 5
+    else:
+        return None
+    return b"".join(_pkt(bytes([band]) + data[i : i + band_size]) for i in range(0, len(data), band_size)) + _FLUSH
 
 
 def _capabilities(requested: bytes) -> frozenset[str]:
@@ -243,6 +289,11 @@ def _ref_update(line: bytes) -> RefUpdate:
     if not (_OBJECT_ID.fullmatch(old_id) and _OBJECT_ID.fullmatch(new_id) and len(old_id) == len(new_id) and ref):
         raise GitMalformedRequestBody(detail="The push's ref updates are malformed.")
     return RefUpdate(old_id=old_id, new_id=new_id, ref=ref)
+
+
+def _shown(ref: bytes) -> str:
+    name = ref.decode(errors="replace")
+    return name if len(name) <= _SHOWN_REF_LENGTH else f"{name[:_SHOWN_REF_LENGTH]}..."
 
 
 def _pkt(payload: bytes) -> bytes:

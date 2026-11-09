@@ -71,8 +71,9 @@ Checks:
         message, which the relay passes on
     With --push it also commits a 256 KiB file, pushes it with a push grant for
     a new branch, sending the pack chunked as git does for a large push, and
-    checks that the grant can neither push another branch nor delete its own.
-    It then deletes the branch with the provider token. This writes to the
+    checks that the grant can neither push another branch nor delete its own,
+    and that the provider refuses a forged create of the existing branch under
+    a create_only rule. It then deletes the branch with the provider token. This writes to the
     repository, so point it at a test repository.
 
     git runs without the user's or the system's git config, so credential
@@ -81,10 +82,12 @@ Checks:
 
 import argparse
 import base64
+import hashlib
 import importlib.machinery
 import importlib.util
 import logging
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -97,6 +100,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import ModuleType
 from urllib.parse import urlsplit
+
+import requests
 
 from scm import Secret
 from scm.errors import GitGrantKeyError
@@ -323,8 +328,7 @@ class GitHandler(BaseHTTPRequestHandler):
         elif self.headers.get("Transfer-Encoding", "").lower() == "chunked":
             body = ChunkedBody(self.rfile)
         else:
-            # The relay reads no more than Content-Length from it.
-            body = self.rfile
+            body = SizedBody(self.rfile, self.headers.get("Content-Length"))
         try:
             response = self.server.git.handle(
                 method=self.command,
@@ -369,6 +373,29 @@ class GitHTTPServer(ThreadingHTTPServer):
     def url(self) -> str:
         host, port = self.server_address[:2]
         return f"http://{host!s}:{port}"
+
+
+class SizedBody:
+    """A request body of known length, ending where the body does, as GitServer reads it.
+
+    Read on, the connection's stream would wait for a next request. A Content-Length that isn't a length reads as an
+    empty body, and the relay refuses the header itself.
+    """
+
+    def __init__(self, rfile, content_length: str | None) -> None:
+        self.rfile = rfile
+        try:
+            self.remaining = max(int(content_length or 0), 0)
+        except ValueError:
+            self.remaining = 0
+
+    def read(self, size: int = -1, /) -> bytes:
+        size = self.remaining if size < 0 else min(size, self.remaining)
+        if size <= 0:
+            return b""
+        data = self.rfile.read(size)
+        self.remaining -= len(data)
+        return data
 
 
 class ChunkedBody:
@@ -580,6 +607,13 @@ class Checks:
             self.git(push_grant, "-c", "http.postBuffer=65536", "push", url, f"HEAD:refs/heads/{branch}", cwd=clone),
         )
         if pushed:
+            tip = self.git(push_grant, "rev-parse", "HEAD", cwd=clone).stdout.strip()
+            response = self.forge_create(url, branch, tip)
+            self.check(
+                "the provider refuses a forged create of an existing branch under a create_only rule",
+                subprocess.CompletedProcess([], response.status_code, response.text, ""),
+                response.status_code == 200 and f"ng refs/heads/{branch}".encode() in response.content,
+            )
             self.expect_rejection(
                 "deleting the pushed branch with the push grant is rejected",
                 self.git(push_grant, "push", url, f":refs/heads/{branch}", cwd=clone),
@@ -589,6 +623,27 @@ class Checks:
                 f"delete the pushed branch {branch} with the token", self.delete_directly(branch, clone)
             )
         server.shutdown()
+
+    def forge_create(self, url: str, branch: str, tip: str) -> requests.Response:
+        """Push ``branch`` to ``tip`` as a new branch under a create_only rule, though it exists already.
+
+        GitServer passes it as a create, so the provider's own refusal of a create over an existing branch is all that
+        keeps a create_only rule from moving one. git would send the branch's current id, so the request is built by
+        hand.
+        """
+        rule = GrantV2PushRule(
+            repository=self.backend.repository_id, branch_patterns=[re.escape(branch)], create_only=True
+        )
+        response = requests.post(
+            f"{url}/git-receive-pack",
+            data=forged_create_body(branch, tip),
+            headers={
+                GRANT_HEADER: grant_for(self.args.private_key, rule),
+                "Content-Type": "application/x-git-receive-pack-request",
+            },
+            timeout=60,
+        )
+        return response
 
     def delete_directly(self, branch: str, clone: Path) -> subprocess.CompletedProcess[str]:
         """Delete ``branch`` on the provider with the token Sentry would use, since a push grant cannot."""
@@ -607,6 +662,17 @@ class Checks:
         }
         command = ["git", "-c", "credential.helper=", "push", remote["url"], f":refs/heads/{branch}"]
         return subprocess.run(command, cwd=clone, env=env, capture_output=True, text=True, timeout=300)
+
+
+def forged_create_body(branch: str, tip: str) -> bytes:
+    """A receive-pack request that creates ``branch`` at ``tip``, an object the provider has, even if it exists."""
+    update = f"{'0' * len(tip)} {tip} refs/heads/{branch}\0report-status".encode()
+    if len(tip) == 64:
+        update += b" object-format=sha256"
+    # An empty pack, since the provider has the commit already: a header for zero objects and its hash.
+    header = b"PACK" + (2).to_bytes(4, "big") + (0).to_bytes(4, "big")
+    pack = header + (hashlib.sha1 if len(tip) == 40 else hashlib.sha256)(header).digest()
+    return b"%04x" % (len(update) + 4) + update + b"0000" + pack
 
 
 def _indent(text: str) -> str:

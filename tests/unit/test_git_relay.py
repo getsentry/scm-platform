@@ -25,7 +25,7 @@ from scm.errors import (
     ResourceServiceUnavailable,
     SCMCodedError,
 )
-from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
+from scm.git.relay import GitRelay, _authorize, _UpstreamStream, authorize_request
 from scm.git.types import GrantV2FetchRule, GrantV2PushRule
 from scm.secret import Secret
 from scm.types import GitRemote
@@ -752,9 +752,17 @@ class TestAuthorizeRequest:
         assert authorize_request(make_grant(rules=[FETCH_ANY]), 5, *route) == "fetch"
 
     @pytest.mark.parametrize("route", PUSH_ROUTES)
-    def test_push_rule_reaches_push_routes(self, route):
+    def test_push_rule_reaches_push_routes_through_gitserver(self, route):
         # GitServer keeps the push to the rule's branches.
-        assert authorize_request(make_grant(rules=[PUSH_BRANCH]), 5, *route) == "push"
+        assert _authorize(make_grant(rules=[PUSH_BRANCH]), 5, *route) == "push"
+
+    def test_push_rule_lists_refs(self):
+        assert authorize_request(make_grant(rules=[PUSH_BRANCH]), 5, *PUSH_ROUTES[0]) == "push"
+
+    def test_push_under_rules_is_refused_outside_gitserver(self):
+        # Only the push's ref updates show which branches it touches, and this doesn't read them.
+        with pytest.raises(GitOperationNotGranted, match="goes through GitServer"):
+            authorize_request(make_grant(rules=[PUSH_BRANCH]), 5, *PUSH_ROUTES[1])
 
     @pytest.mark.parametrize("route", PUSH_ROUTES)
     def test_fetch_rule_cannot_reach_push_routes(self, route):
@@ -781,7 +789,7 @@ class TestAuthorizeRequest:
             ]
         )
         assert authorize_request(grant, 5, "POST", "git-upload-pack", "") == "fetch"
-        assert authorize_request(grant, 5, "POST", "git-receive-pack", "") == "push"
+        assert _authorize(grant, 5, "POST", "git-receive-pack", "") == "push"
 
     def test_fetch_rules_that_all_list_branches_are_refused(self):
         grant = make_grant(

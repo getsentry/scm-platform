@@ -831,13 +831,20 @@ class TestPushRules:
         body = make_push_body((old_id, new_id, ref), capabilities="report-status")
         assert reason.encode() in b"".join(self.send(make_server(Recorder()), io.BytesIO(body)).content)
 
-    def test_drains_no_further_than_content_length(self):
-        # A caller may pass a connection's stream, which goes on past the body, and reading on would wait for ever.
-        body = push_body("refs/heads/main")
-        stream = io.BytesIO(body + b"the next request")
-        response = self.send(make_server(Recorder()), stream, headers={"Content-Length": str(len(body))})
+    def test_no_body(self):
+        # Refused rather than relayed unchecked.
+        recorder = Recorder()
+        server = make_server(recorder)
+        response = request(server, PUSH_GRANT, method="POST", route="git-receive-pack", query="", body=None)
+        assert_refused(response, 400, "The push has no body.")
+        assert recorder.repository_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_signed_push_on_a_side_band(self):
+        body = pkt(b"push-cert\0report-status side-band-64k") + pkt(b"certificate version 0.1\n") + b"0000"
+        response = self.send(make_server(Recorder()), io.BytesIO(body))
         assert response.status_code == 200
-        assert stream.tell() == len(body)
+        assert b"".join(response.content) == pkt(b"\3The git endpoint does not relay signed pushes.\n") + b"0000"
 
     def test_create_only_pattern_and_listed_branch(self):
         grant = sign_grant(

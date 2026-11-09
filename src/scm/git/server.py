@@ -1,25 +1,16 @@
-import contextlib
 from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
 from scm.errors import (
     ErrorCode,
-    GitOperationNotGranted,
     GitProviderNotSupported,
     GitTokenRejected,
     GitTokenUnavailable,
     SCMCodedError,
 )
 from scm.git.grant import require_public_keys, verify_grant
-from scm.git.push import (
-    PushRequest,
-    ReplayedBody,
-    bounded_body,
-    read_push_request,
-    refusal_report,
-    refused_updates,
-)
-from scm.git.relay import DEFAULT_CHUNK_SIZE, GitRelay, ResponseBody, authorize_request
+from scm.git.push import PushRefused, check_push
+from scm.git.relay import GitRelay, ResponseBody, _authorize
 from scm.git.types import GRANT_HEADER, GetToken, GrantV2, GrantV2PushRule, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
@@ -75,13 +66,12 @@ class GitServer:
     does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
     refuses internal addresses; see ``GitRelay``.
 
-    A push under a ``GrantV2`` is kept to its push rules. The server reads the push's ref updates, which come before
-    the pack, and refuses the whole push if no rule allows one of them: a branch no rule covers, an existing branch
-    under a ``create_only`` rule, a deletion, or any ref that isn't a branch, such as a tag. It refuses push options
-    and signed pushes too. A client that
-    asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the rule
-    allows is relayed with the updates the server read followed by the rest of the body, unread. A push under a
-    ``GrantV1`` is relayed unread, as before rules.
+    A push under a ``GrantV2`` is kept to its push rules by ``scm.git.push.check_push``, which reads the push's ref
+    updates before anything is looked up and refuses the whole push unless a rule allows every update. Anything it
+    doesn't recognise, such as push options, a signed push or a capability git doesn't send, refuses the push too. A
+    client that asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push
+    the rules allow is relayed with the updates the server read followed by the rest of the body, unread. A push
+    under a ``GrantV1`` is relayed unread, as before rules.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
@@ -143,10 +133,10 @@ class GitServer:
         """Answer one git request.
 
         ``route`` is the path below ``<repo>.git/`` and ``query`` the raw query string. ``body`` is read only
-        while the request is sent upstream, so pass the unread request stream. It must yield the body already
-        decoded from its transfer encoding, ending where the body ends. A Django request under WSGI reads a chunked
-        body as empty, and git sends a push over about 1 MiB chunked, so a Django view needs to pass a stream that
-        has the whole body.
+        while the request is sent upstream, apart from a push's ref updates, so pass the unread request stream. It
+        must yield the body already decoded from its transfer encoding, ending where the body ends. A Django request
+        under WSGI reads a chunked body as empty, and git sends a push over about 1 MiB chunked, so a Django view
+        needs to pass a stream that has the whole body.
         """
         # Rebound without the grant, so it shows as [Filtered] in the frames of a reported error rather than in
         # ``headers``, here and in the relay, which never sends it upstream anyway.
@@ -154,31 +144,18 @@ class GitServer:
         counted_body = _CountingReader(body) if body is not None else None
         context = {"repository_id": str(repository_id)}
         referrer_tag: dict[str, str] = {}
-        push_body: Readable | None = None
-        push: PushRequest | None = None
-        refused: dict[bytes, str] = {}
         try:
             grant = verify_grant(self.public_keys, grant_token.reveal())
             context["organization_id"] = str(grant.organization_id)
             referrer_tag["referrer"] = context["referrer"] = grant.referrer
-            operation = authorize_request(grant, repository_id, method, route, query)
+            operation = _authorize(grant, repository_id, method, route, query)
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
-            push_rules = (
-                [rule for rule in grant.rules_for(repository_id, operation) if isinstance(rule, GrantV2PushRule)]
-                if isinstance(grant, GrantV2)
-                else []
-            )
-            if push_rules and method == "POST" and counted_body is not None:
-                push_body = bounded_body(headers, counted_body)
-                push = read_push_request(headers, push_body)
-                refused = refused_updates(push_rules, push)
-                if refused:
-                    ref, reason = next(iter(refused.items()))
-                    raise GitOperationNotGranted(
-                        detail=f"The git grant does not allow this push: {ref.decode(errors='replace')} ({reason})."
-                    )
-                relayed_body = ReplayedBody(push.head, push_body)
+            if isinstance(grant, GrantV2) and operation == "push" and method == "POST":
+                push_rules = [
+                    rule for rule in grant.rules_for(repository_id, "push") if isinstance(rule, GrantV2PushRule)
+                ]
+                relayed_body = check_push(push_rules, headers, counted_body)
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,
@@ -218,11 +195,8 @@ class GitServer:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
                 self.emit_error(e, context)
-            if push is not None and refused and push_body is not None:
-                _drain(push_body)
-                status_report = refusal_report(push, refused)
-                if status_report is not None:
-                    return _report_response(status_report)
+            if isinstance(e, PushRefused) and e.report is not None:
+                return _report_response(e.report)
             return _error_response(e)
         except Exception:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"} | referrer_tag)
@@ -326,14 +300,6 @@ class _MeteredStream:
         if not self.finished:
             self.finished = True
             self.finish(failure, self.bytes_sent)
-
-
-def _drain(body: Readable) -> None:
-    # git reads the response only once it has sent the whole push, and a connection closed before then shows only as
-    # a broken pipe, hiding the reason, so a refused push's pack is read to the end and dropped.
-    with contextlib.suppress(OSError, SCMCodedError):
-        while body.read(DEFAULT_CHUNK_SIZE):
-            pass
 
 
 def _report_response(report: bytes) -> StreamResponse:

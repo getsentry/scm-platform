@@ -2,13 +2,14 @@ import io
 
 import pytest
 
-from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
+from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted
 from scm.git.push import (
     MAX_UPDATES_LENGTH,
+    PushRefused,
     PushRequest,
     RefUpdate,
     ReplayedBody,
-    bounded_body,
+    check_push,
     read_push_request,
     refusal_report,
     refused_updates,
@@ -247,6 +248,33 @@ class TestRefusedUpdates:
             b"refs/heads/seer/old": "the git grant does not allow deleting a branch"
         }
 
+    @pytest.mark.parametrize(
+        "capabilities",
+        [
+            "report-status side-band-64k quiet object-format=sha1 agent=git/2.54.0",
+            "report-status-v2 side-band atomic ofs-delta session-id=abc",
+            "",
+        ],
+    )
+    def test_capabilities_git_sends(self, capabilities):
+        assert (
+            refused_updates(RULES, request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), capabilities=capabilities))
+            == {}
+        )
+
+    @pytest.mark.parametrize(
+        "capability,reason",
+        [
+            ("future-capability", "the git endpoint does not relay the future-capability capability"),
+            ("quiet=1", "the git endpoint does not relay the quiet capability"),
+            ("agent", "the git endpoint does not relay the agent capability"),
+        ],
+    )
+    def test_capability_git_does_not_send(self, capability, reason):
+        # Anything unknown could change what the push does, so it refuses the push.
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), capabilities=f"report-status {capability}")
+        assert refused_updates(RULES, request) == {b"refs/heads/seer/fix": reason}
+
     def test_push_options(self):
         request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), capabilities="report-status push-options")
         assert refused_updates(RULES, request) == {
@@ -326,30 +354,93 @@ class TestReplayedBody:
         assert ReplayedBody(b"", io.BytesIO(b"rest")).read(64) == b"rest"
 
 
-class TestBoundedBody:
-    def test_ends_at_content_length(self):
-        # As a connection's socket would, the stream goes on past the body.
-        stream = io.BytesIO(b"body" + b"next request")
-        body = bounded_body({"content-length": "4"}, stream)
-        assert body.read(64) == b"body"
-        assert body.read(64) == b""
-        assert body.read() == b""
-        assert stream.tell() == 4
+class Recording(io.BytesIO):
+    """A body that tells how far it was read."""
 
-    def test_short_reads(self):
-        body = bounded_body({"Content-Length": "4"}, Trickle(b"body and more"))
-        assert b"".join(iter(lambda: body.read(64), b"")) == b"body"
 
-    def test_without_content_length(self):
-        stream = io.BytesIO(b"body")
-        assert bounded_body({}, stream) is stream
+class TestCheckPush:
+    def check(self, body: bytes, rules=RULES, headers: dict[str, str] | None = None) -> tuple[bytes, Recording]:
+        stream = Recording(body)
+        relayed = check_push(rules, headers or {}, stream)
+        return relayed.read(), stream
 
-    @pytest.mark.parametrize("length", ["x", "-1", ""])
-    def test_invalid_content_length(self, length):
-        with pytest.raises(RpcMalformedRequestHeaders):
-            bounded_body({"Content-Length": length}, io.BytesIO(b""))
+    def test_allowed_push_relays_the_whole_body(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
+        relayed, _ = self.check(body)
+        assert relayed == body
 
-    def test_truncated_updates(self):
+    def test_probe(self):
+        relayed, _ = self.check(b"0000")
+        assert relayed == b"0000"
+
+    def test_no_updates_with_more_after_them(self):
+        # A provider reads nothing after a flush that updates no ref, so whatever follows has no business there.
+        with pytest.raises(GitMalformedRequestBody, match="updates no ref but goes on"):
+            self.check(b"0000" + PACK)
+
+    def test_refused_push_is_read_to_the_end(self):
+        stream = Recording(make_push_body((OLD_ID, NEW_ID, "refs/heads/main"), capabilities="report-status"))
+        with pytest.raises(PushRefused) as exc_info:
+            check_push(RULES, {}, stream)
+        assert stream.read() == b""
+        assert exc_info.value.code == "git_operation_not_granted"
+        assert exc_info.value.detail == (
+            "The git grant does not allow this push: refs/heads/main (the git grant does not cover this branch)."
+        )
+        assert exc_info.value.report == (
+            pkt(b"unpack ok\n") + pkt(b"ng refs/heads/main the git grant does not cover this branch\n") + b"0000"
+        )
+
+    def test_no_rules_refuse_every_update(self):
+        with pytest.raises(PushRefused, match="does not cover this branch"):
+            self.check(make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")), rules=[])
+
+    def test_no_body(self):
+        with pytest.raises(GitMalformedRequestBody, match="has no body"):
+            check_push(RULES, {}, None)
+
+    @pytest.mark.parametrize(
+        "body,headers,error",
+        [
+            (b"garbage and then some", {}, GitMalformedRequestBody),
+            (
+                make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")),
+                {"Content-Encoding": "gzip"},
+                GitOperationNotGranted,
+            ),
+            (pkt(b"push-cert\0report-status") + b"0000" + PACK, {}, PushRefused),
+        ],
+        ids=["malformed", "compressed", "signed"],
+    )
+    def test_other_refusals_are_read_to_the_end(self, body, headers, error):
+        stream = Recording(body)
+        with pytest.raises(error):
+            check_push(RULES, headers, stream)
+        assert stream.read() == b""
+
+    def test_signed_push_on_a_side_band(self):
+        # git prints band 3 as "remote: <message>" before it stops, where a 403 would show only its status.
+        body = pkt(b"push-cert\0report-status side-band-64k") + pkt(b"certificate version 0.1\n") + b"0000"
+        with pytest.raises(PushRefused) as exc_info:
+            self.check(body)
+        assert exc_info.value.report == pkt(b"\3The git endpoint does not relay signed pushes.\n") + b"0000"
+
+    def test_signed_push_without_a_side_band(self):
+        with pytest.raises(PushRefused) as exc_info:
+            self.check(pkt(b"push-cert\0report-status") + b"0000")
+        assert exc_info.value.report is None
+
+    def test_body_that_ends_early(self):
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
         with pytest.raises(GitMalformedRequestBody, match="ended before its ref updates did"):
-            read_push_request({}, bounded_body({"Content-Length": "20"}, io.BytesIO(body)))
+            self.check(body[:20])
+
+    def test_long_ref_is_cut_short_in_the_detail(self):
+        ref = "refs/heads/" + "x" * 1000
+        with pytest.raises(PushRefused) as exc_info:
+            self.check(make_push_body((OLD_ID, NEW_ID, ref), capabilities="report-status"))
+        assert exc_info.value.detail == (
+            f"The git grant does not allow this push: {ref[:200]}... (the git grant does not cover this branch)."
+        )
+        # The report names the whole ref, since git matches it to the ref it pushed.
+        assert ref.encode() in (exc_info.value.report or b"")

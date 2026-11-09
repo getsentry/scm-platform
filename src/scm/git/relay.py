@@ -72,11 +72,23 @@ def authorize_request(
     Fetches reach only upload-pack and pushes only receive-pack. The grant must name the repository in the same form
     the request uses: a database id does not match the same repository's ``(provider, external id)`` pair.
 
-    A ``GrantV2`` allows a request only if it has a rule for the request's repository and operation. Push rules'
-    branches are kept by GitServer, which reads the push's ref updates before it relays the push, so a caller that
-    relays a push some other way must check them itself. A fetch needs a fetch rule for any object, since nothing
-    reads a fetch's body to keep it to a rule's branches.
+    A ``GrantV2`` allows a request only if it has a rule for the request's repository and operation. A fetch needs a
+    fetch rule for any object, since nothing reads a fetch's body to keep it to a rule's branches. A push under a
+    ``GrantV2`` is refused here, because only its ref updates show which branches it touches: relay it through
+    GitServer, which reads them before it relays the push.
     """
+    operation = _authorize(grant, repository_id, method, route, query)
+    if isinstance(grant, GrantV2) and operation == "push" and method == "POST":
+        raise GitOperationNotGranted(
+            detail="A push under a git grant with rules goes through GitServer, which checks its ref updates."
+        )
+    return operation
+
+
+def _authorize(
+    grant: GrantV1 | GrantV2, repository_id: RepositoryId, method: str, route: str, query: str
+) -> GitOperation:
+    """``authorize_request`` for GitServer, which checks a push's ref updates against the grant's push rules itself."""
     operation = _ROUTES.get((method, route, query))
     if operation is None:
         raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
