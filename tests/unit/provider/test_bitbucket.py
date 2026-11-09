@@ -686,7 +686,7 @@ class TestCreateCommit:
         client.request.side_effect = [recorded("commit_branch"), recorded("commit_created")]
 
         result = provider.create_commit(
-            "s6-fixture",
+            "test-branch",
             PARENT,
             "Add notes",
             [
@@ -698,13 +698,13 @@ class TestCreateCommit:
         )
 
         branch_call, commit_call = client.request.call_args_list
-        assert branch_call.kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches/s6-fixture"
+        assert branch_call.kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches/test-branch"
         assert commit_call.kwargs["method"] == "POST"
         assert commit_call.kwargs["path"] == f"/2.0/repositories/{REPO}/src"
         assert commit_call.kwargs["headers"]["Content-Type"].startswith("multipart/form-data; boundary=")
         assert sent_form(client) == [
             ("message", b"Add notes"),
-            ("branch", b"s6-fixture"),
+            ("branch", b"test-branch"),
             ("parents", PARENT.encode()),
             ("author", b"Test User <test@example.com>"),
             ("/notes.txt", b"hello\n"),
@@ -723,7 +723,7 @@ class TestCreateCommit:
     def test_creates_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [recorded("commit_branch_not_found"), recorded("commit_created")]
 
-        result = provider.create_commit("s6-fixture", PARENT, "m", [], create_branch=True)
+        result = provider.create_commit("test-branch", PARENT, "m", [], create_branch=True)
 
         assert result["data"]["id"] == "25a878f7635147b9eef09e958ca34395bc67b705"
         assert result["data"]["author"] is None
@@ -734,13 +734,13 @@ class TestCreateCommit:
     ) -> None:
         client.request.return_value = recorded("commit_branch")
         with pytest.raises(ResourceConflict):
-            provider.create_commit("s6-fixture", PARENT, "m", [], create_branch=True)
+            provider.create_commit("test-branch", PARENT, "m", [], create_branch=True)
         assert client.request.call_count == 1
 
     def test_missing_branch_is_not_created(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("commit_branch_not_found")
         with pytest.raises(ResourceNotFound):
-            provider.create_commit("s6-no-such-branch", PARENT, "m", [])
+            provider.create_commit("missing-branch", PARENT, "m", [])
         assert client.request.call_count == 1
 
     def test_moved_head_raises_stale_branch_head(
@@ -748,7 +748,38 @@ class TestCreateCommit:
     ) -> None:
         client.request.side_effect = [recorded("commit_branch"), recorded("commit_stale_parent")]
         with pytest.raises(StaleBranchHead):
-            provider.create_commit("s6-fixture", PARENT, "m", [], expected_head_sha=PARENT)
+            provider.create_commit("test-branch", PARENT, "m", [], expected_head_sha=PARENT)
+
+    def test_other_bad_request_is_not_stale(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        rejected = recorded("commit_stale_parent")
+        rejected._content = json.dumps({"type": "error", "error": {"message": "Invalid file path"}}).encode()
+        client.request.side_effect = [recorded("commit_branch"), rejected]
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit("test-branch", PARENT, "m", [])
+
+    def test_encodes_branch_name(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("commit_branch"), recorded("commit_created")]
+
+        provider.create_commit("feature/#12", PARENT, "m", [])
+
+        assert (
+            client.request.call_args_list[0].kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches/feature/%2312"
+        )
+
+    def test_strips_leading_slash_from_filename(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [recorded("commit_branch"), recorded("commit_created")]
+
+        provider.create_commit(
+            "test-branch",
+            PARENT,
+            "m",
+            [WriteCommitAction(action="create", filename="/notes.txt", content="hello\n", encoding="utf-8")],
+        )
+
+        assert ("/notes.txt", b"hello\n") in sent_form(client)
+        assert sent_filenames(client) == {"/notes.txt": "notes.txt"}
 
     def test_moves_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
@@ -759,7 +790,7 @@ class TestCreateCommit:
         ]
 
         provider.create_commit(
-            "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="README.md", new_filename="docs/README.md")]
+            "test-branch", PARENT, "m", [MoveCommitAction(old_filename="README.md", new_filename="docs/README.md")]
         )
 
         meta_call = client.request.call_args_list[1]
@@ -777,7 +808,7 @@ class TestCreateCommit:
         client.request.side_effect = [recorded("commit_branch"), meta, binary_file, recorded("commit_created")]
 
         provider.create_commit(
-            "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="logo.png", new_filename="img/logo.png")]
+            "test-branch", PARENT, "m", [MoveCommitAction(old_filename="logo.png", new_filename="img/logo.png")]
         )
 
         assert ("/img/logo.png", PNG) in sent_form(client)
@@ -786,7 +817,7 @@ class TestCreateCommit:
         client.request.side_effect = [recorded("commit_branch"), recorded("src_meta_executable")]
         with pytest.raises(ResourceBadRequest):
             provider.create_commit(
-                "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="s6-run.sh", new_filename="run.sh")]
+                "test-branch", PARENT, "m", [MoveCommitAction(old_filename="deploy.sh", new_filename="run.sh")]
             )
         assert client.request.call_count == 2
 
@@ -806,7 +837,7 @@ class TestCreateCommit:
     ) -> None:
         client.request.return_value = recorded("commit_branch")
         with pytest.raises(ResourceBadRequest):
-            provider.create_commit("s6-fixture", PARENT, "m", [action])
+            provider.create_commit("test-branch", PARENT, "m", [action])
         assert client.request.call_count == 1
 
     @pytest.mark.parametrize(
@@ -822,5 +853,5 @@ class TestCreateCommit:
         self, provider: BitbucketProvider, client: unittest.mock.MagicMock, kwargs: dict[str, Any]
     ) -> None:
         with pytest.raises(ResourceBadRequest):
-            provider.create_commit("s6-fixture", PARENT, "m", [], **kwargs)
+            provider.create_commit("test-branch", PARENT, "m", [], **kwargs)
         client.request.assert_not_called()

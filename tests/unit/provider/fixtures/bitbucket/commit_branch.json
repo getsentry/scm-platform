@@ -3,16 +3,16 @@
     "default_merge_strategy": "merge_commit",
     "links": {
       "commits": {
-        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits/s6-fixture"
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits/test-branch"
       },
       "html": {
-        "href": "https://bitbucket.org/test-workspace/test-repo/branch/s6-fixture"
+        "href": "https://bitbucket.org/test-workspace/test-repo/branch/test-branch"
       },
       "pullrequest_create": {
-        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/new?source=s6-fixture&t=1"
+        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/new?source=test-branch&t=1"
       },
       "self": {
-        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/branches/s6-fixture"
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/branches/test-branch"
       }
     },
     "merge_strategies": [
@@ -23,7 +23,7 @@
       "rebase_fast_forward",
       "rebase_merge"
     ],
-    "name": "s6-fixture",
+    "name": "test-branch",
     "sync_strategies": [
       "merge_commit",
       "rebase"
