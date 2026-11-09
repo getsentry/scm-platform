@@ -1,15 +1,29 @@
-from collections.abc import Callable
+import base64
+import hashlib
+from collections.abc import Callable, Iterator
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import requests
 
-from scm.errors import error_class_for_status
+from scm.errors import (
+    PathIsDirectory,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceNotFound,
+    SCMCodedError,
+    error_class_for_status,
+)
+from scm.helpers import iter_all_pages
 from scm.types import (
+    SHA,
     ActionResult,
     ApiClient,
     AppInstallation,
     CredentialsSet,
+    FileContent,
+    FileContentType,
     GitRemote,
     GitRepository,
     PaginatedActionResult,
@@ -45,6 +59,12 @@ _REPOSITORY_WRITE_SCOPES = {
 }
 _PULL_REQUEST_WRITE_SCOPES = {"pullrequest:write", "write:pullrequest:bitbucket"}
 
+VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
+# Bitbucket has no pull request template file of its own, so follow GitHub's layout.
+PULL_REQUEST_TEMPLATE_PARENT_DIRS = (".github", "", "docs")
+PULL_REQUEST_TEMPLATE_FILENAME = "pull_request_template.md"
+PULL_REQUEST_TEMPLATE_DIRNAME = "pull_request_template"
+
 
 class BitbucketProvider:
     def __init__(
@@ -77,6 +97,10 @@ class BitbucketProvider:
         credentials_set: CredentialsSet = "installation",
         timeout: float | tuple[float, float] | None = None,
     ) -> requests.Response:
+        # `requests` collapses dot segments, which could point the call at another repository.
+        if any(unquote(segment) in {".", ".."} for segment in path.split("/")):
+            raise ResourceBadRequest(detail=path)
+
         response = self.client.request(
             method=method,
             path=path,
@@ -153,6 +177,116 @@ class BitbucketProvider:
     def get_git_remote(self) -> GitRemote:
         return GitRemote(url=f"{self._web_base_url}/{self.repository_path}.git", basic_auth_username="x-token-auth")
 
+    def get_file_url(
+        self,
+        file_path: str,
+        sha: SHA,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> str:
+        url = f"{self._web_base_url}/{self.repository_path}/src/{sha}/{quote(file_path)}"
+        if start_line and end_line:
+            url += f"#lines-{start_line}:{end_line}"
+        elif start_line or end_line:
+            url += f"#lines-{start_line or end_line}"
+        return url
+
+    def get_file_content(
+        self,
+        path: str,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        commit = self._resolve_ref(ref, request_options)
+        response = self.get(self._src_path(commit, path), request_options=request_options)
+        if _is_listing(response):
+            raise PathIsDirectory(detail=path)
+        return {
+            "data": map_file_content(path, response.content),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": None, "headers": dict(response.headers)},
+            "meta": {},
+        }
+
+    def get_directory_contents(
+        self,
+        path: str,
+        ref: str | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[FileContent]]:
+        commit = self._resolve_ref(ref, request_options) if ref else "HEAD"
+        response = self.get(
+            self._src_path(commit, path).rstrip("/") + "/",
+            pagination=pagination,
+            request_options=request_options,
+        )
+        if not _is_listing(response):
+            raise PathIsNotDirectory(detail=path)
+        return map_paginated_action(response, map_directory_entry)
+
+    def get_readme(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[FileContent]:
+        commit = self._resolve_ref(ref, request_options)
+        for entry in self._walk_directory("", commit, pagination, request_options):
+            if entry["type"] == "file" and entry["path"].lower() in VALID_README_FILES:
+                return self.get_file_content(entry["path"], commit, request_options)
+        raise ReadmeNotFound()
+
+    def get_pull_request_template(
+        self,
+        ref: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> Iterator[ActionResult[FileContent]]:
+        commit = self._resolve_ref(ref, request_options)
+        for parent in PULL_REQUEST_TEMPLATE_PARENT_DIRS:
+            for entry in self._walk_directory(parent, commit, pagination, request_options):
+                basename = entry["path"].rsplit("/", 1)[-1].lower()
+                if entry["type"] == "file" and basename == PULL_REQUEST_TEMPLATE_FILENAME:
+                    yield self.get_file_content(entry["path"], commit, request_options)
+                elif entry["type"] == "directory" and basename == PULL_REQUEST_TEMPLATE_DIRNAME:
+                    for child in self._walk_directory(entry["path"], commit, pagination, request_options):
+                        if child["type"] == "file" and child["path"].lower().endswith(".md"):
+                            yield self.get_file_content(child["path"], commit, request_options)
+
+    def _walk_directory(
+        self,
+        path: str,
+        commit: str,
+        pagination: PaginationParams | None,
+        request_options: RequestOptions | None,
+    ) -> Iterator[FileContent]:
+        try:
+            for page in iter_all_pages(
+                lambda p: self.get_directory_contents(path, commit, p, request_options),
+                **(pagination or {}),
+            ):
+                yield from page["data"]
+        except SCMCodedError as e:
+            if e.code not in ("resource_not_found", "path_is_not_directory"):
+                raise
+
+    def _resolve_ref(self, ref: str, request_options: RequestOptions | None) -> str:
+        """Look up the commit for a ref with a slash, since `src` takes everything after the first slash as the path."""
+        if "/" not in ref:
+            return ref
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/commits/{quote(ref)}",
+            params={"pagelen": "1", "fields": "values.hash"},
+            request_options=request_options,
+        )
+        if not (values := response.json()["values"]):
+            raise ResourceNotFound(detail=ref)
+        return values[0]["hash"]
+
+    def _src_path(self, commit: str, path: str) -> str:
+        return f"/2.0/repositories/{self.repository_path}/src/{quote(commit, safe='')}/{quote(path.strip('/'))}"
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -179,6 +313,43 @@ def map_repository(raw: dict[str, Any]) -> GitRepository:
         size=raw["size"] // 1000,
         description=raw.get("description") or None,
         topics=[],
+    )
+
+
+def _is_listing(response: requests.Response) -> bool:
+    # File bodies come back as text/plain or their own media type, even for JSON files.
+    return response.headers.get("content-type", "").startswith("application/json")
+
+
+def map_file_content(path: str, content: bytes) -> FileContent:
+    """Bitbucket doesn't expose blob ids, so hash the content the way git does."""
+    return FileContent(
+        path=path,
+        sha=hashlib.sha1(b"blob %d\0" % len(content) + content).hexdigest(),
+        content=base64.b64encode(content).decode("ascii"),
+        encoding="base64",
+        size=len(content),
+        type="file",
+    )
+
+
+def map_directory_entry(raw: dict[str, Any]) -> FileContent:
+    """Listings carry no blob ids or contents, so `sha` and `content` are empty."""
+    attributes = raw.get("attributes") or []
+    file_type: FileContentType = "file"
+    if raw["type"] == "commit_directory":
+        file_type = "directory"
+    elif "subrepository" in attributes:
+        file_type = "submodule"
+    elif "link" in attributes:
+        file_type = "symlink"
+    return FileContent(
+        path=raw["path"],
+        sha="",
+        content="",
+        encoding="",
+        size=raw.get("size", 0),
+        type=file_type,
     )
 
 
