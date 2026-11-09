@@ -20,7 +20,6 @@ can refuse to start with a bad one.
 
 import hashlib
 import time
-import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -56,12 +55,6 @@ def sign_grant(private_key: Secret, grant: Grant | GrantV2, *, now: float | None
     GitGrantKeyError if ``private_key`` is not an unencrypted Ed25519 private key in PEM, and a plain ValueError if
     the signed grant is longer than GRANT_MAX_LENGTH.
     """
-    if isinstance(grant, Grant):
-        warnings.warn(
-            "Signing a version 1 git Grant is deprecated. Sign a GrantV2, whose rules can keep a push to branches.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
     key = _load_private_key(private_key)
     claims: dict[str, Any] = msgspec.to_builtins(grant)
     claims["exp"] = claims.pop("expires_at")

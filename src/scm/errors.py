@@ -3,13 +3,13 @@ from typing import ClassVar, Literal
 type ErrorCode = Literal[
     "git_grant_expired",
     "git_invalid_grant",
+    "git_malformed_request_body",
     "git_operation_not_granted",
     "git_provider_not_supported",
     "git_push_not_granted",
     "git_remote_not_https",
     "git_remote_refused",
     "git_repository_not_granted",
-    "git_request_malformed",
     "git_route_not_supported",
     "git_token_rejected",
     "git_token_unavailable",
@@ -53,13 +53,13 @@ type ErrorCode = Literal[
 ERROR_CODES: dict[ErrorCode, str] = {
     "git_grant_expired": "The git grant has expired.",
     "git_invalid_grant": "The git grant was missing, malformed or forged.",
+    "git_malformed_request_body": "The request body is not one the git endpoint can read.",
     "git_operation_not_granted": "The git grant does not allow this operation.",
     "git_provider_not_supported": "The repository's provider has no git remote.",
     "git_push_not_granted": "The git grant does not allow the push's ref updates.",
     "git_remote_not_https": "The repository's git remote is not an https URL.",
     "git_remote_refused": "The repository's git remote is at an address Sentry does not connect to.",
     "git_repository_not_granted": "The git grant does not cover this repository.",
-    "git_request_malformed": "The request body is not a git request the git endpoint can read.",
     "git_route_not_supported": "The request is not a git fetch or push.",
     "git_token_rejected": "The provider rejected Sentry's credentials for the repository.",
     "git_token_unavailable": "No provider token could be obtained for the repository.",
@@ -174,6 +174,10 @@ class GitInvalidGrant(GitSCMCodedError):
     code = "git_invalid_grant"
 
 
+class GitMalformedRequestBody(GitSCMCodedError):
+    code = "git_malformed_request_body"
+
+
 class GitOperationNotGranted(GitSCMCodedError):
     code = "git_operation_not_granted"
 
@@ -196,10 +200,6 @@ class GitRemoteRefused(GitSCMCodedError):
 
 class GitRepositoryNotGranted(GitSCMCodedError):
     code = "git_repository_not_granted"
-
-
-class GitRequestMalformed(GitSCMCodedError):
-    code = "git_request_malformed"
 
 
 class GitRouteNotSupported(GitSCMCodedError):

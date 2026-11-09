@@ -872,7 +872,7 @@ class TestPushRules:
         assert_refused(self.send(make_server(recorder), io.BytesIO(b"garbage")), 400, "not pkt-lines")
         assert recorder.repository_lookups == []
         assert recorder.counts == [
-            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_request_malformed"})
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_malformed_request_body"})
         ]
 
     def test_compressed(self):
@@ -890,8 +890,7 @@ class TestPushRules:
     def test_version_1_push_grant_relays_unread(self):
         recorder = Recorder()
         server = make_server(recorder)
-        with pytest.deprecated_call():
-            grant = sign_grant(KEY.private, make_v1_grant(operation="push"))
+        grant = sign_grant(KEY.private, make_v1_grant(operation="push"))
         body = io.BytesIO(b"not a push the server could read")
         request(server, grant, method="POST", route="git-receive-pack", query="", body=body)
         assert body.tell() == 0

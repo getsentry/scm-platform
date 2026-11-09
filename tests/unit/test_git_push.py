@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from scm.errors import ClientClosedRequest, GitPushNotGranted, GitRequestMalformed, RpcMalformedRequestHeaders
+from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitPushNotGranted, RpcMalformedRequestHeaders
 from scm.git.push import (
     MAX_UPDATES_LENGTH,
     PushRequest,
@@ -127,18 +127,18 @@ class TestRead:
         ],
     )
     def test_malformed(self, body):
-        with pytest.raises(GitRequestMalformed):
+        with pytest.raises(GitMalformedRequestBody):
             read(body)
 
     def test_shallow_line_after_an_update(self):
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/a"))
         flush = body.index(b"0000")
-        with pytest.raises(GitRequestMalformed):
+        with pytest.raises(GitMalformedRequestBody):
             read(body[:flush] + pkt(f"shallow {'3' * 40}".encode()) + body[flush:])
 
     def test_too_long_before_the_pack(self):
         updates = [(OLD_ID, NEW_ID, f"refs/heads/branch-{i:05d}") for i in range(MAX_UPDATES_LENGTH // 90)]
-        with pytest.raises(GitRequestMalformed, match=f"longer than {MAX_UPDATES_LENGTH} bytes"):
+        with pytest.raises(GitMalformedRequestBody, match=f"longer than {MAX_UPDATES_LENGTH} bytes"):
             read(make_push_body(*updates))
 
     def test_connection_fails(self):
@@ -351,5 +351,5 @@ class TestBoundedBody:
 
     def test_truncated_updates(self):
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
-        with pytest.raises(GitRequestMalformed, match="ended before its ref updates did"):
+        with pytest.raises(GitMalformedRequestBody, match="ended before its ref updates did"):
             read_push_request({}, bounded_body({"Content-Length": "20"}, io.BytesIO(body)))

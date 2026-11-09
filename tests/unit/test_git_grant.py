@@ -2,7 +2,6 @@ import base64
 import hashlib
 import hmac
 import time
-import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -734,9 +733,8 @@ class TestBranchNames:
         assert PushRule(repository=5, branches=[name]).branches == [name]
 
 
-def sign_v1(grant: Grant, **kwargs) -> str:
-    with pytest.deprecated_call(match="Sign a GrantV2"):
-        return sign_grant(KEY.private, grant, now=NOW, **kwargs)
+def sign_v1(grant: Grant) -> str:
+    return sign_grant(KEY.private, grant, now=NOW)
 
 
 class TestVersion1:
@@ -750,12 +748,8 @@ class TestVersion1:
         assert isinstance(verified, Grant)
 
     def test_deprecated(self):
-        # Type checkers and IDEs flag code that uses it, and signing one warns, but verifying one doesn't.
+        # Type checkers and IDEs flag code that uses it.
         assert "Sign a GrantV2" in Grant.__deprecated__  # type: ignore[attr-defined]
-        token = sign_v1(make_v1_grant())
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            verify_grant([KEY.public], token, now=NOW)
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_v1(make_v1_grant())

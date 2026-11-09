@@ -10,7 +10,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from scm.errors import ClientClosedRequest, GitPushNotGranted, GitRequestMalformed, RpcMalformedRequestHeaders
+from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitPushNotGranted, RpcMalformedRequestHeaders
 from scm.git.types import PushRule, Readable
 
 MAX_UPDATES_LENGTH = 64 * 1024
@@ -49,7 +49,7 @@ class PushRequest(NamedTuple):
 def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest:
     """Read a push's ref updates from ``body``, leaving the pack unread.
 
-    Raises GitRequestMalformed for a body that does not start with a list of ref updates, GitPushNotGranted for a
+    Raises GitMalformedRequestBody for a body that does not start with a list of ref updates, GitPushNotGranted for a
     compressed body or a signed push, whose updates come inside a certificate, and ClientClosedRequest if reading the
     body fails.
     """
@@ -64,7 +64,7 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
         if not updates and line.startswith(b"shallow "):
             # A push from a shallow clone lists its shallow commits first, and they pass on unchanged.
             if not _OBJECT_ID.fullmatch(line.removeprefix(b"shallow ")):
-                raise GitRequestMalformed(detail="The push lists a shallow commit that is not an object id.")
+                raise GitMalformedRequestBody(detail="The push lists a shallow commit that is not an object id.")
             continue
         if not updates and line.startswith(b"push-cert"):
             raise GitPushNotGranted(detail="The git endpoint does not relay signed pushes.")
@@ -202,13 +202,13 @@ class _PktReader:
         """Return the next pkt-line's payload without its trailing newline, or None for a flush."""
         header = self._read(4)
         if not _PKT_LENGTH.fullmatch(header):
-            raise GitRequestMalformed(detail="The push's ref updates are not pkt-lines.")
+            raise GitMalformedRequestBody(detail="The push's ref updates are not pkt-lines.")
         length = int(header, 16)
         if length == 0:
             return None
         # 1 to 3 are protocol v2's special packets, which a push never sends.
         if length < 4 or length > _MAX_PKT_LENGTH:
-            raise GitRequestMalformed(detail="The push's ref updates are not pkt-lines.")
+            raise GitMalformedRequestBody(detail="The push's ref updates are not pkt-lines.")
         return self._read(length - 4).removesuffix(b"\n")
 
     def read_so_far(self) -> bytes:
@@ -216,7 +216,7 @@ class _PktReader:
 
     def _read(self, size: int) -> bytes:
         if len(self.read_bytes) + size > MAX_UPDATES_LENGTH:
-            raise GitRequestMalformed(detail=f"The push's ref updates are longer than {MAX_UPDATES_LENGTH} bytes.")
+            raise GitMalformedRequestBody(detail=f"The push's ref updates are longer than {MAX_UPDATES_LENGTH} bytes.")
         data = bytearray()
         while len(data) < size:
             try:
@@ -224,7 +224,7 @@ class _PktReader:
             except OSError:
                 raise ClientClosedRequest(detail="The client's connection failed while it sent its push.") from None
             if not chunk:
-                raise GitRequestMalformed(detail="The push ended before its ref updates did.")
+                raise GitMalformedRequestBody(detail="The push ended before its ref updates did.")
             data += chunk
         self.read_bytes += data
         return bytes(data)
@@ -234,14 +234,14 @@ def _capabilities(requested: bytes) -> frozenset[str]:
     try:
         return frozenset(requested.decode("ascii").split())
     except UnicodeDecodeError:
-        raise GitRequestMalformed(detail="The push's capabilities are not ASCII.") from None
+        raise GitMalformedRequestBody(detail="The push's capabilities are not ASCII.") from None
 
 
 def _ref_update(line: bytes) -> RefUpdate:
     old_id, _, rest = line.partition(b" ")
     new_id, _, ref = rest.partition(b" ")
     if not (_OBJECT_ID.fullmatch(old_id) and _OBJECT_ID.fullmatch(new_id) and len(old_id) == len(new_id) and ref):
-        raise GitRequestMalformed(detail="The push's ref updates are malformed.")
+        raise GitMalformedRequestBody(detail="The push's ref updates are malformed.")
     return RefUpdate(old_id=old_id, new_id=new_id, ref=ref)
 
 

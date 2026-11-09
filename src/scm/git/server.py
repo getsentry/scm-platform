@@ -31,7 +31,7 @@ from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 _STATUS: dict[ErrorCode, int] = {
     # The client's own request is malformed, or is not a git request this endpoint serves.
     "rpc_malformed_request_headers": 400,
-    "git_request_malformed": 400,
+    "git_malformed_request_body": 400,
     "git_route_not_supported": 404,
     # The grant does not allow the request.
     "git_invalid_grant": 403,
