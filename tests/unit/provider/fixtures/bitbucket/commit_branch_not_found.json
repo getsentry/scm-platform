@@ -1,7 +1,7 @@
 {
   "body": {
     "error": {
-      "message": "s6-no-such-branch"
+      "message": "missing-branch"
     },
     "type": "error"
   },
