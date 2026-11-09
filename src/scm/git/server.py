@@ -1,13 +1,7 @@
 from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
-from scm.errors import (
-    ErrorCode,
-    GitProviderNotSupported,
-    GitTokenRejected,
-    GitTokenUnavailable,
-    SCMCodedError,
-)
+from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
 from scm.git.grant import require_public_keys, verify_grant
 from scm.git.push import PushRefused, check_push, check_push_headers
 from scm.git.relay import GitRelay, ResponseBody, _authorize
@@ -151,14 +145,15 @@ class GitServer:
             operation = _authorize(grant, repository_id, method, route, query)
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
-            if isinstance(grant, GrantV2) and operation == "push" and method == "POST":
-                push_rules = [
-                    rule for rule in grant.rules_for(repository_id, "push") if isinstance(rule, GrantV2PushRule)
-                ]
-                relayed_body = check_push(push_rules, headers, counted_body)
-            elif isinstance(grant, GrantV2) and operation == "push":
-                # The push's first request, which lists the refs, goes to the provider with the same headers.
-                check_push_headers(method, headers)
+            if isinstance(grant, GrantV2) and operation == "push":
+                if method == "POST":
+                    push_rules = [
+                        rule for rule in grant.rules_for(repository_id, "push") if isinstance(rule, GrantV2PushRule)
+                    ]
+                    relayed_body = check_push(push_rules, headers, counted_body)
+                else:
+                    # The push's first request, which lists the refs, goes to the provider with the same headers.
+                    check_push_headers(method, headers)
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,

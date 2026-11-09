@@ -89,15 +89,20 @@ def _authorize(
     grant: GrantV1 | GrantV2, repository_id: RepositoryId, method: str, route: str, query: str
 ) -> GitOperation:
     """``authorize_request`` for GitServer, which checks a push's ref updates against the grant's push rules itself."""
+    operation = _route_operation(method, route, query)
+    if isinstance(grant, GrantV1):
+        _authorize_v1(grant, repository_id, operation)
+    else:
+        _authorize_v2(grant, repository_id, operation)
+    return operation
+
+
+def _route_operation(method: str, route: str, query: str) -> GitOperation:
     operation = _ROUTES.get((method, route, query))
     if operation is None:
         raise GitRouteNotSupported(
             detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
         )
-    if isinstance(grant, GrantV1):
-        _authorize_v1(grant, repository_id, operation)
-    else:
-        _authorize_v2(grant, repository_id, operation)
     return operation
 
 
@@ -212,10 +217,7 @@ class GitRelay:
             # The token would cross the network in the clear, e.g. to a self-managed instance served over http.
             raise GitRemoteNotHttps()
         # The token never goes to anything but a git route, whatever the caller checked.
-        if (method, route, query) not in _ROUTES:
-            raise GitRouteNotSupported(
-                detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
-            )
+        _route_operation(method, route, query)
         if not f"{remote['basic_auth_username']}:{token.reveal()}".isascii():
             # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
             # issues such a token, so the caller has a bug; the message leaves the token out.

@@ -131,8 +131,8 @@ def check_push(rules: Sequence[GrantV2PushRule], headers: Mapping[str, str], bod
 def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest:
     """Read a push's ref updates from ``body``, leaving the pack unread.
 
-    Raises GitMalformedRequestBody for a body that does not start with a list of ref updates, GitOperationNotGranted
-    for a compressed body, RpcMalformedRequestHeaders for any other header value git doesn't send with a push,
+    Raises GitMalformedRequestBody for a body that does not start with a list of ref updates,
+    RpcMalformedRequestHeaders for a header value git doesn't send with a push, such as any Content-Encoding,
     PushRefused for a signed push, whose updates come inside a certificate, and ClientClosedRequest if reading the
     body fails.
     """
@@ -144,26 +144,27 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
     # Each line must be what git sends, in the order it sends them. receive-pack reads more than that, such as
     # capabilities on any update and shallow commits between updates, and anything this lets through it relays.
     while (line := reader.read_line()) is not None:
-        if not updates and line.startswith(b"shallow "):
+        if updates:
+            if b"\0" in line:
+                raise GitMalformedRequestBody(detail="Only the push's first ref update may carry capabilities.")
+            updates.append(_ref_update(line))
+        elif line.startswith(b"shallow "):
             # A push from a shallow clone lists its shallow commits first, each on a line of its own, and they pass
             # on unchanged.
             if not line.endswith(b"\n"):
                 raise GitMalformedRequestBody(detail="The push lists a shallow commit that is not an object id.")
             shallow.append(line.removeprefix(b"shallow ").removesuffix(b"\n"))
-            continue
-        if not updates and line.startswith(b"push-cert\0"):
+        elif line.startswith(b"push-cert\0"):
             message = "The git endpoint does not relay signed pushes."
             requested = _capabilities(line.partition(b"\0")[2])
-            raise PushRefused(detail=message, report=_error_report(requested, message))
-        if not updates:
+            # Band 3 carries a message git prints as "remote: <message>" before it stops.
+            raise PushRefused(detail=message, report=_on_side_band(requested, 3, f"{message}\n".encode()))
+        else:
             # The updates' own budget starts here, apart from the shallow commits'.
             reader.limit_to(reader.line_start + MAX_UPDATES_LENGTH)
-        line, separator, requested_bytes = line.partition(b"\0")
-        if separator and updates:
-            raise GitMalformedRequestBody(detail="Only the push's first ref update may carry capabilities.")
-        if not updates:
+            update, _, requested_bytes = line.partition(b"\0")
             capabilities = _capabilities(requested_bytes)
-        updates.append(_ref_update(line))
+            updates.append(_ref_update(update))
 
     formats = [name.partition("=")[2] for name in capabilities if name.startswith("object-format=")]
     if len(formats) > 1:
@@ -181,15 +182,31 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
     return PushRequest(updates=updates, capabilities=capabilities, head=reader.read_so_far())
 
 
+def check_push_headers(method: str, headers: Mapping[str, str]) -> None:
+    """Refuse a push's request unless each header the relay passes on holds a value git sends with it.
+
+    Every value counts, since a mapping can hold one header under two spellings and the relay passes on one of them.
+    Raises RpcMalformedRequestHeaders.
+    """
+    allowed_values = _HEADER_VALUES[method]
+    for name, value in headers.items():
+        lowered = name.lower()
+        allowed = allowed_values.get(lowered)
+        if (allowed is not None and value not in allowed) or (
+            lowered in _FREE_HEADERS and not _FREE_HEADER_VALUE.fullmatch(value)
+        ):
+            raise RpcMalformedRequestHeaders(detail=f"The push's {lowered} header holds a value git doesn't send.")
+
+
 def refused_updates(rules: Sequence[GrantV2PushRule], request: PushRequest) -> dict[bytes, str]:
     """Return why ``rules`` refuse each ref of ``request``, or nothing if every update has a rule that allows it.
 
     A push is relayed whole or not at all, so once one update is refused, every other ref gets a reason too. With no
     rules, every update is refused.
     """
-    unsupported = sorted(name for name in request.capabilities if not _supported(name))
-    if unsupported:
-        reason = f"the git endpoint does not relay {_capability_name(unsupported[0])}"
+    unsupported = min((name for name in request.capabilities if not _supported(name)), default=None)
+    if unsupported is not None:
+        reason = f"the git endpoint does not relay {_capability_name(unsupported)}"
         return {update.ref: reason for update in request.updates}
     refused: dict[bytes, str] = {}
     for update in request.updates:
@@ -277,7 +294,7 @@ class _PktReader:
         if length == 0:
             return None
         # 1 to 3 are protocol v2's special packets, which a push never sends.
-        if length < 4 or length > _MAX_PKT_LENGTH:
+        if not 4 <= length <= _MAX_PKT_LENGTH:
             raise GitMalformedRequestBody(detail="The push's ref updates are not pkt-lines.")
         return self._read(length - 4)
 
@@ -322,28 +339,6 @@ def _capability_name(capability: str) -> str:
         return "push options"
     # The client chose the name, and the reason goes in every refused ref's line of the report.
     return f"the {_printable(capability.partition('=')[0], _SHOWN_CAPABILITY_LENGTH)} capability"
-
-
-def check_push_headers(method: str, headers: Mapping[str, str]) -> None:
-    """Refuse a push's request unless each header the relay passes on holds a value git sends with it.
-
-    Every value counts, since a mapping can hold one header under two spellings and the relay passes on one of them.
-    Raises RpcMalformedRequestHeaders.
-    """
-    allowed_values = _HEADER_VALUES[method]
-    for name, value in headers.items():
-        lowered = name.lower()
-        allowed = allowed_values.get(lowered)
-        if (allowed is not None and value not in allowed) or (
-            lowered in _FREE_HEADERS and not _FREE_HEADER_VALUE.fullmatch(value)
-        ):
-            raise RpcMalformedRequestHeaders(detail=f"The push's {lowered} header holds a value git doesn't send.")
-
-
-def _error_report(capabilities: frozenset[str], message: str) -> bytes | None:
-    """Return a response that shows git ``message`` before it gives up, or None if the client can read none."""
-    # Band 3 carries a message git prints as "remote: <message>" before it stops.
-    return _on_side_band(capabilities, 3, f"{message}\n".encode())
 
 
 def _on_side_band(capabilities: frozenset[str], band: int, data: bytes) -> bytes | None:
