@@ -31,10 +31,10 @@ from scm.git.grant import (
     sign_grant,
     verify_grant,
 )
-from scm.git.types import GRANT_MAX_LENGTH, Grant
+from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, GrantV2, PushRule
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
-from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair
+from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair, make_v1_grant
 
 # Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
 NOW = 1_700_000_000
@@ -50,7 +50,7 @@ def expected_key_id(key: KeyPair) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
-def claims_of(grant: Grant) -> dict:
+def claims_of(grant: Grant | GrantV2) -> dict:
     claims = msgspec.to_builtins(grant)
     claims["exp"] = claims.pop("expires_at")
     return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
@@ -117,9 +117,17 @@ class TestRoundTrip:
         # make_key_pair serializes the public key with cryptography directly, not through public_key_of.
         assert public_key_of(KEY.private) == KEY.public
 
-    def test_push_grant(self):
-        grant = make_grant(operation="push")
-        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW).operation == "push"
+    def test_rules_of_each_kind(self):
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main", "seer/fix"]),
+                PushRule(repository=5, branches=["seer/fix"]),
+                FetchRule(repository=("gitlab", "gitlab.com:7"), any_object=True),
+            ]
+        )
+        verified = verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW)
+        assert verified == grant
+        assert [rule.operation for rule in verified.rules] == ["fetch", "push", "fetch"]
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_grant(KEY.private, make_grant(), now=NOW)
@@ -127,9 +135,11 @@ class TestRoundTrip:
         assert jwt.decode(token, options={"verify_signature": False}) == {
             "organization_id": 1,
             "referrer": "seer.coding_job",
-            "operation": "fetch",
-            "repositories": [5, ["github", "123"]],
-            "version": 1,
+            "rules": [
+                {"operation": "fetch", "repository": 5, "any_object": True},
+                {"operation": "fetch", "repository": ["github", "123"], "any_object": True},
+            ],
+            "version": 2,
             "exp": FAR_FUTURE,
             "iat": NOW,
             "aud": GRANT_AUDIENCE,
@@ -265,9 +275,11 @@ class TestAlgorithms:
         assert_invalid(token, "alg value is not allowed")
 
 
-def grant_with_repositories(count: int) -> Grant:
-    # Names of one length, so each repository adds the same to the grant.
-    return make_grant(repositories=[("github", f"getsentry/repository-{i:04d}") for i in range(count)])
+def grant_with_repositories(count: int) -> GrantV2:
+    # Names of one length, so each rule adds the same to the grant.
+    return make_grant(
+        rules=[FetchRule(repository=("github", f"getsentry/repository-{i:04d}"), any_object=True) for i in range(count)]
+    )
 
 
 class TestLength:
@@ -291,14 +303,14 @@ class TestLength:
             except ValueError:
                 break
             token, count = longer, count + 1
-        # One more repository adds about 50 characters.
-        assert GRANT_MAX_LENGTH - 100 < len(token) <= GRANT_MAX_LENGTH
+        # One more rule adds about 120 characters.
+        assert GRANT_MAX_LENGTH - 150 < len(token) <= GRANT_MAX_LENGTH
         assert verify_grant([KEY.public], token, now=NOW) == grant_with_repositories(count)
 
     def test_grant_for_one_repository(self):
         # GRANT_MAX_LENGTH's docstring sizes grants from this.
-        grant = make_grant(repositories=[("github", "getsentry/scm-platform")])
-        assert len(sign_grant(KEY.private, grant, now=NOW)) < 450
+        grant = make_grant(rules=[FetchRule(repository=("github", "getsentry/scm-platform"), any_object=True)])
+        assert len(sign_grant(KEY.private, grant, now=NOW)) < 500
 
 
 def other_key_types() -> list:
@@ -505,10 +517,12 @@ class TestMalformed:
             {"organization_id": True},
             {"organization_id": "1"},
             {"referrer": None},
-            {"operation": "delete"},
-            {"version": 2},
-            {"repositories": [["github"]]},
-            {"repositories": [["unknown_provider", "123"]]},
+            {"version": 1},
+            {"version": 3},
+            {"version": "2"},
+            {"rules": None},
+            {"rules": [{"operation": "fetch", "repository": ["github"], "any_object": True}]},
+            {"rules": [{"operation": "fetch", "repository": ["unknown_provider", "123"], "any_object": True}]},
             {"exp": NOW + 600.5},
             {"narrower_than_you_think": True},
         ],
@@ -522,5 +536,207 @@ class TestMalformed:
         del claims["referrer"]
         assert_invalid(sign_claims(claims), "referrer")
 
+    def test_version_1_claims_labelled_version_2(self):
+        assert_invalid(sign_claims(claims_of(make_v1_grant()) | {"version": 2}), "payload is invalid")
+
+
+def rule_claims(*rules: dict) -> dict:
+    return claims_of(make_grant()) | {"rules": list(rules)}
+
+
+class TestRules:
+    """A grant's rules, checked both where a grant is built and where it is verified, whoever signed it."""
+
+    def test_fetch_and_push_rules_for_one_repository(self):
+        grant = make_grant(
+            rules=[FetchRule(repository=5, branches=["main"]), PushRule(repository=5, branches=["seer/fix"])]
+        )
+        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
+
+    def test_claims_hold_only_what_a_rule_sets(self):
+        # Shorter, and a reader sees which fetch rules reach any object.
+        grant = make_grant(rules=[FetchRule(repository=5, branches=["main"]), FetchRule(repository=6, any_object=True)])
+        claims = jwt.decode(sign_grant(KEY.private, grant, now=NOW), options={"verify_signature": False})
+        assert claims["rules"] == [
+            {"operation": "fetch", "repository": 5, "branches": ["main"]},
+            {"operation": "fetch", "repository": 6, "any_object": True},
+        ]
+
+    @pytest.mark.parametrize(
+        "rule,error",
+        [
+            ({"operation": "fetch", "repository": 5}, "must list its branches or set any_object"),
+            ({"operation": "fetch", "repository": 5, "any_object": False}, "must list its branches or set any_object"),
+            ({"operation": "fetch", "repository": 5, "branches": None}, "must list its branches or set any_object"),
+            (
+                {"operation": "fetch", "repository": 5, "branches": ["main"], "any_object": True},
+                "must not both list branches and set any_object",
+            ),
+            ({"operation": "fetch", "repository": 5, "branches": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "branches": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5}, "missing required field `branches`"),
+            ({"operation": "push", "repository": 5, "branches": None}, "Expected `array`, got `null`"),
+            ({"operation": "push", "repository": 5, "any_object": True}, "unknown field `any_object`"),
+            ({"operation": "fetch", "repository": 5, "branches": ["main"], "deepen": 50}, "unknown field `deepen`"),
+            ({"operation": "delete", "repository": 5, "branches": ["main"]}, "Invalid value 'delete'"),
+            ({"repository": 5, "any_object": True}, "missing required field `operation`"),
+            ({"operation": "fetch", "any_object": True}, "missing required field `repository`"),
+        ],
+    )
+    def test_invalid_rule(self, rule, error):
+        assert_invalid(sign_claims(rule_claims(rule)), error)
+
+    def test_rule_without_branches_or_any_object_cannot_be_built(self):
+        with pytest.raises(ValueError, match="must list its branches or set any_object"):
+            FetchRule(repository=5)
+
+    def test_rule_with_branches_and_any_object_cannot_be_built(self):
+        with pytest.raises(ValueError, match="must not both list branches and set any_object"):
+            FetchRule(repository=5, branches=["main"], any_object=True)
+
+    @pytest.mark.parametrize("make_rule", [FetchRule, PushRule], ids=["fetch", "push"])
+    def test_rule_without_branches_listed_cannot_be_built(self, make_rule):
+        with pytest.raises(ValueError, match="must not be empty"):
+            make_rule(repository=5, branches=[])
+
+    def test_no_rules(self):
+        with pytest.raises(ValueError, match="at least one rule"):
+            make_grant(rules=[])
+        assert_invalid(sign_claims(rule_claims()), "at least one rule")
+
+    @pytest.mark.parametrize(
+        "rules,error",
+        [
+            (
+                [{"operation": "fetch", "repository": 5, "any_object": True}] * 2,
+                "more than one fetch rule for 5",
+            ),
+            (
+                [
+                    {"operation": "fetch", "repository": 5, "any_object": True},
+                    {"operation": "fetch", "repository": 5, "branches": ["main"]},
+                ],
+                "more than one fetch rule for 5",
+            ),
+            (
+                [
+                    {"operation": "push", "repository": ["github", "123"], "branches": ["a"]},
+                    {"operation": "push", "repository": ["github", "123"], "branches": ["b"]},
+                ],
+                "more than one push rule for ('github', '123')",
+            ),
+        ],
+    )
+    def test_two_rules_for_one_repository_and_operation(self, rules, error):
+        # Otherwise which one applies would depend on the order of the rules.
+        assert_invalid(sign_claims(rule_claims(*rules)), error)
+
+    def test_two_rules_for_one_repository_and_operation_cannot_be_built(self):
+        with pytest.raises(ValueError, match="more than one push rule for 5"):
+            make_grant(rules=[PushRule(repository=5, branches=["a"]), PushRule(repository=5, branches=["b"])])
+
+    def test_one_repository_named_both_ways(self):
+        # Nothing matches a database id to a provider id, so the two are separate repositories here, as in requests.
+        rules = [FetchRule(repository=5, any_object=True), FetchRule(repository=("github", "123"), branches=["main"])]
+        assert make_grant(rules=rules).rules == rules
+
+
+INVALID_BRANCH_NAMES = [
+    "",
+    "refs/heads/main",
+    "refs/tags/v1",
+    "-main",
+    "HEAD",
+    "@",
+    "a..b",
+    "a b",
+    "a\tb",
+    "a\x00b",
+    "a\x7fb",
+    "a~1",
+    "a^",
+    "a:b",
+    "a?",
+    "a*",
+    "a[b",
+    "a\\b",
+    "/main",
+    "main/",
+    "a//b",
+    ".main",
+    "a/.b",
+    "main.lock",
+    "a/b.lock/c",
+    "main.",
+    "a@{1}",
+]
+
+
+class TestBranchNames:
+    @pytest.mark.parametrize("name", INVALID_BRANCH_NAMES)
+    def test_invalid(self, name):
+        with pytest.raises(ValueError, match="is not a branch name"):
+            PushRule(repository=5, branches=["main", name])
+        assert_invalid(
+            sign_claims(rule_claims({"operation": "push", "repository": 5, "branches": ["main", name]})),
+            "is not a branch name",
+        )
+
+    def test_checked_in_fetch_rules_too(self):
+        with pytest.raises(ValueError, match="is not a branch name"):
+            FetchRule(repository=5, branches=["refs/heads/main"])
+
+    @pytest.mark.parametrize(
+        "name", ["main", "seer/fix-123", "feature/a.b", "a@b", "release-1.0", "a.lock.b", "x/HEAD", "ünicode"]
+    )
+    def test_valid(self, name):
+        assert PushRule(repository=5, branches=[name]).branches == [name]
+
+
+class TestVersion1:
+    """Grant, which GrantV2 replaces, still signs and verifies as it did."""
+
+    @pytest.mark.parametrize("operation", ["fetch", "push"])
+    def test_verifies_what_it_signed(self, operation):
+        grant = make_v1_grant(operation=operation)
+        verified = verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW)
+        assert verified == grant
+        assert isinstance(verified, Grant)
+
+    def test_token_is_a_jwt_with_the_grants_claims(self):
+        token = sign_grant(KEY.private, make_v1_grant(), now=NOW)
+        assert jwt.decode(token, options={"verify_signature": False}) == {
+            "organization_id": 1,
+            "referrer": "seer.coding_job",
+            "operation": "fetch",
+            "repositories": [5, ["github", "123"]],
+            "version": 1,
+            "exp": FAR_FUTURE,
+            "iat": NOW,
+            "aud": GRANT_AUDIENCE,
+        }
+
+    def test_without_a_version(self):
+        # Read as version 1, as before there was a second one.
+        claims = claims_of(make_v1_grant())
+        del claims["version"]
+        assert verify_grant([KEY.public], sign_claims(claims), now=NOW) == make_v1_grant()
+
+    def test_expired(self):
+        with pytest.raises(GitGrantExpired):
+            verify_grant([KEY.public], sign_grant(KEY.private, make_v1_grant(expires_at=NOW), now=NOW), now=NOW)
+
+    @pytest.mark.parametrize(
+        "change",
+        [
+            {"operation": "delete"},
+            {"repositories": [["github"]]},
+            {"repositories": [["unknown_provider", "123"]]},
+            {"rules": [{"operation": "push", "repository": 5, "branches": ["main"]}]},
+        ],
+    )
+    def test_signed_but_invalid_claims(self, change):
+        assert_invalid(sign_claims(claims_of(make_v1_grant()) | change), "payload is invalid")
+
     def test_no_repositories(self):
-        assert_invalid(sign_grant(KEY.private, make_grant(repositories=[]), now=NOW), "names no repositories")
+        assert_invalid(sign_grant(KEY.private, make_v1_grant(repositories=[]), now=NOW), "names no repositories")

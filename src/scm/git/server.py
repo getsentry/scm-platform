@@ -1,10 +1,26 @@
+import contextlib
 from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
-from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
+from scm.errors import (
+    ErrorCode,
+    GitProviderNotSupported,
+    GitPushNotGranted,
+    GitTokenRejected,
+    GitTokenUnavailable,
+    SCMCodedError,
+)
 from scm.git.grant import require_public_keys, verify_grant
-from scm.git.relay import GitRelay, ResponseBody, authorize_request
-from scm.git.types import GRANT_HEADER, GetToken, Readable
+from scm.git.push import (
+    PushRequest,
+    ReplayedBody,
+    bounded_body,
+    read_push_request,
+    refusal_report,
+    refused_updates,
+)
+from scm.git.relay import DEFAULT_CHUNK_SIZE, GitRelay, ResponseBody, authorize_request
+from scm.git.types import GRANT_HEADER, GetToken, GrantV2, PushRule, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -15,12 +31,14 @@ from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 _STATUS: dict[ErrorCode, int] = {
     # The client's own request is malformed, or is not a git request this endpoint serves.
     "rpc_malformed_request_headers": 400,
+    "git_request_malformed": 400,
     "git_route_not_supported": 404,
     # The grant does not allow the request.
     "git_invalid_grant": 403,
     "git_grant_expired": 403,
     "git_operation_not_granted": 403,
     "git_repository_not_granted": 403,
+    "git_push_not_granted": 403,
     # The grant allows it, but there is no repository to serve.
     "repository_not_found": 404,
     "repository_inactive": 404,
@@ -57,6 +75,13 @@ class GitServer:
     against it, before the repository and its provider are looked up or a token fetched, so a request the grant
     does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
     refuses internal addresses; see ``GitRelay``.
+
+    A push under a ``GrantV2`` is kept to its rule's branches. The server reads the push's ref updates, which come
+    before the pack, and refuses the whole push if one of them updates a branch the rule does not list, deletes a
+    branch, or updates any other ref, such as a tag, and refuses push options and signed pushes too. A client that
+    asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the rule
+    allows is relayed with the updates the server read followed by the rest of the body, unread. A push under a
+    ``Grant`` is relayed unread, as before rules.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
@@ -129,12 +154,27 @@ class GitServer:
         counted_body = _CountingReader(body) if body is not None else None
         context = {"repository_id": str(repository_id)}
         referrer_tag: dict[str, str] = {}
+        push_body: Readable | None = None
+        push: PushRequest | None = None
+        refused: dict[bytes, str] = {}
         try:
             grant = verify_grant(self.public_keys, grant_token.reveal())
             context["organization_id"] = str(grant.organization_id)
             referrer_tag["referrer"] = context["referrer"] = grant.referrer
             operation = authorize_request(grant, repository_id, method, route, query)
             context["operation"] = operation
+            relayed_body: Readable | None = counted_body
+            rule = grant.rule_for(repository_id, operation) if isinstance(grant, GrantV2) else None
+            if isinstance(rule, PushRule) and method == "POST" and counted_body is not None:
+                push_body = bounded_body(headers, counted_body)
+                push = read_push_request(headers, push_body)
+                refused = refused_updates(rule, push)
+                if refused:
+                    ref, reason = next(iter(refused.items()))
+                    raise GitPushNotGranted(
+                        detail=f"The git grant does not allow this push: {ref.decode(errors='replace')} ({reason})."
+                    )
+                relayed_body = ReplayedBody(push.head, push_body)
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,
@@ -163,7 +203,7 @@ class GitServer:
                     "read it."
                 )
             response = self.relay.forward(
-                remote, token, method=method, route=route, query=query, headers=headers, body=counted_body
+                remote, token, method=method, route=route, query=query, headers=headers, body=relayed_body
             )
             if response.status_code == 401:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
@@ -174,6 +214,11 @@ class GitServer:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
                 self.emit_error(e, context)
+            if push is not None and refused and push_body is not None:
+                _drain(push_body)
+                status_report = refusal_report(push, refused)
+                if status_report is not None:
+                    return _report_response(status_report)
             return _error_response(e)
         except Exception:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"} | referrer_tag)
@@ -277,6 +322,26 @@ class _MeteredStream:
         if not self.finished:
             self.finished = True
             self.finish(failure, self.bytes_sent)
+
+
+def _drain(body: Readable) -> None:
+    # git reads the response only once it has sent the whole push, and a connection closed before then shows only as
+    # a broken pipe, hiding the reason, so a refused push's pack is read to the end and dropped.
+    with contextlib.suppress(OSError, SCMCodedError):
+        while body.read(DEFAULT_CHUNK_SIZE):
+            pass
+
+
+def _report_response(report: bytes) -> StreamResponse:
+    return StreamResponse(
+        status_code=200,
+        headers={
+            "Content-Type": "application/x-git-receive-pack-result",
+            "Content-Length": str(len(report)),
+            "Cache-Control": "no-cache",
+        },
+        content=iter([report]),
+    )
 
 
 def _error_response(error: SCMCodedError) -> StreamResponse:

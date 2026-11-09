@@ -50,14 +50,15 @@ Configuration:
         GITLAB_BASE_URL                      Instance URL (default: https://gitlab.com)
 
 Serving:
-    The server prints a fetch grant and a push grant for the repository, valid
-    for an hour, with commands that pass them to git:
+    The server prints a grant to fetch any object of the repository and one to
+    push its branch my-branch, valid for an hour, with commands that pass them
+    to git:
 
         git -c http.extraHeader="X-Scm-Git-Grant: $FETCH_GRANT" \\
             clone http://127.0.0.1:8080/OWNER/REPO.git
 
     The URL path is the repository's path, which the server uses as its external
-    id, so a grant names the repository as (provider, path).
+    id, so a grant's rule names the repository as (provider, path).
 
 Checks:
     --check starts the server on a free port and runs git against it:
@@ -68,16 +69,18 @@ Checks:
         for credentials
       - a repository the token cannot see fails with the provider's own
         message, which the relay passes on
-    With --push it also commits a 256 KiB file on a new branch, pushes it with
-    a push grant, sending the pack chunked as git does for a large push, and
-    then deletes the branch. This writes to the repository, so point it at a
-    test repository.
+    With --push it also commits a 256 KiB file, pushes it with a push grant for
+    a new branch, sending the pack chunked as git does for a large push, and
+    checks that the grant can neither push another branch nor delete its own.
+    It then deletes the branch with the provider token. This writes to the
+    repository, so point it at a test repository.
 
     git runs without the user's or the system's git config, so credential
     helpers and URL rewrites cannot hide a failure.
 """
 
 import argparse
+import base64
 import importlib.machinery
 import importlib.util
 import logging
@@ -100,10 +103,10 @@ from scm.errors import GitGrantKeyError
 from scm.git.grant import generate_private_key, public_key_of, sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
-from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
+from scm.git.types import GRANT_HEADER, FetchRule, GetToken, GrantV2, PushRule, Readable, Rule
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
-from scm.types import Provider, ProviderName, Repository, RepositoryId
+from scm.types import GetGitRemoteProtocol, Provider, ProviderName, Repository, RepositoryId
 
 logger = logging.getLogger(__name__)
 
@@ -278,15 +281,18 @@ def make_git_server(
     )
 
 
-def grant_for(private_key: Secret, operation: GitOperation, repository_id: RepositoryId) -> str:
-    grant = Grant(
+def grant_for(private_key: Secret, rule: Rule) -> str:
+    grant = GrantV2(
         organization_id=ORGANIZATION_ID,
         referrer=REFERRER,
-        operation=operation,
-        repositories=[repository_id],
+        rules=[rule],
         expires_at=int(time.time()) + GRANT_TTL,
     )
     return sign_grant(private_key, grant)
+
+
+def fetch_grant_for(private_key: Secret, repository_id: RepositoryId) -> str:
+    return grant_for(private_key, FetchRule(repository=repository_id, any_object=True))
 
 
 class GitHandler(BaseHTTPRequestHandler):
@@ -408,8 +414,8 @@ def serve(backend: Backend, args: argparse.Namespace) -> None:
         (args.host, args.port), make_git_server(backend, args.public_key, args.ca_bundle), backend.provider_name
     )
     url = f"{server.url}/{backend.repository['name']}.git"
-    fetch_grant = grant_for(args.private_key, "fetch", backend.repository_id)
-    push_grant = grant_for(args.private_key, "push", backend.repository_id)
+    fetch_grant = fetch_grant_for(args.private_key, backend.repository_id)
+    push_grant = grant_for(args.private_key, PushRule(repository=backend.repository_id, branches=["my-branch"]))
     logger.info(
         f"Serving {backend.provider_name} repository {backend.repository['name']} at {url}\n\n"
         f"Grants, valid for {GRANT_TTL // 60} minutes:\n"
@@ -474,11 +480,17 @@ class Checks:
         # git shows the text of a refused first request as "remote: <message>".
         return self.check(name, result, result.returncode != 0 and f"remote: {message}" in result.stderr)
 
+    def expect_rejection(self, name: str, result: subprocess.CompletedProcess[str], reason: str) -> bool:
+        # git shows a ref the server's status report refuses as "! [remote rejected] <ref> (<reason>)".
+        rejected = "[remote rejected]" in result.stderr and f"({reason})" in result.stderr
+        return self.check(name, result, result.returncode != 0 and rejected)
+
     def run(self) -> int:
         repository_id = self.backend.repository_id
         other_repository_id = (self.backend.provider_name, f"{self.backend.repository['name']}-other")
-        fetch_grant = grant_for(self.args.private_key, "fetch", repository_id)
-        push_grant = grant_for(self.args.private_key, "push", repository_id)
+        branch = f"scm-git-server-check/{int(time.time())}"
+        fetch_grant = fetch_grant_for(self.args.private_key, repository_id)
+        push_grant = grant_for(self.args.private_key, PushRule(repository=repository_id, branches=[branch]))
 
         server = self.start()
         url = f"{server.url}/{self.backend.repository['name']}.git"
@@ -490,16 +502,15 @@ class Checks:
         cloned = self.expect_success(
             "clone with a fetch grant", self.git(fetch_grant, "clone", "--depth=1", url, str(clone))
         )
-        branch = f"scm-git-server-check/{int(time.time())}"
         self.expect_refusal(
             "push with a fetch grant is refused",
             # Refused before the provider sees it, so any local repository will do.
             self.git(fetch_grant, "push", url, f"HEAD:refs/heads/{branch}", cwd=self.local_repository()),
-            "The git grant allows fetch, not push.",
+            "The git grant allows fetch on this repository, not push.",
         )
         self.expect_refusal(
             "a grant for another repository is refused",
-            self.git(grant_for(self.args.private_key, "fetch", other_repository_id), "ls-remote", url),
+            self.git(fetch_grant_for(self.args.private_key, other_repository_id), "ls-remote", url),
             "The git grant does not cover this repository.",
         )
         server.shutdown()
@@ -519,7 +530,7 @@ class Checks:
         missing = self.backend.repository_at(f"{self.backend.repository['name']}-does-not-exist")
         server = self.start(repository=missing)
         result = self.git(
-            grant_for(self.args.private_key, "fetch", repository_id_of(self.backend.provider_name, missing)),
+            fetch_grant_for(self.args.private_key, repository_id_of(self.backend.provider_name, missing)),
             "ls-remote",
             f"{server.url}/{missing['name']}.git",
         )
@@ -557,16 +568,45 @@ class Checks:
         (clone / "scm-git-server-check.bin").write_bytes(secrets.token_bytes(256 * 1024))
         self.git(push_grant, "add", "scm-git-server-check.bin", cwd=clone).check_returncode()
         self.git(push_grant, "commit", "-m", "scm-platform git-server check", cwd=clone).check_returncode()
+        self.expect_rejection(
+            "chunked push to a branch the grant does not list is rejected",
+            self.git(
+                push_grant, "-c", "http.postBuffer=65536", "push", url, f"HEAD:refs/heads/{branch}-unlisted", cwd=clone
+            ),
+            "the git grant does not list this branch",
+        )
         pushed = self.expect_success(
             "chunked push with a push grant",
             self.git(push_grant, "-c", "http.postBuffer=65536", "push", url, f"HEAD:refs/heads/{branch}", cwd=clone),
         )
         if pushed:
-            self.expect_success(
-                f"delete the pushed branch {branch}",
+            self.expect_rejection(
+                "deleting the pushed branch with the push grant is rejected",
                 self.git(push_grant, "push", url, f":refs/heads/{branch}", cwd=clone),
+                "the git grant does not allow deleting a branch",
+            )
+            self.expect_success(
+                f"delete the pushed branch {branch} with the token", self.delete_directly(branch, clone)
             )
         server.shutdown()
+
+    def delete_directly(self, branch: str, clone: Path) -> subprocess.CompletedProcess[str]:
+        """Delete ``branch`` on the provider with the token Sentry would use, since a push grant cannot."""
+        provider = self.backend.fetch_provider(ORGANIZATION_ID, self.backend.repository)
+        assert isinstance(provider, GetGitRemoteProtocol)
+        remote = provider.get_git_remote()
+        token = self.backend.get_token(self.backend.repository, "push")
+        assert token is not None
+        credentials = base64.b64encode(f"{remote['basic_auth_username']}:{token.reveal()}".encode()).decode()
+        # Through the environment rather than the command line, which other processes can read.
+        env = {
+            **self.env,
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "http.extraHeader",
+            "GIT_CONFIG_VALUE_0": f"Authorization: Basic {credentials}",
+        }
+        command = ["git", "-c", "credential.helper=", "push", remote["url"], f":refs/heads/{branch}"]
+        return subprocess.run(command, cwd=clone, env=env, capture_output=True, text=True, timeout=300)
 
 
 def _indent(text: str) -> str:

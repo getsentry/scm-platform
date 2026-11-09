@@ -1,0 +1,298 @@
+import io
+
+import pytest
+
+from scm.errors import ClientClosedRequest, GitPushNotGranted, GitRequestMalformed, RpcMalformedRequestHeaders
+from scm.git.push import (
+    MAX_UPDATES_LENGTH,
+    PushRequest,
+    RefUpdate,
+    ReplayedBody,
+    bounded_body,
+    read_push_request,
+    refusal_report,
+    refused_updates,
+)
+from scm.git.types import PushRule
+from tests.unit.git_builders import NEW_ID, OLD_ID, PACK, ZERO_ID, make_push_body, pkt
+
+RULE = PushRule(repository=5, branches=["seer/fix", "seer/other"])
+
+
+def read(body: bytes, headers: dict[str, str] | None = None) -> tuple[PushRequest, io.BytesIO]:
+    stream = io.BytesIO(body)
+    return read_push_request(headers or {}, stream), stream
+
+
+class Trickle(io.BytesIO):
+    """A body that returns at most one byte per read, as a socket may."""
+
+    def read(self, size: int | None = -1, /) -> bytes:
+        return super().read(1 if size is None or size < 0 else min(size, 1))
+
+
+class Failing:
+    def read(self, size: int = -1, /) -> bytes:
+        raise ConnectionResetError()
+
+
+class TestRead:
+    def test_updates_and_capabilities(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (ZERO_ID, NEW_ID, "refs/heads/seer/other"))
+        request, stream = read(body)
+        assert request.updates == [
+            RefUpdate(old_id=OLD_ID.encode(), new_id=NEW_ID.encode(), ref=b"refs/heads/seer/fix"),
+            RefUpdate(old_id=ZERO_ID.encode(), new_id=NEW_ID.encode(), ref=b"refs/heads/seer/other"),
+        ]
+        assert request.capabilities == {
+            "report-status",
+            "side-band-64k",
+            "quiet",
+            "object-format=sha1",
+            "agent=git/2.54.0",
+        }
+
+    def test_leaves_the_pack_unread(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
+        request, stream = read(body)
+        assert request.head + stream.read() == body
+        assert stream.getvalue()[len(request.head) :] == PACK
+
+    def test_probe(self):
+        # git sends a lone flush before a push too large to buffer, to check its credentials before it streams.
+        request, stream = read(b"0000")
+        assert request == PushRequest(updates=[], capabilities=frozenset(), head=b"0000")
+
+    def test_shallow_commits(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"), shallow=("3" * 40, "4" * 40))
+        request, stream = read(body)
+        assert [update.ref for update in request.updates] == [b"refs/heads/seer/fix"]
+        assert request.head + stream.read() == body
+
+    def test_sha256_object_ids(self):
+        old_id, new_id = "a" * 64, "b" * 64
+        request, _ = read(make_push_body((old_id, new_id, "refs/heads/seer/fix")))
+        assert request.updates[0].new_id == new_id.encode()
+
+    def test_short_reads(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"), shallow=("3" * 40,))
+        request = read_push_request({}, Trickle(body))
+        assert request.updates[0].ref == b"refs/heads/seer/fix"
+
+    def test_trailing_newlines(self):
+        line = f"{OLD_ID} {NEW_ID} refs/heads/seer/fix".encode()
+        request, _ = read(pkt(line + b"\0report-status\n") + pkt(line.replace(b"fix", b"other") + b"\n") + b"0000")
+        assert [update.ref for update in request.updates] == [b"refs/heads/seer/fix", b"refs/heads/seer/other"]
+        assert request.capabilities == {"report-status"}
+
+    def test_uppercase_pkt_length(self):
+        line = f"{OLD_ID} {NEW_ID} refs/heads/{'x' * 200}".encode()
+        request, _ = read(b"%04X" % (len(line) + 4) + line + b"0000")
+        assert request.updates[0].ref == f"refs/heads/{'x' * 200}".encode()
+
+    @pytest.mark.parametrize("encoding", ["identity", "", " Identity "])
+    def test_identity_encoding(self, encoding):
+        request, _ = read(make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")), {"Content-Encoding": encoding})
+        assert len(request.updates) == 1
+
+    @pytest.mark.parametrize("encoding", ["gzip", "deflate"])
+    def test_compressed(self, encoding):
+        with pytest.raises(GitPushNotGranted, match="compressed push"):
+            read(make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")), {"content-encoding": encoding})
+
+    def test_signed_push(self):
+        body = pkt(b"push-cert\0report-status") + pkt(b"certificate version 0.1\n") + b"0000"
+        with pytest.raises(GitPushNotGranted, match="signed pushes"):
+            read(body)
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param(b"", id="empty"),
+            pytest.param(b"00", id="short-length"),
+            pytest.param(b"zzzz", id="length-not-hex"),
+            pytest.param(b"+004", id="length-with-sign"),
+            pytest.param(b" 0a\n", id="length-with-spaces"),
+            pytest.param(b"0001", id="delimiter"),
+            pytest.param(b"0003", id="v2-special-packet"),
+            pytest.param(b"fff1" + b"x" * 65517, id="pkt-line-too-long"),
+            pytest.param(pkt(f"{OLD_ID} {NEW_ID} refs/heads/a".encode()), id="no-flush"),
+            pytest.param(pkt(f"{OLD_ID} {NEW_ID}".encode()) + b"0000", id="no-ref"),
+            pytest.param(pkt(f"{OLD_ID} {NEW_ID} ".encode()) + b"0000", id="empty-ref"),
+            pytest.param(pkt(f"{OLD_ID[:-1]} {NEW_ID} refs/heads/a".encode()) + b"0000", id="short-id"),
+            pytest.param(pkt(f"{'A' * 40} {NEW_ID} refs/heads/a".encode()) + b"0000", id="uppercase-id"),
+            pytest.param(pkt(f"{OLD_ID} {'b' * 64} refs/heads/a".encode()) + b"0000", id="mixed-id-lengths"),
+            pytest.param(pkt(b"shallow 123\n") + b"0000", id="bad-shallow"),
+            pytest.param(pkt(f"{OLD_ID} {NEW_ID} refs/heads/a\0caps \xff".encode("latin-1")) + b"0000", id="caps"),
+        ],
+    )
+    def test_malformed(self, body):
+        with pytest.raises(GitRequestMalformed):
+            read(body)
+
+    def test_shallow_line_after_an_update(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/a"))
+        flush = body.index(b"0000")
+        with pytest.raises(GitRequestMalformed):
+            read(body[:flush] + pkt(f"shallow {'3' * 40}".encode()) + body[flush:])
+
+    def test_too_long_before_the_pack(self):
+        updates = [(OLD_ID, NEW_ID, f"refs/heads/branch-{i:05d}") for i in range(MAX_UPDATES_LENGTH // 90)]
+        with pytest.raises(GitRequestMalformed, match=f"longer than {MAX_UPDATES_LENGTH} bytes"):
+            read(make_push_body(*updates))
+
+    def test_connection_fails(self):
+        with pytest.raises(ClientClosedRequest):
+            read_push_request({}, Failing())
+
+
+def request_for(*updates: tuple[str, str, str], capabilities: str = "report-status side-band-64k") -> PushRequest:
+    return read(make_push_body(*updates, capabilities=capabilities))[0]
+
+
+class TestRefusedUpdates:
+    def test_listed_branches(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (ZERO_ID, NEW_ID, "refs/heads/seer/other"))
+        assert refused_updates(RULE, request) == {}
+
+    def test_force_push_to_a_listed_branch(self):
+        # Nothing here knows whether the new commit descends from the old one, so the provider's protection decides.
+        assert refused_updates(RULE, request_for(("3" * 40, NEW_ID, "refs/heads/seer/fix"))) == {}
+
+    def test_probe(self):
+        assert refused_updates(RULE, read(b"0000")[0]) == {}
+
+    @pytest.mark.parametrize(
+        "ref,reason",
+        [
+            ("refs/heads/main", "the git grant does not list this branch"),
+            ("refs/heads/seer/fix/deeper", "the git grant does not list this branch"),
+            ("refs/heads/seer", "the git grant does not list this branch"),
+            ("refs/heads/Seer/fix", "the git grant does not list this branch"),
+            ("refs/tags/seer/fix", "the git grant allows pushing branches only"),
+            ("refs/pull/1/head", "the git grant allows pushing branches only"),
+            ("refs/notes/commits", "the git grant allows pushing branches only"),
+            ("HEAD", "the git grant allows pushing branches only"),
+            ("seer/fix", "the git grant allows pushing branches only"),
+        ],
+    )
+    def test_refs_the_rule_does_not_list(self, ref, reason):
+        assert refused_updates(RULE, request_for((OLD_ID, NEW_ID, ref))) == {ref.encode(): reason}
+
+    def test_deleting_a_listed_branch(self):
+        refused = refused_updates(RULE, request_for((OLD_ID, ZERO_ID, "refs/heads/seer/fix")))
+        assert refused == {b"refs/heads/seer/fix": "the git grant does not allow deleting a branch"}
+
+    def test_one_refused_update_refuses_the_push(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (OLD_ID, NEW_ID, "refs/heads/main"))
+        assert refused_updates(RULE, request) == {
+            b"refs/heads/main": "the git grant does not list this branch",
+            b"refs/heads/seer/fix": "refused with the rest of the push",
+        }
+
+    def test_push_options(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), capabilities="report-status push-options")
+        assert refused_updates(RULE, request) == {
+            b"refs/heads/seer/fix": "the git endpoint does not relay push options"
+        }
+
+
+def unband(response: bytes) -> bytes:
+    """The band 1 data of a side band response, checking that it ends with a flush."""
+    data, position = b"", 0
+    while response[position : position + 4] != b"0000":
+        length = int(response[position : position + 4], 16)
+        assert response[position + 4] == 1
+        data += response[position + 5 : position + length]
+        position += length
+    assert position + 4 == len(response)
+    return data
+
+
+class TestRefusalReport:
+    REFUSED = {b"refs/heads/main": "the git grant does not list this branch"}
+    REPORT = pkt(b"unpack ok\n") + pkt(b"ng refs/heads/main the git grant does not list this branch\n") + b"0000"
+
+    def test_report_status(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/main"), capabilities="report-status")
+        assert refusal_report(request, self.REFUSED) == self.REPORT
+
+    def test_report_status_v2(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/main"), capabilities="report-status-v2")
+        assert refusal_report(request, self.REFUSED) == self.REPORT
+
+    def test_side_band_64k(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/main"), capabilities="report-status side-band-64k")
+        response = refusal_report(request, self.REFUSED)
+        assert response == pkt(b"\1" + self.REPORT) + b"0000"
+
+    def test_side_band_splits_at_1000_bytes(self):
+        updates = [(OLD_ID, NEW_ID, f"refs/heads/branch-{i:03d}") for i in range(40)]
+        request = request_for(*updates, capabilities="report-status side-band")
+        refused = {update.ref: "the git grant does not list this branch" for update in request.updates}
+        response = refusal_report(request, refused)
+        assert response is not None
+        assert max(int(response[i : i + 4], 16) for i in range(0, len(response) - 4, 1000)) <= 1000
+        assert unband(response).startswith(pkt(b"unpack ok\n"))
+        assert unband(response).count(b"ng refs/heads/branch-") == 40
+
+    def test_every_update_in_order(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"), (OLD_ID, NEW_ID, "refs/heads/main"))
+        response = refusal_report(request, refused_updates(RULE, request))
+        assert response is not None
+        assert unband(response) == (
+            pkt(b"unpack ok\n")
+            + pkt(b"ng refs/heads/seer/fix refused with the rest of the push\n")
+            + pkt(b"ng refs/heads/main the git grant does not list this branch\n")
+            + b"0000"
+        )
+
+    def test_client_asked_for_no_report(self):
+        request = request_for((OLD_ID, NEW_ID, "refs/heads/main"), capabilities="side-band-64k quiet")
+        assert refusal_report(request, self.REFUSED) is None
+
+
+class TestReplayedBody:
+    @pytest.mark.parametrize("size", [1, 3, 5, 64, 1024])
+    def test_head_then_rest(self, size):
+        body = ReplayedBody(b"head", io.BytesIO(b"rest of the body"))
+        chunks = []
+        while chunk := body.read(size):
+            chunks.append(chunk)
+        assert b"".join(chunks) == b"headrest of the body"
+        assert all(len(chunk) <= size for chunk in chunks)
+
+    def test_read_all(self):
+        assert ReplayedBody(b"head", io.BytesIO(b"rest")).read() == b"headrest"
+
+    def test_empty_head(self):
+        assert ReplayedBody(b"", io.BytesIO(b"rest")).read(64) == b"rest"
+
+
+class TestBoundedBody:
+    def test_ends_at_content_length(self):
+        # As a connection's socket would, the stream goes on past the body.
+        stream = io.BytesIO(b"body" + b"next request")
+        body = bounded_body({"content-length": "4"}, stream)
+        assert body.read(64) == b"body"
+        assert body.read(64) == b""
+        assert body.read() == b""
+        assert stream.tell() == 4
+
+    def test_short_reads(self):
+        body = bounded_body({"Content-Length": "4"}, Trickle(b"body and more"))
+        assert b"".join(iter(lambda: body.read(64), b"")) == b"body"
+
+    def test_without_content_length(self):
+        stream = io.BytesIO(b"body")
+        assert bounded_body({}, stream) is stream
+
+    @pytest.mark.parametrize("length", ["x", "-1", ""])
+    def test_invalid_content_length(self, length):
+        with pytest.raises(RpcMalformedRequestHeaders):
+            bounded_body({"Content-Length": length}, io.BytesIO(b""))
+
+    def test_truncated_updates(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
+        with pytest.raises(GitRequestMalformed, match="ended before its ref updates did"):
+            read_push_request({}, bounded_body({"Content-Length": "20"}, io.BytesIO(body)))

@@ -20,12 +20,22 @@ from scm.errors import (
 from scm.git.grant import sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
-from scm.git.types import GRANT_HEADER, GitOperation, Readable
+from scm.git.types import GRANT_HEADER, FetchRule, GitOperation, PushRule, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
 from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, reported_local
-from tests.unit.git_builders import make_grant, make_key_pair, make_provider, make_repository
+from tests.unit.git_builders import (
+    NEW_ID,
+    OLD_ID,
+    make_grant,
+    make_key_pair,
+    make_provider,
+    make_push_body,
+    make_repository,
+    make_v1_grant,
+    pkt,
+)
 from tests.unit.git_upstream import (
     ClosingAdapter,
     HostRefused,
@@ -226,13 +236,20 @@ class TestRefusedBeforeTheProvider:
 
     def test_operation_the_grant_does_not_allow(self):
         recorder = Recorder()
-        assert_refused(push(make_server(recorder), signed_grant()), 403, "allows fetch, not push")
+        assert_refused(push(make_server(recorder), signed_grant()), 403, "allows fetch on this repository, not push")
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
         ]
         assert recorder.errors[0][1] == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER}
+
+    def test_fetch_rule_that_lists_branches(self):
+        recorder = Recorder()
+        grant = signed_grant(rules=[FetchRule(repository=5, branches=["main"])])
+        assert_refused(request(make_server(recorder), grant), 403, "cannot keep a fetch to a rule's branches")
+        assert recorder.repository_lookups == []
+        assert recorder.token_lookups == []
 
     def test_repository_the_grant_does_not_list(self):
         recorder = Recorder()
@@ -296,10 +313,10 @@ class TestRelay:
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_token_unavailable"})
         ]
 
-    def test_token_asked_for_the_grants_operation(self):
+    def test_token_asked_for_the_requests_operation(self):
         recorder = Recorder()
-        push(make_server(recorder), signed_grant(operation="push"))
-        assert recorder.token_lookups == [(make_repository(), "push")]
+        request(make_server(recorder), signed_grant())
+        assert recorder.token_lookups == [(make_repository(), "fetch")]
 
     def test_forwards_with_remote_and_token(self):
         recorder = Recorder()
@@ -618,17 +635,17 @@ class TestRelay:
             relay = GitRelay(ca_bundle=upstream.ca_bundle)
             response = request(
                 make_server(recorder, relay),
-                signed_grant(operation="push"),
+                signed_grant(),
                 method="POST",
-                route="git-receive-pack",
+                route="git-upload-pack",
                 query="",
                 headers={"Content-Length": "8"},
                 body=io.BytesIO(b"00000000"),
             )
             assert b"".join(response.content) == b"00000000"  # The fake upstream echoes the body.
         assert recorder.bytes == {
-            ("sentry.scm.git.request_size", "push"): 8,
-            ("sentry.scm.git.response_size", "push"): 8,
+            ("sentry.scm.git.request_size", "fetch"): 8,
+            ("sentry.scm.git.response_size", "fetch"): 8,
         }
 
     def test_relays_end_to_end(self):
@@ -721,3 +738,138 @@ class TestKeptOutOfErrorReports:
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "unhandled_exception"})
         ]
+
+
+PUSH_GRANT = sign_grant(KEY.private, make_grant(rules=[PushRule(repository=5, branches=["seer/fix"])]))
+
+
+def push_body(ref: str, capabilities: str = "report-status side-band-64k") -> bytes:
+    return make_push_body((OLD_ID, NEW_ID, ref), capabilities=capabilities)
+
+
+class Unreliable(io.BytesIO):
+    def read(self, size: int | None = -1, /) -> bytes:
+        raise ConnectionResetError()
+
+
+class TestPushRules:
+    """A push under a push rule reaches the provider only if the rule allows every ref it updates."""
+
+    def send(self, server: GitServer, body: Readable, headers: dict[str, str] | None = None) -> StreamResponse:
+        return request(
+            server, PUSH_GRANT, method="POST", route="git-receive-pack", query="", headers=headers, body=body
+        )
+
+    @pytest.mark.parametrize("sized", [True, False], ids=["content-length", "chunked"])
+    def test_listed_branch_end_to_end(self, sized):
+        body = push_body("refs/heads/seer/fix")
+        with running_upstream() as upstream:
+            recorder = Recorder(
+                repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
+            )
+            response = self.send(
+                make_server(recorder, GitRelay(ca_bundle=upstream.ca_bundle)),
+                io.BytesIO(body),
+                headers={"Content-Length": str(len(body))} if sized else None,
+            )
+            # The fake upstream echoes the body, so the provider got the updates the server read and the pack after.
+            assert b"".join(response.content) == body
+        assert recorder.token_lookups == [(recorder.repository, "push")]
+        assert recorder.bytes[("sentry.scm.git.request_size", "push")] == len(body)
+
+    def test_probe(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        assert self.send(server, io.BytesIO(b"0000")).status_code == 200
+        assert server.relay.forward.call_args.kwargs["body"].read() == b"0000"  # type: ignore[attr-defined]
+
+    def test_info_refs(self):
+        recorder = Recorder()
+        response = request(make_server(recorder), PUSH_GRANT, query="service=git-receive-pack")
+        assert b"".join(response.content) == b"refs"
+
+    def test_unlisted_branch_gets_a_report(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        body = io.BytesIO(push_body("refs/heads/main"))
+        response = self.send(server, body)
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "application/x-git-receive-pack-result"
+        report = b"".join(response.content)
+        assert int(response.headers["Content-Length"]) == len(report)
+        assert report == (
+            pkt(
+                b"\1"
+                + pkt(b"unpack ok\n")
+                + pkt(b"ng refs/heads/main the git grant does not list this branch\n")
+                + b"0000"
+            )
+            + b"0000"
+        )
+        # The pack is read to the end, so git gets to read the report rather than a broken pipe.
+        assert body.read() == b""
+        assert recorder.repository_lookups == []
+        assert recorder.token_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_push_not_granted"})
+        ]
+        [(error, context)] = recorder.errors
+        assert error.detail == (  # type: ignore[attr-defined]
+            "The git grant does not allow this push: refs/heads/main (the git grant does not list this branch)."
+        )
+        assert context == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER, "operation": "push"}
+
+    @pytest.mark.parametrize(
+        "ref,old_id,new_id,reason",
+        [
+            ("refs/tags/v1", OLD_ID, NEW_ID, "allows pushing branches only"),
+            ("refs/heads/seer/fix", OLD_ID, "0" * 40, "does not allow deleting a branch"),
+        ],
+    )
+    def test_other_refused_updates(self, ref, old_id, new_id, reason):
+        body = make_push_body((old_id, new_id, ref), capabilities="report-status")
+        assert reason.encode() in b"".join(self.send(make_server(Recorder()), io.BytesIO(body)).content)
+
+    def test_drains_no_further_than_content_length(self):
+        # A caller may pass a connection's stream, which goes on past the body, and reading on would wait for ever.
+        body = push_body("refs/heads/main")
+        stream = io.BytesIO(body + b"the next request")
+        response = self.send(make_server(Recorder()), stream, headers={"Content-Length": str(len(body))})
+        assert response.status_code == 200
+        assert stream.tell() == len(body)
+
+    def test_client_that_asked_for_no_report(self):
+        recorder = Recorder()
+        body = io.BytesIO(push_body("refs/heads/main", capabilities="side-band-64k"))
+        assert_refused(self.send(make_server(recorder), body), 403, "does not allow this push: refs/heads/main")
+        assert body.read() == b""
+
+    def test_malformed(self):
+        recorder = Recorder()
+        assert_refused(self.send(make_server(recorder), io.BytesIO(b"garbage")), 400, "not pkt-lines")
+        assert recorder.repository_lookups == []
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_request_malformed"})
+        ]
+
+    def test_compressed(self):
+        response = self.send(
+            make_server(Recorder()), io.BytesIO(push_body("refs/heads/seer/fix")), headers={"Content-Encoding": "gzip"}
+        )
+        assert_refused(response, 403, "compressed push")
+
+    def test_client_closes_while_sending_its_updates(self):
+        recorder = Recorder()
+        response = self.send(make_server(recorder), Unreliable())
+        assert response.status_code == 499
+        assert recorder.errors == []
+
+    def test_version_1_push_grant_relays_unread(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        grant = sign_grant(KEY.private, make_v1_grant(operation="push"))
+        body = io.BytesIO(b"not a push the server could read")
+        request(server, grant, method="POST", route="git-receive-pack", query="", body=body)
+        assert body.tell() == 0
+        assert server.relay.forward.call_args.kwargs["body"].read() == b"not a push the server could read"  # type: ignore[attr-defined]
