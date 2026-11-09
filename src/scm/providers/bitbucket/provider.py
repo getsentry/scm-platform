@@ -549,14 +549,14 @@ class BitbucketProvider:
 
     def _branch_exists(self, branch: BranchName) -> bool:
         try:
-            self.get(f"/2.0/repositories/{self.repository_path}/refs/branches/{quote(branch, safe='/')}")
+            self.get(f"/2.0/repositories/{self.repository_path}/refs/branches/{quote(branch)}")
         except ResourceNotFound:
             return False
         return True
 
     def _file_content(self, path: str, ref: SHA) -> bytes:
         """Read a file to rewrite it elsewhere, refusing what an upload can't recreate."""
-        file_path = f"/2.0/repositories/{self.repository_path}/src/{ref}/{quote(path)}"
+        file_path = self._src_path(ref, path)
         # An upload can't set attributes, so a moved executable or symlink would lose them.
         # `binary` only describes the content, which the upload keeps.
         attributes = set(self.get(file_path, params={"format": "meta"}).json().get("attributes", [])) - {"binary"}
