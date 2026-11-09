@@ -203,19 +203,23 @@ def _check_branches(branches: list[BranchName]) -> None:
     if not branches:
         raise ValueError("A rule's branch list must not be empty.")
     for name in branches:
-        # git check-ref-format's rules for refs/heads/<name>, with what git branch refuses on top (a leading "-" and
-        # "HEAD"). A name starting with refs/ is a valid branch, but it's far more likely a full ref name by mistake.
-        if (
-            not name
-            or name in ("@", "HEAD")
-            or name.startswith(("-", "/", "refs/"))
-            or name.endswith(("/", "."))
-            or _NOT_IN_A_REF.search(name)
-            or any(part.startswith(".") or part.endswith(".lock") for part in name.split("/"))
-        ):
+        if not _is_branch_name(name):
             raise ValueError(
                 f"{name!r} is not a branch name. Name a branch as git branch takes it, without refs/heads/."
             )
+
+
+def _is_branch_name(name: str) -> bool:
+    # git check-ref-format's rules for refs/heads/<name>, with what git branch refuses on top (a leading "-" and
+    # "HEAD"). A name starting with refs/ is a valid branch, but it's far more likely a full ref name by mistake.
+    return not (
+        not name
+        or name in ("@", "HEAD")
+        or name.startswith(("-", "/", "refs/"))
+        or name.endswith(("/", "."))
+        or _NOT_IN_A_REF.search(name)
+        or any(part.startswith(".") or part.endswith(".lock") for part in name.split("/"))
+    )
 
 
 type GetToken = Callable[[Repository, GitOperation], Secret | None]

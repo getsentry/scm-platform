@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, SCMCodedError
 from scm.git.relay import DEFAULT_CHUNK_SIZE, _read
-from scm.git.types import GrantV2PushRule, Readable
+from scm.git.types import GrantV2PushRule, Readable, _is_branch_name
 
 MAX_UPDATES_LENGTH = 64 * 1024
 """The most bytes a push may send before its pack. An update takes under 100 bytes plus its ref's name, and a push
@@ -26,6 +26,8 @@ _CAPABILITIES = frozenset(
     {"atomic", "ofs-delta", "quiet", "report-status", "report-status-v2", "side-band", "side-band-64k"}
 )
 _CAPABILITIES_WITH_VALUES = frozenset({"agent", "object-format", "session-id"})
+# The object formats git names in object-format=, and the length of an object id in each, in hex.
+_OBJECT_ID_LENGTHS = {"sha1": 40, "sha256": 64}
 
 _FLUSH = b"0000"
 # A pkt-line's length, in 4 hex digits, counts the 4 digits too.
@@ -108,22 +110,40 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
         # git compresses fetches but never pushes.
         raise GitOperationNotGranted(detail="The git endpoint does not read a compressed push.")
     reader = _PktReader(body)
+    shallow: list[bytes] = []
     updates: list[RefUpdate] = []
     capabilities: frozenset[str] = frozenset()
+    # Each line must be what git sends, in the order it sends them. receive-pack reads more than that, such as
+    # capabilities on any update and shallow commits between updates, and anything this lets through it relays.
     while (line := reader.read_line()) is not None:
         if not updates and line.startswith(b"shallow "):
             # A push from a shallow clone lists its shallow commits first, and they pass on unchanged.
-            if not _OBJECT_ID.fullmatch(line.removeprefix(b"shallow ")):
-                raise GitMalformedRequestBody(detail="The push lists a shallow commit that is not an object id.")
+            shallow.append(line.removeprefix(b"shallow "))
             continue
         if not updates and line.startswith(b"push-cert\0"):
             message = "The git endpoint does not relay signed pushes."
             requested = _capabilities(line.partition(b"\0")[2])
             raise PushRefused(detail=message, report=_error_report(requested, message))
+        line, separator, requested_bytes = line.partition(b"\0")
+        if separator and updates:
+            raise GitMalformedRequestBody(detail="Only the push's first ref update may carry capabilities.")
         if not updates:
-            line, _, requested_bytes = line.partition(b"\0")
             capabilities = _capabilities(requested_bytes)
         updates.append(_ref_update(line))
+
+    formats = [name.partition("=")[2] for name in capabilities if name.startswith("object-format=")]
+    if len(formats) > 1:
+        raise GitMalformedRequestBody(detail="The push names more than one object format.")
+    # Without object-format=, git means SHA-1.
+    id_length = _OBJECT_ID_LENGTHS.get(formats[0] if formats else "sha1")
+    if id_length is None:
+        raise GitMalformedRequestBody(detail="The push names an object format git doesn't have.")
+    if any(not _OBJECT_ID.fullmatch(commit) or len(commit) != id_length for commit in shallow):
+        raise GitMalformedRequestBody(detail="The push lists a shallow commit that is not an object id.")
+    if any(len(update.old_id) != id_length for update in updates):
+        raise GitMalformedRequestBody(detail="The push's object ids don't match its object format.")
+    if len({update.ref for update in updates}) < len(updates):
+        raise GitMalformedRequestBody(detail="The push updates a ref more than once.")
     return PushRequest(updates=updates, capabilities=capabilities, head=reader.read_so_far())
 
 
@@ -160,11 +180,8 @@ def _refusal(rule: GrantV2PushRule, update: RefUpdate) -> tuple[int, str] | None
     """Return why ``rule`` refuses ``update``, ranked by how far the update got, or None if the rule allows it."""
     if not update.ref.startswith(b"refs/heads/"):
         return _NOT_A_BRANCH
-    try:
-        branch = update.ref.removeprefix(b"refs/heads/").decode()
-    except UnicodeDecodeError:
-        return _NOT_COVERED
-    if not rule.covers(branch):
+    # Reading the push checked that the branch's name is one git takes, so it decodes.
+    if not rule.covers(update.ref.removeprefix(b"refs/heads/").decode()):
         return _NOT_COVERED
     if update.deletes:
         return _DELETES
@@ -288,6 +305,15 @@ def _ref_update(line: bytes) -> RefUpdate:
     new_id, _, ref = rest.partition(b" ")
     if not (_OBJECT_ID.fullmatch(old_id) and _OBJECT_ID.fullmatch(new_id) and len(old_id) == len(new_id) and ref):
         raise GitMalformedRequestBody(detail="The push's ref updates are malformed.")
+    if ref.startswith(b"refs/heads/"):
+        # A rule checks the branch the push names, and a name git wouldn't take might not be the branch the
+        # provider updates.
+        try:
+            branch = ref.removeprefix(b"refs/heads/").decode()
+        except UnicodeDecodeError:
+            branch = ""
+        if not _is_branch_name(branch):
+            raise GitMalformedRequestBody(detail="The push updates a branch whose name git wouldn't take.")
     return RefUpdate(old_id=old_id, new_id=new_id, ref=ref)
 
 

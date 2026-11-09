@@ -72,8 +72,57 @@ class TestRead:
 
     def test_sha256_object_ids(self):
         old_id, new_id = "a" * 64, "b" * 64
-        request, _ = read(make_push_body((old_id, new_id, "refs/heads/seer/fix")))
+        body = make_push_body(
+            (old_id, new_id, "refs/heads/seer/fix"), capabilities="report-status object-format=sha256"
+        )
+        request, _ = read(body)
         assert request.updates[0].new_id == new_id.encode()
+
+    @pytest.mark.parametrize(
+        "capabilities,ids,shallow",
+        [
+            ("report-status object-format=sha256", ("1" * 40, "2" * 40), ()),
+            ("report-status object-format=sha1", ("a" * 64, "b" * 64), ()),
+            ("report-status", ("a" * 64, "b" * 64), ()),
+            ("report-status", (OLD_ID, NEW_ID), ("3" * 64,)),
+            ("report-status object-format=md5", (OLD_ID, NEW_ID), ()),
+            ("report-status object-format=sha1 object-format=sha256", (OLD_ID, NEW_ID), ()),
+        ],
+        ids=["sha256-with-sha1-ids", "sha1-with-sha256-ids", "default-with-sha256-ids", "shallow-length", "md5", "two"],
+    )
+    def test_object_ids_that_dont_match_the_object_format(self, capabilities, ids, shallow):
+        body = make_push_body((*ids, "refs/heads/seer/fix"), capabilities=capabilities, shallow=shallow)
+        with pytest.raises(GitMalformedRequestBody):
+            read(body)
+
+    def test_capabilities_on_a_later_update(self):
+        # receive-pack reads capabilities after a NUL on any update, so one there would slip past the allowlist.
+        first = f"{OLD_ID} {NEW_ID} refs/heads/seer/fix".encode()
+        later = f"{OLD_ID} {NEW_ID} refs/heads/seer/other".encode()
+        body = pkt(first + b"\0report-status") + pkt(later + b"\0push-options") + b"0000"
+        with pytest.raises(GitMalformedRequestBody, match="first ref update may carry capabilities"):
+            read(body)
+
+    @pytest.mark.parametrize(
+        "ref",
+        [
+            b"refs/heads/",
+            b"refs/heads/a b",
+            b"refs/heads/a..b",
+            b"refs/heads/a\x01",
+            b"refs/heads/x.lock",
+            b"refs/heads/\xff",
+        ],
+    )
+    def test_branch_name_git_would_not_take(self, ref):
+        line = f"{OLD_ID} {NEW_ID} ".encode() + ref
+        with pytest.raises(GitMalformedRequestBody, match="name git wouldn't take"):
+            read(pkt(line + b"\0report-status") + b"0000")
+
+    def test_same_ref_twice(self):
+        body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"), ("2" * 40, "3" * 40, "refs/heads/seer/fix"))
+        with pytest.raises(GitMalformedRequestBody, match="more than once"):
+            read(body)
 
     def test_short_reads(self):
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"), shallow=("3" * 40,))
@@ -215,16 +264,6 @@ class TestRefusedUpdates:
         assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"))) == {
             b"refs/heads/seer/fix": "the git grant allows only creating this branch"
         }
-
-    def test_non_utf8_branch_against_a_pattern(self):
-        rules = [GrantV2PushRule(repository=5, branch_patterns=[".+"])]
-        ref = b"refs/heads/\xff"
-        request = PushRequest(
-            updates=[RefUpdate(old_id=OLD_ID.encode(), new_id=NEW_ID.encode(), ref=ref)],
-            capabilities=frozenset(),
-            head=b"",
-        )
-        assert refused_updates(rules, request) == {ref: "the git grant does not cover this branch"}
 
     def test_any_rule_allows_an_update(self):
         # The agent may start branches under seer/ and keep pushing to the one Seer added after its first push.
