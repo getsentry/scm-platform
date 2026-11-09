@@ -1,0 +1,10 @@
+{
+  "body": {
+    "error": {
+      "message": "s6-no-such-branch"
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 404
+}

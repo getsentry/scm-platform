@@ -1,4 +1,6 @@
 import base64
+import email
+import email.policy
 import json
 import pathlib
 import unittest.mock
@@ -8,7 +10,15 @@ from typing import Any
 import pytest
 import requests
 
-from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, ResourceBadRequest, ResourceNotFound
+from scm.errors import (
+    PathIsDirectory,
+    PathIsNotDirectory,
+    ReadmeNotFound,
+    ResourceBadRequest,
+    ResourceConflict,
+    ResourceNotFound,
+    StaleBranchHead,
+)
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
@@ -20,7 +30,10 @@ from scm.providers.bitbucket.provider import (
     split_patches,
 )
 from scm.types import (
+    ChmodCommitAction,
     CompareCommitsProtocol,
+    CreateCommitProtocol,
+    DeleteCommitAction,
     GetAppInstallationProtocol,
     GetCommitChangesProtocol,
     GetCommitProtocol,
@@ -35,7 +48,9 @@ from scm.types import (
     GetPullRequestTemplateProtocol,
     GetReadmeProtocol,
     GetRepositoryProtocol,
+    MoveCommitAction,
     Repository,
+    WriteCommitAction,
 )
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "bitbucket"
@@ -58,11 +73,19 @@ SUPPORTED_PROTOCOLS = [
     GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetRepositoryProtocol,
+    CreateCommitProtocol,
 ]
 COMMIT_SHA = "e723f15089c22737bb51aee8db06e0eab91e4ba1"
 HEAD_SHA = "e3ef83d1a831b7b26c838372f668b1627bbf9a1a"
 BRANCH_SHA = "c495d0431cfae535ec9a05e4def54229d0eb2ad2"
 TEST_AUTHOR = {"name": "Test User", "email": "test@example.com", "date": datetime(2026, 11, 5, 20, 16, 34, tzinfo=UTC)}
+
+
+PARENT = "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\xff\xfe"
+
+PNG_BASE64 = base64.b64encode(PNG).decode()
 
 
 def recorded(name: str) -> requests.Response:
@@ -632,3 +655,172 @@ class TestCommitMapping:
             "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-x\n+y\n"
         )
         assert split_patches(diff) == {"a.py": "@@ -1 +1 @@\n-x\n+y\n"}
+
+
+def sent_parts(client: unittest.mock.MagicMock) -> list[tuple[str, str | None, bytes]]:
+    """The (name, filename, content) of each part of the multipart body sent to Bitbucket."""
+    kwargs = request_kwargs(client)
+    head = f"Content-Type: {kwargs['headers']['Content-Type']}\r\n\r\n".encode()
+    message = email.message_from_bytes(head + kwargs["data"], policy=email.policy.HTTP)
+    parts = []
+    for part in message.walk():
+        if part.is_multipart():
+            continue
+        name = part.get_param("name", header="content-disposition")
+        payload = part.get_payload(decode=True)
+        assert isinstance(name, str) and isinstance(payload, bytes)
+        parts.append((name, part.get_filename(), payload))
+    return parts
+
+
+def sent_form(client: unittest.mock.MagicMock) -> list[tuple[str, bytes]]:
+    return [(name, content) for name, _, content in sent_parts(client)]
+
+
+def sent_filenames(client: unittest.mock.MagicMock) -> dict[str, str]:
+    return {name: filename for name, filename, _ in sent_parts(client) if filename}
+
+
+class TestCreateCommit:
+    def test_commits_writes_and_deletes(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("commit_branch"), recorded("commit_created")]
+
+        result = provider.create_commit(
+            "s6-fixture",
+            PARENT,
+            "Add notes",
+            [
+                WriteCommitAction(action="create", filename="notes.txt", content="hello\n", encoding="utf-8"),
+                WriteCommitAction(action="create", filename="logo.png", content=PNG_BASE64, encoding="base64"),
+                DeleteCommitAction(filename="PULL_REQUEST_TEMPLATE.md"),
+            ],
+            author={"name": "Test User", "email": "test@example.com"},
+        )
+
+        branch_call, commit_call = client.request.call_args_list
+        assert branch_call.kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches/s6-fixture"
+        assert commit_call.kwargs["method"] == "POST"
+        assert commit_call.kwargs["path"] == f"/2.0/repositories/{REPO}/src"
+        assert commit_call.kwargs["headers"]["Content-Type"].startswith("multipart/form-data; boundary=")
+        assert sent_form(client) == [
+            ("message", b"Add notes"),
+            ("branch", b"s6-fixture"),
+            ("parents", PARENT.encode()),
+            ("author", b"Test User <test@example.com>"),
+            ("/notes.txt", b"hello\n"),
+            ("/logo.png", PNG),
+            ("files", b"PULL_REQUEST_TEMPLATE.md"),
+        ]
+        assert sent_filenames(client) == {"/notes.txt": "notes.txt", "/logo.png": "logo.png"}
+        assert result["data"] == {
+            "id": "25a878f7635147b9eef09e958ca34395bc67b705",
+            "message": "Add notes",
+            "author": {"name": "Test User", "email": "test@example.com", "date": None},
+            "additions": None,
+            "deletions": None,
+        }
+
+    def test_creates_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("commit_branch_not_found"), recorded("commit_created")]
+
+        result = provider.create_commit("s6-fixture", PARENT, "m", [], create_branch=True)
+
+        assert result["data"]["id"] == "25a878f7635147b9eef09e958ca34395bc67b705"
+        assert result["data"]["author"] is None
+        assert "author" not in dict(sent_form(client))
+
+    def test_create_branch_conflicts_with_existing_branch(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.return_value = recorded("commit_branch")
+        with pytest.raises(ResourceConflict):
+            provider.create_commit("s6-fixture", PARENT, "m", [], create_branch=True)
+        assert client.request.call_count == 1
+
+    def test_missing_branch_is_not_created(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("commit_branch_not_found")
+        with pytest.raises(ResourceNotFound):
+            provider.create_commit("s6-no-such-branch", PARENT, "m", [])
+        assert client.request.call_count == 1
+
+    def test_moved_head_raises_stale_branch_head(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [recorded("commit_branch"), recorded("commit_stale_parent")]
+        with pytest.raises(StaleBranchHead):
+            provider.create_commit("s6-fixture", PARENT, "m", [], expected_head_sha=PARENT)
+
+    def test_moves_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            recorded("commit_branch"),
+            recorded("src_meta"),
+            recorded("src_file"),
+            recorded("commit_created"),
+        ]
+
+        provider.create_commit(
+            "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="README.md", new_filename="docs/README.md")]
+        )
+
+        meta_call = client.request.call_args_list[1]
+        assert meta_call.kwargs["path"] == f"/2.0/repositories/{REPO}/src/{PARENT}/README.md"
+        assert meta_call.kwargs["params"] == {"format": "meta"}
+        form = sent_form(client)
+        assert ("files", b"README.md") in form
+        assert ("/docs/README.md", b"# test-repo\n\nA test repository.\n") in form
+
+    def test_moves_binary_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        meta = recorded("src_meta")
+        meta._content = json.dumps({**meta.json(), "attributes": ["binary"]}).encode()
+        binary_file = recorded("src_file")
+        binary_file._content = PNG
+        client.request.side_effect = [recorded("commit_branch"), meta, binary_file, recorded("commit_created")]
+
+        provider.create_commit(
+            "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="logo.png", new_filename="img/logo.png")]
+        )
+
+        assert ("/img/logo.png", PNG) in sent_form(client)
+
+    def test_refuses_to_move_executable(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("commit_branch"), recorded("src_meta_executable")]
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit(
+                "s6-fixture", PARENT, "m", [MoveCommitAction(old_filename="s6-run.sh", new_filename="run.sh")]
+            )
+        assert client.request.call_count == 2
+
+    @pytest.mark.parametrize(
+        "action",
+        [
+            WriteCommitAction(action="create", filename="logo.png", content="not base64!", encoding="base64"),
+            ChmodCommitAction(executable=True, filename="run.sh"),
+        ],
+        ids=["invalid_base64", "chmod"],
+    )
+    def test_refuses_what_an_upload_cannot_write(
+        self,
+        provider: BitbucketProvider,
+        client: unittest.mock.MagicMock,
+        action: WriteCommitAction | ChmodCommitAction,
+    ) -> None:
+        client.request.return_value = recorded("commit_branch")
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit("s6-fixture", PARENT, "m", [action])
+        assert client.request.call_count == 1
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"force": True},
+            {"expected_head_sha": "0" * 40},
+            {"expected_head_sha": PARENT, "create_branch": True},
+        ],
+        ids=["force", "lease_not_parent", "lease_with_create_branch"],
+    )
+    def test_rejects_unsupported_options(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, kwargs: dict[str, Any]
+    ) -> None:
+        with pytest.raises(ResourceBadRequest):
+            provider.create_commit("s6-fixture", PARENT, "m", [], **kwargs)
+        client.request.assert_not_called()
