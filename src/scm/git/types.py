@@ -12,7 +12,8 @@ type GitOperation = Literal["fetch", "push"]
 """What a grant or rule lets its holder do. ``scm.git.relay`` maps each to its git routes."""
 
 GRANT_VERSION: Literal[1] = 1
-"""The version of ``GrantV1``, which ``GrantV2`` replaces."""
+"""Deprecated: the version of ``GrantV1``, which its ``version`` field already holds. Remove it together with
+``GrantV1``."""
 
 GRANT_HEADER = "X-Scm-Git-Grant"
 """The request header that carries a signed grant to the git endpoint."""
@@ -136,7 +137,7 @@ class GrantV1(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     repositories: list[RepositoryId]
     expires_at: int
     """Unix time in seconds. Every grant expires."""
-    version: Literal[1] = GRANT_VERSION
+    version: Literal[1] = 1
     """The format version. A verifier refuses a version it does not know."""
 
 
