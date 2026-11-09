@@ -9,7 +9,7 @@ from scm.errors import (
     SCMCodedError,
 )
 from scm.git.grant import require_public_keys, verify_grant
-from scm.git.push import PushRefused, check_push
+from scm.git.push import PushRefused, check_push, check_push_headers
 from scm.git.relay import GitRelay, ResponseBody, _authorize
 from scm.git.types import GRANT_HEADER, GetToken, GrantV2, GrantV2PushRule, Readable
 from scm.helpers import initialize_provider
@@ -156,6 +156,9 @@ class GitServer:
                     rule for rule in grant.rules_for(repository_id, "push") if isinstance(rule, GrantV2PushRule)
                 ]
                 relayed_body = check_push(push_rules, headers, counted_body)
+            elif isinstance(grant, GrantV2) and operation == "push":
+                # The push's first request, which lists the refs, goes to the provider with the same headers.
+                check_push_headers(method, headers)
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,

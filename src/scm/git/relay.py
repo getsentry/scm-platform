@@ -91,7 +91,9 @@ def _authorize(
     """``authorize_request`` for GitServer, which checks a push's ref updates against the grant's push rules itself."""
     operation = _ROUTES.get((method, route, query))
     if operation is None:
-        raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
+        raise GitRouteNotSupported(
+            detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
+        )
     if isinstance(grant, GrantV1):
         _authorize_v1(grant, repository_id, operation)
     else:
@@ -118,6 +120,12 @@ def _authorize_v2(grant: GrantV2, repository_id: RepositoryId, operation: GitOpe
         raise GitOperationNotGranted(
             detail="The git endpoint cannot keep a fetch to a rule's branches yet, so it refuses the rule."
         )
+
+
+def _printable(text: str, length: int) -> str:
+    """Return ``text`` for an error's detail, which reaches logs: escaped where it isn't printable, and cut short."""
+    escaped = "".join(character if character.isprintable() else ascii(character)[1:-1] for character in text)
+    return escaped if len(escaped) <= length else f"{escaped[:length]}..."
 
 
 class ResponseBody(Iterator[bytes], Protocol):
@@ -205,7 +213,9 @@ class GitRelay:
             raise GitRemoteNotHttps()
         # The token never goes to anything but a git route, whatever the caller checked.
         if (method, route, query) not in _ROUTES:
-            raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
+            raise GitRouteNotSupported(
+                detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
+            )
         if not f"{remote['basic_auth_username']}:{token.reveal()}".isascii():
             # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
             # issues such a token, so the caller has a bug; the message leaves the token out.

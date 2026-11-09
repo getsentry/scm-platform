@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted
+from scm.errors import ClientClosedRequest, GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
 from scm.git.push import (
     MAX_UPDATES_LENGTH,
     PushRefused,
@@ -10,6 +10,7 @@ from scm.git.push import (
     RefUpdate,
     ReplayedBody,
     check_push,
+    check_push_headers,
     read_push_request,
     refusal_report,
     refused_updates,
@@ -129,26 +130,67 @@ class TestRead:
         request = read_push_request({}, Trickle(body))
         assert request.updates[0].ref == b"refs/heads/seer/fix"
 
-    def test_trailing_newlines(self):
-        line = f"{OLD_ID} {NEW_ID} refs/heads/seer/fix".encode()
-        request, _ = read(pkt(line + b"\0report-status\n") + pkt(line.replace(b"fix", b"other") + b"\n") + b"0000")
-        assert [update.ref for update in request.updates] == [b"refs/heads/seer/fix", b"refs/heads/seer/other"]
-        assert request.capabilities == {"report-status"}
+    @pytest.mark.parametrize(
+        "lines",
+        [
+            [b"\0report-status\n", b""],
+            [b"\0report-status", b"\n"],
+        ],
+        ids=["first", "later"],
+    )
+    def test_update_ending_in_a_newline(self, lines):
+        # git ends no update with a newline, though receive-pack would drop one.
+        first = f"{OLD_ID} {NEW_ID} refs/heads/seer/fix".encode()
+        later = f"{OLD_ID} {NEW_ID} refs/heads/seer/other".encode()
+        with pytest.raises(GitMalformedRequestBody):
+            read(pkt(first + lines[0]) + pkt(later + lines[1]) + b"0000")
+
+    def test_shallow_commit_without_its_newline(self):
+        body = pkt(f"shallow {'3' * 40}".encode()) + make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
+        with pytest.raises(GitMalformedRequestBody, match="shallow commit"):
+            read(body)
 
     def test_uppercase_pkt_length(self):
-        line = f"{OLD_ID} {NEW_ID} refs/heads/{'x' * 200}".encode()
-        request, _ = read(b"%04X" % (len(line) + 4) + line + b"0000")
-        assert request.updates[0].ref == f"refs/heads/{'x' * 200}".encode()
+        # git writes the length in lowercase hex. 0x00ea is a length with a letter in it.
+        line = f"{OLD_ID} {NEW_ID} refs/heads/{'x' * (0xEA - 4 - 93)}".encode()
+        assert len(line) + 4 == 0xEA
+        with pytest.raises(GitMalformedRequestBody, match="not pkt-lines"):
+            read(b"%04X" % (len(line) + 4) + line + b"0000")
 
-    @pytest.mark.parametrize("encoding", ["identity", "", " Identity "])
-    def test_identity_encoding(self, encoding):
-        request, _ = read(make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")), {"Content-Encoding": encoding})
-        assert len(request.updates) == 1
-
-    @pytest.mark.parametrize("encoding", ["gzip", "deflate"])
-    def test_compressed(self, encoding):
-        with pytest.raises(GitOperationNotGranted, match="compressed push"):
+    @pytest.mark.parametrize("encoding", ["identity", "", "gzip", "deflate"])
+    def test_content_encoding(self, encoding):
+        # git sends no Content-Encoding with a push, and compresses only fetches.
+        with pytest.raises(RpcMalformedRequestHeaders, match="content-encoding"):
             read(make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")), {"content-encoding": encoding})
+
+    @pytest.mark.parametrize(
+        "method,headers",
+        [
+            ("POST", {"Accept": "application/x-git-receive-pack-result", "Git-Protocol": "version=1"}),
+            ("POST", {"Content-Type": "application/x-git-receive-pack-request"}),
+            ("POST", {"User-Agent": "git/2.54.0", "Accept-Encoding": "deflate, gzip"}),
+            ("GET", {"Accept": "*/*", "Git-Protocol": "version=1", "Pragma": "no-cache"}),
+        ],
+    )
+    def test_headers_git_sends(self, method, headers):
+        check_push_headers(method, headers)
+
+    @pytest.mark.parametrize(
+        "method,headers",
+        [
+            ("POST", {"Git-Protocol": "version=0"}),
+            ("POST", {"Git-Protocol": "version=2"}),
+            ("POST", {"Accept": "*/*"}),
+            ("GET", {"Accept": "application/x-git-receive-pack-result"}),
+            ("GET", {"Content-Type": "application/x-git-receive-pack-request"}),
+            ("POST", {"User-Agent": " git/2.54.0"}),
+            ("POST", {"Accept-Encoding": "gzip\x7f"}),
+            ("POST", {"User-Agent": ""}),
+        ],
+    )
+    def test_headers_git_does_not_send(self, method, headers):
+        with pytest.raises(RpcMalformedRequestHeaders):
+            check_push_headers(method, headers)
 
     def test_signed_push(self):
         body = pkt(b"push-cert\0report-status") + pkt(b"certificate version 0.1\n") + b"0000"
@@ -188,7 +230,7 @@ class TestRead:
 
     def test_too_long_before_the_pack(self):
         updates = [(OLD_ID, NEW_ID, f"refs/heads/branch-{i:05d}") for i in range(MAX_UPDATES_LENGTH // 90)]
-        with pytest.raises(GitMalformedRequestBody, match=f"longer than {MAX_UPDATES_LENGTH} bytes"):
+        with pytest.raises(GitMalformedRequestBody, match="too long"):
             read(make_push_body(*updates))
 
     def test_connection_fails(self):
@@ -289,7 +331,7 @@ class TestRefusedUpdates:
         "capabilities",
         [
             "report-status side-band-64k quiet object-format=sha1 agent=git/2.54.0",
-            "report-status-v2 side-band atomic ofs-delta session-id=abc",
+            "report-status-v2 side-band-64k atomic session-id=abc",
             "",
         ],
     )
@@ -304,6 +346,9 @@ class TestRefusedUpdates:
         [
             ("future-capability", "the git endpoint does not relay the future-capability capability"),
             ("quiet=1", "the git endpoint does not relay the quiet capability"),
+            # git asks for neither in a push.
+            ("side-band", "the git endpoint does not relay the side-band capability"),
+            ("ofs-delta", "the git endpoint does not relay the ofs-delta capability"),
             ("agent", "the git endpoint does not relay the agent capability"),
         ],
     )
@@ -443,7 +488,7 @@ class TestCheckPush:
             (
                 make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")),
                 {"Content-Encoding": "gzip"},
-                GitOperationNotGranted,
+                RpcMalformedRequestHeaders,
             ),
             (pkt(b"push-cert\0report-status") + b"0000" + PACK, {}, PushRefused),
         ],

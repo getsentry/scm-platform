@@ -886,7 +886,7 @@ class TestPushRules:
         response = self.send(
             make_server(Recorder()), io.BytesIO(push_body("refs/heads/seer/fix")), headers={"Content-Encoding": "gzip"}
         )
-        assert_refused(response, 403, "compressed push")
+        assert_refused(response, 400, "content-encoding header holds a value git doesn't send")
 
     def test_client_closes_while_sending_its_updates(self):
         recorder = Recorder()
