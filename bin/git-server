@@ -72,10 +72,11 @@ Checks:
     With --push it also commits a 256 KiB file, pushes it with a push grant for
     a new branch, sending the pack chunked as git does for a large push, then
     tags the commit under the same grant. It checks that the grant can neither
-    push another branch or tag nor delete its own, and that the provider
-    refuses a forged create of the existing branch and tag under a create_only
-    rule. It then deletes the branch and tag with the provider token. This
-    writes to the repository, so point it at a test repository.
+    push another branch or tag nor delete its own, that the provider refuses a
+    forged create of the existing branch and tag under a create_only rule, and
+    that it keeps each apart from a name that differs only in case. It then
+    deletes the branch, the tag and their case variants with the provider
+    token. This writes to the repository, so point it at a test repository.
 
     git runs without the user's or the system's git config, so credential
     helpers and URL rewrites cannot hide a failure.
@@ -611,7 +612,9 @@ class Checks:
         )
         if pushed:
             tip = self.git(push_grant, "rev-parse", "HEAD", cwd=clone).stdout.strip()
-            self.check_pushed_ref(url, push_grant, clone, f"refs/heads/{branch}", tip)
+            # The commit the clone started from, which the provider has on the default branch.
+            base = self.git(push_grant, "rev-parse", "HEAD~1", cwd=clone).stdout.strip()
+            self.check_pushed_ref(url, push_grant, clone, f"refs/heads/{branch}", tip, base)
             tag = f"refs/tags/{branch}-tag"
             self.expect_rejection(
                 "push to a tag the grant does not list is rejected",
@@ -621,12 +624,12 @@ class Checks:
             if self.expect_success(
                 "push a tag with the push grant", self.git(push_grant, "push", url, f"HEAD:{tag}", cwd=clone)
             ):
-                self.check_pushed_ref(url, push_grant, clone, tag, tip)
+                self.check_pushed_ref(url, push_grant, clone, tag, tip, base)
         server.shutdown()
 
-    def check_pushed_ref(self, url: str, push_grant: str, clone: Path, ref: str, tip: str) -> None:
+    def check_pushed_ref(self, url: str, push_grant: str, clone: Path, ref: str, tip: str, base: str) -> None:
         """Check that ``ref``, which the push grant created at ``tip``, can be neither forged over nor deleted, then
-        delete it with the token."""
+        delete it with the token. ``base`` is another commit the provider has."""
         kind = "branch" if ref.startswith("refs/heads/") else "tag"
         response = self.forge_create(url, ref, tip)
         self.check(
@@ -634,12 +637,37 @@ class Checks:
             subprocess.CompletedProcess([], response.status_code, response.text, ""),
             response.status_code == 200 and f"ng {ref}".encode() in response.content,
         )
+        self.check_case_variant(url, push_grant, clone, ref, tip, base)
         self.expect_rejection(
             f"deleting the pushed {kind} with the push grant is rejected",
             self.git(push_grant, "push", url, f":{ref}", cwd=clone),
             f"the git grant does not allow deleting a {kind}",
         )
         self.expect_success(f"delete the pushed {kind} {ref} with the token", self.delete_directly(ref, clone))
+
+    def check_case_variant(self, url: str, push_grant: str, clone: Path, ref: str, tip: str, base: str) -> None:
+        """Check that the provider keeps ``ref`` apart from a name that differs from it only in case.
+
+        A provider that takes the two for one ref would let a rule covering the variant move ``ref``, and a
+        create_only rule create the variant over it. A listing alone can't show that: git on a case-insensitive
+        filesystem lists both names but may resolve ``ref`` to the variant, and then refuses to move ``ref`` from
+        ``tip``. So the check moves ``ref`` to ``base`` after creating the variant there.
+        """
+        kind, prefix = ("branch", "refs/heads/") if ref.startswith("refs/heads/") else ("tag", "refs/tags/")
+        variant = prefix + ref.removeprefix(prefix).upper()
+        assert variant != ref, f"{ref} has no letters to change the case of"
+        response = self.forge_create(url, variant, base)
+        listed = self.git(fetch_grant_for(self.args.private_key, self.backend.repository_id), "ls-remote", url, ref)
+        moved = self.git(push_grant, "push", "--force", url, f"{base}:{ref}", cwd=clone)
+        self.check(
+            f"the provider keeps a {kind} apart from a name that differs only in case",
+            subprocess.CompletedProcess([], moved.returncode, f"{response.text}\n{listed.stdout}", moved.stderr),
+            listed.stdout.strip() == f"{tip}\t{ref}" and moved.returncode == 0,
+        )
+        if response.status_code == 200 and f"ok {variant}".encode() in response.content:
+            self.expect_success(
+                f"delete the case variant {variant} with the token", self.delete_directly(variant, clone)
+            )
 
     def forge_create(self, url: str, ref: str, tip: str) -> requests.Response:
         """Push ``ref`` to ``tip`` as a new ref under a create_only rule, though it exists already.
