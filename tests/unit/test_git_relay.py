@@ -799,10 +799,15 @@ class TestAuthorizeRequest:
             authorize_request(grant, 5, "POST", "git-upload-pack", "")
 
     @pytest.mark.parametrize("route", FETCH_ROUTES)
-    def test_fetch_rule_that_lists_branches_is_refused(self, route):
-        # Nothing reads a fetch's body, so nothing would keep the fetch to the rule's branches.
-        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches"):
-            authorize_request(make_grant(rules=[GrantV2FetchRule(repository=5, branches=["main"])]), 5, *route)
+    @pytest.mark.parametrize(
+        "refs",
+        [{"branches": ["main"]}, {"tags": ["v1"]}, {"tag_patterns": ["v.+"]}],
+        ids=["branches", "tags", "tag-patterns"],
+    )
+    def test_fetch_rule_that_names_refs_is_refused(self, route, refs):
+        # Nothing reads a fetch's body, so nothing would keep the fetch to the rule's branches and tags.
+        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches and tags"):
+            authorize_request(make_grant(rules=[GrantV2FetchRule(repository=5, **refs)]), 5, *route)
 
     @pytest.mark.parametrize(
         "method,route,query",

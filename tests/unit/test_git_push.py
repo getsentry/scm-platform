@@ -261,9 +261,9 @@ class TestRefusedUpdates:
             ("refs/heads/seer/fix/deeper", "the git grant does not cover this branch"),
             ("refs/heads/seer", "the git grant does not cover this branch"),
             ("refs/heads/Seer/fix", "the git grant does not cover this branch"),
-            ("refs/tags/seer/fix", "the git grant allows pushing branches only"),
-            ("refs/pull/1/head", "the git grant allows pushing branches only"),
-            ("refs/notes/commits", "the git grant allows pushing branches only"),
+            ("refs/tags/seer/fix", "the git grant does not cover this tag"),
+            ("refs/pull/1/head", "the git grant allows pushing branches and tags only"),
+            ("refs/notes/commits", "the git grant allows pushing branches and tags only"),
         ],
     )
     def test_refs_the_rule_does_not_list(self, ref, reason):
@@ -280,9 +280,16 @@ class TestRefusedUpdates:
             b"refs/heads/seer/fix": "refused with the rest of the push",
         }
 
-    def test_no_rules(self):
-        refused = refused_updates([], request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix")))
-        assert refused == {b"refs/heads/seer/fix": "the git grant does not cover this branch"}
+    @pytest.mark.parametrize(
+        "ref,reason",
+        [
+            ("refs/heads/seer/fix", "the git grant does not cover this branch"),
+            ("refs/tags/v1", "the git grant does not cover this tag"),
+            ("refs/notes/commits", "the git grant allows pushing branches and tags only"),
+        ],
+    )
+    def test_no_rules(self, ref, reason):
+        assert refused_updates([], request_for((OLD_ID, NEW_ID, ref))) == {ref.encode(): reason}
 
     @pytest.mark.parametrize(
         "old_id,ref,reason",
@@ -290,7 +297,7 @@ class TestRefusedUpdates:
             (ZERO_ID, "refs/heads/seer/new", None),
             (OLD_ID, "refs/heads/seer/new", "the git grant allows only creating this branch"),
             (ZERO_ID, "refs/heads/main", "the git grant does not cover this branch"),
-            (ZERO_ID, "refs/tags/seer/new", "the git grant allows pushing branches only"),
+            (ZERO_ID, "refs/tags/seer/new", "the git grant does not cover this tag"),
         ],
     )
     def test_create_only_pattern(self, old_id, ref, reason):
@@ -304,6 +311,31 @@ class TestRefusedUpdates:
         assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/heads/seer/fix"))) == {
             b"refs/heads/seer/fix": "the git grant allows only creating this branch"
         }
+
+    @pytest.mark.parametrize(
+        "old_id,new_id,ref,reason",
+        [
+            (ZERO_ID, NEW_ID, "refs/tags/v1.0", None),
+            (OLD_ID, NEW_ID, "refs/tags/v1.0", "the git grant allows only creating this tag"),
+            (OLD_ID, ZERO_ID, "refs/tags/v1.0", "the git grant does not allow deleting a tag"),
+            (ZERO_ID, NEW_ID, "refs/tags/seer-1.0", "the git grant does not cover this tag"),
+            (ZERO_ID, NEW_ID, "refs/heads/v1.0", "the git grant does not cover this branch"),
+        ],
+    )
+    def test_create_only_tag_pattern(self, old_id, new_id, ref, reason):
+        rules = [GrantV2PushRule(repository=5, tag_patterns=[r"v[0-9]+\.[0-9]+"], create_only=True)]
+        refused = refused_updates(rules, request_for((old_id, new_id, ref)))
+        assert refused == ({} if reason is None else {ref.encode(): reason})
+
+    def test_listed_tag_moves(self):
+        # Without create_only a covered tag may move, as a covered branch may.
+        rules = [GrantV2PushRule(repository=5, tags=["latest"])]
+        assert refused_updates(rules, request_for((OLD_ID, NEW_ID, "refs/tags/latest"))) == {}
+
+    def test_one_rule_for_branches_and_tags(self):
+        rules = [GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], tags=["seer-1"], create_only=True)]
+        request = request_for((ZERO_ID, NEW_ID, "refs/heads/seer/fix"), (ZERO_ID, NEW_ID, "refs/tags/seer-1"))
+        assert refused_updates(rules, request) == {}
 
     def test_any_rule_allows_an_update(self):
         # The agent may start branches under seer/ and keep pushing to the one Seer added after its first push.
@@ -518,18 +550,23 @@ class TestCheckPush:
             self.check(body[:20])
 
     def test_long_ref_is_cut_short_in_the_detail(self):
-        ref = "refs/tags/" + "x" * 1000
+        ref = "refs/notes/" + "x" * 1000
         with pytest.raises(PushRefused) as exc_info:
             self.check(make_push_body((OLD_ID, NEW_ID, ref), capabilities="report-status"))
         assert exc_info.value.detail == (
-            f"The git grant does not allow this push: {ref[:200]}... (the git grant allows pushing branches only)."
+            f"The git grant does not allow this push: {ref[:200]}... "
+            "(the git grant allows pushing branches and tags only)."
         )
         # The report names the whole ref, since git matches it to the ref it pushed.
         assert ref.encode() in (exc_info.value.report or b"")
 
-    @pytest.mark.parametrize("ref", ["HEAD", "seer/fix", "refs/heads/" + "x" * 256], ids=["head", "bare", "too-long"])
+    @pytest.mark.parametrize(
+        "ref",
+        ["HEAD", "seer/fix", "refs/heads/" + "x" * 256, "refs/tags/" + "x" * 256, "refs/tags/-v1", "refs/tags/HEAD"],
+        ids=["head", "bare", "long-branch", "long-tag", "dash-tag", "head-tag"],
+    )
     def test_ref_git_would_not_send(self, ref):
-        # git sends refs under refs/, and a branch name past the cap would make a rule's pattern slow.
+        # git sends refs under refs/, and a branch or tag name past the cap would make a rule's pattern slow.
         with pytest.raises(GitMalformedRequestBody):
             self.check(make_push_body((OLD_ID, NEW_ID, ref)))
 

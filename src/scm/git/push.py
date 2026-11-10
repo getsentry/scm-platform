@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders, SCMCodedError
 from scm.git.relay import DEFAULT_CHUNK_SIZE, _printable, _read
-from scm.git.types import GrantV2PushRule, Readable, _follows_ref_format, _is_branch_name
+from scm.git.types import GrantV2PushRule, Readable, _follows_ref_format, _is_short_name
 
 MAX_UPDATES_LENGTH = 64 * 1024
 """The most bytes a push's ref updates may take. An update takes under 100 bytes plus its ref's name."""
@@ -51,9 +51,11 @@ _HEADER_VALUES = {
 # ASCII without surrounding space, which is what the relay sends.
 _FREE_HEADERS = frozenset({"accept-encoding", "user-agent"})
 _FREE_HEADER_VALUE = re.compile(r"[\x21-\x7e](?:[\x20-\x7e]*[\x21-\x7e])?")
-# The longest branch name a push may update, in bytes. A rule's pattern runs on the name the client chose, and one
-# that backtracks takes time that grows with the name's length.
-_MAX_BRANCH_LENGTH = 255
+# The longest branch or tag name a push may update, in bytes. A rule's pattern runs on the name the client chose, and
+# one that backtracks takes time that grows with the name's length.
+_MAX_NAME_LENGTH = 255
+# The refs a push rule can cover, by the prefix of their full names.
+_KINDS = {"refs/heads/": "branch", "refs/tags/": "tag"}
 
 _FLUSH = b"0000"
 # A pkt-line's length, in 4 lowercase hex digits as git writes them, counts the 4 digits too.
@@ -210,41 +212,38 @@ def refused_updates(rules: Sequence[GrantV2PushRule], request: PushRequest) -> d
         return {update.ref: reason for update in request.updates}
     refused: dict[bytes, str] = {}
     for update in request.updates:
-        refusals = [_refusal(rule, update) for rule in rules]
+        refusals = [_refusal(rule, update) for rule in rules] if rules else [_refusal(None, update)]
         reasons = [refusal for refusal in refusals if refusal is not None]
         if len(reasons) == len(refusals):
             # The reason of the rule the update came closest to passing says the most.
-            refused[update.ref] = max(reasons, default=_NOT_COVERED)[1]
+            refused[update.ref] = max(reasons)[1]
     if refused:
         for update in request.updates:
             refused.setdefault(update.ref, "refused with the rest of the push")
     return refused
 
 
-_NOT_A_BRANCH = (0, "the git grant allows pushing branches only")
-_NOT_COVERED = (1, "the git grant does not cover this branch")
-_NOT_NEW = (2, "the git grant allows only creating this branch")
-_DELETES = (3, "the git grant does not allow deleting a branch")
-
-
-def _refusal(rule: GrantV2PushRule, update: RefUpdate) -> tuple[int, str] | None:
-    """Return why ``rule`` refuses ``update``, ranked by how far the update got, or None if the rule allows it."""
-    if not update.ref.startswith(b"refs/heads/"):
-        return _NOT_A_BRANCH
-    # Reading the push checked that the branch's name is one git takes, so it decodes.
-    if not rule.covers(update.ref.removeprefix(b"refs/heads/").decode()):
-        return _NOT_COVERED
+def _refusal(rule: GrantV2PushRule | None, update: RefUpdate) -> tuple[int, str] | None:
+    """Return why ``rule``, or a grant with no rule, refuses ``update``, ranked by how far the update got, or None if
+    the rule allows it."""
+    # Reading the push checked that the ref's name is one git takes, so it decodes.
+    ref = update.ref.decode()
+    kind = next((kind for prefix, kind in _KINDS.items() if ref.startswith(prefix)), None)
+    if kind is None:
+        return (0, "the git grant allows pushing branches and tags only")
+    if rule is None or not rule.covers(ref):
+        return (1, f"the git grant does not cover this {kind}")
     if update.deletes:
-        return _DELETES
+        return (3, f"the git grant does not allow deleting a {kind}")
     if rule.create_only and not update.creates:
-        return _NOT_NEW
+        return (2, f"the git grant allows only creating this {kind}")
     return None
 
 
 def refusal_report(request: PushRequest, refused: Mapping[bytes, str]) -> bytes | None:
     """Return the response body that tells git why each ref was refused, or None if the client asked for none.
 
-    git shows each ref as ``! [remote rejected] <branch> (<reason>)``, as for a provider's own refusal. A refused
+    git shows each ref as ``! [remote rejected] <ref> (<reason>)``, as for a provider's own refusal. A refused
     HTTP request would show only its status code.
     """
     if not {"report-status", "report-status-v2"} & request.capabilities:
@@ -365,20 +364,21 @@ def _ref_update(line: bytes) -> RefUpdate:
         raise GitMalformedRequestBody(detail="The push's ref updates are malformed.")
     # A rule checks the ref the push names, and a name git wouldn't take might not be the ref the provider updates.
     # It also goes into the refusal's detail, which reaches logs, so it must be printable too, which keeps out
-    # invisible and right-to-left characters that make one branch name look like another.
+    # invisible and right-to-left characters that make one ref name look like another.
     try:
         name = ref.decode()
     except UnicodeDecodeError:
         name = ""
     if not (name.startswith("refs/") and name.isprintable() and _follows_ref_format(name)):
         raise GitMalformedRequestBody(detail="The push updates a ref whose name git wouldn't take.")
-    if name.startswith("refs/heads/"):
-        if not _is_branch_name(name.removeprefix("refs/heads/")):
-            raise GitMalformedRequestBody(detail="The push updates a branch whose name git wouldn't take.")
-        if len(ref.removeprefix(b"refs/heads/")) > _MAX_BRANCH_LENGTH:
-            raise GitMalformedRequestBody(
-                detail=f"The push updates a branch whose name is longer than {_MAX_BRANCH_LENGTH} bytes."
-            )
+    for prefix, kind in _KINDS.items():
+        if name.startswith(prefix):
+            if not _is_short_name(name.removeprefix(prefix)):
+                raise GitMalformedRequestBody(detail=f"The push updates a {kind} whose name git wouldn't take.")
+            if len(ref) - len(prefix) > _MAX_NAME_LENGTH:
+                raise GitMalformedRequestBody(
+                    detail=f"The push updates a {kind} whose name is longer than {_MAX_NAME_LENGTH} bytes."
+                )
     return RefUpdate(old_id=old_id, new_id=new_id, ref=ref)
 
 

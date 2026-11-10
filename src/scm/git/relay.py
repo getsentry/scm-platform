@@ -73,8 +73,8 @@ def authorize_request(
     the request uses: a database id does not match the same repository's ``(provider, external id)`` pair.
 
     A ``GrantV2`` allows a request only if it has a rule for the request's repository and operation. A fetch needs a
-    fetch rule for any object, since nothing reads a fetch's body to keep it to a rule's branches. A push under a
-    ``GrantV2`` is refused here, because only its ref updates show which branches it touches: relay it through
+    fetch rule for any object, since nothing reads a fetch's body to keep it to a rule's branches and tags. A push
+    under a ``GrantV2`` is refused here, because only its ref updates show which refs it touches: relay it through
     GitServer, which reads them before it relays the push.
     """
     operation = _authorize(grant, repository_id, method, route, query)
@@ -120,10 +120,10 @@ def _authorize_v2(grant: GrantV2, repository_id: RepositoryId, operation: GitOpe
         if not grant.rules_for(repository_id, other):
             raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
         raise GitOperationNotGranted(detail=f"The git grant allows {other} on this repository, not {operation}.")
-    # Delete this once GitServer keeps a fetch to its rule's branches.
+    # Delete this once GitServer keeps a fetch to its rule's branches and tags.
     if operation == "fetch" and not any(isinstance(rule, GrantV2FetchRule) and rule.any_object for rule in rules):
         raise GitOperationNotGranted(
-            detail="The git endpoint cannot keep a fetch to a rule's branches yet, so it refuses the rule."
+            detail="The git endpoint cannot keep a fetch to a rule's branches and tags yet, so it refuses the rule."
         )
 
 

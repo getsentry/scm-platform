@@ -823,7 +823,8 @@ class TestPushRules:
     @pytest.mark.parametrize(
         "ref,old_id,new_id,reason",
         [
-            ("refs/tags/v1", OLD_ID, NEW_ID, "allows pushing branches only"),
+            ("refs/tags/v1", OLD_ID, NEW_ID, "does not cover this tag"),
+            ("refs/notes/commits", OLD_ID, NEW_ID, "allows pushing branches and tags only"),
             ("refs/heads/seer/fix", OLD_ID, "0" * 40, "does not allow deleting a branch"),
         ],
     )

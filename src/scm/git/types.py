@@ -23,65 +23,18 @@ GRANT_MAX_LENGTH = 4096
 ``PUT /grant/{sandbox_id}`` refuses a longer one, so a change here must change the router too. A grant grows with
 its rules: a grant with one is under 500 characters, and the claims are base64-encoded, so a fetch rule for any
 object of a repository named as ``(provider, path)`` adds about 4/3 of its path's length plus 87, e.g. 120 for a
-25-character path, and each branch a rule lists adds about 4/3 of its name's length plus 4. The limit is a
+25-character path, and each branch or tag a rule lists adds about 4/3 of its name's length plus 4. The limit is a
 conservative pick rather than a measured ceiling: header limits further along the path are typically around
 8 KiB."""
 
 
-class GrantV2FetchRule(
-    msgspec.Struct,
-    frozen=True,
-    kw_only=True,
-    forbid_unknown_fields=True,
-    omit_defaults=True,
-    tag="fetch",
-    tag_field="operation",
-):
-    """Lets the holder fetch from ``repository``: any of its objects, or only what its listed ``branches`` reach.
+class _GrantV2RefRule(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True, omit_defaults=True):
+    """What fetch and push rules share: the repository, and the branches and tags of it the rule covers.
 
-    A rule sets exactly one of the two, so a rule that leaves its branches out is refused rather than read as one
-    that reads everything. ``any_object`` reaches every object the provider serves, including objects no branch
-    reaches and, on GitHub, objects of the repository's forks, so give it only to code that runs no agent, such as a
-    checkout before the agent starts.
+    Each kind of ref is set by a list of names or by patterns, and not both. A pattern covers only names of its own
+    kind, so a pattern too broad for branches still can't reach a tag or any other ref.
     """
 
-    operation: ClassVar[GitOperation] = "fetch"
-    repository: RepositoryId
-    branches: list[BranchName] | None = None
-    """Branch names as ``git branch`` takes them, without ``refs/heads/``."""
-    any_object: bool = False
-
-    def __post_init__(self) -> None:
-        if self.branches is None and not self.any_object:
-            raise ValueError("A fetch rule must list its branches or set any_object.")
-        if self.branches is not None and self.any_object:
-            raise ValueError("A fetch rule must not both list branches and set any_object.")
-        if self.branches is not None:
-            _check_branches(self.branches)
-
-
-class GrantV2PushRule(
-    msgspec.Struct,
-    frozen=True,
-    kw_only=True,
-    forbid_unknown_fields=True,
-    omit_defaults=True,
-    tag="push",
-    tag_field="operation",
-):
-    """Lets the holder create or update the branches of ``repository`` the rule covers, and no other ref: no tag,
-    and no deletion.
-
-    The rule covers the branches it lists in ``branches``, or every branch whose whole name matches one of
-    ``branch_patterns``, and sets exactly one of the two. With ``create_only`` it allows only creating a covered
-    branch that doesn't exist yet, so a pattern can let the holder start new branches without moving any that exist.
-    Without it, a push may move a covered branch to any commit, so a force push passes.
-
-    Don't cover the repository's default branch, by name or by pattern. The git endpoint doesn't know which branch
-    that is, so keeping it out is the signer's job, with the provider's branch protection behind it.
-    """
-
-    operation: ClassVar[GitOperation] = "push"
     repository: RepositoryId
     branches: list[BranchName] | None = None
     """Branch names as ``git branch`` takes them, without ``refs/heads/``."""
@@ -89,33 +42,102 @@ class GrantV2PushRule(
     """Python regular expressions, each matched against a branch's whole name without ``refs/heads/``, such as
     ``seer/.+``. The pushing client chooses the names they are matched against, so a pattern must not be one that
     backtracks catastrophically."""
-    create_only: bool = False
-    """Allow only creating a covered branch. git sends a new branch with an old object id of all zeros, and the
-    provider refuses such an update if the branch already exists."""
+    tags: list[str] | None = None
+    """Tag names as ``git tag`` takes them, without ``refs/tags/``."""
+    tag_patterns: list[str] | None = None
+    """Like ``branch_patterns``, each matched against a tag's whole name without ``refs/tags/``."""
 
     def __post_init__(self) -> None:
-        if self.branches is None and self.branch_patterns is None:
-            raise ValueError("A push rule must list its branches or set branch_patterns.")
-        if self.branches is not None and self.branch_patterns is not None:
-            raise ValueError("A push rule must not both list branches and set branch_patterns.")
-        if self.branches is not None:
-            _check_branches(self.branches)
-        if self.branch_patterns is not None:
-            _check_patterns(self.branch_patterns)
+        for names_field, names, patterns_field, patterns, kind in (
+            ("branches", self.branches, "branch_patterns", self.branch_patterns, "branch"),
+            ("tags", self.tags, "tag_patterns", self.tag_patterns, "tag"),
+        ):
+            if names is not None and patterns is not None:
+                raise ValueError(f"A rule must not set both {names_field} and {patterns_field}.")
+            if names is not None:
+                _check_names(names_field, names, kind)
+            if patterns is not None:
+                _check_patterns(patterns_field, patterns)
 
-    def covers(self, branch: BranchName) -> bool:
-        """Return whether the rule covers ``branch``, a name without ``refs/heads/``."""
-        if self.branches is not None:
-            return branch in self.branches
-        return any(re.fullmatch(pattern, branch) for pattern in self.branch_patterns or ())
+    @property
+    def refs(self) -> list[str]:
+        """The full names of the refs the rule lists, such as ``refs/heads/main``. Its patterns cover more."""
+        return [f"refs/heads/{name}" for name in self.branches or ()] + [
+            f"refs/tags/{name}" for name in self.tags or ()
+        ]
+
+    def covers(self, ref: str) -> bool:
+        """Return whether the rule covers ``ref``, a full ref name such as ``refs/heads/main``."""
+        if ref in self.refs:
+            return True
+        if ref.startswith("refs/heads/"):
+            name, patterns = ref.removeprefix("refs/heads/"), self.branch_patterns
+        elif ref.startswith("refs/tags/"):
+            name, patterns = ref.removeprefix("refs/tags/"), self.tag_patterns
+        else:
+            return False
+        return any(re.fullmatch(pattern, name) for pattern in patterns or ())
+
+    def _names_refs(self) -> bool:
+        return any(field is not None for field in (self.branches, self.branch_patterns, self.tags, self.tag_patterns))
 
 
-@warnings.deprecated("GrantV1 is deprecated. Sign a GrantV2, whose rules can keep a push to branches.")
+class GrantV2FetchRule(_GrantV2RefRule, frozen=True, tag="fetch", tag_field="operation"):
+    """Lets the holder fetch from ``repository``: any of its objects, or only what the branches and tags it covers
+    reach.
+
+    A rule sets ``any_object`` or names refs, and not both, so a rule that names no refs is refused rather than read
+    as one that reads everything. ``any_object`` reaches every object the provider serves, including objects no ref
+    reaches and, on GitHub, objects of the repository's forks, so give it only to code that runs no agent, such as a
+    checkout before the agent starts.
+    """
+
+    operation: ClassVar[GitOperation] = "fetch"
+    any_object: bool = False
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.any_object and self._names_refs():
+            raise ValueError(
+                "A fetch rule that sets any_object must not set branches, branch_patterns, tags or tag_patterns."
+            )
+        if not self.any_object and not self._names_refs():
+            raise ValueError("A fetch rule must set branches, branch_patterns, tags, tag_patterns or any_object.")
+
+    def covers(self, ref: str) -> bool:
+        return self.any_object or super().covers(ref)
+
+
+class GrantV2PushRule(_GrantV2RefRule, frozen=True, tag="push", tag_field="operation"):
+    """Lets the holder create or update the branches and tags of ``repository`` the rule covers, and no other ref,
+    and delete none.
+
+    With ``create_only`` it allows only creating a covered branch or tag that doesn't exist yet, so a pattern can let
+    the holder start new branches or tag new releases without moving any that exist. Without it, a push may move a
+    covered branch or tag to any commit, so a force push passes.
+
+    Don't cover the repository's default branch, by name or by pattern. The git endpoint doesn't know which branch
+    that is, so keeping it out is the signer's job, with the provider's branch protection behind it. Cover tags with
+    the same care, since a new tag often starts a release pipeline.
+    """
+
+    operation: ClassVar[GitOperation] = "push"
+    create_only: bool = False
+    """Allow only creating a covered branch or tag. git sends a new ref with an old object id of all zeros, and the
+    provider refuses such an update if the ref already exists."""
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if not self._names_refs():
+            raise ValueError("A push rule must set branches, branch_patterns, tags or tag_patterns.")
+
+
+@warnings.deprecated("GrantV1 is deprecated. Sign a GrantV2, whose rules can keep a push to branches and tags.")
 class GrantV1(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
     """Permission to run one git operation against a fixed set of an organization's repositories.
 
-    Deprecated: sign a ``GrantV2``, which can also keep a push to branches. Verifiers still accept this version, so a
-    signer can switch once they can read both.
+    Deprecated: sign a ``GrantV2``, which can also keep a push to branches and tags. Verifiers still accept this
+    version, so a signer can switch once they can read both.
 
     A push grant lets its holder update any ref of its repositories, including tags and deletions, since GitServer
     relays its pushes unread. Each repository is a ``RepositoryId`` under the grant's organization, as in the RPC
@@ -187,31 +209,31 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
 _NOT_IN_A_REF = re.compile(r"[\x00-\x20\x7f~^:?*\[\\]|\.\.|@\{|//")
 
 
-def _check_patterns(patterns: list[str]) -> None:
+def _check_patterns(field: str, patterns: list[str]) -> None:
     if not patterns:
-        raise ValueError("A rule's branch pattern list must not be empty.")
+        raise ValueError(f"A rule's {field} must not be empty.")
     for pattern in patterns:
         if not pattern:
-            raise ValueError("A branch pattern must not be empty.")
+            raise ValueError(f"A pattern in a rule's {field} must not be empty.")
         try:
             re.compile(pattern)
         except re.error as e:
             raise ValueError(f"{pattern!r} is not a regular expression: {e}") from None
 
 
-def _check_branches(branches: list[BranchName]) -> None:
-    if not branches:
-        raise ValueError("A rule's branch list must not be empty.")
-    for name in branches:
-        if not _is_branch_name(name):
-            raise ValueError(
-                f"{name!r} is not a branch name. Name a branch as git branch takes it, without refs/heads/."
-            )
+def _check_names(field: str, names: list[str], kind: str) -> None:
+    if not names:
+        raise ValueError(f"A rule's {field} must not be empty.")
+    for name in names:
+        if not _is_short_name(name):
+            prefix = "refs/heads/" if kind == "branch" else "refs/tags/"
+            raise ValueError(f"{name!r} is not a {kind} name. Name a {kind} as git {kind} takes it, without {prefix}.")
 
 
-def _is_branch_name(name: str) -> bool:
-    # What git branch refuses on top of git check-ref-format's rules: a leading "-" and "HEAD". A name starting with
-    # refs/ is a valid branch, but it's far more likely a full ref name by mistake.
+def _is_short_name(name: str) -> bool:
+    """Return whether ``name`` is a branch or tag name, without its refs/heads/ or refs/tags/."""
+    # What git branch and git tag refuse on top of git check-ref-format's rules: a leading "-" and "HEAD". A name
+    # starting with refs/ is a valid one, but it's far more likely a full ref name by mistake.
     return _follows_ref_format(name) and name != "HEAD" and not name.startswith(("-", "refs/"))
 
 
