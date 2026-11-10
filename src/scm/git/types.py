@@ -40,8 +40,9 @@ class _GrantV2RefRule(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_
     """Branch names as ``git branch`` takes them, without ``refs/heads/``."""
     branch_patterns: list[str] | None = None
     """Python regular expressions, each matched against a branch's whole name without ``refs/heads/``, such as
-    ``seer/.+``. The pushing client chooses the names they are matched against, so a pattern must not be one that
-    backtracks catastrophically."""
+    ``seer/.+``. They run with ``re.ASCII``, so ``\\d`` and ``\\w`` don't match lookalikes such as fullwidth digits. The
+    pushing client chooses the names they are matched against, so a pattern must not be one that backtracks
+    catastrophically."""
     tags: list[str] | None = None
     """Tag names as ``git tag`` takes them, without ``refs/tags/``."""
     tag_patterns: list[str] | None = None
@@ -76,7 +77,7 @@ class _GrantV2RefRule(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_
             name, patterns = ref.removeprefix("refs/tags/"), self.tag_patterns
         else:
             return False
-        return any(re.fullmatch(pattern, name) for pattern in patterns or ())
+        return any(re.fullmatch(pattern, name, re.ASCII) for pattern in patterns or ())
 
     def _names_refs(self) -> bool:
         return any(field is not None for field in (self.branches, self.branch_patterns, self.tags, self.tag_patterns))
@@ -117,8 +118,9 @@ class GrantV2PushRule(_GrantV2RefRule, frozen=True, tag="push", tag_field="opera
     covered branch or tag to any commit, so a force push passes.
 
     Don't cover the repository's default branch, by name or by pattern. The git endpoint doesn't know which branch
-    that is, so keeping it out is the signer's job, with the provider's branch protection behind it. Cover tags with
-    the same care, since a new tag often starts a release pipeline.
+    that is, so keeping it out is the signer's job, with the provider's branch protection behind it. Keep tag patterns
+    to a release shape such as ``v[0-9]+\\.[0-9]+\\.[0-9]+``: git resolves a short name to a tag before a branch, so a
+    tag named ``main`` redirects whoever fetches or resolves ``main``, and a new tag often starts a release pipeline.
     """
 
     operation: ClassVar[GitOperation] = "push"
@@ -216,8 +218,8 @@ def _check_patterns(field: str, patterns: list[str]) -> None:
         if not pattern:
             raise ValueError(f"A pattern in a rule's {field} must not be empty.")
         try:
-            re.compile(pattern)
-        except re.error as e:
+            re.compile(pattern, re.ASCII)
+        except (re.error, ValueError) as e:
             raise ValueError(f"{pattern!r} is not a regular expression: {e}") from None
 
 

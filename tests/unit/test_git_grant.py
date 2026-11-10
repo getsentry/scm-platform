@@ -786,6 +786,26 @@ class TestCovers:
         assert rule.covers("refs/heads/main")
         assert rule.covers("refs/pull/1/head")
 
+    @pytest.mark.parametrize(
+        "pattern,ref,covered",
+        [
+            (r"v\d+", "refs/tags/v12", True),
+            (r"v\d+", "refs/tags/v１２", False),
+            (r"seer/\w+", "refs/heads/seer/fix_1", True),
+            (r"seer/\w+", "refs/heads/seer/fïx", False),
+            # A character the pattern names itself still matches.
+            ("ünicode/.+", "refs/heads/ünicode/x", True),
+            (r"(?i)seer/.+", "refs/heads/SEER/x", True),
+        ],
+    )
+    def test_patterns_run_with_ascii_classes(self, pattern, ref, covered):
+        field = "tag_patterns" if ref.startswith("refs/tags/") else "branch_patterns"
+        assert GrantV2PushRule(repository=5, **{field: [pattern]}).covers(ref) is covered
+
+    def test_pattern_that_asks_for_unicode_classes_cannot_be_built(self):
+        with pytest.raises(ValueError, match="is not a regular expression"):
+            GrantV2PushRule(repository=5, tag_patterns=[r"(?u)v\d+"])
+
     @pytest.mark.parametrize("field", ["branch_patterns", "tag_patterns"])
     def test_cannot_be_built_with_an_invalid_pattern(self, field):
         with pytest.raises(ValueError, match="'seer/\\(' is not a regular expression"):

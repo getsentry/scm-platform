@@ -6,9 +6,7 @@ import pytest
 
 from scm.git.push import PushRefused, check_push
 from scm.git.types import GrantV2PushRule
-from tests.unit.git_builders import NEW_ID, make_push_body
-
-ZERO_ID = "0" * 40
+from tests.unit.git_builders import NEW_ID, ZERO_ID, make_push_body
 
 
 class TestPatternDigits:
