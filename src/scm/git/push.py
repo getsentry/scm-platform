@@ -363,8 +363,7 @@ def _ref_update(line: bytes) -> RefUpdate:
     if not (_OBJECT_ID.fullmatch(old_id) and _OBJECT_ID.fullmatch(new_id) and len(old_id) == len(new_id) and ref):
         raise GitMalformedRequestBody(detail="The push's ref updates are malformed.")
     # A rule checks the ref the push names, and a name git wouldn't take might not be the ref the provider updates.
-    # It also goes into the refusal's detail, which reaches logs, so it must be printable too, which keeps out
-    # invisible and right-to-left characters that make one ref name look like another.
+    # The name also reaches logs, where invisible and right-to-left characters can make one ref look like another.
     try:
         name = ref.decode()
     except UnicodeDecodeError:

@@ -65,7 +65,7 @@ class GitServer:
     doesn't recognise, such as push options, a signed push or a capability git doesn't send, refuses the push too. A
     client that asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push
     the rules allow is relayed with the updates the server read followed by the rest of the body, unread. A push
-    under a ``GrantV1`` is relayed unread, as before rules.
+    under a ``GrantV1`` is relayed unread.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.

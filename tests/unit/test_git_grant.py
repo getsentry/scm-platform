@@ -881,7 +881,7 @@ class TestVersion1:
         }
 
     def test_without_a_version(self):
-        # Read as version 1, as before there was a second one.
+        # version defaults to 1, so a grant that leaves it out still reads as version 1.
         claims = claims_of(make_v1_grant())
         del claims["version"]
         assert verify_grant([KEY.public], sign_claims(claims), now=NOW) == make_v1_grant()

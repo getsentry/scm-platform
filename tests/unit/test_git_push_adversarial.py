@@ -1,4 +1,4 @@
-"""Pushes built to slip past the push check. Each test fails while the check lets its push through."""
+"""Pushes built to slip past the push check, each of which it must refuse."""
 
 import io
 import time
@@ -32,9 +32,8 @@ class TestCapabilityValues:
         ids=["nul-in-agent", "nul-in-session-id", "control-in-agent", "escape-in-session-id"],
     )
     def test_value_git_would_not_send_is_refused(self, capabilities):
-        # git sanitizes agent= to printable characters other than space and ends the line at its first NUL, but the
-        # allowlist checks only a value's name, so a NUL or control byte rides along in an allowed capability. git's
-        # receive-pack stops reading at the NUL. A receive-pack that reads the whole pkt-line would see push-options.
+        # git sends capability values as printable ASCII. A NUL or control byte in an allowed one can hide a
+        # capability such as push-options from the check, while a receive-pack that reads the whole line sees it.
         body = first_update(capabilities) + b"0000PACK"
         with pytest.raises((GitOperationNotGranted, GitMalformedRequestBody)):
             check_push(RULES, {}, io.BytesIO(body))
@@ -55,8 +54,8 @@ def long_capability_push() -> bytes:
 
 class TestRefusalSize:
     def test_report_does_not_repeat_a_long_capability_name_per_update(self):
-        # Each update's "ng" line carries the reason, and the reason quotes the capability whole. 64 KiB in makes
-        # about 12 MB out, built in memory and streamed back.
+        # Every refused ref's "ng" line repeats the reason, so a reason that quoted a long capability whole would
+        # answer a small push with megabytes.
         body = long_capability_push()
         with pytest.raises(PushRefused) as exc_info:
             check_push(RULES, {}, io.BytesIO(body))
@@ -64,8 +63,7 @@ class TestRefusalSize:
         assert len(exc_info.value.report) <= 2 * len(body)
 
     def test_detail_cuts_a_long_capability_name_short(self):
-        # _SHOWN_REF_LENGTH keeps a client-chosen ref short in the detail, which reaches logs and Sentry issues. The
-        # capability's name is client-chosen too and goes in whole.
+        # The client chooses the capability's name, and the detail reaches logs and Sentry issues.
         with pytest.raises(PushRefused) as exc_info:
             check_push(RULES, {}, io.BytesIO(long_capability_push()))
         assert len(exc_info.value.detail) <= 1000
@@ -78,8 +76,7 @@ class TestRefusalDetail:
         ids=["newline", "escape", "carriage-return"],
     )
     def test_detail_holds_no_control_characters(self, ref):
-        # Only refs under refs/heads/ are checked against git's ref name rules, so any other ref reaches the detail
-        # with whatever bytes the client chose. git refuses such a name as a "funny refname" and never sends one.
+        # git refuses such a name as a "funny refname" and never sends one, and the detail reaches logs.
         body = first_update(b"report-status", ref=ref) + b"0000"
         with pytest.raises((GitOperationNotGranted, GitMalformedRequestBody)) as exc_info:
             check_push(RULES, {}, io.BytesIO(body))
@@ -89,8 +86,8 @@ class TestRefusalDetail:
 
 class TestPatternCost:
     def test_long_branch_name_does_not_pin_the_worker(self):
-        # A rule's pattern runs against a branch name of up to 64 KiB. An ordinary-looking pattern with three
-        # wildcards is cubic in the name's length: 1,500 characters take seconds, and 60,000 would take days.
+        # An ordinary-looking pattern with three wildcards is cubic in the name's length: 1,500 characters take
+        # seconds, and 60,000 would take days.
         rules = [GrantV2PushRule(repository=5, branch_patterns=["seer/.+-.+-.+-[0-9]+"])]
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/" + "-" * 1500 + "x"))
         started = time.perf_counter()
@@ -101,9 +98,8 @@ class TestPatternCost:
 
 class TestHeaders:
     def test_second_content_encoding_header_is_not_sent_upstream_unchecked(self):
-        # The check reads the first Content-Encoding it finds, and the relay's CaseInsensitiveDict keeps the last, so
-        # a mapping that holds both spellings has the body read as plain and sent upstream marked gzip. Sentry's
-        # caller passes dict(request.headers), which can't hold both.
+        # A mapping can hold both spellings and the relay passes on only one, so a body checked as plain could go
+        # upstream marked gzip.
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
         with running_upstream() as upstream:
             recorder = Recorder(
@@ -121,8 +117,7 @@ class TestHeaders:
         assert [r.headers.get("Content-Encoding") for r in upstream.requests] in ([], ["identity"])
 
     def test_git_protocol_git_does_not_send_on_a_push(self):
-        # git sends no Git-Protocol header on a push, or version=1, since push has no protocol v2. Any other value
-        # goes to the provider unchecked.
+        # git sends no Git-Protocol header on a push, or version=1, since a push has no protocol v2.
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
         with running_upstream() as upstream:
             recorder = Recorder(

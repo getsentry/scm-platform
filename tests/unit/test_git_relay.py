@@ -760,7 +760,7 @@ class TestAuthorizeRequest:
         assert authorize_request(make_grant(rules=[PUSH_BRANCH]), 5, *PUSH_ROUTES[0]) == "push"
 
     def test_push_under_rules_is_refused_outside_gitserver(self):
-        # Only the push's ref updates show which branches it touches, and this doesn't read them.
+        # Only the push's ref updates show which refs it touches, and this doesn't read them.
         with pytest.raises(GitOperationNotGranted, match="goes through GitServer"):
             authorize_request(make_grant(rules=[PUSH_BRANCH]), 5, *PUSH_ROUTES[1])
 
