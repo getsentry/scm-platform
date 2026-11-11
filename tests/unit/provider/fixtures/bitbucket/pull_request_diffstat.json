@@ -1,0 +1,97 @@
+{
+  "body": {
+    "page": 1,
+    "pagelen": 500,
+    "size": 4,
+    "values": [
+      {
+        "lines_added": 0,
+        "lines_removed": 3,
+        "new": null,
+        "old": {
+          "escaped_path": "PULL_REQUEST_TEMPLATE.md",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a682892aa0f4502ef7a242f75d72d0b41eaa27b9/PULL_REQUEST_TEMPLATE.md"
+            }
+          },
+          "path": "PULL_REQUEST_TEMPLATE.md",
+          "type": "commit_file"
+        },
+        "status": "removed",
+        "type": "diffstat"
+      },
+      {
+        "lines_added": 1,
+        "lines_removed": 0,
+        "new": {
+          "escaped_path": "README.md",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a69b43321a2390a5eeff8c4bb711348457a64396/README.md"
+            }
+          },
+          "path": "README.md",
+          "type": "commit_file"
+        },
+        "old": {
+          "escaped_path": "README.md",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a682892aa0f4502ef7a242f75d72d0b41eaa27b9/README.md"
+            }
+          },
+          "path": "README.md",
+          "type": "commit_file"
+        },
+        "status": "modified",
+        "type": "diffstat"
+      },
+      {
+        "lines_added": 2,
+        "lines_removed": 0,
+        "new": {
+          "escaped_path": "src/test_app/greet.py",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a69b43321a2390a5eeff8c4bb711348457a64396/src/test_app/greet.py"
+            }
+          },
+          "path": "src/test_app/greet.py",
+          "type": "commit_file"
+        },
+        "old": null,
+        "status": "added",
+        "type": "diffstat"
+      },
+      {
+        "lines_added": 0,
+        "lines_removed": 0,
+        "new": {
+          "escaped_path": "tests/test_arithmetic.py",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a69b43321a2390a5eeff8c4bb711348457a64396/tests/test_arithmetic.py"
+            }
+          },
+          "path": "tests/test_arithmetic.py",
+          "type": "commit_file"
+        },
+        "old": {
+          "escaped_path": "tests/test_math.py",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/src/a682892aa0f4502ef7a242f75d72d0b41eaa27b9/tests/test_math.py"
+            }
+          },
+          "path": "tests/test_math.py",
+          "type": "commit_file"
+        },
+        "status": "renamed",
+        "type": "diffstat"
+      }
+    ]
+  },
+  "headers": {},
+  "status": 200
+}

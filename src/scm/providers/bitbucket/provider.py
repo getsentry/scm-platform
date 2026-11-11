@@ -1,9 +1,10 @@
 import base64
 import hashlib
+import json
 import re
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, cast, get_args
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import requests
@@ -13,6 +14,7 @@ from scm.errors import (
     PathIsNotDirectory,
     ReadmeNotFound,
     ResourceBadRequest,
+    ResourceForbidden,
     ResourceNotFound,
     SCMCodedError,
     error_class_for_status,
@@ -23,6 +25,8 @@ from scm.types import (
     ActionResult,
     ApiClient,
     AppInstallation,
+    Author,
+    BranchName,
     Commit,
     CommitAuthor,
     CommitComparison,
@@ -37,6 +41,11 @@ from scm.types import (
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
+    PullRequest,
+    PullRequestBranch,
+    PullRequestCommit,
+    PullRequestFile,
+    PullRequestState,
     Repository,
     RequestOptions,
 )
@@ -72,13 +81,12 @@ VALID_README_FILES = {"readme", "readme.md", "readme.txt", "readme.rst"}
 PULL_REQUEST_TEMPLATE_PARENT_DIRS = (".github", "", "docs")
 PULL_REQUEST_TEMPLATE_FILENAME = "pull_request_template.md"
 PULL_REQUEST_TEMPLATE_DIRNAME = "pull_request_template"
-_FILE_STATUSES: dict[str, FileStatus] = {
-    "added": "added",
-    "removed": "removed",
-    "modified": "modified",
-    "renamed": "renamed",
-}
 _RAW_AUTHOR = re.compile(r"^(?P<name>.*?)\s*<(?P<email>[^>]*)>\s*$")
+_PULL_REQUEST_STATE_QUERIES: dict[PullRequestState | None, str] = {
+    "open": 'state="OPEN"',
+    "closed": '(state="MERGED" OR state="DECLINED" OR state="SUPERSEDED")',
+    None: '(state="OPEN" OR state="MERGED" OR state="DECLINED" OR state="SUPERSEDED")',
+}
 
 
 class BitbucketProvider:
@@ -463,6 +471,124 @@ class BitbucketProvider:
                 return result
             pagination = {**(pagination or {}), "cursor": cursor}
 
+    def get_pull_request(
+        self,
+        pull_request_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[PullRequest]:
+        response = self.get(self._pull_request_path(pull_request_id), request_options=request_options)
+        result = map_action(response, map_pull_request)
+        raw = result["raw"]["data"]
+        for side, branch in (("source", result["data"]["head"]), ("destination", result["data"]["base"])):
+            if branch["sha"] and (repository := raw[side].get("repository")):
+                branch["sha"] = self._full_hash(repository["full_name"], branch["sha"], request_options)
+        return result
+
+    def get_pull_requests(
+        self,
+        state: PullRequestState | None = "open",
+        head: BranchName | None = None,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequest]]:
+        # Without a `state` term, Bitbucket lists only open pull requests.
+        query = _PULL_REQUEST_STATE_QUERIES[state]
+        if head:
+            branch = head.split(":", 1)[-1].removeprefix("refs/heads/")
+            query = f"source.branch.name={json.dumps(branch, ensure_ascii=False)} AND {query}"
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/pullrequests",
+            params={"q": query},
+            pagination=pagination,
+            request_options=request_options,
+        )
+        return map_paginated_action(response, map_pull_request)
+
+    def get_pull_request_files(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequestFile]]:
+        response = self.get(
+            f"{self._pull_request_path(pull_request_id)}/diffstat",
+            pagination=pagination,
+            request_options=request_options,
+            allow_redirects=True,
+        )
+        patches = split_patches(self.get_pull_request_diff(pull_request_id, request_options)["data"])
+        return map_paginated_action(response, lambda raw: map_pull_request_file(raw, patches))
+
+    def get_pull_request_commits(
+        self,
+        pull_request_id: str,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[list[PullRequestCommit]]:
+        """Read every page, since Bitbucket lists newest first and callers expect oldest first.
+
+        ``pagination`` is unused.
+        """
+        path = f"{self._pull_request_path(pull_request_id)}/commits"
+        values: list[dict[str, Any]] = []
+        page: PaginationParams = {"per_page": MAX_PAGE_SIZE}
+        while True:
+            response = self.get(path, pagination=page, request_options=request_options)
+            raw = response.json()
+            values.extend(raw.get("values", []))
+            if not (cursor := next_cursor(raw)):
+                break
+            page = {"per_page": MAX_PAGE_SIZE, "cursor": cursor}
+        # Once merged, Bitbucket lists its own merge commit first; other providers leave it out.
+        # A squash commit has one parent, so it stays.
+        if values and len(values[0]["parents"]) > 1:
+            pull_request = self.get(self._pull_request_path(pull_request_id), request_options=request_options).json()
+            merge_hash = (pull_request.get("merge_commit") or {}).get("hash")
+            if merge_hash and values[0]["hash"].startswith(merge_hash):
+                values.pop(0)
+        return {
+            "data": [map_pull_request_commit(value) for value in reversed(values)],
+            "type": PROVIDER_TYPE,
+            "raw": {"data": values, "headers": dict(response.headers)},
+            "meta": {"next_cursor": None},
+        }
+
+    def get_pull_request_diff(
+        self,
+        pull_request_id: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[str]:
+        # Bitbucket answers with a redirect to the repository diff endpoint.
+        response = self.get(
+            f"{self._pull_request_path(pull_request_id)}/diff",
+            request_options=request_options,
+            allow_redirects=True,
+        )
+        return {
+            "data": response.text,
+            "type": PROVIDER_TYPE,
+            "raw": {"data": response.text, "headers": dict(response.headers)},
+            "meta": {},
+        }
+
+    def get_pull_request_url(self, pull_request_id: str) -> str:
+        return f"{self._web_base_url}/{self.repository_path}/pull-requests/{pull_request_id}"
+
+    def _pull_request_path(self, pull_request_id: str) -> str:
+        return f"/2.0/repositories/{self.repository_path}/pullrequests/{pull_request_id}"
+
+    def _full_hash(self, repository_path: str, short_hash: str, request_options: RequestOptions | None) -> str:
+        try:
+            response = self.get(
+                f"/2.0/repositories/{repository_path}/commit/{short_hash}",
+                params={"fields": "hash"},
+                request_options=request_options,
+            )
+        except (ResourceForbidden, ResourceNotFound):
+            # The commit can live in a fork we can't read, or be gone with a deleted branch.
+            return short_hash
+        return response.json()["hash"]
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -552,12 +678,16 @@ def map_commit(raw: dict[str, Any], additions: int | None = None, deletions: int
     )
 
 
+def map_file_status(raw: str) -> FileStatus:
+    return cast(FileStatus, raw) if raw in get_args(FileStatus.__value__) else "unknown"
+
+
 def map_commit_file(raw: dict[str, Any], patches: dict[str, str]) -> CommitFile:
     old, new = raw["old"], raw["new"]
     filename = (new or old)["path"]
     return CommitFile(
         filename=filename,
-        status=_FILE_STATUSES.get(raw["status"], "unknown"),
+        status=map_file_status(raw["status"]),
         patch=patches.get(filename),
         additions=raw["lines_added"],
         deletions=raw["lines_removed"],
@@ -569,10 +699,62 @@ def split_patches(diff: str) -> dict[str, str]:
     """Split a unified diff into each file's hunks, keyed by the file's new path."""
     patches = {}
     for section in re.split(r"^(?=diff --git )", diff, flags=re.MULTILINE):
-        header, _, body = section.partition("\n")
-        if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
-            patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
+        if not (hunks := re.search(r"^@@", section, flags=re.MULTILINE)):
+            continue
+        # The `diff --git` line is ambiguous when a path contains " b/". Git ends a path with spaces in a tab.
+        header = section[: hunks.start()]
+        path = re.search(r"^\+\+\+ b/(.*?)\t?$", header, re.MULTILINE) or re.search(
+            r"^--- a/(.*?)\t?$", header, re.MULTILINE
+        )
+        if path:
+            patches[path[1]] = section[hunks.start() :]
     return patches
+
+
+def map_author(raw: dict[str, Any]) -> Author:
+    # App users have no nickname.
+    return Author(id=raw["uuid"], username=raw.get("nickname") or raw.get("display_name") or "")
+
+
+def map_pull_request_branch(raw: dict[str, Any]) -> PullRequestBranch:
+    # Bitbucket abbreviates these hashes to 12 characters. Only get_pull_request expands them.
+    return PullRequestBranch(ref=raw["branch"]["name"], sha=(raw.get("commit") or {}).get("hash"))
+
+
+def map_pull_request(raw: dict[str, Any]) -> PullRequest:
+    return PullRequest(
+        id=str(raw["id"]),
+        internal_id=str(raw["id"]),
+        title=raw["title"],
+        body=raw["description"] or None,
+        state="open" if raw["state"] == "OPEN" else "closed",
+        merged=raw["state"] == "MERGED",
+        html_url=raw["links"]["html"]["href"],
+        head=map_pull_request_branch(raw["source"]),
+        base=map_pull_request_branch(raw["destination"]),
+        author=map_author(raw["author"]),
+    )
+
+
+def map_pull_request_file(raw: dict[str, Any], patches: dict[str, str]) -> PullRequestFile:
+    status = map_file_status(raw["status"])
+    filename = (raw["new"] or raw["old"])["path"]
+    return PullRequestFile(
+        filename=filename,
+        status=status,
+        patch=patches.get(filename),
+        changes=raw["lines_added"] + raw["lines_removed"],
+        sha="",
+        previous_filename=raw["old"]["path"] if status == "renamed" else None,
+    )
+
+
+def map_pull_request_commit(raw: dict[str, Any]) -> PullRequestCommit:
+    return PullRequestCommit(
+        sha=raw["hash"],
+        message=raw["message"],
+        author=map_commit_author(raw["author"], raw["date"]),
+    )
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:

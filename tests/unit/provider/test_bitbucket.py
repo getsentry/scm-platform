@@ -12,8 +12,10 @@ from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, Reso
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
     map_app_installation,
+    map_author,
     map_commit_author,
     map_paginated_action,
+    map_pull_request_file,
     map_repository,
     next_cursor,
     parse_scopes,
@@ -32,9 +34,16 @@ from scm.types import (
     GetFileContentProtocol,
     GetFileUrlProtocol,
     GetGitRemoteProtocol,
+    GetPullRequestCommitsProtocol,
+    GetPullRequestDiffProtocol,
+    GetPullRequestFilesProtocol,
+    GetPullRequestProtocol,
+    GetPullRequestsProtocol,
     GetPullRequestTemplateProtocol,
+    GetPullRequestUrlProtocol,
     GetReadmeProtocol,
     GetRepositoryProtocol,
+    PullRequestState,
     Repository,
 )
 
@@ -58,11 +67,24 @@ SUPPORTED_PROTOCOLS = [
     GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetRepositoryProtocol,
+    GetPullRequestCommitsProtocol,
+    GetPullRequestDiffProtocol,
+    GetPullRequestFilesProtocol,
+    GetPullRequestProtocol,
+    GetPullRequestsProtocol,
+    GetPullRequestUrlProtocol,
 ]
 COMMIT_SHA = "e723f15089c22737bb51aee8db06e0eab91e4ba1"
 HEAD_SHA = "e3ef83d1a831b7b26c838372f668b1627bbf9a1a"
 BRANCH_SHA = "c495d0431cfae535ec9a05e4def54229d0eb2ad2"
 TEST_AUTHOR = {"name": "Test User", "email": "test@example.com", "date": datetime(2026, 11, 5, 20, 16, 34, tzinfo=UTC)}
+
+
+TEST_USER = {"id": "{00000000-0000-0000-0000-000000000001}", "username": "test-user"}
+
+HEAD_HASH = "c495d0431cfae535ec9a05e4def54229d0eb2ad2"
+
+BASE_HASH = "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
 
 
 def recorded(name: str) -> requests.Response:
@@ -625,6 +647,22 @@ class TestCommitMapping:
         author = map_commit_author(raw, "2026-11-05T20:16:34+00:00")
         assert (author["name"], author["email"]) == (name, email)
 
+    def test_split_patches_reads_paths_containing_b_slash(self) -> None:
+        diff = (
+            "diff --git a/Appendix b/notes.md b/Appendix b/notes.md\n"
+            "--- a/Appendix b/notes.md\t\n"
+            "+++ b/Appendix b/notes.md\t\n"
+            "@@ -1 +1 @@\n-x\n+y\n"
+            "diff --git a/gone.py b/gone.py\n"
+            "--- a/gone.py\n"
+            "+++ /dev/null\n"
+            "@@ -1 +0,0 @@\n-x\n"
+        )
+        assert split_patches(diff) == {
+            "Appendix b/notes.md": "@@ -1 +1 @@\n-x\n+y\n",
+            "gone.py": "@@ -1 +0,0 @@\n-x\n",
+        }
+
     def test_split_patches_skips_files_without_hunks(self) -> None:
         diff = (
             "diff --git a/old.md b/new.md\nsimilarity index 100%\nrename from old.md\nrename to new.md\n"
@@ -632,3 +670,354 @@ class TestCommitMapping:
             "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-x\n+y\n"
         )
         assert split_patches(diff) == {"a.py": "@@ -1 +1 @@\n-x\n+y\n"}
+
+
+def json_response(body: dict[str, Any], status: int = 200) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status
+    response._content = json.dumps(body).encode()
+    response.request = requests.Request("GET", "https://api.bitbucket.org/2.0/x").prepare()
+    return response
+
+
+class TestGetPullRequest:
+    def test_maps_open_pull_request(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            recorded("pull_request"),
+            json_response({"hash": HEAD_HASH}),
+            json_response({"hash": BASE_HASH}),
+        ]
+
+        result = provider.get_pull_request("1")
+
+        assert [(c.kwargs["path"], c.kwargs["params"]) for c in client.request.call_args_list] == [
+            (f"/2.0/repositories/{REPO}/pullrequests/1", {}),
+            (f"/2.0/repositories/{REPO}/commit/c495d0431cfa", {"fields": "hash"}),
+            (f"/2.0/repositories/{REPO}/commit/a682892aa0f4", {"fields": "hash"}),
+        ]
+        assert result["data"] == {
+            "id": "1",
+            "internal_id": "1",
+            "title": "Test pull request",
+            "body": "A test pull request.",
+            "state": "open",
+            "merged": False,
+            "html_url": f"https://bitbucket.org/{REPO}/pull-requests/1",
+            "head": {"ref": "test-branch-1", "sha": HEAD_HASH},
+            "base": {"ref": "main", "sha": BASE_HASH},
+            "author": TEST_USER,
+        }
+
+    def test_expands_head_hash_in_source_repository(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        response = recorded("pull_request")
+        body = response.json()
+        body["source"]["repository"]["full_name"] = "fork-workspace/test-repo"
+        client.request.side_effect = [
+            json_response(body),
+            json_response({"hash": HEAD_HASH}),
+            json_response({"hash": BASE_HASH}),
+        ]
+
+        provider.get_pull_request("1")
+
+        assert (
+            client.request.call_args_list[1].kwargs["path"]
+            == "/2.0/repositories/fork-workspace/test-repo/commit/c495d0431cfa"
+        )
+
+    @pytest.mark.parametrize("status", [403, 404])
+    def test_keeps_short_hash_it_cannot_expand(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, status: int
+    ) -> None:
+        client.request.side_effect = [
+            recorded("pull_request"),
+            json_response({"type": "error"}, status=status),
+            json_response({"hash": BASE_HASH}),
+        ]
+
+        pull_request = provider.get_pull_request("1")["data"]
+
+        assert pull_request["head"]["sha"] == "c495d0431cfa"
+        assert pull_request["base"]["sha"] == BASE_HASH
+
+    def test_other_errors_expanding_a_hash_raise(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [recorded("pull_request"), json_response({"type": "error"}, status=400)]
+        with pytest.raises(ResourceBadRequest):
+            provider.get_pull_request("1")
+
+    def test_skips_expanding_a_missing_commit(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        body = recorded("pull_request").json()
+        body["source"]["commit"] = None
+        client.request.side_effect = [json_response(body), json_response({"hash": BASE_HASH})]
+
+        pull_request = provider.get_pull_request("1")["data"]
+
+        assert pull_request["head"]["sha"] is None
+        assert pull_request["base"]["sha"] == BASE_HASH
+        assert client.request.call_count == 2
+
+    @pytest.mark.parametrize("repository", [{}, {"repository": None}], ids=["missing", "null"])
+    def test_keeps_short_hash_without_a_repository(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, repository: dict[str, Any]
+    ) -> None:
+        body = recorded("pull_request").json()
+        del body["source"]["repository"]
+        body["source"].update(repository)
+        client.request.side_effect = [json_response(body), json_response({"hash": BASE_HASH})]
+
+        pull_request = provider.get_pull_request("1")["data"]
+
+        assert pull_request["head"]["sha"] == "c495d0431cfa"
+        assert client.request.call_count == 2
+
+    def test_merged_pull_request_is_closed(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            recorded("pull_request_merged"),
+            json_response({"hash": "a69b43321a2390a5eeff8c4bb711348457a64396"}),
+            json_response({"hash": BASE_HASH}),
+        ]
+
+        pull_request = provider.get_pull_request("2")["data"]
+
+        assert pull_request["state"] == "closed"
+        assert pull_request["merged"] is True
+        assert pull_request["base"]["ref"] == "merge-base"
+
+    def test_not_found(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_not_found")
+        with pytest.raises(ResourceNotFound):
+            provider.get_pull_request("999")
+
+
+@pytest.mark.parametrize(
+    ("raw", "username"),
+    [
+        ({"nickname": "test-user", "display_name": "Test User"}, "test-user"),
+        ({"type": "app_user", "display_name": "Test App"}, "Test App"),
+        ({}, ""),
+    ],
+)
+def test_map_author(raw: dict[str, Any], username: str) -> None:
+    raw = {"uuid": "{00000000-0000-0000-0000-000000000002}", **raw}
+    assert map_author(raw) == {"id": "{00000000-0000-0000-0000-000000000002}", "username": username}
+
+
+class TestGetPullRequests:
+    def test_maps_page(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_requests_page_1")
+
+        result = provider.get_pull_requests(state=None, pagination={"cursor": "5", "per_page": 2})
+
+        assert request_kwargs(client)["params"]["pagelen"] == "2"
+        assert request_kwargs(client)["params"]["page"] == "5"
+        assert [(pr["id"], pr["state"], pr["merged"]) for pr in result["data"]] == [
+            ("3", "closed", False),
+            ("2", "closed", True),
+        ]
+        assert result["data"][0]["body"] is None
+        assert result["meta"]["next_cursor"] == "2"
+
+    @pytest.mark.parametrize(
+        ("state", "query"),
+        [
+            ("open", 'state="OPEN"'),
+            ("closed", '(state="MERGED" OR state="DECLINED" OR state="SUPERSEDED")'),
+            (None, '(state="OPEN" OR state="MERGED" OR state="DECLINED" OR state="SUPERSEDED")'),
+        ],
+    )
+    def test_state_filter(
+        self,
+        provider: BitbucketProvider,
+        client: unittest.mock.MagicMock,
+        state: PullRequestState | None,
+        query: str,
+    ) -> None:
+        client.request.return_value = recorded("pull_requests_page_1")
+        provider.get_pull_requests(state=state)
+        assert request_kwargs(client)["params"] == {"q": query}
+
+    @pytest.mark.parametrize("head", ["feature/x", "test-workspace:feature/x", "test-workspace:refs/heads/feature/x"])
+    def test_head_filter(self, provider: BitbucketProvider, client: unittest.mock.MagicMock, head: str) -> None:
+        client.request.return_value = recorded("pull_requests_page_1")
+        provider.get_pull_requests(head=head)
+        assert request_kwargs(client)["params"] == {"q": 'source.branch.name="feature/x" AND state="OPEN"'}
+
+    def test_head_filter_escapes_quotes(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_requests_page_1")
+        provider.get_pull_requests(head='a"b')
+        assert request_kwargs(client)["params"]["q"].startswith('source.branch.name="a\\"b" AND ')
+
+    def test_head_filter_keeps_non_ascii(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_requests_page_1")
+        provider.get_pull_requests(head="feature/é")
+        assert request_kwargs(client)["params"]["q"].startswith('source.branch.name="feature/é" AND ')
+
+
+class TestGetPullRequestFiles:
+    def test_maps_diffstat(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_diffstat"), recorded("pull_request_merged_diff")]
+
+        result = provider.get_pull_request_files("2")
+
+        assert [(c.kwargs["path"], c.kwargs["allow_redirects"]) for c in client.request.call_args_list] == [
+            (f"/2.0/repositories/{REPO}/pullrequests/2/diffstat", True),
+            (f"/2.0/repositories/{REPO}/pullrequests/2/diff", True),
+        ]
+        assert result["data"] == [
+            {
+                "filename": "PULL_REQUEST_TEMPLATE.md",
+                "status": "removed",
+                "patch": "@@ -1,3 +0,0 @@\n-## Summary\n-\n-## Test plan\n",
+                "changes": 3,
+                "sha": "",
+                "previous_filename": None,
+            },
+            {
+                "filename": "README.md",
+                "status": "modified",
+                "patch": "@@ -1,3 +1,4 @@\n # test-repo\n \n A test repository.\n+More docs.\n",
+                "changes": 1,
+                "sha": "",
+                "previous_filename": None,
+            },
+            {
+                "filename": "src/test_app/greet.py",
+                "status": "added",
+                "patch": '@@ -0,0 +1,2 @@\n+def greet(name):\n+    return f"Hello, {name}"\n',
+                "changes": 2,
+                "sha": "",
+                "previous_filename": None,
+            },
+            {
+                "filename": "tests/test_arithmetic.py",
+                "status": "renamed",
+                "patch": None,
+                "changes": 0,
+                "sha": "",
+                "previous_filename": "tests/test_math.py",
+            },
+        ]
+        assert result["meta"]["next_cursor"] is None
+
+    def test_passes_pagination_to_diffstat(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [recorded("pull_request_diffstat"), recorded("pull_request_merged_diff")]
+
+        provider.get_pull_request_files("2", pagination={"cursor": "3", "per_page": 5})
+
+        assert client.request.call_args_list[0].kwargs["params"] == {"pagelen": "5", "page": "3"}
+
+    def test_conflict_status_is_unknown(self) -> None:
+        raw = {"status": "merge conflict", "old": None, "new": {"path": "a.py"}, "lines_added": 1, "lines_removed": 0}
+        assert map_pull_request_file(raw, {})["status"] == "unknown"
+
+
+class TestGetPullRequestCommits:
+    def test_maps_commits_oldest_first(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_commits")
+
+        result = provider.get_pull_request_commits("2")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/2/commits"
+        assert request_kwargs(client)["params"] == {"pagelen": "100"}
+        assert client.request.call_count == 1
+        assert result["meta"]["next_cursor"] is None
+        assert result["data"] == [
+            {
+                "sha": "f1ee80b1c7c743738fb49d063f9a30a880343314",
+                "message": "Add greet module\n",
+                "author": {
+                    "name": "Test User",
+                    "email": "test@example.com",
+                    "date": datetime(2026, 11, 5, 20, 16, 11, tzinfo=UTC),
+                },
+            },
+            {
+                "sha": "a69b43321a2390a5eeff8c4bb711348457a64396",
+                "message": "Rename tests, drop template, update README\n",
+                "author": {
+                    "name": "Test User",
+                    "email": "test@example.com",
+                    "date": datetime(2026, 11, 5, 20, 16, 11, tzinfo=UTC),
+                },
+            },
+        ]
+
+    def test_reads_every_page_oldest_first(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        newest, oldest = recorded("pull_request_commits").json()["values"]
+        next_url = f"https://api.bitbucket.org/2.0/repositories/{REPO}/pullrequests/2/commits?page=67Fg"
+        client.request.side_effect = [
+            json_response({"values": [newest], "next": next_url}),
+            json_response({"values": [oldest]}),
+        ]
+
+        result = provider.get_pull_request_commits("2", pagination={"per_page": 1})
+
+        assert client.request.call_args_list[1].kwargs["params"] == {"pagelen": "100", "page": "67Fg"}
+        assert [commit["sha"] for commit in result["data"]] == [oldest["hash"], newest["hash"]]
+        assert result["meta"]["next_cursor"] is None
+
+    @staticmethod
+    def with_merge_commit(merge_hash: str) -> requests.Response:
+        body = recorded("pull_request_commits").json()
+        merge_commit = {
+            **body["values"][0],
+            "hash": merge_hash,
+            "message": "Merged in file-changes (pull request #2)\n",
+            "parents": [{"hash": BASE_HASH}, {"hash": body["values"][0]["hash"]}],
+        }
+        body["values"].insert(0, merge_commit)
+        return json_response(body)
+
+    def test_drops_bitbucket_merge_commit(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [
+            self.with_merge_commit("69c00816acfdb151b90d7dd925cfa79922f362e9"),
+            recorded("pull_request_merged"),
+        ]
+
+        result = provider.get_pull_request_commits("2")
+
+        assert client.request.call_args_list[1].kwargs["path"] == f"/2.0/repositories/{REPO}/pullrequests/2"
+        assert [commit["sha"] for commit in result["data"]] == [
+            "f1ee80b1c7c743738fb49d063f9a30a880343314",
+            "a69b43321a2390a5eeff8c4bb711348457a64396",
+        ]
+
+    def test_keeps_other_merge_commits(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        merge_hash = "1111111111111111111111111111111111111111"
+        client.request.side_effect = [self.with_merge_commit(merge_hash), recorded("pull_request_merged")]
+
+        result = provider.get_pull_request_commits("2")
+
+        assert result["data"][-1]["sha"] == merge_hash
+
+    def test_keeps_merge_commit_on_open_pull_request(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        merge_hash = "2222222222222222222222222222222222222222"
+        client.request.side_effect = [self.with_merge_commit(merge_hash), recorded("pull_request")]
+
+        result = provider.get_pull_request_commits("1")
+
+        assert result["data"][-1]["sha"] == merge_hash
+
+
+class TestGetPullRequestDiff:
+    def test_returns_diff_text(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("pull_request_diff")
+
+        result = provider.get_pull_request_diff("1")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/diff"
+        assert request_kwargs(client)["allow_redirects"] is True
+        assert result["data"].startswith("diff --git a/src/test_app/math.py b/src/test_app/math.py\n")
+        assert "+def subtract(a, b):\n" in result["data"]
+
+
+def test_get_pull_request_url(provider: BitbucketProvider) -> None:
+    assert provider.get_pull_request_url("1") == f"https://bitbucket.org/{REPO}/pull-requests/1"
