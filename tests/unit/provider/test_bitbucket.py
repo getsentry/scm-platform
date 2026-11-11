@@ -21,7 +21,10 @@ from scm.providers.bitbucket.provider import (
 )
 from scm.types import (
     CompareCommitsProtocol,
+    CreateBranchProtocol,
+    DeleteBranchProtocol,
     GetAppInstallationProtocol,
+    GetBranchProtocol,
     GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
@@ -31,11 +34,13 @@ from scm.types import (
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
+    GetGitRefProtocol,
     GetGitRemoteProtocol,
     GetPullRequestTemplateProtocol,
     GetReadmeProtocol,
     GetRepositoryProtocol,
     Repository,
+    UpdateBranchProtocol,
 )
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "bitbucket"
@@ -58,11 +63,20 @@ SUPPORTED_PROTOCOLS = [
     GetCommitsUrlProtocol,
     GetCommitUrlProtocol,
     GetRepositoryProtocol,
+    CreateBranchProtocol,
+    DeleteBranchProtocol,
+    GetBranchProtocol,
+    GetGitRefProtocol,
 ]
 COMMIT_SHA = "e723f15089c22737bb51aee8db06e0eab91e4ba1"
 HEAD_SHA = "e3ef83d1a831b7b26c838372f668b1627bbf9a1a"
 BRANCH_SHA = "c495d0431cfae535ec9a05e4def54229d0eb2ad2"
 TEST_AUTHOR = {"name": "Test User", "email": "test@example.com", "date": datetime(2026, 11, 5, 20, 16, 34, tzinfo=UTC)}
+
+
+MAIN_SHA = "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+
+FEATURE_SHA = "1c0671c60997ab4bd70884bf9f3bd0c41d7043f1"
 
 
 def recorded(name: str) -> requests.Response:
@@ -632,3 +646,81 @@ class TestCommitMapping:
             "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-x\n+y\n"
         )
         assert split_patches(diff) == {"a.py": "@@ -1 +1 @@\n-x\n+y\n"}
+
+
+def test_cannot_update_branch(provider: BitbucketProvider) -> None:
+    assert not isinstance(provider, UpdateBranchProtocol)
+
+
+class TestBranches:
+    def test_get_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch")
+
+        result = provider.get_branch("feature/test-branch")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/branches/feature/test-branch"
+        assert result["data"] == {"ref": "feature/test-branch", "sha": FEATURE_SHA}
+
+    def test_get_branch_encodes_name(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch")
+        provider.get_branch("feature/#12-50%-fix")
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/branches/feature/%2312-50%25-fix"
+
+    def test_get_missing_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch_not_found")
+        with pytest.raises(ResourceNotFound):
+            provider.get_branch("missing-branch")
+
+    def test_create_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch_created")
+
+        result = provider.create_branch("new-branch", MAIN_SHA)
+
+        kwargs = request_kwargs(client)
+        assert kwargs["method"] == "POST"
+        assert kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches"
+        assert kwargs["data"] == {"name": "new-branch", "target": {"hash": MAIN_SHA}}
+        assert result["data"] == {"ref": "new-branch", "sha": MAIN_SHA}
+
+    def test_create_existing_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch_exists")
+        with pytest.raises(ResourceBadRequest):
+            provider.create_branch("new-branch", MAIN_SHA)
+
+    def test_delete_branch(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch_deleted")
+
+        provider.delete_branch("feature/#12")
+
+        kwargs = request_kwargs(client)
+        assert kwargs["method"] == "DELETE"
+        assert kwargs["path"] == f"/2.0/repositories/{REPO}/refs/branches/feature/%2312"
+
+
+class TestGetGitRef:
+    def test_branch_ref(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("branch")
+
+        result = provider.get_git_ref("heads/feature/test-branch")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/branches/feature/test-branch"
+        assert result["data"] == {"ref": "refs/heads/feature/test-branch", "sha": FEATURE_SHA}
+
+    def test_tag_ref(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("tag")
+
+        result = provider.get_git_ref("tags/test-tag")
+
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/tags/test-tag"
+        assert result["data"] == {"ref": "refs/tags/test-tag", "sha": FEATURE_SHA}
+
+    def test_encodes_ref_name(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = recorded("tag")
+        provider.get_git_ref("tags/v#1")
+        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/refs/tags/v%231"
+
+    @pytest.mark.parametrize("ref", ["main", "heads/", "pull/1/head", "refs/heads/main"])
+    def test_unsupported_ref(self, provider: BitbucketProvider, client: unittest.mock.MagicMock, ref: str) -> None:
+        with pytest.raises(ResourceNotFound):
+            provider.get_git_ref(ref)
+        client.request.assert_not_called()
