@@ -1,0 +1,10 @@
+{
+  "body": {
+    "error": {
+      "message": "The parent commit specified (a682892aa0f4502ef7a242f75d72d0b41eaa27b9) is not the head of branch test-branch."
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 400
+}
