@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 from urllib.parse import urlsplit
 
+import jwt
 import pytest
 
 from scm.errors import (
@@ -17,7 +18,7 @@ from scm.errors import (
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
 )
-from scm.git.grant import sign_grant
+from scm.git.grant import key_id, sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer
 from scm.git.types import GRANT_HEADER, GitOperation, GrantV2FetchRule, GrantV2PushRule, Readable
@@ -28,12 +29,12 @@ from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, 
 from tests.unit.git_builders import (
     NEW_ID,
     OLD_ID,
+    VERSION_1_PUSH_CLAIMS,
     make_grant,
     make_key_pair,
     make_provider,
     make_push_body,
     make_repository,
-    make_v1_grant,
     pkt,
 )
 from tests.unit.git_upstream import (
@@ -895,11 +896,12 @@ class TestPushRules:
         assert response.status_code == 499
         assert recorder.errors == []
 
-    def test_version_1_push_grant_relays_unread(self):
+    def test_version_1_push_grant_is_refused(self):
         recorder = Recorder()
         server = make_server(recorder)
-        grant = sign_grant(KEY.private, make_v1_grant(operation="push"))
-        body = io.BytesIO(b"not a push the server could read")
-        request(server, grant, method="POST", route="git-receive-pack", query="", body=body)
-        assert body.tell() == 0
-        assert server.relay.forward.call_args.kwargs["body"].read() == b"not a push the server could read"  # type: ignore[attr-defined]
+        grant = jwt.encode(VERSION_1_PUSH_CLAIMS, KEY.key, algorithm="EdDSA", headers={"kid": key_id(KEY.public)})
+        body = io.BytesIO(push_body("refs/heads/main"))
+        response = request(server, grant, method="POST", route="git-receive-pack", query="", body=body)
+        assert_refused(response, 403, "not version 2")
+        assert recorder.token_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]

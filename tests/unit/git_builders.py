@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_private_key
 
-from scm.git.grant import generate_private_key
-from scm.git.types import GrantV1, GrantV2, GrantV2FetchRule
+from scm.git.grant import GRANT_AUDIENCE, generate_private_key
+from scm.git.types import GrantV2, GrantV2FetchRule
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -62,17 +62,17 @@ def make_grant(**overrides) -> GrantV2:
     return GrantV2(**fields)  # type: ignore[arg-type]
 
 
-def make_v1_grant(**overrides) -> GrantV1:
-    """A version 1 fetch grant for the default repository, named both ways a grant can name it."""
-    fields = {
-        "organization_id": 1,
-        "referrer": "seer.coding_job",
-        "operation": "fetch",
-        "repositories": [5, ("github", "123")],
-        "expires_at": FAR_FUTURE,
-    }
-    fields.update(overrides)
-    return GrantV1(**fields)  # type: ignore[arg-type]
+VERSION_1_PUSH_CLAIMS = {
+    "organization_id": 1,
+    "referrer": "seer.coding_job",
+    "operation": "push",
+    "repositories": [5],
+    "version": 1,
+    "exp": FAR_FUTURE,
+    "iat": 1_700_000_000,
+    "aud": GRANT_AUDIENCE,
+}
+"""A push grant for the default repository as earlier releases sign one, which lets a push update any ref."""
 
 
 class KeyPair(NamedTuple):

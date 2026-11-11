@@ -5,7 +5,7 @@ from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, Git
 from scm.git.grant import require_public_keys, verify_grant
 from scm.git.push import PushRefused, check_push, check_push_headers
 from scm.git.relay import GitRelay, ResponseBody, _authorize
-from scm.git.types import GRANT_HEADER, GetToken, GrantV2, GrantV2PushRule, Readable
+from scm.git.types import GRANT_HEADER, GetToken, GrantV2PushRule, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -60,12 +60,11 @@ class GitServer:
     does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
     refuses internal addresses; see ``GitRelay``.
 
-    A push under a ``GrantV2`` is kept to its push rules by ``scm.git.push.check_push``, which reads the push's ref
-    updates before anything is looked up and refuses the whole push unless a rule allows every update. Anything it
-    doesn't recognise, such as push options, a signed push or a capability git doesn't send, refuses the push too. A
-    client that asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push
-    the rules allow is relayed with the updates the server read followed by the rest of the body, unread. A push
-    under a ``GrantV1`` is relayed unread.
+    A push is kept to the grant's push rules by ``scm.git.push.check_push``, which reads the push's ref updates
+    before anything is looked up and refuses the whole push unless a rule allows every update. Anything it doesn't
+    recognise, such as push options, a signed push or a capability git doesn't send, refuses the push too. A client
+    that asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the
+    rules allow is relayed with the updates the server read followed by the rest of the body, unread.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
@@ -145,7 +144,7 @@ class GitServer:
             operation = _authorize(grant, repository_id, method, route, query)
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
-            if isinstance(grant, GrantV2) and operation == "push":
+            if operation == "push":
                 if method == "POST":
                     push_rules = [
                         rule for rule in grant.rules_for(repository_id, "push") if isinstance(rule, GrantV2PushRule)

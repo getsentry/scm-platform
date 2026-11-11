@@ -20,7 +20,7 @@ from scm.errors import (
     RpcMalformedRequestHeaders,
     SCMCodedError,
 )
-from scm.git.types import GitOperation, GrantV1, GrantV2, GrantV2FetchRule, Readable
+from scm.git.types import GitOperation, GrantV2, GrantV2FetchRule, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, RepositoryId
@@ -64,56 +64,26 @@ _RESPONSE_HEADERS = frozenset(
 )
 
 
-def authorize_request(
-    grant: GrantV1 | GrantV2, repository_id: RepositoryId, method: str, route: str, query: str
-) -> GitOperation:
+def authorize_request(grant: GrantV2, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
     """Return the git operation a request belongs to, refusing the request unless the grant allows it.
 
-    Fetches reach only upload-pack and pushes only receive-pack. The grant must name the repository in the same form
-    the request uses: a database id does not match the same repository's ``(provider, external id)`` pair.
+    Fetches reach only upload-pack and pushes only receive-pack. A request runs only if the grant has a rule for its
+    repository and operation, and the rule must name the repository in the same form the request uses: a database id
+    does not match the same repository's ``(provider, external id)`` pair.
 
-    A ``GrantV2`` allows a request only if it has a rule for the request's repository and operation. A fetch needs a
-    fetch rule for any object, since nothing reads a fetch's body to keep it to a rule's branches and tags. A push
-    under a ``GrantV2`` is refused here, because only its ref updates show which refs it touches: relay it through
+    A fetch needs a fetch rule for any object, since nothing reads a fetch's body to keep it to a rule's branches and
+    tags. A push is refused here, because only its ref updates show which refs it touches: relay it through
     GitServer, which reads them before it relays the push.
     """
     operation = _authorize(grant, repository_id, method, route, query)
-    if isinstance(grant, GrantV2) and operation == "push" and method == "POST":
-        raise GitOperationNotGranted(
-            detail="A push under a git grant with rules goes through GitServer, which checks its ref updates."
-        )
+    if operation == "push" and method == "POST":
+        raise GitOperationNotGranted(detail="A git push goes through GitServer, which checks its ref updates.")
     return operation
 
 
-def _authorize(
-    grant: GrantV1 | GrantV2, repository_id: RepositoryId, method: str, route: str, query: str
-) -> GitOperation:
+def _authorize(grant: GrantV2, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
     """``authorize_request`` for GitServer, which checks a push's ref updates against the grant's push rules itself."""
     operation = _route_operation(method, route, query)
-    if isinstance(grant, GrantV1):
-        _authorize_v1(grant, repository_id, operation)
-    else:
-        _authorize_v2(grant, repository_id, operation)
-    return operation
-
-
-def _route_operation(method: str, route: str, query: str) -> GitOperation:
-    operation = _ROUTES.get((method, route, query))
-    if operation is None:
-        raise GitRouteNotSupported(
-            detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
-        )
-    return operation
-
-
-def _authorize_v1(grant: GrantV1, repository_id: RepositoryId, operation: GitOperation) -> None:
-    if operation != grant.operation:
-        raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
-    if repository_id not in grant.repositories:
-        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
-
-
-def _authorize_v2(grant: GrantV2, repository_id: RepositoryId, operation: GitOperation) -> None:
     rules = grant.rules_for(repository_id, operation)
     if not rules:
         other: GitOperation = "push" if operation == "fetch" else "fetch"
@@ -125,6 +95,16 @@ def _authorize_v2(grant: GrantV2, repository_id: RepositoryId, operation: GitOpe
             detail="The git endpoint cannot keep a fetch to a rule's branches and tags, so a fetch rule must set "
             "any_object."
         )
+    return operation
+
+
+def _route_operation(method: str, route: str, query: str) -> GitOperation:
+    operation = _ROUTES.get((method, route, query))
+    if operation is None:
+        raise GitRouteNotSupported(
+            detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
+        )
+    return operation
 
 
 def _printable(text: str, length: int) -> str:

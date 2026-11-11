@@ -1,5 +1,4 @@
 import re
-import warnings
 from collections.abc import Callable
 from typing import ClassVar, Literal, Protocol
 
@@ -9,11 +8,7 @@ from scm.secret import Secret
 from scm.types import BranchName, Referrer, Repository, RepositoryId
 
 type GitOperation = Literal["fetch", "push"]
-"""What a grant or rule lets its holder do. ``scm.git.relay`` maps each to its git routes."""
-
-GRANT_VERSION: Literal[1] = 1
-"""Deprecated: the version of ``GrantV1``, which its ``version`` field already holds. Remove it together with
-``GrantV1``."""
+"""What a rule lets its holder do. ``scm.git.relay`` maps each to its git routes."""
 
 GRANT_HEADER = "X-Scm-Git-Grant"
 """The request header that carries a signed grant to the git endpoint."""
@@ -134,39 +129,6 @@ class GrantV2PushRule(_GrantV2RefRule, frozen=True, tag="push", tag_field="opera
             raise ValueError("A push rule must set branches, branch_patterns, tags or tag_patterns.")
 
 
-@warnings.deprecated("GrantV1 is deprecated. Sign a GrantV2, whose rules can keep a push to branches and tags.")
-class GrantV1(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
-    """Permission to run one git operation against a fixed set of an organization's repositories.
-
-    Deprecated: sign a ``GrantV2``, which can also keep a push to branches and tags. Verifiers still accept this
-    version, so a signer can switch once they can read both.
-
-    A push grant lets its holder update any ref of its repositories, including tags and deletions, since GitServer
-    relays its pushes unread. Each repository is a ``RepositoryId`` under the grant's organization, as in the RPC
-    endpoint: Sentry's repository id or a ``(provider, external id)`` pair.
-
-    A grant with a field this version does not know is refused rather than read without it. If a later version
-    adds a field that restricts a grant, a verifier that ignored the field would allow more than the grant does.
-    """
-
-    organization_id: int
-    referrer: Referrer
-    """Who the grant is for, e.g. a coding job or Seer itself, as ``referrer`` is elsewhere in this library.
-    Sentry tags the git endpoint's metrics with it. Seer sets it, because git requests carry nothing else that
-    tells callers apart."""
-    operation: GitOperation
-    repositories: list[RepositoryId]
-    expires_at: int
-    """Unix time in seconds. Every grant expires."""
-    version: Literal[1] = 1
-    """The format version. A verifier refuses a version it does not know."""
-
-
-Grant = GrantV1
-"""The name ``GrantV1`` had before ``GrantV2``, kept so code that imports it keeps working. Remove it together with
-``GrantV1`` rather than pointing it at ``GrantV2``."""
-
-
 class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
     """Permission to run git operations on an organization's repositories, as a list of rules.
 
@@ -195,7 +157,7 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     expires_at: int
     """Unix time in seconds. Every grant expires."""
     version: Literal[2] = 2
-    """The format version. A verifier refuses a version it does not know, so one that knows only ``GrantV1`` refuses
+    """The format version. A verifier refuses a version it does not know, so one that knows only version 1 refuses
     this one rather than reading its rules as broader than they are."""
 
     def __post_init__(self) -> None:

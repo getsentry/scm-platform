@@ -37,7 +37,7 @@ from cryptography.hazmat.primitives.serialization import (
 )
 
 from scm.errors import GitGrantExpired, GitGrantKeyError, GitInvalidGrant
-from scm.git.types import GRANT_MAX_LENGTH, GrantV1, GrantV2
+from scm.git.types import GRANT_MAX_LENGTH, GrantV2
 from scm.secret import Secret
 
 GRANT_AUDIENCE = "scm-git-grant"
@@ -48,7 +48,7 @@ _ALGORITHM = "EdDSA"
 _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
-def sign_grant(private_key: Secret, grant: GrantV1 | GrantV2, *, now: float | None = None) -> str:
+def sign_grant(private_key: Secret, grant: GrantV2, *, now: float | None = None) -> str:
     """Sign ``grant`` with ``private_key``, an Ed25519 private key in PEM.
 
     The ``kid`` header is derived from the key, so a signer needs no key id setting next to it. Raises
@@ -111,10 +111,10 @@ def require_private_key(private_key: Secret) -> Secret:
     return private_key
 
 
-def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> GrantV1 | GrantV2:
+def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> GrantV2:
     """Return the grant if the private key of one of ``public_keys`` signed it and it has not expired.
 
-    The grant is a ``GrantV2`` if its version is 2, and a ``GrantV1`` otherwise.
+    Only version 2 grants verify. A version 1 grant, which lets a push update any ref, is refused.
 
     Verification takes a list of Ed25519 public keys in PEM, so a new key can be added before the signer switches to
     it and the old one removed after its grants expire. Raises GitGrantKeyError, rather than refusing the grant, if
@@ -158,22 +158,18 @@ def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = 
 
     fields = {name: value for name, value in claims.items() if name not in _JWT_CLAIMS}
     payload = {**fields, "expires_at": claims["exp"]}
+    # Checked first, so a version 1 grant is told its version is the problem rather than its first unknown field.
+    if fields.get("version") != 2:
+        raise GitInvalidGrant(detail="The git grant is not version 2, the only version the git endpoint accepts.")
     try:
-        grant: GrantV1 | GrantV2
-        if fields.get("version") == 2:
-            grant = msgspec.convert(payload, type=GrantV2, strict=True)
-        else:
-            # GrantV1's version field refuses any version but 1.
-            grant = msgspec.convert(payload, type=GrantV1, strict=True)
+        grant = msgspec.convert(payload, type=GrantV2, strict=True)
     except msgspec.ValidationError as e:
-        # The signature matched, so the holder of the private key wrote these claims; telling them why they are
+        # The signature matched, so the holder of the private key wrote these claims, and telling them why they are
         # invalid gives nothing away.
         raise GitInvalidGrant(detail=f"The git grant's payload is invalid: {e}") from None
 
     if grant.expires_at <= now:
         raise GitGrantExpired(detail="The git grant has expired.")
-    if isinstance(grant, GrantV1) and not grant.repositories:
-        raise GitInvalidGrant(detail="The git grant names no repositories.")
     return grant
 
 

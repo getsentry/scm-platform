@@ -31,10 +31,10 @@ from scm.git.grant import (
     sign_grant,
     verify_grant,
 )
-from scm.git.types import GRANT_MAX_LENGTH, Grant, GrantV1, GrantV2, GrantV2FetchRule, GrantV2PushRule
+from scm.git.types import GRANT_MAX_LENGTH, GrantV2, GrantV2FetchRule, GrantV2PushRule
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
-from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair, make_v1_grant
+from tests.unit.git_builders import FAR_FUTURE, VERSION_1_PUSH_CLAIMS, KeyPair, make_grant, make_key_pair
 
 # Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
 NOW = 1_700_000_000
@@ -50,7 +50,7 @@ def expected_key_id(key: KeyPair) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
-def claims_of(grant: Grant | GrantV2) -> dict:
+def claims_of(grant: GrantV2) -> dict:
     claims = msgspec.to_builtins(grant)
     claims["exp"] = claims.pop("expires_at")
     return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
@@ -520,9 +520,6 @@ class TestMalformed:
             {"organization_id": True},
             {"organization_id": "1"},
             {"referrer": None},
-            {"version": 1},
-            {"version": 3},
-            {"version": "2"},
             {"rules": None},
             {"rules": [{"operation": "fetch", "repository": ["github"], "any_object": True}]},
             {"rules": [{"operation": "fetch", "repository": ["unknown_provider", "123"], "any_object": True}]},
@@ -539,8 +536,20 @@ class TestMalformed:
         del claims["referrer"]
         assert_invalid(sign_claims(claims), "referrer")
 
+    @pytest.mark.parametrize("version", [1, 3, "2", None])
+    def test_version_other_than_2(self, version):
+        assert_invalid(sign_claims(claims_of(make_grant()) | {"version": version}), "not version 2")
+
+    def test_without_a_version(self):
+        claims = claims_of(make_grant())
+        del claims["version"]
+        assert_invalid(sign_claims(claims), "not version 2")
+
+    def test_version_1_grant(self):
+        assert_invalid(sign_claims(VERSION_1_PUSH_CLAIMS), "not version 2")
+
     def test_version_1_claims_labelled_version_2(self):
-        assert_invalid(sign_claims(claims_of(make_v1_grant()) | {"version": 2}), "payload is invalid")
+        assert_invalid(sign_claims(VERSION_1_PUSH_CLAIMS | {"version": 2}), "payload is invalid")
 
 
 FETCH_NAMES_NOTHING = "A fetch rule must set branches, branch_patterns, tags, tag_patterns or any_object"
@@ -843,64 +852,3 @@ class TestRefNames:
     )
     def test_valid(self, field, name):
         assert getattr(GrantV2PushRule(repository=5, **{field: [name]}), field) == [name]
-
-
-def sign_v1(grant: GrantV1) -> str:
-    return sign_grant(KEY.private, grant, now=NOW)
-
-
-class TestVersion1:
-    """Grant, which GrantV2 replaces, still signs and verifies as it did."""
-
-    @pytest.mark.parametrize("operation", ["fetch", "push"])
-    def test_verifies_what_it_signed(self, operation):
-        grant = make_v1_grant(operation=operation)
-        verified = verify_grant([KEY.public], sign_v1(grant), now=NOW)
-        assert verified == grant
-        assert isinstance(verified, GrantV1)
-
-    def test_deprecated(self):
-        # Type checkers and IDEs flag code that uses it, by either name.
-        assert "Sign a GrantV2" in GrantV1.__deprecated__  # type: ignore[attr-defined]
-
-    def test_old_name(self):
-        assert Grant is GrantV1
-        assert Grant(**msgspec.to_builtins(make_v1_grant())) == make_v1_grant()
-
-    def test_token_is_a_jwt_with_the_grants_claims(self):
-        token = sign_v1(make_v1_grant())
-        assert jwt.decode(token, options={"verify_signature": False}) == {
-            "organization_id": 1,
-            "referrer": "seer.coding_job",
-            "operation": "fetch",
-            "repositories": [5, ["github", "123"]],
-            "version": 1,
-            "exp": FAR_FUTURE,
-            "iat": NOW,
-            "aud": GRANT_AUDIENCE,
-        }
-
-    def test_without_a_version(self):
-        # version defaults to 1, so a grant that leaves it out still reads as version 1.
-        claims = claims_of(make_v1_grant())
-        del claims["version"]
-        assert verify_grant([KEY.public], sign_claims(claims), now=NOW) == make_v1_grant()
-
-    def test_expired(self):
-        with pytest.raises(GitGrantExpired):
-            verify_grant([KEY.public], sign_v1(make_v1_grant(expires_at=NOW)), now=NOW)
-
-    @pytest.mark.parametrize(
-        "change",
-        [
-            {"operation": "delete"},
-            {"repositories": [["github"]]},
-            {"repositories": [["unknown_provider", "123"]]},
-            {"rules": [{"operation": "push", "repository": 5, "branches": ["main"]}]},
-        ],
-    )
-    def test_signed_but_invalid_claims(self, change):
-        assert_invalid(sign_claims(claims_of(make_v1_grant()) | change), "payload is invalid")
-
-    def test_no_repositories(self):
-        assert_invalid(sign_v1(make_v1_grant(repositories=[])), "names no repositories")
