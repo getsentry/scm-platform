@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_private_key
 
-from scm.git.grant import generate_private_key
-from scm.git.types import Grant
+from scm.git.grant import GRANT_AUDIENCE, generate_private_key
+from scm.git.types import FetchRule, Grant
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -48,16 +48,31 @@ def make_provider(organization_id: int, repository: Repository) -> Provider | No
 
 
 def make_grant(**overrides) -> Grant:
-    """A fetch grant for the default repository, named both ways a grant can name it."""
+    """A grant to fetch any object of the default repository, named both ways a rule can name it."""
     fields = {
         "organization_id": 1,
         "referrer": "seer.coding_job",
-        "operation": "fetch",
-        "repositories": [5, ("github", "123")],
+        "rules": [
+            FetchRule(repository=5, any_object=True),
+            FetchRule(repository=("github", "123"), any_object=True),
+        ],
         "expires_at": FAR_FUTURE,
     }
     fields.update(overrides)
     return Grant(**fields)  # type: ignore[arg-type]
+
+
+VERSION_1_PUSH_CLAIMS = {
+    "organization_id": 1,
+    "referrer": "seer.coding_job",
+    "operation": "push",
+    "repositories": [5],
+    "version": 1,
+    "exp": FAR_FUTURE,
+    "iat": 1_700_000_000,
+    "aud": GRANT_AUDIENCE,
+}
+"""A push grant for the default repository as earlier releases sign one, which lets a push update any ref."""
 
 
 class KeyPair(NamedTuple):
@@ -80,3 +95,30 @@ def make_key_pair() -> KeyPair:
         # Serialized here rather than by public_key_of, so the tests check public_key_of against cryptography.
         public=key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
     )
+
+
+ZERO_ID = "0" * 40
+OLD_ID = "1" * 40
+NEW_ID = "2" * 40
+PACK = b"PACK\x00\x00\x00\x02" + b"pack contents" * 16
+
+
+def pkt(payload: bytes) -> bytes:
+    return b"%04x" % (len(payload) + 4) + payload
+
+
+def make_push_body(
+    *updates: tuple[str, str, str],
+    capabilities: str = "report-status side-band-64k quiet object-format=sha1 agent=git/2.54.0",
+    shallow: tuple[str, ...] = (),
+    pack: bytes = PACK,
+) -> bytes:
+    """A receive-pack request body as git sends it: shallow commits, ref updates (old id, new id, ref) and the pack.
+
+    git ends no update with a newline, and puts its capabilities after a NUL on the first.
+    """
+    lines = [pkt(f"shallow {commit}\n".encode()) for commit in shallow]
+    for index, (old_id, new_id, ref) in enumerate(updates):
+        line = f"{old_id} {new_id} {ref}".encode()
+        lines.append(pkt(line + b"\0 " + capabilities.encode() if index == 0 else line))
+    return b"".join(lines) + b"0000" + pack

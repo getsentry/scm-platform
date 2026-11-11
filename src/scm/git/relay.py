@@ -9,9 +9,7 @@ from requests.structures import CaseInsensitiveDict
 
 from scm.errors import (
     ClientClosedRequest,
-    GitOperationNotGranted,
     GitRemoteNotHttps,
-    GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
     ResourceCertificateInvalid,
@@ -20,10 +18,10 @@ from scm.errors import (
     RpcMalformedRequestHeaders,
     SCMCodedError,
 )
-from scm.git.types import GitOperation, Grant, Readable
+from scm.git.types import GitOperation, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
-from scm.types import GitRemote, RepositoryId
+from scm.types import GitRemote
 
 # The most bytes the relay reads at once, from the client's body or from the provider's response, so also the
 # most it holds per request in each direction. Smaller chunks cost more Python per byte of a multi-gigabyte pack;
@@ -64,21 +62,19 @@ _RESPONSE_HEADERS = frozenset(
 )
 
 
-def authorize_request(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
-    """Return the git operation a request belongs to, refusing the request unless the grant allows it.
-
-    A fetch grant reaches only upload-pack and a push grant only receive-pack. The repository must be listed in
-    the grant in the same form the request uses: a database id does not match the same repository's
-    ``(provider, external id)`` pair.
-    """
+def _route_operation(method: str, route: str, query: str) -> GitOperation:
     operation = _ROUTES.get((method, route, query))
     if operation is None:
-        raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
-    if operation != grant.operation:
-        raise GitOperationNotGranted(detail=f"The git grant allows {grant.operation}, not {operation}.")
-    if repository_id not in grant.repositories:
-        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
+        raise GitRouteNotSupported(
+            detail=f"{_printable(method, 20)} {_printable(route, 200)} is not a git fetch or push route."
+        )
     return operation
+
+
+def _printable(text: str, length: int) -> str:
+    """Return ``text`` for an error's detail, which reaches logs: escaped where it isn't printable, and cut short."""
+    escaped = "".join(character if character.isprintable() else ascii(character)[1:-1] for character in text)
+    return escaped if len(escaped) <= length else f"{escaped[:length]}..."
 
 
 class ResponseBody(Iterator[bytes], Protocol):
@@ -157,7 +153,7 @@ class GitRelay:
 
         ``route`` is the path below ``<repo>.git/``. The relay enforces what keeps the token safe: an https remote
         and one of the four git routes. It knows nothing of grants, so whether the request may run at all is the
-        caller's to decide; GitServer calls ``authorize_request`` before it looks up the repository or a token.
+        caller's to decide, as GitServer does before it looks up the repository or a token.
 
         Errors carry no URL, because the client has no use for the provider's address.
         """
@@ -165,8 +161,7 @@ class GitRelay:
             # The token would cross the network in the clear, e.g. to a self-managed instance served over http.
             raise GitRemoteNotHttps()
         # The token never goes to anything but a git route, whatever the caller checked.
-        if (method, route, query) not in _ROUTES:
-            raise GitRouteNotSupported(detail=f"{method} {route} is not a git fetch or push route.")
+        _route_operation(method, route, query)
         if not f"{remote['basic_auth_username']}:{token.reveal()}".isascii():
             # requests would fail to encode the credentials with a UnicodeEncodeError that holds them. No provider
             # issues such a token, so the caller has a bug; the message leaves the token out.

@@ -31,10 +31,10 @@ from scm.git.grant import (
     sign_grant,
     verify_grant,
 )
-from scm.git.types import GRANT_MAX_LENGTH, Grant
+from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, PushRule
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
-from tests.unit.git_builders import FAR_FUTURE, KeyPair, make_grant, make_key_pair
+from tests.unit.git_builders import FAR_FUTURE, VERSION_1_PUSH_CLAIMS, KeyPair, make_grant, make_key_pair
 
 # Before the real time: PyJWT checks iat against the real clock, so a grant must not be issued after it.
 NOW = 1_700_000_000
@@ -117,9 +117,17 @@ class TestRoundTrip:
         # make_key_pair serializes the public key with cryptography directly, not through public_key_of.
         assert public_key_of(KEY.private) == KEY.public
 
-    def test_push_grant(self):
-        grant = make_grant(operation="push")
-        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW).operation == "push"
+    def test_rules_of_each_kind(self):
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main", "seer/fix"]),
+                PushRule(repository=5, branches=["seer/fix"]),
+                FetchRule(repository=("gitlab", "gitlab.com:7"), any_object=True),
+            ]
+        )
+        verified = verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW)
+        assert verified == grant
+        assert [type(rule) for rule in verified.rules] == [FetchRule, PushRule, FetchRule]
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_grant(KEY.private, make_grant(), now=NOW)
@@ -127,9 +135,11 @@ class TestRoundTrip:
         assert jwt.decode(token, options={"verify_signature": False}) == {
             "organization_id": 1,
             "referrer": "seer.coding_job",
-            "operation": "fetch",
-            "repositories": [5, ["github", "123"]],
-            "version": 1,
+            "rules": [
+                {"operation": "fetch", "repository": 5, "any_object": True},
+                {"operation": "fetch", "repository": ["github", "123"], "any_object": True},
+            ],
+            "version": 2,
             "exp": FAR_FUTURE,
             "iat": NOW,
             "aud": GRANT_AUDIENCE,
@@ -266,8 +276,10 @@ class TestAlgorithms:
 
 
 def grant_with_repositories(count: int) -> Grant:
-    # Names of one length, so each repository adds the same to the grant.
-    return make_grant(repositories=[("github", f"getsentry/repository-{i:04d}") for i in range(count)])
+    # Names of one length, so each rule adds the same to the grant.
+    return make_grant(
+        rules=[FetchRule(repository=("github", f"getsentry/repository-{i:04d}"), any_object=True) for i in range(count)]
+    )
 
 
 class TestLength:
@@ -291,14 +303,14 @@ class TestLength:
             except ValueError:
                 break
             token, count = longer, count + 1
-        # One more repository adds about 50 characters.
-        assert GRANT_MAX_LENGTH - 100 < len(token) <= GRANT_MAX_LENGTH
+        # One more rule adds about 120 characters.
+        assert GRANT_MAX_LENGTH - 150 < len(token) <= GRANT_MAX_LENGTH
         assert verify_grant([KEY.public], token, now=NOW) == grant_with_repositories(count)
 
     def test_grant_for_one_repository(self):
         # GRANT_MAX_LENGTH's docstring sizes grants from this.
-        grant = make_grant(repositories=[("github", "getsentry/scm-platform")])
-        assert len(sign_grant(KEY.private, grant, now=NOW)) < 450
+        grant = make_grant(rules=[FetchRule(repository=("github", "getsentry/scm-platform"), any_object=True)])
+        assert len(sign_grant(KEY.private, grant, now=NOW)) < 500
 
 
 def other_key_types() -> list:
@@ -505,10 +517,9 @@ class TestMalformed:
             {"organization_id": True},
             {"organization_id": "1"},
             {"referrer": None},
-            {"operation": "delete"},
-            {"version": 2},
-            {"repositories": [["github"]]},
-            {"repositories": [["unknown_provider", "123"]]},
+            {"rules": None},
+            {"rules": [{"operation": "fetch", "repository": ["github"], "any_object": True}]},
+            {"rules": [{"operation": "fetch", "repository": ["unknown_provider", "123"], "any_object": True}]},
             {"exp": NOW + 600.5},
             {"narrower_than_you_think": True},
         ],
@@ -522,5 +533,320 @@ class TestMalformed:
         del claims["referrer"]
         assert_invalid(sign_claims(claims), "referrer")
 
-    def test_no_repositories(self):
-        assert_invalid(sign_grant(KEY.private, make_grant(repositories=[]), now=NOW), "names no repositories")
+    @pytest.mark.parametrize("version", [1, 3, "2", None])
+    def test_version_other_than_2(self, version):
+        assert_invalid(sign_claims(claims_of(make_grant()) | {"version": version}), "not version 2")
+
+    def test_without_a_version(self):
+        claims = claims_of(make_grant())
+        del claims["version"]
+        assert_invalid(sign_claims(claims), "not version 2")
+
+    def test_version_1_grant(self):
+        assert_invalid(sign_claims(VERSION_1_PUSH_CLAIMS), "not version 2")
+
+    def test_version_1_claims_labelled_version_2(self):
+        assert_invalid(sign_claims(VERSION_1_PUSH_CLAIMS | {"version": 2}), "payload is invalid")
+
+
+FETCH_NAMES_NOTHING = "A fetch rule must set branches, branch_patterns, tags, tag_patterns or any_object"
+PUSH_NAMES_NOTHING = "A push rule must set branches, branch_patterns, tags or tag_patterns"
+
+
+def rule_claims(*rules: dict) -> dict:
+    return claims_of(make_grant()) | {"rules": list(rules)}
+
+
+class TestRules:
+    """A grant's rules, checked both where a grant is built and where it is verified, whoever signed it."""
+
+    def test_fetch_and_push_rules_for_one_repository(self):
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main"]),
+                PushRule(repository=5, branches=["seer/fix"]),
+            ]
+        )
+        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
+
+    def test_claims_hold_only_what_a_rule_sets(self):
+        # Shorter, and a reader sees which fetch rules reach any object.
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main"], tags=["v1"]),
+                FetchRule(repository=6, any_object=True),
+                PushRule(repository=5, branches=["seer/fix"]),
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                PushRule(repository=5, tag_patterns=["v[0-9]+"], create_only=True),
+            ]
+        )
+        claims = jwt.decode(sign_grant(KEY.private, grant, now=NOW), options={"verify_signature": False})
+        assert claims["rules"] == [
+            {"operation": "fetch", "repository": 5, "branches": ["main"], "tags": ["v1"]},
+            {"operation": "fetch", "repository": 6, "any_object": True},
+            {"operation": "push", "repository": 5, "branches": ["seer/fix"]},
+            {"operation": "push", "repository": 5, "branch_patterns": ["seer/.+"], "create_only": True},
+            {"operation": "push", "repository": 5, "tag_patterns": ["v[0-9]+"], "create_only": True},
+        ]
+
+    @pytest.mark.parametrize("operation", ["fetch", "push"])
+    def test_same_ref_fields_for_fetch_and_push(self, operation):
+        rule = {
+            "operation": operation,
+            "repository": 5,
+            "branches": ["main"],
+            "tag_patterns": ["v[0-9]+"],
+        }
+        [verified] = verify_grant([KEY.public], sign_claims(rule_claims(rule)), now=NOW).rules
+        assert verified.covers("refs/heads/main")
+        assert verified.covers("refs/tags/v2")
+
+    @pytest.mark.parametrize(
+        "rule,error",
+        [
+            ({"operation": "fetch", "repository": 5}, FETCH_NAMES_NOTHING),
+            ({"operation": "fetch", "repository": 5, "any_object": False}, FETCH_NAMES_NOTHING),
+            ({"operation": "fetch", "repository": 5, "branches": None}, FETCH_NAMES_NOTHING),
+            (
+                {"operation": "fetch", "repository": 5, "branches": ["main"], "any_object": True},
+                "that sets any_object must not set branches, branch_patterns, tags or tag_patterns",
+            ),
+            (
+                {"operation": "fetch", "repository": 5, "tag_patterns": ["v.+"], "any_object": True},
+                "that sets any_object must not set branches, branch_patterns, tags or tag_patterns",
+            ),
+            ({"operation": "fetch", "repository": 5, "branches": []}, "must not be empty"),
+            ({"operation": "fetch", "repository": 5, "tags": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "branches": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "tags": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5}, PUSH_NAMES_NOTHING),
+            ({"operation": "push", "repository": 5, "branches": None}, PUSH_NAMES_NOTHING),
+            ({"operation": "push", "repository": 5, "create_only": True}, PUSH_NAMES_NOTHING),
+            (
+                {"operation": "push", "repository": 5, "branches": ["a"], "branch_patterns": ["a"]},
+                "must not set both branches and branch_patterns",
+            ),
+            (
+                {"operation": "fetch", "repository": 5, "tags": ["a"], "tag_patterns": ["a"]},
+                "must not set both tags and tag_patterns",
+            ),
+            ({"operation": "push", "repository": 5, "branch_patterns": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "tag_patterns": []}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "branch_patterns": [""]}, "must not be empty"),
+            ({"operation": "fetch", "repository": 5, "tag_patterns": [""]}, "must not be empty"),
+            ({"operation": "push", "repository": 5, "branch_patterns": ["seer/("]}, "is not a regular expression"),
+            ({"operation": "fetch", "repository": 5, "tag_patterns": ["v("]}, "is not a regular expression"),
+            ({"operation": "push", "repository": 5, "branches": ["a"], "create_only": 1}, "Expected `bool`"),
+            (
+                {"operation": "push", "repository": 5, "branches": ["a"], "any_object": True},
+                "unknown field `any_object`",
+            ),
+            ({"operation": "fetch", "repository": 5, "any_object": True, "create_only": True}, "unknown field"),
+            ({"operation": "fetch", "repository": 5, "branches": ["main"], "deepen": 50}, "unknown field `deepen`"),
+            ({"operation": "push", "repository": 5, "refs": ["refs/heads/main"]}, "unknown field `refs`"),
+            ({"operation": "delete", "repository": 5, "branches": ["main"]}, "Invalid value 'delete'"),
+            ({"repository": 5, "any_object": True}, "missing required field `operation`"),
+            ({"operation": "fetch", "any_object": True}, "missing required field `repository`"),
+        ],
+    )
+    def test_invalid_rule(self, rule, error):
+        assert_invalid(sign_claims(rule_claims(rule)), error)
+
+    def test_rule_without_refs_or_any_object_cannot_be_built(self):
+        with pytest.raises(ValueError, match=FETCH_NAMES_NOTHING):
+            FetchRule(repository=5)
+        with pytest.raises(ValueError, match=PUSH_NAMES_NOTHING):
+            PushRule(repository=5, create_only=True)
+
+    def test_rule_with_refs_and_any_object_cannot_be_built(self):
+        with pytest.raises(ValueError, match="that sets any_object must not set"):
+            FetchRule(repository=5, tags=["v1"], any_object=True)
+
+    @pytest.mark.parametrize("make_rule", [FetchRule, PushRule], ids=["fetch", "push"])
+    @pytest.mark.parametrize("field", ["branches", "branch_patterns", "tags", "tag_patterns"])
+    def test_rule_with_an_empty_list_cannot_be_built(self, make_rule, field):
+        with pytest.raises(ValueError, match="must not be empty"):
+            make_rule(repository=5, **{field: []})
+
+    def test_no_rules(self):
+        with pytest.raises(ValueError, match="at least one rule"):
+            make_grant(rules=[])
+        assert_invalid(sign_claims(rule_claims()), "at least one rule")
+
+    def test_several_rules_for_one_repository_and_operation(self):
+        # A request passes if any of them allows it, so their order doesn't matter.
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, any_object=True),
+                FetchRule(repository=5, branches=["main"]),
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                PushRule(repository=5, branches=["seer/fix"]),
+            ]
+        )
+        assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
+        assert grant.fetch_rules(5) == grant.rules[:2]
+        assert grant.push_rules(5) == grant.rules[2:]
+        assert grant.push_rules(("github", "123")) == []
+
+    def test_one_repository_named_both_ways(self):
+        # Nothing matches a database id to a provider id, so the two are separate repositories here, as in requests.
+        rules = [
+            FetchRule(repository=5, any_object=True),
+            FetchRule(repository=("github", "123"), branches=["main"]),
+        ]
+        assert make_grant(rules=rules).rules == rules
+
+
+# Invalid as a branch name and as a tag name.
+INVALID_REF_NAMES = [
+    "",
+    "refs/heads/main",
+    "refs/tags/v1",
+    "-main",
+    "HEAD",
+    "@",
+    "a..b",
+    "a b",
+    "a\tb",
+    "a\x00b",
+    "a\x7fb",
+    "a~1",
+    "a^",
+    "a:b",
+    "a?",
+    "a*",
+    "a[b",
+    "a\\b",
+    "/main",
+    "main/",
+    "a//b",
+    ".main",
+    "a/.b",
+    "main.lock",
+    "a/b.lock/c",
+    "main.",
+    "a@{1}",
+]
+
+
+class TestCovers:
+    """A rule covers full ref names: its branches under refs/heads/ and its tags under refs/tags/."""
+
+    @pytest.mark.parametrize(
+        "patterns,ref,covered",
+        [
+            (["seer/.+"], "refs/heads/seer/fix", True),
+            (["seer/.+"], "refs/heads/seer/fix/deeper", True),
+            (["seer/.+"], "refs/heads/seer/", False),
+            # Matched against the whole name, not searched for in it.
+            (["seer/.+"], "refs/heads/main-seer/fix", False),
+            (["seer/[a-z-]+"], "refs/heads/seer/fix/deeper", False),
+            (["seer"], "refs/heads/seer/fix", False),
+            (["seer/[a-z]+", "cursor/.+"], "refs/heads/cursor/x", True),
+            (["seer/.+"], "refs/heads/Seer/fix", False),
+            # A branch pattern covers only branches.
+            (["seer/.+"], "refs/tags/seer/fix", False),
+            (["seer/.+"], "seer/fix", False),
+        ],
+    )
+    def test_branch_patterns(self, patterns, ref, covered):
+        assert PushRule(repository=5, branch_patterns=patterns).covers(ref) is covered
+
+    @pytest.mark.parametrize(
+        "ref,covered",
+        [
+            ("refs/tags/v1.2", True),
+            ("refs/tags/v1", False),
+            ("refs/tags/x/v1.2", False),
+            ("refs/heads/v1.2", False),
+        ],
+    )
+    def test_tag_patterns(self, ref, covered):
+        assert PushRule(repository=5, tag_patterns=[r"v[0-9]+\.[0-9]+"]).covers(ref) is covered
+
+    def test_listed_refs(self):
+        rule = PushRule(repository=5, branches=["seer/fix"], tags=["v1"])
+        assert rule.refs == ["refs/heads/seer/fix", "refs/tags/v1"]
+        assert rule.covers("refs/heads/seer/fix")
+        assert rule.covers("refs/tags/v1")
+        assert not rule.covers("refs/heads/seer/fix2")
+        assert not rule.covers("refs/heads/v1")
+        assert not rule.covers("refs/tags/seer/fix")
+
+    @pytest.mark.parametrize("ref", ["refs/pull/1/head", "refs/notes/commits", "refs/heads", "refs/tags", "HEAD"])
+    def test_patterns_cover_only_branches_and_tags(self, ref):
+        rule = PushRule(repository=5, branch_patterns=[".*"], tag_patterns=[".*"])
+        assert rule.refs == []
+        assert not rule.covers(ref)
+
+    @pytest.mark.parametrize("make_rule", [FetchRule, PushRule], ids=["fetch", "push"])
+    def test_same_for_fetch_and_push(self, make_rule):
+        rule = make_rule(repository=5, branches=["main"], tag_patterns=["v.+"])
+        assert rule.refs == ["refs/heads/main"]
+        assert rule.covers("refs/heads/main")
+        assert rule.covers("refs/tags/v1")
+        assert not rule.covers("refs/heads/dev")
+
+    def test_any_object_covers_every_ref(self):
+        rule = FetchRule(repository=5, any_object=True)
+        assert rule.refs == []
+        assert rule.covers("refs/heads/main")
+        assert rule.covers("refs/pull/1/head")
+
+    @pytest.mark.parametrize(
+        "pattern,ref,covered",
+        [
+            (r"v\d+", "refs/tags/v12", True),
+            (r"v\d+", "refs/tags/v１２", False),
+            (r"seer/\w+", "refs/heads/seer/fix_1", True),
+            (r"seer/\w+", "refs/heads/seer/fïx", False),
+            # A character the pattern names itself still matches.
+            ("ünicode/.+", "refs/heads/ünicode/x", True),
+            (r"(?i)seer/.+", "refs/heads/SEER/x", True),
+        ],
+    )
+    def test_patterns_run_with_ascii_classes(self, pattern, ref, covered):
+        field = "tag_patterns" if ref.startswith("refs/tags/") else "branch_patterns"
+        assert PushRule(repository=5, **{field: [pattern]}).covers(ref) is covered
+
+    def test_pattern_that_asks_for_unicode_classes_cannot_be_built(self):
+        with pytest.raises(ValueError, match="is not a regular expression"):
+            PushRule(repository=5, tag_patterns=[r"(?u)v\d+"])
+
+    @pytest.mark.parametrize("field", ["branch_patterns", "tag_patterns"])
+    def test_cannot_be_built_with_an_invalid_pattern(self, field):
+        with pytest.raises(ValueError, match="'seer/\\(' is not a regular expression"):
+            PushRule(repository=5, **{field: ["seer/("]})
+
+
+NAME_FIELDS = pytest.mark.parametrize(
+    "field,error", [("branches", "is not a branch name"), ("tags", "is not a tag name")], ids=["branch", "tag"]
+)
+
+
+class TestRefNames:
+    @NAME_FIELDS
+    @pytest.mark.parametrize("name", INVALID_REF_NAMES)
+    def test_invalid(self, field, error, name):
+        with pytest.raises(ValueError, match=error):
+            PushRule(repository=5, **{field: ["main", name]})
+        assert_invalid(
+            sign_claims(rule_claims({"operation": "push", "repository": 5, field: ["main", name]})),
+            error,
+        )
+
+    @NAME_FIELDS
+    def test_checked_in_fetch_rules_too(self, field, error):
+        with pytest.raises(ValueError, match=error):
+            FetchRule(repository=5, **{field: ["refs/heads/main"]})
+
+    def test_tag_named_without_refs_tags(self):
+        with pytest.raises(ValueError, match="Name a tag as git tag takes it, without refs/tags/"):
+            PushRule(repository=5, tags=["refs/tags/v1"])
+
+    @pytest.mark.parametrize("field", ["branches", "tags"])
+    @pytest.mark.parametrize(
+        "name", ["main", "seer/fix-123", "feature/a.b", "a@b", "release-1.0", "a.lock.b", "x/HEAD", "ünicode", "v1.0.0"]
+    )
+    def test_valid(self, field, name):
+        assert getattr(PushRule(repository=5, **{field: [name]}), field) == [name]

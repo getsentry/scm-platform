@@ -7,25 +7,39 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 from urllib.parse import urlsplit
 
+import jwt
 import pytest
 
 from scm.errors import (
     ClientClosedRequest,
     GitGrantKeyError,
+    GitOperationNotGranted,
     GitRemoteRefused,
+    GitRepositoryNotGranted,
+    GitRouteNotSupported,
     RateLimitExceeded,
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
 )
-from scm.git.grant import sign_grant
+from scm.git.grant import key_id, sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
-from scm.git.server import _STATUS, GitServer
-from scm.git.types import GRANT_HEADER, GitOperation, Readable
+from scm.git.server import _STATUS, GitServer, _authorize
+from scm.git.types import GRANT_HEADER, FetchRule, GitOperation, PushRule, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GitRemote, Provider, Repository, RepositoryId
 from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, reported_local
-from tests.unit.git_builders import make_grant, make_key_pair, make_provider, make_repository
+from tests.unit.git_builders import (
+    NEW_ID,
+    OLD_ID,
+    VERSION_1_PUSH_CLAIMS,
+    make_grant,
+    make_key_pair,
+    make_provider,
+    make_push_body,
+    make_repository,
+    pkt,
+)
 from tests.unit.git_upstream import (
     ClosingAdapter,
     HostRefused,
@@ -226,13 +240,20 @@ class TestRefusedBeforeTheProvider:
 
     def test_operation_the_grant_does_not_allow(self):
         recorder = Recorder()
-        assert_refused(push(make_server(recorder), signed_grant()), 403, "allows fetch, not push")
+        assert_refused(push(make_server(recorder), signed_grant()), 403, "allows fetch on this repository, not push")
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
         ]
         assert recorder.errors[0][1] == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER}
+
+    def test_fetch_rule_that_lists_branches(self):
+        recorder = Recorder()
+        grant = signed_grant(rules=[FetchRule(repository=5, branches=["main"])])
+        assert_refused(request(make_server(recorder), grant), 403, "cannot keep a fetch to a rule's branches")
+        assert recorder.repository_lookups == []
+        assert recorder.token_lookups == []
 
     def test_repository_the_grant_does_not_list(self):
         recorder = Recorder()
@@ -296,10 +317,10 @@ class TestRelay:
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_token_unavailable"})
         ]
 
-    def test_token_asked_for_the_grants_operation(self):
+    def test_token_asked_for_the_requests_operation(self):
         recorder = Recorder()
-        push(make_server(recorder), signed_grant(operation="push"))
-        assert recorder.token_lookups == [(make_repository(), "push")]
+        request(make_server(recorder), signed_grant())
+        assert recorder.token_lookups == [(make_repository(), "fetch")]
 
     def test_forwards_with_remote_and_token(self):
         recorder = Recorder()
@@ -618,17 +639,17 @@ class TestRelay:
             relay = GitRelay(ca_bundle=upstream.ca_bundle)
             response = request(
                 make_server(recorder, relay),
-                signed_grant(operation="push"),
+                signed_grant(),
                 method="POST",
-                route="git-receive-pack",
+                route="git-upload-pack",
                 query="",
                 headers={"Content-Length": "8"},
                 body=io.BytesIO(b"00000000"),
             )
             assert b"".join(response.content) == b"00000000"  # The fake upstream echoes the body.
         assert recorder.bytes == {
-            ("sentry.scm.git.request_size", "push"): 8,
-            ("sentry.scm.git.response_size", "push"): 8,
+            ("sentry.scm.git.request_size", "fetch"): 8,
+            ("sentry.scm.git.response_size", "fetch"): 8,
         }
 
     def test_relays_end_to_end(self):
@@ -721,3 +742,272 @@ class TestKeptOutOfErrorReports:
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "unhandled_exception"})
         ]
+
+
+PUSH_GRANT = sign_grant(KEY.private, make_grant(rules=[PushRule(repository=5, branches=["seer/fix"])]))
+
+
+def push_body(ref: str, capabilities: str = "report-status side-band-64k") -> bytes:
+    return make_push_body((OLD_ID, NEW_ID, ref), capabilities=capabilities)
+
+
+class Unreliable(io.BytesIO):
+    def read(self, size: int | None = -1, /) -> bytes:
+        raise ConnectionResetError()
+
+
+class TestPushRules:
+    """A push under a push rule reaches the provider only if the rule allows every ref it updates."""
+
+    def send(self, server: GitServer, body: Readable, headers: dict[str, str] | None = None) -> StreamResponse:
+        return request(
+            server, PUSH_GRANT, method="POST", route="git-receive-pack", query="", headers=headers, body=body
+        )
+
+    @pytest.mark.parametrize("sized", [True, False], ids=["content-length", "chunked"])
+    def test_listed_branch_end_to_end(self, sized):
+        body = push_body("refs/heads/seer/fix")
+        with running_upstream() as upstream:
+            recorder = Recorder(
+                repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url)
+            )
+            response = self.send(
+                make_server(recorder, GitRelay(ca_bundle=upstream.ca_bundle)),
+                io.BytesIO(body),
+                headers={"Content-Length": str(len(body))} if sized else None,
+            )
+            # The fake upstream echoes the body, so the provider got the updates the server read and the pack after.
+            assert b"".join(response.content) == body
+        assert recorder.token_lookups == [(recorder.repository, "push")]
+        assert recorder.bytes[("sentry.scm.git.request_size", "push")] == len(body)
+
+    def test_probe(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        assert self.send(server, io.BytesIO(b"0000")).status_code == 200
+        assert server.relay.forward.call_args.kwargs["body"].read() == b"0000"  # type: ignore[attr-defined]
+
+    def test_info_refs(self):
+        recorder = Recorder()
+        response = request(make_server(recorder), PUSH_GRANT, query="service=git-receive-pack")
+        assert b"".join(response.content) == b"refs"
+
+    def test_unlisted_branch_gets_a_report(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        body = io.BytesIO(push_body("refs/heads/main"))
+        response = self.send(server, body)
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "application/x-git-receive-pack-result"
+        report = b"".join(response.content)
+        assert int(response.headers["Content-Length"]) == len(report)
+        assert report == (
+            pkt(
+                b"\1"
+                + pkt(b"unpack ok\n")
+                + pkt(b"ng refs/heads/main the git grant does not cover this branch\n")
+                + b"0000"
+            )
+            + b"0000"
+        )
+        # The pack is read to the end, so git gets to read the report rather than a broken pipe.
+        assert body.read() == b""
+        assert recorder.repository_lookups == []
+        assert recorder.token_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
+        ]
+        [(error, context)] = recorder.errors
+        assert error.detail == (  # type: ignore[attr-defined]
+            "The git grant does not allow this push: refs/heads/main (the git grant does not cover this branch)."
+        )
+        assert context == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER, "operation": "push"}
+
+    @pytest.mark.parametrize(
+        "ref,old_id,new_id,reason",
+        [
+            ("refs/tags/v1", OLD_ID, NEW_ID, "does not cover this tag"),
+            ("refs/notes/commits", OLD_ID, NEW_ID, "allows pushing branches and tags only"),
+            ("refs/heads/seer/fix", OLD_ID, "0" * 40, "does not allow deleting a branch"),
+        ],
+    )
+    def test_other_refused_updates(self, ref, old_id, new_id, reason):
+        body = make_push_body((old_id, new_id, ref), capabilities="report-status")
+        assert reason.encode() in b"".join(self.send(make_server(Recorder()), io.BytesIO(body)).content)
+
+    def test_no_body(self):
+        # Refused rather than relayed unchecked.
+        recorder = Recorder()
+        server = make_server(recorder)
+        response = request(server, PUSH_GRANT, method="POST", route="git-receive-pack", query="", body=None)
+        assert_refused(response, 400, "The push has no body.")
+        assert recorder.repository_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_signed_push_on_a_side_band(self):
+        body = pkt(b"push-cert\0report-status side-band-64k") + pkt(b"certificate version 0.1\n") + b"0000"
+        response = self.send(make_server(Recorder()), io.BytesIO(body))
+        assert response.status_code == 200
+        assert b"".join(response.content) == pkt(b"\3The git endpoint does not relay signed pushes.\n") + b"0000"
+
+    def test_create_only_pattern_and_listed_branch(self):
+        grant = sign_grant(
+            KEY.private,
+            make_grant(
+                rules=[
+                    PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                    PushRule(repository=5, branches=["seer/fix"]),
+                ]
+            ),
+        )
+        server = make_server(Recorder())
+        for body in (
+            make_push_body(("0" * 40, NEW_ID, "refs/heads/seer/next")),
+            make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix")),
+        ):
+            response = request(server, grant, method="POST", route="git-receive-pack", query="", body=io.BytesIO(body))
+            assert response.status_code == 200
+        assert server.relay.forward.call_count == 2  # type: ignore[attr-defined]
+        refused = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/next"), capabilities="report-status")
+        response = request(server, grant, method="POST", route="git-receive-pack", query="", body=io.BytesIO(refused))
+        assert b"the git grant allows only creating this branch" in b"".join(response.content)
+
+    def test_client_that_asked_for_no_report(self):
+        recorder = Recorder()
+        body = io.BytesIO(push_body("refs/heads/main", capabilities="side-band-64k"))
+        assert_refused(self.send(make_server(recorder), body), 403, "does not allow this push: refs/heads/main")
+        assert body.read() == b""
+
+    def test_malformed(self):
+        recorder = Recorder()
+        assert_refused(self.send(make_server(recorder), io.BytesIO(b"garbage")), 400, "not pkt-lines")
+        assert recorder.repository_lookups == []
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_malformed_request_body"})
+        ]
+
+    def test_compressed(self):
+        response = self.send(
+            make_server(Recorder()), io.BytesIO(push_body("refs/heads/seer/fix")), headers={"Content-Encoding": "gzip"}
+        )
+        assert_refused(response, 400, "content-encoding header holds a value git doesn't send")
+
+    def test_client_closes_while_sending_its_updates(self):
+        recorder = Recorder()
+        response = self.send(make_server(recorder), Unreliable())
+        assert response.status_code == 499
+        assert recorder.errors == []
+
+    def test_version_1_push_grant_is_refused(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        grant = jwt.encode(VERSION_1_PUSH_CLAIMS, KEY.key, algorithm="EdDSA", headers={"kid": key_id(KEY.public)})
+        body = io.BytesIO(push_body("refs/heads/main"))
+        response = request(server, grant, method="POST", route="git-receive-pack", query="", body=body)
+        assert_refused(response, 403, "not version 2")
+        assert recorder.token_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+
+
+FETCH_ROUTES = [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-upload-pack", "")]
+PUSH_ROUTES = [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")]
+FETCH_ANY = FetchRule(repository=5, any_object=True)
+PUSH_BRANCH = PushRule(repository=5, branches=["seer/fix"])
+
+
+class TestAuthorize:
+    @pytest.mark.parametrize("route", FETCH_ROUTES)
+    def test_fetch_rule_reaches_fetch_routes(self, route):
+        assert _authorize(make_grant(rules=[FETCH_ANY]), 5, *route) == "fetch"
+
+    @pytest.mark.parametrize("route", PUSH_ROUTES)
+    def test_push_rule_reaches_push_routes(self, route):
+        # check_push then keeps the push to the rule's branches.
+        assert _authorize(make_grant(rules=[PUSH_BRANCH]), 5, *route) == "push"
+
+    @pytest.mark.parametrize("route", PUSH_ROUTES)
+    def test_fetch_rule_cannot_reach_push_routes(self, route):
+        with pytest.raises(GitOperationNotGranted, match="allows fetch on this repository, not push"):
+            _authorize(make_grant(rules=[FETCH_ANY]), 5, *route)
+
+    @pytest.mark.parametrize("route", FETCH_ROUTES)
+    def test_push_rule_cannot_reach_fetch_routes(self, route):
+        with pytest.raises(GitOperationNotGranted, match="allows push on this repository, not fetch"):
+            _authorize(make_grant(rules=[PUSH_BRANCH]), 5, *route)
+
+    def test_rule_for_another_repository_does_not_apply(self):
+        grant = make_grant(rules=[FETCH_ANY, PushRule(repository=6, branches=["seer/fix"])])
+        with pytest.raises(GitOperationNotGranted, match="allows fetch on this repository, not push"):
+            _authorize(grant, 5, "POST", "git-receive-pack", "")
+
+    def test_any_of_several_rules(self):
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=5, branches=["main"]),
+                FETCH_ANY,
+                PUSH_BRANCH,
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+            ]
+        )
+        assert _authorize(grant, 5, "POST", "git-upload-pack", "") == "fetch"
+        assert _authorize(grant, 5, "POST", "git-receive-pack", "") == "push"
+
+    def test_fetch_rules_that_all_list_branches_are_refused(self):
+        grant = make_grant(rules=[FetchRule(repository=5, branches=["main"]), FetchRule(repository=5, branches=["a"])])
+        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches"):
+            _authorize(grant, 5, "POST", "git-upload-pack", "")
+
+    @pytest.mark.parametrize("route", FETCH_ROUTES)
+    @pytest.mark.parametrize(
+        "refs",
+        [{"branches": ["main"]}, {"tags": ["v1"]}, {"tag_patterns": ["v.+"]}],
+        ids=["branches", "tags", "tag-patterns"],
+    )
+    def test_fetch_rule_that_names_refs_is_refused(self, route, refs):
+        # Nothing reads a fetch's body, so nothing would keep the fetch to the rule's branches and tags.
+        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches and tags"):
+            _authorize(make_grant(rules=[FetchRule(repository=5, **refs)]), 5, *route)
+
+    @pytest.mark.parametrize(
+        "method,route,query",
+        [
+            ("GET", "info/refs", ""),
+            ("GET", "info/refs", "service=git-upload-pack&x=1"),
+            ("GET", "info/refs", "service=git-upload-archive"),
+            ("POST", "info/refs", "service=git-upload-pack"),
+            ("GET", "git-upload-pack", ""),
+            ("POST", "git-upload-pack", "service=git-upload-pack"),
+            ("post", "git-upload-pack", ""),
+            ("POST", "git-upload-archive", ""),
+            ("POST", "info/lfs/objects/batch", ""),
+            ("GET", "HEAD", ""),
+            ("GET", "objects/info/packs", ""),
+            ("GET", "../info/refs", "service=git-upload-pack"),
+            ("POST", "/git-upload-pack", ""),
+        ],
+    )
+    def test_routes_that_are_not_git(self, method, route, query):
+        with pytest.raises(GitRouteNotSupported, match="not a git fetch or push route"):
+            _authorize(make_grant(rules=[FETCH_ANY, PUSH_BRANCH]), 5, method, route, query)
+
+    def test_repository_not_in_grant(self):
+        with pytest.raises(GitRepositoryNotGranted, match="does not cover this repository"):
+            _authorize(make_grant(), 6, "POST", "git-upload-pack", "")
+
+    def test_repository_named_another_way_is_not_in_grant(self):
+        # The rule and the request must name a repository the same way, since matching a database id to a provider
+        # id would mean resolving every repository the grant names.
+        grant = make_grant(rules=[FetchRule(repository=("github", "123"), any_object=True)])
+        with pytest.raises(GitRepositoryNotGranted):
+            _authorize(grant, 5, "POST", "git-upload-pack", "")
+        assert _authorize(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
+
+    def test_any_repository_with_a_rule(self):
+        grant = make_grant(
+            rules=[
+                FetchRule(repository=repository, any_object=True) for repository in (5, 6, ("gitlab", "gitlab.com:7"))
+            ]
+        )
+        assert _authorize(grant, 6, "POST", "git-upload-pack", "") == "fetch"
+        assert _authorize(grant, ("gitlab", "gitlab.com:7"), "POST", "git-upload-pack", "") == "fetch"

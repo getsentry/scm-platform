@@ -14,10 +14,8 @@ import urllib3
 from requests.adapters import HTTPAdapter
 
 from scm.errors import (
-    GitOperationNotGranted,
     GitRemoteNotHttps,
     GitRemoteRefused,
-    GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
     ResourceCertificateInvalid,
@@ -25,11 +23,10 @@ from scm.errors import (
     ResourceServiceUnavailable,
     SCMCodedError,
 )
-from scm.git.relay import GitRelay, _UpstreamStream, authorize_request
+from scm.git.relay import GitRelay, _UpstreamStream
 from scm.secret import Secret
 from scm.types import GitRemote
 from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, reported_local
-from tests.unit.git_builders import make_grant
 from tests.unit.git_upstream import (
     ClosingAdapter,
     HostRefused,
@@ -737,65 +734,3 @@ class TestClose:
         response = fetch_refs(relay, upstream)
         response.content.close()  # type: ignore[attr-defined]
         assert upstream_saw_close.wait(WAIT)
-
-
-FETCH_ROUTES = [("GET", "info/refs", "service=git-upload-pack"), ("POST", "git-upload-pack", "")]
-PUSH_ROUTES = [("GET", "info/refs", "service=git-receive-pack"), ("POST", "git-receive-pack", "")]
-
-
-class TestAuthorizeRequest:
-    @pytest.mark.parametrize(
-        "operation,route",
-        [("fetch", route) for route in FETCH_ROUTES] + [("push", route) for route in PUSH_ROUTES],
-    )
-    def test_grant_reaches_its_operations_routes(self, operation, route):
-        assert authorize_request(make_grant(operation=operation), 5, *route) == operation
-
-    @pytest.mark.parametrize(
-        "operation,route",
-        [("fetch", route) for route in PUSH_ROUTES] + [("push", route) for route in FETCH_ROUTES],
-    )
-    def test_grant_cannot_reach_the_other_operations_routes(self, operation, route):
-        other = "push" if operation == "fetch" else "fetch"
-        with pytest.raises(GitOperationNotGranted, match=f"allows {operation}, not {other}"):
-            authorize_request(make_grant(operation=operation), 5, *route)
-
-    @pytest.mark.parametrize(
-        "method,route,query",
-        [
-            ("GET", "info/refs", ""),
-            ("GET", "info/refs", "service=git-upload-pack&x=1"),
-            ("GET", "info/refs", "service=git-upload-archive"),
-            ("POST", "info/refs", "service=git-upload-pack"),
-            ("GET", "git-upload-pack", ""),
-            ("POST", "git-upload-pack", "service=git-upload-pack"),
-            ("post", "git-upload-pack", ""),
-            ("POST", "git-upload-archive", ""),
-            ("POST", "info/lfs/objects/batch", ""),
-            ("GET", "HEAD", ""),
-            ("GET", "objects/info/packs", ""),
-            ("GET", "../info/refs", "service=git-upload-pack"),
-            ("POST", "/git-upload-pack", ""),
-        ],
-    )
-    def test_routes_that_are_not_git(self, method, route, query):
-        for operation in ("fetch", "push"):
-            with pytest.raises(GitRouteNotSupported, match="not a git fetch or push route"):
-                authorize_request(make_grant(operation=operation), 5, method, route, query)
-
-    def test_repository_not_in_grant(self):
-        with pytest.raises(GitRepositoryNotGranted, match="does not cover this repository"):
-            authorize_request(make_grant(), 6, "POST", "git-upload-pack", "")
-
-    def test_repository_named_another_way_is_not_in_grant(self):
-        # The grant and the request name repositories the same way; matching a database id to a provider id
-        # would mean resolving every repository the grant lists.
-        grant = make_grant(repositories=[("github", "123")])
-        with pytest.raises(GitRepositoryNotGranted):
-            authorize_request(grant, 5, "POST", "git-upload-pack", "")
-        assert authorize_request(grant, ("github", "123"), "POST", "git-upload-pack", "") == "fetch"
-
-    def test_any_listed_repository(self):
-        grant = make_grant(repositories=[5, 6, ("gitlab", "gitlab.com:7")])
-        assert authorize_request(grant, 6, "POST", "git-upload-pack", "") == "fetch"
-        assert authorize_request(grant, ("gitlab", "gitlab.com:7"), "POST", "git-upload-pack", "") == "fetch"

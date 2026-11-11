@@ -1,10 +1,19 @@
 from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
-from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
+from scm.errors import (
+    ErrorCode,
+    GitOperationNotGranted,
+    GitProviderNotSupported,
+    GitRepositoryNotGranted,
+    GitTokenRejected,
+    GitTokenUnavailable,
+    SCMCodedError,
+)
 from scm.git.grant import require_public_keys, verify_grant
-from scm.git.relay import GitRelay, ResponseBody, authorize_request
-from scm.git.types import GRANT_HEADER, GetToken, Readable
+from scm.git.push import PushRefused, check_push, check_push_headers
+from scm.git.relay import GitRelay, ResponseBody, _route_operation
+from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -15,6 +24,7 @@ from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
 _STATUS: dict[ErrorCode, int] = {
     # The client's own request is malformed, or is not a git request this endpoint serves.
     "rpc_malformed_request_headers": 400,
+    "git_malformed_request_body": 400,
     "git_route_not_supported": 404,
     # The grant does not allow the request.
     "git_invalid_grant": 403,
@@ -57,6 +67,12 @@ class GitServer:
     against it, before the repository and its provider are looked up or a token fetched, so a request the grant
     does not allow never reaches the database, the token supplier or the provider. Give it a relay whose adapter
     refuses internal addresses; see ``GitRelay``.
+
+    A push is kept to the grant's push rules by ``scm.git.push.check_push``, which reads the push's ref updates
+    before anything is looked up and refuses the whole push unless a rule allows every update. Anything it doesn't
+    recognise, such as push options, a signed push or a capability git doesn't send, refuses the push too. A client
+    that asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the
+    rules allow is relayed with the updates the server read followed by the rest of the body, unread.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
@@ -118,10 +134,10 @@ class GitServer:
         """Answer one git request.
 
         ``route`` is the path below ``<repo>.git/`` and ``query`` the raw query string. ``body`` is read only
-        while the request is sent upstream, so pass the unread request stream. It must yield the body already
-        decoded from its transfer encoding, ending where the body ends. A Django request under WSGI reads a chunked
-        body as empty, and git sends a push over about 1 MiB chunked, so a Django view needs to pass a stream that
-        has the whole body.
+        while the request is sent upstream, apart from a push's ref updates, so pass the unread request stream. It
+        must yield the body already decoded from its transfer encoding, ending where the body ends. A Django request
+        under WSGI reads a chunked body as empty, and git sends a push over about 1 MiB chunked, so a Django view
+        needs to pass a stream that has the whole body.
         """
         # Rebound without the grant, so it shows as [Filtered] in the frames of a reported error rather than in
         # ``headers``, here and in the relay, which never sends it upstream anyway.
@@ -133,8 +149,15 @@ class GitServer:
             grant = verify_grant(self.public_keys, grant_token.reveal())
             context["organization_id"] = str(grant.organization_id)
             referrer_tag["referrer"] = context["referrer"] = grant.referrer
-            operation = authorize_request(grant, repository_id, method, route, query)
+            operation = _authorize(grant, repository_id, method, route, query)
             context["operation"] = operation
+            relayed_body: Readable | None = counted_body
+            if operation == "push":
+                if method == "POST":
+                    relayed_body = check_push(grant.push_rules(repository_id), headers, counted_body)
+                else:
+                    # The push's first request, which lists the refs, goes to the provider with the same headers.
+                    check_push_headers(method, headers)
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,
@@ -163,7 +186,7 @@ class GitServer:
                     "read it."
                 )
             response = self.relay.forward(
-                remote, token, method=method, route=route, query=query, headers=headers, body=counted_body
+                remote, token, method=method, route=route, query=query, headers=headers, body=relayed_body
             )
             if response.status_code == 401:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
@@ -174,6 +197,8 @@ class GitServer:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
                 self.emit_error(e, context)
+            if isinstance(e, PushRefused) and e.report is not None:
+                return _report_response(e.report)
             return _error_response(e)
         except Exception:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"} | referrer_tag)
@@ -205,6 +230,30 @@ class GitServer:
             headers=response.headers,
             content=_MeteredStream(response.content, finish, report),
         )
+
+
+def _authorize(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
+    """Return the git operation a request belongs to, refusing the request unless the grant allows it.
+
+    Fetches reach only upload-pack and pushes only receive-pack. A request runs only if the grant has a rule for its
+    repository and operation, and the rule must name the repository in the same form the request uses: a database id
+    does not match the same repository's ``(provider, external id)`` pair. A fetch needs a fetch rule for any object,
+    since nothing reads a fetch's body to keep it to a rule's branches and tags.
+    """
+    operation = _route_operation(method, route, query)
+    fetch_rules, push_rules = grant.fetch_rules(repository_id), grant.push_rules(repository_id)
+    if not fetch_rules and not push_rules:
+        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
+    if operation == "fetch" and not fetch_rules:
+        raise GitOperationNotGranted(detail="The git grant allows push on this repository, not fetch.")
+    if operation == "push" and not push_rules:
+        raise GitOperationNotGranted(detail="The git grant allows fetch on this repository, not push.")
+    if operation == "fetch" and not any(rule.any_object for rule in fetch_rules):
+        raise GitOperationNotGranted(
+            detail="The git endpoint cannot keep a fetch to a rule's branches and tags, so a fetch rule must set "
+            "any_object."
+        )
+    return operation
 
 
 def _take_grant(headers: Mapping[str, str]) -> tuple[Secret, dict[str, str]]:
@@ -277,6 +326,18 @@ class _MeteredStream:
         if not self.finished:
             self.finished = True
             self.finish(failure, self.bytes_sent)
+
+
+def _report_response(report: bytes) -> StreamResponse:
+    return StreamResponse(
+        status_code=200,
+        headers={
+            "Content-Type": "application/x-git-receive-pack-result",
+            "Content-Length": str(len(report)),
+            "Cache-Control": "no-cache",
+        },
+        content=iter([report]),
+    )
 
 
 def _error_response(error: SCMCodedError) -> StreamResponse:

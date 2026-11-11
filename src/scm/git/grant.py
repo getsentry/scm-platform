@@ -44,7 +44,7 @@ GRANT_AUDIENCE = "scm-git-grant"
 # The only algorithm the verifier accepts, with parsed Ed25519 keys. A token that names HS256 and uses a public key,
 # which is no secret, as its HMAC key is refused, as is one that names ``none``.
 _ALGORITHM = "EdDSA"
-# Claims the JWT layer owns. Every other claim must be a Grant field.
+# Claims the JWT layer owns. Every other claim must be a field of the grant.
 _JWT_CLAIMS = frozenset({"aud", "exp", "iat"})
 
 
@@ -114,6 +114,8 @@ def require_private_key(private_key: Secret) -> Secret:
 def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = None) -> Grant:
     """Return the grant if the private key of one of ``public_keys`` signed it and it has not expired.
 
+    Only version 2 grants verify. A version 1 grant, which lets a push update any ref, is refused.
+
     Verification takes a list of Ed25519 public keys in PEM, so a new key can be added before the signer switches to
     it and the old one removed after its grants expire. Raises GitGrantKeyError, rather than refusing the grant, if
     the list is empty or a key is not one, since no grant could verify against it. Every other failure is a
@@ -155,17 +157,19 @@ def verify_grant(public_keys: Sequence[str], token: str, *, now: float | None = 
         raise GitInvalidGrant(detail=f"The git grant is invalid: {e}") from None
 
     fields = {name: value for name, value in claims.items() if name not in _JWT_CLAIMS}
+    payload = {**fields, "expires_at": claims["exp"]}
+    # Checked first, so a version 1 grant is told its version is the problem rather than its first unknown field.
+    if fields.get("version") != 2:
+        raise GitInvalidGrant(detail="The git grant is not version 2, the only version the git endpoint accepts.")
     try:
-        grant = msgspec.convert({**fields, "expires_at": claims["exp"]}, type=Grant, strict=True)
+        grant = msgspec.convert(payload, type=Grant, strict=True)
     except msgspec.ValidationError as e:
-        # The signature matched, so the holder of the private key wrote these claims; telling them why they are
+        # The signature matched, so the holder of the private key wrote these claims, and telling them why they are
         # invalid gives nothing away.
         raise GitInvalidGrant(detail=f"The git grant's payload is invalid: {e}") from None
 
     if grant.expires_at <= now:
         raise GitGrantExpired(detail="The git grant has expired.")
-    if not grant.repositories:
-        raise GitInvalidGrant(detail="The git grant names no repositories.")
     return grant
 
 

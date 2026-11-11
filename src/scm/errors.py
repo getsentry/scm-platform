@@ -3,6 +3,7 @@ from typing import ClassVar, Literal
 type ErrorCode = Literal[
     "git_grant_expired",
     "git_invalid_grant",
+    "git_malformed_request_body",
     "git_operation_not_granted",
     "git_provider_not_supported",
     "git_remote_not_https",
@@ -51,6 +52,7 @@ type ErrorCode = Literal[
 ERROR_CODES: dict[ErrorCode, str] = {
     "git_grant_expired": "The git grant has expired.",
     "git_invalid_grant": "The git grant was missing, malformed or forged.",
+    "git_malformed_request_body": "The request body is not one the git endpoint can read.",
     "git_operation_not_granted": "The git grant does not allow this operation.",
     "git_provider_not_supported": "The repository's provider has no git remote.",
     "git_remote_not_https": "The repository's git remote is not an https URL.",
@@ -168,6 +170,10 @@ class GitGrantExpired(GitSCMCodedError):
 
 class GitInvalidGrant(GitSCMCodedError):
     code = "git_invalid_grant"
+
+
+class GitMalformedRequestBody(GitSCMCodedError):
+    code = "git_malformed_request_body"
 
 
 class GitOperationNotGranted(GitSCMCodedError):
