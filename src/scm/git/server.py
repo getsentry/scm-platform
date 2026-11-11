@@ -1,11 +1,19 @@
 from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
-from scm.errors import ErrorCode, GitProviderNotSupported, GitTokenRejected, GitTokenUnavailable, SCMCodedError
+from scm.errors import (
+    ErrorCode,
+    GitOperationNotGranted,
+    GitProviderNotSupported,
+    GitRepositoryNotGranted,
+    GitTokenRejected,
+    GitTokenUnavailable,
+    SCMCodedError,
+)
 from scm.git.grant import require_public_keys, verify_grant
 from scm.git.push import PushRefused, check_push, check_push_headers
-from scm.git.relay import GitRelay, ResponseBody, _authorize
-from scm.git.types import GRANT_HEADER, GetToken, GrantV2PushRule, Readable
+from scm.git.relay import GitRelay, ResponseBody, _route_operation
+from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -146,10 +154,7 @@ class GitServer:
             relayed_body: Readable | None = counted_body
             if operation == "push":
                 if method == "POST":
-                    push_rules = [
-                        rule for rule in grant.rules_for(repository_id, "push") if isinstance(rule, GrantV2PushRule)
-                    ]
-                    relayed_body = check_push(push_rules, headers, counted_body)
+                    relayed_body = check_push(grant.push_rules(repository_id), headers, counted_body)
                 else:
                     # The push's first request, which lists the refs, goes to the provider with the same headers.
                     check_push_headers(method, headers)
@@ -225,6 +230,30 @@ class GitServer:
             headers=response.headers,
             content=_MeteredStream(response.content, finish, report),
         )
+
+
+def _authorize(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
+    """Return the git operation a request belongs to, refusing the request unless the grant allows it.
+
+    Fetches reach only upload-pack and pushes only receive-pack. A request runs only if the grant has a rule for its
+    repository and operation, and the rule must name the repository in the same form the request uses: a database id
+    does not match the same repository's ``(provider, external id)`` pair. A fetch needs a fetch rule for any object,
+    since nothing reads a fetch's body to keep it to a rule's branches and tags.
+    """
+    operation = _route_operation(method, route, query)
+    fetch_rules, push_rules = grant.fetch_rules(repository_id), grant.push_rules(repository_id)
+    if not fetch_rules and not push_rules:
+        raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
+    if operation == "fetch" and not fetch_rules:
+        raise GitOperationNotGranted(detail="The git grant allows push on this repository, not fetch.")
+    if operation == "push" and not push_rules:
+        raise GitOperationNotGranted(detail="The git grant allows fetch on this repository, not push.")
+    if operation == "fetch" and not any(rule.any_object for rule in fetch_rules):
+        raise GitOperationNotGranted(
+            detail="The git endpoint cannot keep a fetch to a rule's branches and tags, so a fetch rule must set "
+            "any_object."
+        )
+    return operation
 
 
 def _take_grant(headers: Mapping[str, str]) -> tuple[Secret, dict[str, str]]:

@@ -1,6 +1,6 @@
 import re
 from collections.abc import Callable
-from typing import ClassVar, Literal, Protocol
+from typing import Literal, Protocol
 
 import msgspec
 
@@ -8,7 +8,7 @@ from scm.secret import Secret
 from scm.types import BranchName, Referrer, Repository, RepositoryId
 
 type GitOperation = Literal["fetch", "push"]
-"""What a rule lets its holder do. ``scm.git.relay`` maps each to its git routes."""
+"""Whether a git request fetches or pushes. ``scm.git.relay`` maps each to its git routes."""
 
 GRANT_HEADER = "X-Scm-Git-Grant"
 """The request header that carries a signed grant to the git endpoint."""
@@ -23,7 +23,7 @@ conservative pick rather than a measured ceiling: header limits further along th
 8 KiB."""
 
 
-class _GrantV2RefRule(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True, omit_defaults=True):
+class _RefRule(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True, omit_defaults=True):
     """What fetch and push rules share: the repository, and the branches and tags of it the rule covers.
 
     Each kind of ref is set by a list of names or by patterns, and not both. A pattern covers only names of its own
@@ -78,7 +78,7 @@ class _GrantV2RefRule(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_
         return any(field is not None for field in (self.branches, self.branch_patterns, self.tags, self.tag_patterns))
 
 
-class GrantV2FetchRule(_GrantV2RefRule, frozen=True, tag="fetch", tag_field="operation"):
+class FetchRule(_RefRule, frozen=True, tag="fetch", tag_field="operation"):
     """Lets the holder fetch from ``repository``: any of its objects, or only what the branches and tags it covers
     reach.
 
@@ -88,7 +88,6 @@ class GrantV2FetchRule(_GrantV2RefRule, frozen=True, tag="fetch", tag_field="ope
     checkout before the agent starts.
     """
 
-    operation: ClassVar[GitOperation] = "fetch"
     any_object: bool = False
 
     def __post_init__(self) -> None:
@@ -104,7 +103,7 @@ class GrantV2FetchRule(_GrantV2RefRule, frozen=True, tag="fetch", tag_field="ope
         return self.any_object or super().covers(ref)
 
 
-class GrantV2PushRule(_GrantV2RefRule, frozen=True, tag="push", tag_field="operation"):
+class PushRule(_RefRule, frozen=True, tag="push", tag_field="operation"):
     """Lets the holder create or update the branches and tags of ``repository`` the rule covers, and no other ref,
     and delete none.
 
@@ -118,7 +117,6 @@ class GrantV2PushRule(_GrantV2RefRule, frozen=True, tag="push", tag_field="opera
     tag named ``main`` redirects whoever fetches or resolves ``main``, and a new tag often starts a release pipeline.
     """
 
-    operation: ClassVar[GitOperation] = "push"
     create_only: bool = False
     """Allow only creating a covered branch or tag. git sends a new ref with an old object id of all zeros, and the
     provider refuses such an update if the ref already exists."""
@@ -129,7 +127,7 @@ class GrantV2PushRule(_GrantV2RefRule, frozen=True, tag="push", tag_field="opera
             raise ValueError("A push rule must set branches, branch_patterns, tags or tag_patterns.")
 
 
-class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
+class Grant(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
     """Permission to run git operations on an organization's repositories, as a list of rules.
 
     Seer signs a grant for each sandbox, and for its own git requests, and Sentry's git endpoint verifies it on
@@ -153,7 +151,7 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
     """Who the grant is for, e.g. a coding job or Seer itself, as ``referrer`` is elsewhere in this library.
     Sentry tags the git endpoint's metrics with it. Seer sets it, because git requests carry nothing else that
     tells callers apart."""
-    rules: list[GrantV2FetchRule | GrantV2PushRule]
+    rules: list[FetchRule | PushRule]
     expires_at: int
     """Unix time in seconds. Every grant expires."""
     version: Literal[2] = 2
@@ -164,9 +162,13 @@ class GrantV2(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=T
         if not self.rules:
             raise ValueError("A git grant must hold at least one rule.")
 
-    def rules_for(self, repository: RepositoryId, operation: GitOperation) -> list[GrantV2FetchRule | GrantV2PushRule]:
-        """Return the rules for ``operation`` on ``repository``, named as the rules name it."""
-        return [rule for rule in self.rules if rule.repository == repository and rule.operation == operation]
+    def fetch_rules(self, repository: RepositoryId) -> list[FetchRule]:
+        """Return the fetch rules for ``repository``, named as the rules name it."""
+        return [rule for rule in self.rules if isinstance(rule, FetchRule) and rule.repository == repository]
+
+    def push_rules(self, repository: RepositoryId) -> list[PushRule]:
+        """Return the push rules for ``repository``, named as the rules name it."""
+        return [rule for rule in self.rules if isinstance(rule, PushRule) and rule.repository == repository]
 
 
 # What git check-ref-format refuses in a ref name: control characters, space, ~ ^ : ? * [ \, "..", "@{" and "//".

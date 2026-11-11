@@ -110,7 +110,7 @@ from scm.errors import GitGrantKeyError
 from scm.git.grant import generate_private_key, public_key_of, sign_grant
 from scm.git.relay import GitRelay
 from scm.git.server import GitServer
-from scm.git.types import GRANT_HEADER, GetToken, GrantV2, GrantV2FetchRule, GrantV2PushRule, Readable
+from scm.git.types import GRANT_HEADER, FetchRule, GetToken, Grant, PushRule, Readable
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
 from scm.types import GetGitRemoteProtocol, Provider, ProviderName, Repository, RepositoryId
@@ -288,8 +288,8 @@ def make_git_server(
     )
 
 
-def grant_for(private_key: Secret, rule: GrantV2FetchRule | GrantV2PushRule) -> str:
-    grant = GrantV2(
+def grant_for(private_key: Secret, rule: FetchRule | PushRule) -> str:
+    grant = Grant(
         organization_id=ORGANIZATION_ID,
         referrer=REFERRER,
         rules=[rule],
@@ -299,7 +299,7 @@ def grant_for(private_key: Secret, rule: GrantV2FetchRule | GrantV2PushRule) -> 
 
 
 def fetch_grant_for(private_key: Secret, repository_id: RepositoryId) -> str:
-    return grant_for(private_key, GrantV2FetchRule(repository=repository_id, any_object=True))
+    return grant_for(private_key, FetchRule(repository=repository_id, any_object=True))
 
 
 class GitHandler(BaseHTTPRequestHandler):
@@ -444,7 +444,7 @@ def serve(backend: Backend, args: argparse.Namespace) -> None:
     )
     url = f"{server.url}/{backend.repository['name']}.git"
     fetch_grant = fetch_grant_for(args.private_key, backend.repository_id)
-    push_grant = grant_for(args.private_key, GrantV2PushRule(repository=backend.repository_id, branches=["my-branch"]))
+    push_grant = grant_for(args.private_key, PushRule(repository=backend.repository_id, branches=["my-branch"]))
     logger.info(
         f"Serving {backend.provider_name} repository {backend.repository['name']} at {url}\n\n"
         f"Grants, valid for {GRANT_TTL // 60} minutes:\n"
@@ -520,7 +520,7 @@ class Checks:
         branch = f"scm-git-server-check/{int(time.time())}"
         fetch_grant = fetch_grant_for(self.args.private_key, repository_id)
         push_grant = grant_for(
-            self.args.private_key, GrantV2PushRule(repository=repository_id, branches=[branch], tags=[f"{branch}-tag"])
+            self.args.private_key, PushRule(repository=repository_id, branches=[branch], tags=[f"{branch}-tag"])
         )
 
         server = self.start()
@@ -678,7 +678,7 @@ class Checks:
         """
         prefix, _, name = ref.partition("/")[2].partition("/")
         patterns = {"branch_patterns" if prefix == "heads" else "tag_patterns": [re.escape(name)]}
-        rule = GrantV2PushRule(repository=self.backend.repository_id, create_only=True, **patterns)
+        rule = PushRule(repository=self.backend.repository_id, create_only=True, **patterns)
         return requests.post(
             f"{url}/git-receive-pack",
             data=forged_create_body(ref, tip),

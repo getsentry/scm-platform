@@ -8,12 +8,12 @@ import pytest
 from scm.errors import GitMalformedRequestBody, GitOperationNotGranted
 from scm.git.push import MAX_UPDATES_LENGTH, PushRefused, check_push
 from scm.git.relay import GitRelay
-from scm.git.types import GrantV2PushRule
+from scm.git.types import PushRule
 from tests.unit.git_builders import NEW_ID, OLD_ID, make_push_body, make_repository, pkt
 from tests.unit.git_upstream import running_upstream
 from tests.unit.test_git_server import PUSH_GRANT, Recorder, make_server, request
 
-RULES = [GrantV2PushRule(repository=5, branches=["seer/fix"])]
+RULES = [PushRule(repository=5, branches=["seer/fix"])]
 
 
 def first_update(capabilities: bytes, ref: bytes = b"refs/heads/seer/fix") -> bytes:
@@ -88,7 +88,7 @@ class TestPatternCost:
     def test_long_branch_name_does_not_pin_the_worker(self):
         # An ordinary-looking pattern with three wildcards is cubic in the name's length: 1,500 characters take
         # seconds, and 60,000 would take days.
-        rules = [GrantV2PushRule(repository=5, branch_patterns=["seer/.+-.+-.+-[0-9]+"])]
+        rules = [PushRule(repository=5, branch_patterns=["seer/.+-.+-.+-[0-9]+"])]
         body = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/" + "-" * 1500 + "x"))
         started = time.perf_counter()
         with pytest.raises((GitOperationNotGranted, GitMalformedRequestBody)):

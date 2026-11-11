@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_private_key
 
 from scm.git.grant import GRANT_AUDIENCE, generate_private_key
-from scm.git.types import GrantV2, GrantV2FetchRule
+from scm.git.types import FetchRule, Grant
 from scm.providers.cursor_origin.provider import CursorOriginProvider
 from scm.providers.github.provider import GitHubProvider
 from scm.providers.gitlab.provider import GitLabProvider
@@ -47,19 +47,19 @@ def make_provider(organization_id: int, repository: Repository) -> Provider | No
             return None
 
 
-def make_grant(**overrides) -> GrantV2:
+def make_grant(**overrides) -> Grant:
     """A grant to fetch any object of the default repository, named both ways a rule can name it."""
     fields = {
         "organization_id": 1,
         "referrer": "seer.coding_job",
         "rules": [
-            GrantV2FetchRule(repository=5, any_object=True),
-            GrantV2FetchRule(repository=("github", "123"), any_object=True),
+            FetchRule(repository=5, any_object=True),
+            FetchRule(repository=("github", "123"), any_object=True),
         ],
         "expires_at": FAR_FUTURE,
     }
     fields.update(overrides)
-    return GrantV2(**fields)  # type: ignore[arg-type]
+    return Grant(**fields)  # type: ignore[arg-type]
 
 
 VERSION_1_PUSH_CLAIMS = {

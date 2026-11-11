@@ -9,9 +9,7 @@ from requests.structures import CaseInsensitiveDict
 
 from scm.errors import (
     ClientClosedRequest,
-    GitOperationNotGranted,
     GitRemoteNotHttps,
-    GitRepositoryNotGranted,
     GitRouteNotSupported,
     ResourceBadGateway,
     ResourceCertificateInvalid,
@@ -20,10 +18,10 @@ from scm.errors import (
     RpcMalformedRequestHeaders,
     SCMCodedError,
 )
-from scm.git.types import GitOperation, GrantV2, GrantV2FetchRule, Readable
+from scm.git.types import GitOperation, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
-from scm.types import GitRemote, RepositoryId
+from scm.types import GitRemote
 
 # The most bytes the relay reads at once, from the client's body or from the provider's response, so also the
 # most it holds per request in each direction. Smaller chunks cost more Python per byte of a multi-gigabyte pack;
@@ -62,40 +60,6 @@ _REQUEST_HEADERS = frozenset(
 _RESPONSE_HEADERS = frozenset(
     {"cache-control", "content-encoding", "content-length", "content-type", "expires", "pragma"}
 )
-
-
-def authorize_request(grant: GrantV2, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
-    """Return the git operation a request belongs to, refusing the request unless the grant allows it.
-
-    Fetches reach only upload-pack and pushes only receive-pack. A request runs only if the grant has a rule for its
-    repository and operation, and the rule must name the repository in the same form the request uses: a database id
-    does not match the same repository's ``(provider, external id)`` pair.
-
-    A fetch needs a fetch rule for any object, since nothing reads a fetch's body to keep it to a rule's branches and
-    tags. A push is refused here, because only its ref updates show which refs it touches: relay it through
-    GitServer, which reads them before it relays the push.
-    """
-    operation = _authorize(grant, repository_id, method, route, query)
-    if operation == "push" and method == "POST":
-        raise GitOperationNotGranted(detail="A git push goes through GitServer, which checks its ref updates.")
-    return operation
-
-
-def _authorize(grant: GrantV2, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
-    """``authorize_request`` for GitServer, which checks a push's ref updates against the grant's push rules itself."""
-    operation = _route_operation(method, route, query)
-    rules = grant.rules_for(repository_id, operation)
-    if not rules:
-        other: GitOperation = "push" if operation == "fetch" else "fetch"
-        if not grant.rules_for(repository_id, other):
-            raise GitRepositoryNotGranted(detail="The git grant does not cover this repository.")
-        raise GitOperationNotGranted(detail=f"The git grant allows {other} on this repository, not {operation}.")
-    if operation == "fetch" and not any(isinstance(rule, GrantV2FetchRule) and rule.any_object for rule in rules):
-        raise GitOperationNotGranted(
-            detail="The git endpoint cannot keep a fetch to a rule's branches and tags, so a fetch rule must set "
-            "any_object."
-        )
-    return operation
 
 
 def _route_operation(method: str, route: str, query: str) -> GitOperation:
@@ -189,7 +153,7 @@ class GitRelay:
 
         ``route`` is the path below ``<repo>.git/``. The relay enforces what keeps the token safe: an https remote
         and one of the four git routes. It knows nothing of grants, so whether the request may run at all is the
-        caller's to decide; GitServer calls ``authorize_request`` before it looks up the repository or a token.
+        caller's to decide, as GitServer does before it looks up the repository or a token.
 
         Errors carry no URL, because the client has no use for the provider's address.
         """

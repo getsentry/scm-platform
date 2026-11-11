@@ -31,7 +31,7 @@ from scm.git.grant import (
     sign_grant,
     verify_grant,
 )
-from scm.git.types import GRANT_MAX_LENGTH, GrantV2, GrantV2FetchRule, GrantV2PushRule
+from scm.git.types import GRANT_MAX_LENGTH, FetchRule, Grant, PushRule
 from scm.secret import Secret
 from tests.unit.error_reports import assert_not_in_frames
 from tests.unit.git_builders import FAR_FUTURE, VERSION_1_PUSH_CLAIMS, KeyPair, make_grant, make_key_pair
@@ -50,7 +50,7 @@ def expected_key_id(key: KeyPair) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
-def claims_of(grant: GrantV2) -> dict:
+def claims_of(grant: Grant) -> dict:
     claims = msgspec.to_builtins(grant)
     claims["exp"] = claims.pop("expires_at")
     return claims | {"iat": NOW, "aud": GRANT_AUDIENCE}
@@ -120,14 +120,14 @@ class TestRoundTrip:
     def test_rules_of_each_kind(self):
         grant = make_grant(
             rules=[
-                GrantV2FetchRule(repository=5, branches=["main", "seer/fix"]),
-                GrantV2PushRule(repository=5, branches=["seer/fix"]),
-                GrantV2FetchRule(repository=("gitlab", "gitlab.com:7"), any_object=True),
+                FetchRule(repository=5, branches=["main", "seer/fix"]),
+                PushRule(repository=5, branches=["seer/fix"]),
+                FetchRule(repository=("gitlab", "gitlab.com:7"), any_object=True),
             ]
         )
         verified = verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW)
         assert verified == grant
-        assert [rule.operation for rule in verified.rules] == ["fetch", "push", "fetch"]
+        assert [type(rule) for rule in verified.rules] == [FetchRule, PushRule, FetchRule]
 
     def test_token_is_a_jwt_with_the_grants_claims(self):
         token = sign_grant(KEY.private, make_grant(), now=NOW)
@@ -275,13 +275,10 @@ class TestAlgorithms:
         assert_invalid(token, "alg value is not allowed")
 
 
-def grant_with_repositories(count: int) -> GrantV2:
+def grant_with_repositories(count: int) -> Grant:
     # Names of one length, so each rule adds the same to the grant.
     return make_grant(
-        rules=[
-            GrantV2FetchRule(repository=("github", f"getsentry/repository-{i:04d}"), any_object=True)
-            for i in range(count)
-        ]
+        rules=[FetchRule(repository=("github", f"getsentry/repository-{i:04d}"), any_object=True) for i in range(count)]
     )
 
 
@@ -312,7 +309,7 @@ class TestLength:
 
     def test_grant_for_one_repository(self):
         # GRANT_MAX_LENGTH's docstring sizes grants from this.
-        grant = make_grant(rules=[GrantV2FetchRule(repository=("github", "getsentry/scm-platform"), any_object=True)])
+        grant = make_grant(rules=[FetchRule(repository=("github", "getsentry/scm-platform"), any_object=True)])
         assert len(sign_grant(KEY.private, grant, now=NOW)) < 500
 
 
@@ -566,8 +563,8 @@ class TestRules:
     def test_fetch_and_push_rules_for_one_repository(self):
         grant = make_grant(
             rules=[
-                GrantV2FetchRule(repository=5, branches=["main"]),
-                GrantV2PushRule(repository=5, branches=["seer/fix"]),
+                FetchRule(repository=5, branches=["main"]),
+                PushRule(repository=5, branches=["seer/fix"]),
             ]
         )
         assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
@@ -576,11 +573,11 @@ class TestRules:
         # Shorter, and a reader sees which fetch rules reach any object.
         grant = make_grant(
             rules=[
-                GrantV2FetchRule(repository=5, branches=["main"], tags=["v1"]),
-                GrantV2FetchRule(repository=6, any_object=True),
-                GrantV2PushRule(repository=5, branches=["seer/fix"]),
-                GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
-                GrantV2PushRule(repository=5, tag_patterns=["v[0-9]+"], create_only=True),
+                FetchRule(repository=5, branches=["main"], tags=["v1"]),
+                FetchRule(repository=6, any_object=True),
+                PushRule(repository=5, branches=["seer/fix"]),
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                PushRule(repository=5, tag_patterns=["v[0-9]+"], create_only=True),
             ]
         )
         claims = jwt.decode(sign_grant(KEY.private, grant, now=NOW), options={"verify_signature": False})
@@ -657,15 +654,15 @@ class TestRules:
 
     def test_rule_without_refs_or_any_object_cannot_be_built(self):
         with pytest.raises(ValueError, match=FETCH_NAMES_NOTHING):
-            GrantV2FetchRule(repository=5)
+            FetchRule(repository=5)
         with pytest.raises(ValueError, match=PUSH_NAMES_NOTHING):
-            GrantV2PushRule(repository=5, create_only=True)
+            PushRule(repository=5, create_only=True)
 
     def test_rule_with_refs_and_any_object_cannot_be_built(self):
         with pytest.raises(ValueError, match="that sets any_object must not set"):
-            GrantV2FetchRule(repository=5, tags=["v1"], any_object=True)
+            FetchRule(repository=5, tags=["v1"], any_object=True)
 
-    @pytest.mark.parametrize("make_rule", [GrantV2FetchRule, GrantV2PushRule], ids=["fetch", "push"])
+    @pytest.mark.parametrize("make_rule", [FetchRule, PushRule], ids=["fetch", "push"])
     @pytest.mark.parametrize("field", ["branches", "branch_patterns", "tags", "tag_patterns"])
     def test_rule_with_an_empty_list_cannot_be_built(self, make_rule, field):
         with pytest.raises(ValueError, match="must not be empty"):
@@ -680,21 +677,22 @@ class TestRules:
         # A request passes if any of them allows it, so their order doesn't matter.
         grant = make_grant(
             rules=[
-                GrantV2FetchRule(repository=5, any_object=True),
-                GrantV2FetchRule(repository=5, branches=["main"]),
-                GrantV2PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
-                GrantV2PushRule(repository=5, branches=["seer/fix"]),
+                FetchRule(repository=5, any_object=True),
+                FetchRule(repository=5, branches=["main"]),
+                PushRule(repository=5, branch_patterns=["seer/.+"], create_only=True),
+                PushRule(repository=5, branches=["seer/fix"]),
             ]
         )
         assert verify_grant([KEY.public], sign_grant(KEY.private, grant, now=NOW), now=NOW) == grant
-        assert grant.rules_for(5, "push") == grant.rules[2:]
-        assert grant.rules_for(("github", "123"), "push") == []
+        assert grant.fetch_rules(5) == grant.rules[:2]
+        assert grant.push_rules(5) == grant.rules[2:]
+        assert grant.push_rules(("github", "123")) == []
 
     def test_one_repository_named_both_ways(self):
         # Nothing matches a database id to a provider id, so the two are separate repositories here, as in requests.
         rules = [
-            GrantV2FetchRule(repository=5, any_object=True),
-            GrantV2FetchRule(repository=("github", "123"), branches=["main"]),
+            FetchRule(repository=5, any_object=True),
+            FetchRule(repository=("github", "123"), branches=["main"]),
         ]
         assert make_grant(rules=rules).rules == rules
 
@@ -752,7 +750,7 @@ class TestCovers:
         ],
     )
     def test_branch_patterns(self, patterns, ref, covered):
-        assert GrantV2PushRule(repository=5, branch_patterns=patterns).covers(ref) is covered
+        assert PushRule(repository=5, branch_patterns=patterns).covers(ref) is covered
 
     @pytest.mark.parametrize(
         "ref,covered",
@@ -764,10 +762,10 @@ class TestCovers:
         ],
     )
     def test_tag_patterns(self, ref, covered):
-        assert GrantV2PushRule(repository=5, tag_patterns=[r"v[0-9]+\.[0-9]+"]).covers(ref) is covered
+        assert PushRule(repository=5, tag_patterns=[r"v[0-9]+\.[0-9]+"]).covers(ref) is covered
 
     def test_listed_refs(self):
-        rule = GrantV2PushRule(repository=5, branches=["seer/fix"], tags=["v1"])
+        rule = PushRule(repository=5, branches=["seer/fix"], tags=["v1"])
         assert rule.refs == ["refs/heads/seer/fix", "refs/tags/v1"]
         assert rule.covers("refs/heads/seer/fix")
         assert rule.covers("refs/tags/v1")
@@ -777,11 +775,11 @@ class TestCovers:
 
     @pytest.mark.parametrize("ref", ["refs/pull/1/head", "refs/notes/commits", "refs/heads", "refs/tags", "HEAD"])
     def test_patterns_cover_only_branches_and_tags(self, ref):
-        rule = GrantV2PushRule(repository=5, branch_patterns=[".*"], tag_patterns=[".*"])
+        rule = PushRule(repository=5, branch_patterns=[".*"], tag_patterns=[".*"])
         assert rule.refs == []
         assert not rule.covers(ref)
 
-    @pytest.mark.parametrize("make_rule", [GrantV2FetchRule, GrantV2PushRule], ids=["fetch", "push"])
+    @pytest.mark.parametrize("make_rule", [FetchRule, PushRule], ids=["fetch", "push"])
     def test_same_for_fetch_and_push(self, make_rule):
         rule = make_rule(repository=5, branches=["main"], tag_patterns=["v.+"])
         assert rule.refs == ["refs/heads/main"]
@@ -790,7 +788,7 @@ class TestCovers:
         assert not rule.covers("refs/heads/dev")
 
     def test_any_object_covers_every_ref(self):
-        rule = GrantV2FetchRule(repository=5, any_object=True)
+        rule = FetchRule(repository=5, any_object=True)
         assert rule.refs == []
         assert rule.covers("refs/heads/main")
         assert rule.covers("refs/pull/1/head")
@@ -809,16 +807,16 @@ class TestCovers:
     )
     def test_patterns_run_with_ascii_classes(self, pattern, ref, covered):
         field = "tag_patterns" if ref.startswith("refs/tags/") else "branch_patterns"
-        assert GrantV2PushRule(repository=5, **{field: [pattern]}).covers(ref) is covered
+        assert PushRule(repository=5, **{field: [pattern]}).covers(ref) is covered
 
     def test_pattern_that_asks_for_unicode_classes_cannot_be_built(self):
         with pytest.raises(ValueError, match="is not a regular expression"):
-            GrantV2PushRule(repository=5, tag_patterns=[r"(?u)v\d+"])
+            PushRule(repository=5, tag_patterns=[r"(?u)v\d+"])
 
     @pytest.mark.parametrize("field", ["branch_patterns", "tag_patterns"])
     def test_cannot_be_built_with_an_invalid_pattern(self, field):
         with pytest.raises(ValueError, match="'seer/\\(' is not a regular expression"):
-            GrantV2PushRule(repository=5, **{field: ["seer/("]})
+            PushRule(repository=5, **{field: ["seer/("]})
 
 
 NAME_FIELDS = pytest.mark.parametrize(
@@ -831,7 +829,7 @@ class TestRefNames:
     @pytest.mark.parametrize("name", INVALID_REF_NAMES)
     def test_invalid(self, field, error, name):
         with pytest.raises(ValueError, match=error):
-            GrantV2PushRule(repository=5, **{field: ["main", name]})
+            PushRule(repository=5, **{field: ["main", name]})
         assert_invalid(
             sign_claims(rule_claims({"operation": "push", "repository": 5, field: ["main", name]})),
             error,
@@ -840,15 +838,15 @@ class TestRefNames:
     @NAME_FIELDS
     def test_checked_in_fetch_rules_too(self, field, error):
         with pytest.raises(ValueError, match=error):
-            GrantV2FetchRule(repository=5, **{field: ["refs/heads/main"]})
+            FetchRule(repository=5, **{field: ["refs/heads/main"]})
 
     def test_tag_named_without_refs_tags(self):
         with pytest.raises(ValueError, match="Name a tag as git tag takes it, without refs/tags/"):
-            GrantV2PushRule(repository=5, tags=["refs/tags/v1"])
+            PushRule(repository=5, tags=["refs/tags/v1"])
 
     @pytest.mark.parametrize("field", ["branches", "tags"])
     @pytest.mark.parametrize(
         "name", ["main", "seer/fix-123", "feature/a.b", "a@b", "release-1.0", "a.lock.b", "x/HEAD", "ünicode", "v1.0.0"]
     )
     def test_valid(self, field, name):
-        assert getattr(GrantV2PushRule(repository=5, **{field: [name]}), field) == [name]
+        assert getattr(PushRule(repository=5, **{field: [name]}), field) == [name]

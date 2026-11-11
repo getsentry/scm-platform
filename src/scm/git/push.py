@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders, SCMCodedError
 from scm.git.relay import DEFAULT_CHUNK_SIZE, _printable, _read
-from scm.git.types import GrantV2PushRule, Readable, _follows_ref_format, _is_short_name
+from scm.git.types import PushRule, Readable, _follows_ref_format, _is_short_name
 
 MAX_UPDATES_LENGTH = 64 * 1024
 """The most bytes a push's ref updates may take. An update takes under 100 bytes plus its ref's name."""
@@ -101,7 +101,7 @@ class PushRequest(NamedTuple):
     """The bytes read from the body, to send on before the rest of it."""
 
 
-def check_push(rules: Sequence[GrantV2PushRule], headers: Mapping[str, str], body: Readable | None) -> Readable:
+def check_push(rules: Sequence[PushRule], headers: Mapping[str, str], body: Readable | None) -> Readable:
     """Return the body to relay for a push that ``rules`` allow, and refuse any other.
 
     ``body`` must end where the request body ends. A refused push's body is read to the end first, because git reads
@@ -200,7 +200,7 @@ def check_push_headers(method: str, headers: Mapping[str, str]) -> None:
             raise RpcMalformedRequestHeaders(detail=f"The push's {lowered} header holds a value git doesn't send.")
 
 
-def refused_updates(rules: Sequence[GrantV2PushRule], request: PushRequest) -> dict[bytes, str]:
+def refused_updates(rules: Sequence[PushRule], request: PushRequest) -> dict[bytes, str]:
     """Return why ``rules`` refuse each ref of ``request``, or nothing if every update has a rule that allows it.
 
     A push is relayed whole or not at all, so once one update is refused, every other ref gets a reason too. With no
@@ -223,7 +223,7 @@ def refused_updates(rules: Sequence[GrantV2PushRule], request: PushRequest) -> d
     return refused
 
 
-def _refusal(rule: GrantV2PushRule | None, update: RefUpdate) -> tuple[int, str] | None:
+def _refusal(rule: PushRule | None, update: RefUpdate) -> tuple[int, str] | None:
     """Return why ``rule``, or a grant with no rule, refuses ``update``, ranked by how far the update got, or None if
     the rule allows it."""
     # Reading the push checked that the ref's name is one git takes, so it decodes.

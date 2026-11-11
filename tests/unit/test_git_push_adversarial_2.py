@@ -7,12 +7,12 @@ import pytest
 from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders
 from scm.git.push import check_push
 from scm.git.relay import DEFAULT_CHUNK_SIZE, GitRelay
-from scm.git.types import GrantV2PushRule
+from scm.git.types import PushRule
 from tests.unit.git_builders import NEW_ID, OLD_ID, make_push_body, make_repository, pkt
 from tests.unit.git_upstream import running_upstream
 from tests.unit.test_git_server import PUSH_GRANT, Recorder, make_server, request
 
-RULES = [GrantV2PushRule(repository=5, branches=["seer/fix"])]
+RULES = [PushRule(repository=5, branches=["seer/fix"])]
 ALLOWED_PUSH = make_push_body((OLD_ID, NEW_ID, "refs/heads/seer/fix"))
 GIT_PROTOCOL_VALUES = (None, "version=0", "version=1")
 
