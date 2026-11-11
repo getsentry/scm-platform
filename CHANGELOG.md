@@ -1,4 +1,29 @@
 # Changelog
+## 4.0.0
+
+### Breaking Changes 🛠
+
+#### Git
+
+- Make a git grant a list of fetch and push rules for repositories, branches and tags, and keep pushes to their rules' branches and tags. `verify_grant` refuses version 1 grants. by @vaind and @claude in [#188](https://github.com/getsentry/scm-platform/pull/188)
+  - Sign `Grant(rules=[...])` in place of `Grant(operation=..., repositories=[...])`. A fetch grant becomes a `FetchRule(repository=..., any_object=True)` for each repository.
+  - `GRANT_VERSION` and `scm.git.relay.authorize_request` are gone. `GitServer` is the only way to check a request against a grant.
+- 🤖 Generated with [Claude Code](https://claude.com/claude-code) by @vaind and @claude in [#188](https://github.com/getsentry/scm-platform/pull/188)
+
+### New Features ✨
+
+#### Bitbucket
+
+- Add commit reads by @wedamija in [#180](https://github.com/getsentry/scm-platform/pull/180)
+- Add file reads by @wedamija in [#179](https://github.com/getsentry/scm-platform/pull/179)
+- Add the git remote by @wedamija in [#178](https://github.com/getsentry/scm-platform/pull/178)
+- Add a Bitbucket Cloud provider by @wedamija in [#176](https://github.com/getsentry/scm-platform/pull/176)
+
+### Internal Changes 🔧
+
+- (release) Add pre bump and version override by @BYK with @sentry-junior in [#187](https://github.com/getsentry/scm-platform/pull/187)
+- (rpc) Let providers send raw request bodies by @wedamija in [#177](https://github.com/getsentry/scm-platform/pull/177)
+
 ## 3.1.1
 
 ### Bug Fixes 🐛
