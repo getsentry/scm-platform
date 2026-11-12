@@ -32,13 +32,19 @@ from scm.types import (
     FileContent,
     FileContentType,
     FileStatus,
+    GitCommitObject,
+    GitCommitTree,
     GitRemote,
     GitRepository,
+    GitTree,
     PaginatedActionResult,
     PaginationParams,
     ProviderName,
     Repository,
     RequestOptions,
+    TreeEntry,
+    TreeEntryMode,
+    TreeEntryType,
 )
 
 PROVIDER_TYPE: ProviderName = "bitbucket"
@@ -79,6 +85,8 @@ _FILE_STATUSES: dict[str, FileStatus] = {
     "renamed": "renamed",
 }
 _RAW_AUTHOR = re.compile(r"^(?P<name>.*?)\s*<(?P<email>[^>]*)>\s*$")
+_MAX_TREE_DEPTH = str(2**31 - 1)
+_TREE_FIELDS = "next,values.path,values.type,values.size,values.attributes,values.commit.hash"
 
 
 class BitbucketProvider:
@@ -463,6 +471,92 @@ class BitbucketProvider:
                 return result
             pagination = {**(pagination or {}), "cursor": cursor}
 
+    def get_git_commit(
+        self,
+        sha: SHA,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitCommitObject]:
+        """Get a commit as a git object.
+
+        Bitbucket doesn't expose tree SHAs, so the tree is named by the commit SHA, which `get_tree` takes.
+        """
+        response = self.get(f"/2.0/repositories/{self.repository_path}/commit/{sha}", request_options=request_options)
+        return map_action(response, map_git_commit_object)
+
+    def get_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        pagination: PaginationParams | None = None,
+        request_options: RequestOptions | None = None,
+    ) -> PaginatedActionResult[GitTree]:
+        """List one page of the tree named by `<commit>` or `<commit>:<path>`.
+
+        Bitbucket has no tree SHAs, so each entry's `sha` is its `<commit>:<path>` git revision.
+        """
+        commit, path = self._split_tree_sha(tree_sha, request_options)
+        return self._get_tree_page(commit, path, tree_sha, recursive, pagination, request_options)
+
+    def get_full_tree(
+        self,
+        tree_sha: SHA,
+        recursive: bool = True,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitTree]:
+        """List a whole tree, walking every page."""
+        commit, path = self._split_tree_sha(tree_sha, request_options)
+        entries: list[TreeEntry] = []
+        raw_entries: list[dict[str, Any]] = []
+        for page in iter_all_pages(
+            lambda pagination: self._get_tree_page(commit, path, tree_sha, recursive, pagination, request_options),
+            per_page=MAX_PAGE_SIZE,
+        ):
+            entries.extend(page["data"]["tree"])
+            raw_entries.extend(page["raw"]["data"]["values"])
+        return {
+            "data": GitTree(sha=tree_sha, tree=entries, truncated=False),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": raw_entries, "headers": None},
+            "meta": {},
+        }
+
+    def _split_tree_sha(self, tree_sha: SHA, request_options: RequestOptions | None) -> tuple[SHA, str]:
+        ref, _, path = tree_sha.partition(":")
+        return self._resolve_ref(ref, request_options), path
+
+    def _get_tree_page(
+        self,
+        commit: SHA,
+        path: str,
+        tree_sha: SHA,
+        recursive: bool,
+        pagination: PaginationParams | None,
+        request_options: RequestOptions | None,
+    ) -> PaginatedActionResult[GitTree]:
+        params = {"fields": _TREE_FIELDS}
+        if recursive:
+            params["max_depth"] = _MAX_TREE_DEPTH
+        response = self.get(
+            self._src_path(commit, path).rstrip("/") + "/",
+            params=params,
+            pagination=pagination or {"per_page": MAX_PAGE_SIZE},
+            request_options=request_options,
+        )
+        if not _is_listing(response):
+            raise PathIsNotDirectory(detail=path)
+        raw = response.json()
+        cursor = next_cursor(raw)
+        return {
+            "data": GitTree(
+                sha=tree_sha,
+                tree=[map_tree_entry(entry, path) for entry in raw["values"]],
+                truncated=cursor is not None,
+            ),
+            "type": PROVIDER_TYPE,
+            "raw": {"data": raw, "headers": dict(response.headers)},
+            "meta": {"next_cursor": cursor},
+        }
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -573,6 +667,36 @@ def split_patches(diff: str) -> dict[str, str]:
         if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
             patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
     return patches
+
+
+def map_git_commit_object(raw: dict[str, Any]) -> GitCommitObject:
+    return GitCommitObject(sha=raw["hash"], tree=GitCommitTree(sha=raw["hash"]), message=raw["message"])
+
+
+def map_tree_entry(raw: dict[str, Any], tree_path: str) -> TreeEntry:
+    """Map a `src` listing entry, with its path relative to the listed directory."""
+    mode, entry_type = tree_entry_kind(raw)
+    return TreeEntry(
+        path=raw["path"].removeprefix(f"{tree_path}/") if tree_path else raw["path"],
+        mode=mode,
+        type=entry_type,
+        sha=f"{raw['commit']['hash']}:{raw['path']}",
+        # A submodule's size is the length of its commit SHA.
+        size=raw["size"] if entry_type == "blob" else None,
+    )
+
+
+def tree_entry_kind(raw: dict[str, Any]) -> tuple[TreeEntryMode, TreeEntryType]:
+    if raw["type"] == "commit_directory":
+        return "040000", "tree"
+    attributes = raw.get("attributes") or []
+    if "subrepository" in attributes:
+        return "160000", "commit"
+    if "link" in attributes:
+        return "120000", "blob"
+    if "executable" in attributes:
+        return "100755", "blob"
+    return "100644", "blob"
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
