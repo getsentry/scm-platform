@@ -69,6 +69,9 @@ Checks:
         for credentials
       - a repository the token cannot see fails with the provider's own
         message, which the relay passes on
+      - under a grant to fetch the default branch only, ls-remote lists that
+        branch and HEAD, a shallow clone succeeds, and fetching an older
+        commit by id or fetching with --unshallow is refused
     With --push it also commits a 256 KiB file, pushes it with a push grant for
     a new branch, sending the pack chunked as git does for a large push, then
     tags the commit under the same grant. It checks that the grant can neither
@@ -546,6 +549,8 @@ class Checks:
         )
         server.shutdown()
 
+        self.check_branch_fetch(fetch_grant)
+
         rejecting = self.start(get_token=lambda repository, operation: Secret("not-a-valid-token"))
         result = self.git(fetch_grant, "ls-remote", f"{rejecting.url}/{self.backend.repository['name']}.git")
         self.check(
@@ -582,6 +587,42 @@ class Checks:
             else:
                 logger.info("skip push, as the clone failed")
         return 1 if self.failures else 0
+
+    def check_branch_fetch(self, fetch_grant: str) -> None:
+        """Check that a grant to fetch only the default branch sees and fetches nothing else."""
+        server = self.start()
+        url = f"{server.url}/{self.backend.repository['name']}.git"
+        head = self.git(fetch_grant, "ls-remote", "--symref", url, "HEAD")
+        default = next(
+            (line.split()[1] for line in head.stdout.splitlines() if line.startswith("ref: ")), "refs/heads/main"
+        )
+        grant = grant_for(
+            self.args.private_key,
+            FetchRule(repository=self.backend.repository_id, branches=[default.removeprefix("refs/heads/")]),
+        )
+        listed = self.git(grant, "ls-remote", url)
+        names = {line.split("\t")[1] for line in listed.stdout.splitlines() if "\t" in line}
+        self.check("ls-remote with a branch fetch grant lists only that branch", listed, names == {"HEAD", default})
+        clone = self.workdir / "branch-clone"
+        if not self.expect_success(
+            "shallow clone with a branch fetch grant", self.git(grant, "clone", "--depth=2", url, str(clone))
+        ):
+            server.shutdown()
+            return
+        # The parent of the clone's oldest commit, which the clone lacks, so git asks the provider for it.
+        oldest = self.git(grant, "cat-file", "commit", "HEAD~1", cwd=clone).stdout
+        parent = next((line.split()[1] for line in oldest.splitlines() if line.startswith("parent ")), "0" * 40)
+        self.check(
+            "fetching a commit that is not a tip is refused",
+            result := self.git(grant, "fetch", "origin", parent, cwd=clone),
+            result.returncode != 0 and "remote error: The git grant does not allow fetching" in result.stderr,
+        )
+        self.check(
+            "fetch --unshallow is refused",
+            result := self.git(grant, "fetch", "--unshallow", "origin", cwd=clone),
+            result.returncode != 0 and "deepens history without limit" in result.stderr,
+        )
+        server.shutdown()
 
     def local_repository(self) -> Path:
         local = self.workdir / "local"
