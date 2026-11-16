@@ -1,4 +1,4 @@
-"""Keeping a fetch to fetch rules that name branches and tags.
+"""Limits a fetch to the branches and tags its grant's fetch rules name.
 
 upload-pack sends any object a fetch names by id, whether a ref reaches it or not, and on GitHub also the objects of
 the repository's forks. So under such rules GitServer:
