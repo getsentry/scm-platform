@@ -1,5 +1,10 @@
-from collections.abc import Callable, Mapping, Sequence
+import io
+import threading
+import time
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from urllib.parse import urlsplit
+
+import msgspec
 
 from scm.errors import (
     ErrorCode,
@@ -8,16 +13,33 @@ from scm.errors import (
     GitRepositoryNotGranted,
     GitTokenRejected,
     GitTokenUnavailable,
+    ResourceBadGateway,
     SCMCodedError,
+)
+from scm.git.fetch import (
+    FetchRefused,
+    FetchRequest,
+    check_fetch,
+    check_wants,
+    filter_response,
+    read_tips,
+    tips_headers,
+    tips_request,
 )
 from scm.git.grant import require_public_keys, verify_grant
 from scm.git.push import PushRefused, check_push, check_push_headers
 from scm.git.relay import GitRelay, ResponseBody, _route_operation
-from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
+from scm.git.types import GRANT_HEADER, FetchRule, GetToken, GitOperation, Grant, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
-from scm.types import GetGitRemoteProtocol, Provider, Repository, RepositoryId
+from scm.types import GetGitRemoteProtocol, GitRemote, Provider, Repository, RepositoryId
+
+TIPS_CACHE_SECONDS = 10.0
+"""How long the tips GitServer lists for a grant's fetch rules answer the grant's later fetches. git sends a request
+for each round of a fetch's negotiation, each with the same wants, within seconds. A want missing from the cached tips
+lists them again, so a branch that moved shows at once, and a cached tip lets a client fetch only what a covered branch
+or tag pointed to moments ago."""
 
 # The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
 # which a sandboxed client must never have and which would not help.
@@ -73,6 +95,15 @@ class GitServer:
     recognise, such as push options, a signed push or a capability git doesn't send, refuses the push too. A client
     that asked for a status report gets one, a 200 that git shows as a rejected ref with its reason. A push the
     rules allow is relayed with the updates the server read followed by the rest of the body, unread.
+
+    A fetch under fetch rules that name branches and tags, none of which allows any object, is kept to them by
+    ``scm.git.fetch``. Its request is read and checked before anything is looked up: it must be in protocol version
+    2, run ``ls-refs`` or ``fetch``, and ask for nothing that reaches past its wants. Before a ``fetch`` is relayed,
+    the server lists the tips of the covered branches and tags from the provider, and refuses a want that isn't one
+    of them. The tips are cached in the process for ``TIPS_CACHE_SECONDS``, so a fetch's rounds of negotiation list
+    them once. The provider's list of capabilities and its ``ls-refs`` answer lose what the rules don't allow on
+    their way to the client. A refused command gets a 200 whose ``ERR`` line git shows as the reason. A fetch under
+    a rule that allows any object is relayed unread.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
@@ -152,12 +183,18 @@ class GitServer:
             operation = _authorize(grant, repository_id, method, route, query)
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
+            relayed_headers: Mapping[str, str] = headers
+            fetch_rules = grant.fetch_rules(repository_id)
+            fetch: FetchRequest | None = None
             if operation == "push":
                 if method == "POST":
                     relayed_body = check_push(grant.push_rules(repository_id), headers, counted_body)
                 else:
                     # The push's first request, which lists the refs, goes to the provider with the same headers.
                     check_push_headers(method, headers)
+            elif not any(rule.any_object for rule in fetch_rules):
+                fetch = check_fetch(method, headers, counted_body)
+                relayed_body, relayed_headers = fetch.body, fetch.headers
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,
@@ -185,20 +222,27 @@ class GitServer:
                     f"get_token must return an scm.Secret, not {token_type}. Wrap the token in scm.Secret where you "
                     "read it."
                 )
+            if fetch is not None and fetch.wants:
+                tips_key = (grant.organization_id, repository_id, msgspec.json.encode(fetch_rules))
+                self._check_wants(tips_key, fetch_rules, fetch, remote, token)
             response = self.relay.forward(
-                remote, token, method=method, route=route, query=query, headers=headers, body=relayed_body
+                remote, token, method=method, route=route, query=query, headers=relayed_headers, body=relayed_body
             )
             if response.status_code == 401:
                 # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
                 # for credentials, which it must never have and which would not help.
                 response.content.close()
                 raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
+            if fetch is not None:
+                response = filter_response(fetch_rules, fetch, response)
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
                 self.emit_error(e, context)
             if isinstance(e, PushRefused) and e.report is not None:
-                return _report_response(e.report)
+                return _report_response(e.report, "application/x-git-receive-pack-result")
+            if isinstance(e, FetchRefused):
+                return _report_response(e.report, "application/x-git-upload-pack-result")
             return _error_response(e)
         except Exception:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": "unhandled_exception"} | referrer_tag)
@@ -231,14 +275,87 @@ class GitServer:
             content=_MeteredStream(response.content, finish, report),
         )
 
+    def _check_wants(
+        self,
+        key: Hashable,
+        rules: Sequence[FetchRule],
+        fetch: FetchRequest,
+        remote: GitRemote,
+        token: Secret,
+    ) -> None:
+        """Refuse a fetch whose wants aren't all tips of the branches and tags ``rules`` cover."""
+        tips = _tips_cache.get(key)
+        if tips is None or not fetch.wants <= tips:
+            tips = self._list_tips(rules, fetch, remote, token)
+            _tips_cache.put(key, tips)
+        check_wants(fetch, tips)
+
+    def _list_tips(
+        self, rules: Sequence[FetchRule], fetch: FetchRequest, remote: GitRemote, token: Secret
+    ) -> frozenset[str]:
+        response = self.relay.forward(
+            remote,
+            token,
+            method="POST",
+            route="git-upload-pack",
+            query="",
+            headers=tips_headers(fetch.headers),
+            body=io.BytesIO(tips_request(rules, fetch.object_format)),
+        )
+        try:
+            if response.status_code == 401:
+                raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
+            if response.status_code != 200:
+                raise ResourceBadGateway(
+                    detail=f"The provider answered HTTP {response.status_code} when the git endpoint listed the "
+                    "branches and tags the git grant covers."
+                )
+            return read_tips(rules, response, fetch.object_format)
+        finally:
+            response.content.close()
+
+
+class _TipsCache:
+    """The tips GitServer listed for each grant's fetch rules, shared by every GitServer in the process, since a
+    caller may build one for each request."""
+
+    def __init__(self, seconds: float, max_entries: int = 1024) -> None:
+        self.seconds = seconds
+        self.max_entries = max_entries
+        self.entries: dict[Hashable, tuple[float, frozenset[str]]] = {}
+        self.lock = threading.Lock()
+
+    def get(self, key: Hashable) -> frozenset[str] | None:
+        with self.lock:
+            entry = self.entries.get(key)
+            if entry is None or entry[0] <= time.monotonic():
+                return None
+            return entry[1]
+
+    def put(self, key: Hashable, tips: frozenset[str]) -> None:
+        now = time.monotonic()
+        with self.lock:
+            if len(self.entries) >= self.max_entries:
+                self.entries = {k: entry for k, entry in self.entries.items() if entry[0] > now}
+                if len(self.entries) >= self.max_entries:
+                    self.entries.clear()
+            self.entries[key] = (now + self.seconds, tips)
+
+    def clear(self) -> None:
+        with self.lock:
+            self.entries.clear()
+
+
+_tips_cache = _TipsCache(TIPS_CACHE_SECONDS)
+
 
 def _authorize(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:
     """Return the git operation a request belongs to, refusing the request unless the grant allows it.
 
     Fetches reach only upload-pack and pushes only receive-pack. A request runs only if the grant has a rule for its
     repository and operation, and the rule must name the repository in the same form the request uses: a database id
-    does not match the same repository's ``(provider, external id)`` pair. A fetch needs a fetch rule for any object,
-    since nothing reads a fetch's body to keep it to a rule's branches and tags.
+    does not match the same repository's ``(provider, external id)`` pair. What a fetch or push may touch within the
+    repository is checked once the request is read.
     """
     operation = _route_operation(method, route, query)
     fetch_rules, push_rules = grant.fetch_rules(repository_id), grant.push_rules(repository_id)
@@ -248,11 +365,6 @@ def _authorize(grant: Grant, repository_id: RepositoryId, method: str, route: st
         raise GitOperationNotGranted(detail="The git grant allows push on this repository, not fetch.")
     if operation == "push" and not push_rules:
         raise GitOperationNotGranted(detail="The git grant allows fetch on this repository, not push.")
-    if operation == "fetch" and not any(rule.any_object for rule in fetch_rules):
-        raise GitOperationNotGranted(
-            detail="The git endpoint cannot keep a fetch to a rule's branches and tags, so a fetch rule must set "
-            "any_object."
-        )
     return operation
 
 
@@ -328,11 +440,11 @@ class _MeteredStream:
             self.finish(failure, self.bytes_sent)
 
 
-def _report_response(report: bytes) -> StreamResponse:
+def _report_response(report: bytes, content_type: str) -> StreamResponse:
     return StreamResponse(
         status_code=200,
         headers={
-            "Content-Type": "application/x-git-receive-pack-result",
+            "Content-Type": content_type,
             "Content-Length": str(len(report)),
             "Cache-Control": "no-cache",
         },
