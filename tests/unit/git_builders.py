@@ -122,3 +122,16 @@ def make_push_body(
         line = f"{old_id} {new_id} {ref}".encode()
         lines.append(pkt(line + b"\0 " + capabilities.encode() if index == 0 else line))
     return b"".join(lines) + b"0000" + pack
+
+
+def make_fetch_body(
+    command: str,
+    *arguments: str,
+    capabilities: tuple[str, ...] = ("agent=git/2.54.0", "object-format=sha1"),
+) -> bytes:
+    """A protocol version 2 upload-pack request as git sends it: the command, its capabilities, then its arguments."""
+    lines = [f"command={command}", *capabilities]
+    body = b"".join(pkt(f"{line}\n".encode()) for line in lines)
+    if arguments:
+        body += b"0001" + b"".join(pkt(f"{argument}\n".encode()) for argument in arguments)
+    return body + b"0000"
