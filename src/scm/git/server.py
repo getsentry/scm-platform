@@ -1,10 +1,6 @@
 import io
-import threading
-import time
-from collections.abc import Callable, Hashable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
-
-import msgspec
 
 from scm.errors import (
     ErrorCode,
@@ -34,12 +30,6 @@ from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
 from scm.types import GetGitRemoteProtocol, GitRemote, Provider, Repository, RepositoryId
-
-TIPS_CACHE_SECONDS = 10.0
-"""How long the tips GitServer lists for a grant's fetch rules answer the grant's later fetches. git sends a request
-for each round of a fetch's negotiation, each with the same wants, within seconds. A want missing from the cached tips
-lists them again, so a branch that moved shows at once, and a cached tip lets a client fetch only what a covered branch
-or tag pointed to moments ago."""
 
 # The status of each refusal GitServer answers itself. None is a 401: on a 401 git asks the user for credentials,
 # which a sandboxed client must never have and which would not help.
@@ -100,8 +90,7 @@ class GitServer:
     ``scm.git.fetch``. Its request is read and checked before anything is looked up: it must be in protocol version
     2, run ``ls-refs`` or ``fetch``, and ask for nothing that reaches past its wants. Before a ``fetch`` is relayed,
     the server lists the tips of the covered branches and tags from the provider, and refuses a want that isn't one
-    of them. The tips are cached in the process for ``TIPS_CACHE_SECONDS``, so a fetch's rounds of negotiation list
-    them once. The provider's list of capabilities and its ``ls-refs`` answer lose what the rules don't allow on
+    of them. The provider's list of capabilities and its ``ls-refs`` answer lose what the rules don't allow on
     their way to the client. A refused command gets a 200 whose ``ERR`` line git shows as the reason. A fetch under
     a rule that allows any object is relayed unread.
 
@@ -223,8 +212,7 @@ class GitServer:
                     "read it."
                 )
             if fetch is not None and fetch.wants:
-                tips_key = (grant.organization_id, repository_id, msgspec.json.encode(fetch_rules))
-                self._check_wants(tips_key, fetch_rules, fetch, remote, token)
+                check_wants(fetch, self._list_tips(fetch_rules, fetch, remote, token))
             response = self.relay.forward(
                 remote, token, method=method, route=route, query=query, headers=relayed_headers, body=relayed_body
             )
@@ -275,21 +263,6 @@ class GitServer:
             content=_MeteredStream(response.content, finish, report),
         )
 
-    def _check_wants(
-        self,
-        key: Hashable,
-        rules: Sequence[FetchRule],
-        fetch: FetchRequest,
-        remote: GitRemote,
-        token: Secret,
-    ) -> None:
-        """Refuse a fetch whose wants aren't all tips of the branches and tags ``rules`` cover."""
-        tips = _tips_cache.get(key)
-        if tips is None or not fetch.wants <= tips:
-            tips = self._list_tips(rules, fetch, remote, token)
-            _tips_cache.put(key, tips)
-        check_wants(fetch, tips)
-
     def _list_tips(
         self, rules: Sequence[FetchRule], fetch: FetchRequest, remote: GitRemote, token: Secret
     ) -> frozenset[str]:
@@ -313,40 +286,6 @@ class GitServer:
             return read_tips(rules, response, fetch.object_format)
         finally:
             response.content.close()
-
-
-class _TipsCache:
-    """The tips GitServer listed for each grant's fetch rules, shared by every GitServer in the process, since a
-    caller may build one for each request."""
-
-    def __init__(self, seconds: float, max_entries: int = 1024) -> None:
-        self.seconds = seconds
-        self.max_entries = max_entries
-        self.entries: dict[Hashable, tuple[float, frozenset[str]]] = {}
-        self.lock = threading.Lock()
-
-    def get(self, key: Hashable) -> frozenset[str] | None:
-        with self.lock:
-            entry = self.entries.get(key)
-            if entry is None or entry[0] <= time.monotonic():
-                return None
-            return entry[1]
-
-    def put(self, key: Hashable, tips: frozenset[str]) -> None:
-        now = time.monotonic()
-        with self.lock:
-            if len(self.entries) >= self.max_entries:
-                self.entries = {k: entry for k, entry in self.entries.items() if entry[0] > now}
-                if len(self.entries) >= self.max_entries:
-                    self.entries.clear()
-            self.entries[key] = (now + self.seconds, tips)
-
-    def clear(self) -> None:
-        with self.lock:
-            self.entries.clear()
-
-
-_tips_cache = _TipsCache(TIPS_CACHE_SECONDS)
 
 
 def _authorize(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:

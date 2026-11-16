@@ -25,7 +25,7 @@ from scm.errors import (
 from scm.git.fetch import tips_request
 from scm.git.grant import key_id, sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
-from scm.git.server import _STATUS, TIPS_CACHE_SECONDS, GitServer, _authorize
+from scm.git.server import _STATUS, GitServer, _authorize
 from scm.git.types import GRANT_HEADER, FetchRule, GitOperation, PushRule, Readable
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -1157,33 +1157,17 @@ class TestFetchRules:
         assert upstream_requests[-1].body == body
         assert upstream_requests[-1].headers["Content-Encoding"] == "gzip"
 
-    def test_tips_are_listed_once_for_a_negotiation(self):
-        with branch_rules_upstream() as (_, recorder, server, upstream_requests):
-            upload_pack(server, CLONE)
-            # Sentry builds a server for each request.
-            upload_pack(make_server(recorder, server.relay), CLONE)
-        assert [received.body for received in upstream_requests] == [TIPS_REQUEST, CLONE, CLONE]
-
-    def test_branch_that_moved_is_listed_again(self):
+    def test_each_fetch_lists_the_tips(self):
         moved = "d" * 40
         with branch_rules_upstream() as (provider, _, server, upstream_requests):
             upload_pack(server, CLONE)
             provider.refs["refs/heads/main"] = moved
+            # A branch that moved shows at once, and the tip it moved from is no longer one.
             response = upload_pack(server, make_fetch_body("fetch", f"want {moved}", "done"))
             assert b"".join(response.content) == PACK_RESPONSE
-            # The tip it moved from is no longer one.
             response = upload_pack(server, CLONE)
             assert b"ERR" in b"".join(response.content)
         assert [received.body for received in upstream_requests].count(TIPS_REQUEST) == 3
-
-    def test_cached_tips_expire(self, monkeypatch):
-        clock = [1000.0]
-        monkeypatch.setattr("scm.git.server.time.monotonic", lambda: clock[0])
-        with branch_rules_upstream() as (_, _, server, upstream_requests):
-            upload_pack(server, CLONE)
-            clock[0] += TIPS_CACHE_SECONDS
-            upload_pack(server, CLONE)
-        assert [received.body for received in upstream_requests].count(TIPS_REQUEST) == 2
 
     @pytest.mark.parametrize(
         "status,code,http_status",
