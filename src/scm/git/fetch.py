@@ -39,7 +39,7 @@ from scm.errors import (
     RpcMalformedRequestHeaders,
     SCMCodedError,
 )
-from scm.git.push import _MAX_PKT_LENGTH, _OBJECT_ID_LENGTHS, _PKT_LENGTH, _pkt
+from scm.git.pktline import MAX_PKT_LENGTH, OBJECT_ID_LENGTHS, PKT_LENGTH, pkt
 from scm.git.relay import RelayResponse, ResponseBody, _printable, _read
 from scm.git.types import FetchRule, Readable
 
@@ -96,7 +96,7 @@ class FetchRefused(GitOperationNotGranted):
 
     def __init__(self, *, detail: str) -> None:
         super().__init__(detail=detail)
-        self.report = _pkt(f"ERR {detail}\n".encode())
+        self.report = pkt(f"ERR {detail}\n".encode())
 
 
 class FetchRequest(NamedTuple):
@@ -138,7 +138,7 @@ def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) 
         return FetchRequest(command=command, object_format=object_format, headers=dict(headers), body=None)
     return FetchRequest(
         command=command,
-        wants=_check_fetch_arguments(arguments, _OBJECT_ID_LENGTHS[object_format]),
+        wants=_check_fetch_arguments(arguments, OBJECT_ID_LENGTHS[object_format]),
         object_format=object_format,
         headers=_replacing(headers, "Content-Length", str(len(raw))),
         body=io.BytesIO(raw),
@@ -179,10 +179,10 @@ def refs_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
             prefixes.add("refs/tags/")
     arguments = ["symrefs", "peel", *(f"ref-prefix {prefix}" for prefix in sorted(prefixes))]
     return (
-        _pkt(b"command=ls-refs\n")
-        + _pkt(f"object-format={object_format}\n".encode())
+        pkt(b"command=ls-refs\n")
+        + pkt(f"object-format={object_format}\n".encode())
         + b"0001"
-        + b"".join(_pkt(f"{argument}\n".encode()) for argument in arguments)
+        + b"".join(pkt(f"{argument}\n".encode()) for argument in arguments)
         + b"0000"
     )
 
@@ -205,7 +205,7 @@ def read_refs(rules: Sequence[FetchRule], response: RelayResponse, object_format
     """
     _check_unencoded(response)
     data = _read_response(response.content, MAX_REFS_LENGTH, "list of branches and tags")
-    id_length = _OBJECT_ID_LENGTHS[object_format]
+    id_length = OBJECT_ID_LENGTHS[object_format]
     lines: list[bytes] = []
     tips: set[str] = set()
     for line in _response_lines(data):
@@ -233,7 +233,7 @@ def read_refs(rules: Sequence[FetchRule], response: RelayResponse, object_format
 
 def refs_response(refs: Refs) -> RelayResponse:
     """Return the ``ls-refs`` answer that lists ``refs``."""
-    content = b"".join(_pkt(line) for line in refs.lines) + b"0000"
+    content = b"".join(pkt(line) for line in refs.lines) + b"0000"
     return RelayResponse(
         status_code=200,
         headers={
@@ -352,7 +352,7 @@ def _object_format(capabilities: list[str]) -> str:
         raise GitMalformedRequestBody(detail="The fetch names more than one object format.")
     # Without object-format=, git means SHA-1.
     object_format = formats[0] if formats else "sha1"
-    if object_format not in _OBJECT_ID_LENGTHS:
+    if object_format not in OBJECT_ID_LENGTHS:
         raise GitMalformedRequestBody(detail="The fetch names an object format git doesn't have.")
     return object_format
 
@@ -424,7 +424,7 @@ def _capabilities(data: bytes) -> bytes:
             features = [feature for feature in value.split(b" ") if feature not in _REFUSED_FETCH_FEATURES]
             line = b"fetch=" + b" ".join(features) + b"\n"
         kept.append(line)
-    return b"".join(_pkt(line) for line in kept) + b"0000"
+    return b"".join(pkt(line) for line in kept) + b"0000"
 
 
 def _in_memory(content: bytes) -> Generator[bytes]:
@@ -484,14 +484,14 @@ def _pkt_lines(data: bytes, error: type[SCMCodedError], detail: str) -> list[byt
     index = 0
     while index < len(data):
         header = data[index : index + 4]
-        if not _PKT_LENGTH.fullmatch(header):
+        if not PKT_LENGTH.fullmatch(header):
             raise error(detail=detail)
         length = int(header, 16)
         if length in (_FLUSH, _DELIM):
             lines.append(length)
             index += 4
             continue
-        if not 4 < length <= _MAX_PKT_LENGTH or index + length > len(data):
+        if not 4 < length <= MAX_PKT_LENGTH or index + length > len(data):
             raise error(detail=detail)
         lines.append(data[index + 4 : index + length])
         index += length
