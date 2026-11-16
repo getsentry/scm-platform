@@ -1,5 +1,7 @@
 import contextlib
+import gzip
 import io
+import re
 import ssl
 import time
 from collections.abc import Generator
@@ -21,6 +23,7 @@ from scm.errors import (
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
 )
+from scm.git.fetch import refs_request
 from scm.git.grant import key_id, sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer, _authorize
@@ -32,13 +35,16 @@ from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, 
 from tests.unit.git_builders import (
     NEW_ID,
     OLD_ID,
+    SERVICE_HEADER,
     VERSION_1_PUSH_CLAIMS,
+    make_fetch_body,
     make_grant,
     make_key_pair,
     make_provider,
     make_push_body,
     make_repository,
     pkt,
+    pkt_lines,
 )
 from tests.unit.git_upstream import (
     ClosingAdapter,
@@ -248,10 +254,10 @@ class TestRefusedBeforeTheProvider:
         ]
         assert recorder.errors[0][1] == {"repository_id": "5", "organization_id": "1", "referrer": REFERRER}
 
-    def test_fetch_rule_that_lists_branches(self):
+    def test_fetch_rule_that_lists_branches_needs_protocol_version_2(self):
         recorder = Recorder()
         grant = signed_grant(rules=[FetchRule(repository=5, branches=["main"])])
-        assert_refused(request(make_server(recorder), grant), 403, "cannot keep a fetch to a rule's branches")
+        assert_refused(request(make_server(recorder), grant), 403, "only in git protocol version 2")
         assert recorder.repository_lookups == []
         assert recorder.token_lookups == []
 
@@ -953,21 +959,15 @@ class TestAuthorize:
         assert _authorize(grant, 5, "POST", "git-upload-pack", "") == "fetch"
         assert _authorize(grant, 5, "POST", "git-receive-pack", "") == "push"
 
-    def test_fetch_rules_that_all_list_branches_are_refused(self):
-        grant = make_grant(rules=[FetchRule(repository=5, branches=["main"]), FetchRule(repository=5, branches=["a"])])
-        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches"):
-            _authorize(grant, 5, "POST", "git-upload-pack", "")
-
     @pytest.mark.parametrize("route", FETCH_ROUTES)
     @pytest.mark.parametrize(
         "refs",
         [{"branches": ["main"]}, {"tags": ["v1"]}, {"tag_patterns": ["v.+"]}],
         ids=["branches", "tags", "tag-patterns"],
     )
-    def test_fetch_rule_that_names_refs_is_refused(self, route, refs):
-        # Nothing reads a fetch's body, so nothing would keep the fetch to the rule's branches and tags.
-        with pytest.raises(GitOperationNotGranted, match="cannot keep a fetch to a rule's branches and tags"):
-            _authorize(make_grant(rules=[FetchRule(repository=5, **refs)]), 5, *route)
+    def test_fetch_rule_that_names_refs_reaches_fetch_routes(self, route, refs):
+        # check_fetch then keeps the fetch to the rule's branches and tags.
+        assert _authorize(make_grant(rules=[FetchRule(repository=5, **refs)]), 5, *route) == "fetch"
 
     @pytest.mark.parametrize(
         "method,route,query",
@@ -1011,3 +1011,196 @@ class TestAuthorize:
         )
         assert _authorize(grant, 6, "POST", "git-upload-pack", "") == "fetch"
         assert _authorize(grant, ("gitlab", "gitlab.com:7"), "POST", "git-upload-pack", "") == "fetch"
+
+
+MAIN = "a" * 40
+FIX = "b" * 40
+SECRET = "c" * 40
+BRANCH_FETCH = FetchRule(repository=5, branches=["main", "seer/fix"])
+BRANCH_RULES = [BRANCH_FETCH, PushRule(repository=5, branches=["seer/fix"])]
+BRANCH_GRANT = sign_grant(KEY.private, make_grant(rules=BRANCH_RULES))
+V2_POST = {"Git-Protocol": "version=2", "Content-Type": "application/x-git-upload-pack-request"}
+CAPABILITY_LINES = ("version 2", "ls-refs=unborn", "fetch=shallow wait-for-done filter")
+CAPABILITIES = SERVICE_HEADER + pkt_lines(*CAPABILITY_LINES, "bundle-uri")
+PACK_RESPONSE = pkt(b"packfile\n") + pkt(b"\1PACK") + b"0000"
+
+
+class FakeUploadPack:
+    """A provider's protocol version 2 upload-pack: its capabilities, ls-refs of ``refs``, and a pack for a fetch."""
+
+    def __init__(self) -> None:
+        self.refs = {"HEAD": MAIN, "refs/heads/main": MAIN, "refs/heads/seer/fix": FIX, "refs/heads/secret": SECRET}
+        self.ls_refs_status = 200
+
+    def __call__(self, handler: UpstreamHandler) -> None:
+        body = b"".join(handler.body_chunks())
+        handler.record(body)
+        if "receive-pack" in handler.path:
+            handler.respond(200, b"0000", {"Content-Type": "application/x-git-receive-pack-result"})
+            return
+        if handler.command == "GET":
+            handler.respond(200, CAPABILITIES, {"Content-Type": "application/x-git-upload-pack-advertisement"})
+            return
+        data = gzip.decompress(body) if handler.headers.get("Content-Encoding") == "gzip" else body
+        if b"command=fetch" in data:
+            handler.respond(200, PACK_RESPONSE, {"Content-Type": "application/x-git-upload-pack-result"})
+            return
+        prefixes = [prefix.decode() for prefix in re.findall(rb"ref-prefix ([^\n]+)\n", data)]
+        listed = [
+            f"{object_id} {name}" + (" symref-target:refs/heads/main" if name == "HEAD" else "")
+            for name, object_id in self.refs.items()
+            if not prefixes or any(name.startswith(prefix) for prefix in prefixes)
+        ]
+        handler.respond(
+            self.ls_refs_status, pkt_lines(*listed), {"Content-Type": "application/x-git-upload-pack-result"}
+        )
+
+
+@contextlib.contextmanager
+def branch_rules_upstream() -> Generator[tuple[FakeUploadPack, Recorder, GitServer, list]]:
+    provider = FakeUploadPack()
+    with running_upstream() as upstream:
+        upstream.handler = provider
+        recorder = Recorder(repository=make_repository(provider_name="github_enterprise", web_base_url=upstream.url))
+        yield provider, recorder, make_server(recorder, GitRelay(ca_bundle=upstream.ca_bundle)), upstream.requests
+
+
+def upload_pack(
+    server: GitServer, body: bytes, headers: dict[str, str] | None = None, grant: str = BRANCH_GRANT
+) -> StreamResponse:
+    return request(
+        server,
+        grant,
+        method="POST",
+        route="git-upload-pack",
+        query="",
+        headers=V2_POST | (headers or {}),
+        body=io.BytesIO(body),
+    )
+
+
+CLONE = make_fetch_body("fetch", "thin-pack", "ofs-delta", "deepen 4", f"want {MAIN}", "done")
+REFS_REQUEST = refs_request([BRANCH_FETCH], "sha1")
+
+
+class TestFetchRules:
+    """A fetch under fetch rules that name branches reaches the provider only for the tips of those branches."""
+
+    def test_clone(self):
+        with branch_rules_upstream() as (_, recorder, server, upstream_requests):
+            capabilities = request(server, BRANCH_GRANT, headers={"Git-Protocol": "version=2"})
+            listed = upload_pack(server, make_fetch_body("ls-refs", "symrefs", "peel", "unborn"))
+            fetched = upload_pack(server, CLONE)
+            # The provider's bundle-uri is left out, so git doesn't ask for it.
+            assert b"".join(capabilities.content) == pkt_lines(*CAPABILITY_LINES)
+            assert b"".join(listed.content) == pkt_lines(
+                f"{MAIN} HEAD symref-target:refs/heads/main", f"{MAIN} refs/heads/main", f"{FIX} refs/heads/seer/fix"
+            )
+            assert b"".join(fetched.content) == PACK_RESPONSE
+        # The relay's own ls-refs answered the client's, and listed the tips again before the fetch went on, as the
+        # client sent it.
+        assert [received.body for received in upstream_requests[1:]] == [
+            refs_request([BRANCH_FETCH], "sha1", unborn=True),
+            REFS_REQUEST,
+            CLONE,
+        ]
+        assert upstream_requests[1].headers["Accept-Encoding"] == "identity"
+        assert [name for name, _ in recorder.counts] == ["sentry.scm.git.request.succeeded"] * 3
+
+    def test_want_that_is_not_a_tip(self):
+        with branch_rules_upstream() as (_, recorder, server, upstream_requests):
+            body = make_fetch_body("fetch", f"want {MAIN}", f"want {SECRET}", "done")
+            response = upload_pack(server, body)
+            assert response.status_code == 200
+            assert response.headers["Content-Type"] == "application/x-git-upload-pack-result"
+            report = b"".join(response.content)
+        assert f"ERR The git grant does not allow fetching {SECRET}: it is not the tip".encode() in report
+        # Only the relay's ls-refs reached the provider.
+        assert [received.body for received in upstream_requests] == [REFS_REQUEST]
+        assert recorder.counts == [
+            ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
+        ]
+        assert recorder.errors[0][1]["operation"] == "fetch"
+
+    def test_refused_argument_never_reaches_the_provider(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        body = make_fetch_body("fetch", f"want {MAIN}", f"shallow {SECRET}", "deepen 1", "deepen-relative", "done")
+        response = upload_pack(server, body)
+        assert response.status_code == 200
+        assert b"ERR The git endpoint does not relay a fetch that deepens from" in b"".join(response.content)
+        assert recorder.repository_lookups == []
+        assert recorder.token_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_ls_refs_lists_covered_refs_whatever_the_client_asks(self):
+        with branch_rules_upstream() as (_, _, server, upstream_requests):
+            body = make_fetch_body("ls-refs", "ref-prefix refs/heads/secret", "exclude refs/heads/main")
+            listed = upload_pack(server, body)
+            assert b"".join(listed.content) == pkt_lines(
+                f"{MAIN} HEAD symref-target:refs/heads/main", f"{MAIN} refs/heads/main", f"{FIX} refs/heads/seer/fix"
+            )
+        assert [received.body for received in upstream_requests] == [REFS_REQUEST]
+
+    def test_compressed_request_goes_on_as_sent(self):
+        body = gzip.compress(CLONE)
+        with branch_rules_upstream() as (_, _, server, upstream_requests):
+            assert b"".join(upload_pack(server, body, {"Content-Encoding": "gzip"}).content) == PACK_RESPONSE
+        assert upstream_requests[-1].body == body
+        assert upstream_requests[-1].headers["Content-Encoding"] == "gzip"
+
+    def test_each_fetch_lists_the_tips(self):
+        moved = "d" * 40
+        with branch_rules_upstream() as (provider, _, server, upstream_requests):
+            upload_pack(server, CLONE)
+            provider.refs["refs/heads/main"] = moved
+            # A branch that moved shows at once, and the tip it moved from is no longer one.
+            response = upload_pack(server, make_fetch_body("fetch", f"want {moved}", "done"))
+            assert b"".join(response.content) == PACK_RESPONSE
+            response = upload_pack(server, CLONE)
+            assert b"ERR" in b"".join(response.content)
+        assert [received.body for received in upstream_requests].count(REFS_REQUEST) == 3
+
+    @pytest.mark.parametrize(
+        "status,code,http_status",
+        [(500, "resource_bad_gateway", 502), (401, "git_token_rejected", 502)],
+    )
+    @pytest.mark.parametrize("body", [CLONE, make_fetch_body("ls-refs", "symrefs")], ids=["fetch", "ls-refs"])
+    def test_listing_refs_fails(self, body, status, code, http_status):
+        with branch_rules_upstream() as (provider, recorder, server, upstream_requests):
+            provider.ls_refs_status = status
+            response = upload_pack(server, body)
+        # A 401 passed on would make git ask for credentials.
+        assert response.status_code == http_status
+        assert recorder.error_codes == [code]
+        assert [received.body for received in upstream_requests] == [REFS_REQUEST]
+
+    def test_provider_that_answers_in_version_0(self):
+        advertisement = SERVICE_HEADER + pkt_lines(f"{SECRET} refs/heads/secret")
+        recorder = Recorder()
+        server = make_server(recorder, relay_returning(chunks(advertisement)))
+        response = request(server, BRANCH_GRANT, headers={"Git-Protocol": "version=2"})
+        assert_refused(response, 404, "did not answer in git protocol version 2")
+
+    def test_push_under_the_same_grant(self):
+        body = push_body("refs/heads/seer/fix")
+        with branch_rules_upstream() as (_, _, server, upstream_requests):
+            response = request(
+                server, BRANCH_GRANT, method="POST", route="git-receive-pack", query="", body=io.BytesIO(body)
+            )
+            assert response.status_code == 200
+        assert len(upstream_requests) == 1
+
+    def test_rule_for_any_object_relays_unread(self):
+        # A grant with a rule for any object fetches as before: any protocol, every ref, no listing of tips.
+        grant = sign_grant(KEY.private, make_grant(rules=[FETCH_ANY, *BRANCH_RULES]))
+        with branch_rules_upstream() as (_, _, server, upstream_requests):
+            capabilities = request(server, grant)
+            listed = upload_pack(server, make_fetch_body("ls-refs"), grant=grant)
+            fetched = upload_pack(
+                server, make_fetch_body("fetch", f"want {SECRET}", "deepen-relative", "done"), grant=grant
+            )
+            assert b"".join(capabilities.content) == CAPABILITIES
+            assert f"{SECRET} refs/heads/secret".encode() in b"".join(listed.content)
+            assert b"".join(fetched.content) == PACK_RESPONSE
+        assert REFS_REQUEST not in [received.body for received in upstream_requests]

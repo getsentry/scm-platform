@@ -86,6 +86,12 @@ class FetchRule(_RefRule, frozen=True, tag="fetch", tag_field="operation"):
     as one that reads everything. ``any_object`` reaches every object the provider serves, including objects no ref
     reaches and, on GitHub, objects of the repository's forks, so give it only to code that runs no agent, such as a
     checkout before the agent starts.
+
+    Under rules that name refs, the holder sees only the covered branches and tags, fetches only their current tips
+    and the history behind them, and fetches in git protocol version 2 only. ``scm.git.fetch`` says what else that
+    rules out, such as ``git fetch --unshallow`` and fetching a commit by its id. A push rule for the same repository
+    lets the holder make any object it can name part of a covered branch, so these rules keep the holder to the
+    branches only if it can't push there, or doesn't know the ids of the objects it isn't meant to see.
     """
 
     any_object: bool = False

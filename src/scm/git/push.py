@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
 from scm.errors import GitMalformedRequestBody, GitOperationNotGranted, RpcMalformedRequestHeaders, SCMCodedError
+from scm.git.pktline import MAX_PKT_LENGTH, OBJECT_ID_LENGTHS, PKT_LENGTH, pkt
 from scm.git.relay import DEFAULT_CHUNK_SIZE, _printable, _read
 from scm.git.types import PushRule, Readable, _follows_ref_format, _is_short_name
 
@@ -27,8 +28,6 @@ a shallow clone: about 79,000 SHA-1 commits at 53 bytes each. A clone of many br
 # as GitLab opening a merge request or skipping CI. Any other is refused, since it could change what a push does.
 _CAPABILITIES = frozenset({"atomic", "quiet", "report-status", "report-status-v2", "side-band-64k"})
 _CAPABILITIES_WITH_VALUES = frozenset({"agent", "object-format", "session-id"})
-# The object formats git names in object-format=, and the length of an object id in each, in hex.
-_OBJECT_ID_LENGTHS = {"sha1": 40, "sha256": 64}
 # What git puts in a capability list: printable ASCII, the capabilities split by spaces.
 _CAPABILITY_LIST = re.compile(rb"[\x20-\x7e]*")
 # The headers the relay passes on, with the only values git sends with each request of a push. git asks for no
@@ -58,9 +57,6 @@ _MAX_NAME_LENGTH = 255
 _KINDS = {"refs/heads/": "branch", "refs/tags/": "tag"}
 
 _FLUSH = b"0000"
-# A pkt-line's length, in 4 lowercase hex digits as git writes them, counts the 4 digits too.
-_PKT_LENGTH = re.compile(rb"[0-9a-f]{4}")
-_MAX_PKT_LENGTH = 65520
 _OBJECT_ID = re.compile(rb"[0-9a-f]{40}|[0-9a-f]{64}")
 # The most of a ref's name a refusal's detail shows. The pushing client chooses the name, and the detail reaches
 # error reports and logs.
@@ -172,7 +168,7 @@ def read_push_request(headers: Mapping[str, str], body: Readable) -> PushRequest
     if len(formats) > 1:
         raise GitMalformedRequestBody(detail="The push names more than one object format.")
     # Without object-format=, git means SHA-1.
-    id_length = _OBJECT_ID_LENGTHS.get(formats[0] if formats else "sha1")
+    id_length = OBJECT_ID_LENGTHS.get(formats[0] if formats else "sha1")
     if id_length is None:
         raise GitMalformedRequestBody(detail="The push names an object format git doesn't have.")
     if any(not _OBJECT_ID.fullmatch(commit) or len(commit) != id_length for commit in shallow):
@@ -251,8 +247,8 @@ def refusal_report(request: PushRequest, refused: Mapping[bytes, str]) -> bytes 
     # "unpack ok" makes git show each ref's reason rather than an unpack failure. Each "ng" line is shorter than
     # the update it answers, so it fits in a pkt-line.
     report = (
-        _pkt(b"unpack ok\n")
-        + b"".join(_pkt(b"ng %s %s\n" % (update.ref, refused[update.ref].encode())) for update in request.updates)
+        pkt(b"unpack ok\n")
+        + b"".join(pkt(b"ng %s %s\n" % (update.ref, refused[update.ref].encode())) for update in request.updates)
         + _FLUSH
     )
     return _on_side_band(request.capabilities, 1, report) or report
@@ -287,13 +283,13 @@ class _PktReader:
         """Return the next pkt-line's payload as sent, or None for a flush."""
         self.line_start = len(self.read_bytes)
         header = self._read(4)
-        if not _PKT_LENGTH.fullmatch(header):
+        if not PKT_LENGTH.fullmatch(header):
             raise GitMalformedRequestBody(detail="The push's ref updates are not pkt-lines.")
         length = int(header, 16)
         if length == 0:
             return None
         # 1 to 3 are protocol v2's special packets, which a push never sends.
-        if not 4 <= length <= _MAX_PKT_LENGTH:
+        if not 4 <= length <= MAX_PKT_LENGTH:
             raise GitMalformedRequestBody(detail="The push's ref updates are not pkt-lines.")
         return self._read(length - 4)
 
@@ -343,12 +339,12 @@ def _capability_name(capability: str) -> str:
 def _on_side_band(capabilities: frozenset[str], band: int, data: bytes) -> bytes | None:
     """Return ``data`` on side band ``band``, ending with a flush, or None if the client asked for no side band."""
     if "side-band-64k" in capabilities:
-        band_size = _MAX_PKT_LENGTH - 5
+        band_size = MAX_PKT_LENGTH - 5
     elif "side-band" in capabilities:
         band_size = 1000 - 5
     else:
         return None
-    return b"".join(_pkt(bytes([band]) + data[i : i + band_size]) for i in range(0, len(data), band_size)) + _FLUSH
+    return b"".join(pkt(bytes([band]) + data[i : i + band_size]) for i in range(0, len(data), band_size)) + _FLUSH
 
 
 def _capabilities(requested: bytes) -> frozenset[str]:
@@ -383,7 +379,3 @@ def _ref_update(line: bytes) -> RefUpdate:
 
 def _shown(ref: bytes) -> str:
     return _printable(ref.decode(errors="replace"), _SHOWN_REF_LENGTH)
-
-
-def _pkt(payload: bytes) -> bytes:
-    return b"%04x" % (len(payload) + 4) + payload
