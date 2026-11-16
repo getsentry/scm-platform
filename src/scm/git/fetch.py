@@ -1,28 +1,19 @@
-"""Keeping a fetch to its grant's fetch rules when none of them allows any object.
+"""Keeping a fetch to fetch rules that name branches and tags.
 
-git fetches over protocol version 2, gitprotocol-v2(5): a GET that lists the server's capabilities, then a POST for
-each command. ``ls-refs`` lists refs, and ``fetch`` asks for a pack of the objects the client wants, named by their
-ids. upload-pack sends any object it holds that a fetch names, whether a ref reaches it or not, and on GitHub that
-includes the objects of the repository's forks. So GitServer keeps such a fetch to the rules itself:
+upload-pack sends any object a fetch names by id, whether a ref reaches it or not, and on GitHub also the objects of
+the repository's forks. So under such rules GitServer:
 
-- Only protocol version 2 is relayed, since versions 0 and 1 list every ref in their first response.
-- The capabilities the provider lists leave out what the endpoint refuses, so git doesn't ask for it.
-- GitServer answers ``ls-refs`` itself, whatever the client asked for, with ``HEAD`` and the branches and tags the
-  rules cover, which it lists from the provider with ``refs_request``. git keeps to the refs it asked for itself.
-- Each ``want`` must be the current tip of a covered branch or tag, or the object a covered tag points to.
-  ``check_wants`` checks them against the same listing.
-- A fetch may not reach past its wants. Under a ``deepen`` without limit (``git fetch --unshallow``) upload-pack
-  deepens every commit the client names as shallow, and under ``deepen-relative`` (``git fetch --deepen``) every one
-  a ref reaches, until git 2.54, which providers may not run yet. So a client could name a commit of another branch
-  as shallow and get its history. Both are refused, as are ``want-ref``, ``packfile-uris``, server options,
-  filters that read a sparse-checkout file from the repository, and every command other than ``ls-refs`` and
-  ``fetch``, such as ``object-info`` and ``bundle-uri``.
+- Relays only git protocol version 2, since versions 0 and 1 list every ref up front.
+- Answers ``ls-refs`` itself with ``HEAD`` and the covered branches and tags (``refs_request``), and drops what it
+  refuses from the provider's list of capabilities.
+- Refuses a ``want`` that isn't the current tip of a covered branch or tag, or the object a covered tag points to.
+- Refuses what reaches past the wants: a ``deepen`` without limit, and ``deepen-relative`` before git 2.54, under
+  which upload-pack deepens commits the client names as shallow. Also ``want-ref``, ``packfile-uris``, server
+  options, sparse and combined filters, and every command but ``ls-refs`` and ``fetch``.
 
-``have`` and ``shallow`` lines pass on unchecked. A ``have`` only leaves objects out of the pack, though with
-``thin-pack`` the provider may send an object as a delta against one the client claims to have, which git's own docs
-list as revealing how the two are alike. Under a deepen with a limit, upload-pack deepens a shallow commit only if it
-lies within that depth of the wants. ``include-tag`` lets the provider add annotated tags that point into the pack,
-whatever their names.
+``have``, ``shallow``, ``thin-pack`` and ``include-tag`` pass, since git sends them on ordinary fetches. A thin pack
+may delta an allowed object against one the client claims to have, and ``include-tag`` adds annotated tags that point
+into the pack.
 """
 
 import io
