@@ -37,6 +37,7 @@ from scm.errors import (
     ResourceBadGateway,
     RpcMalformedRequestHeaders,
 )
+from scm.git.push import _MAX_PKT_LENGTH, _OBJECT_ID_LENGTHS, _PKT_LENGTH, _pkt
 from scm.git.relay import RelayResponse, ResponseBody, _printable, _read
 from scm.git.types import FetchRule, Readable
 
@@ -59,12 +60,9 @@ type Command = Literal["ls-refs", "fetch"]
 
 _FLUSH = 0
 _DELIM = 1
-_MAX_PKT_LENGTH = 65520
-_PKT_LENGTH = re.compile(rb"[0-9a-f]{4}")
 # What git puts in a request's lines: printable ASCII. A NUL or a control byte could make a line read differently
 # here and in a provider that reads it as a C string.
 _REQUEST_LINE = re.compile(rb"[\x20-\x7e]+")
-_OBJECT_ID_LENGTHS = {"sha1": 40, "sha256": 64}
 _HEX = re.compile(r"[0-9a-f]+")
 # git writes a depth with %d and a time with PRItime. upload-pack reads both with base 0, so a leading 0 would make
 # it read octal and 0x hex.
@@ -82,8 +80,8 @@ _LS_REFS_FLAGS = frozenset({"peel", "symrefs", "unborn"})
 # provider to act on the fetch.
 _REQUEST_CAPABILITIES = frozenset({"agent", "object-format", "session-id"})
 # What the endpoint takes out of the provider's capabilities, as commands and as features of the fetch command.
-_REFUSED_COMMANDS = frozenset({"bundle-uri", "object-info"})
-_REFUSED_FETCH_FEATURES = frozenset({"packfile-uris", "ref-in-want"})
+_REFUSED_COMMANDS = frozenset({b"bundle-uri", b"object-info"})
+_REFUSED_FETCH_FEATURES = frozenset({b"packfile-uris", b"ref-in-want"})
 # The most of a client-chosen name a refusal's detail shows. The detail reaches error reports and logs.
 _SHOWN_LENGTH = 100
 
@@ -105,14 +103,15 @@ class FetchRequest(NamedTuple):
 
     command: Command | None
     """The command a POST runs, or None for the GET that lists the server's capabilities."""
-    wants: frozenset[str]
-    """The object ids a ``fetch`` command wants, which must be tips the rules cover."""
-    object_format: str
     headers: dict[str, str]
     """The headers to relay. A response the endpoint reads is asked for without compression, and a body it read
     goes on with its own length."""
     body: Readable | None
     """The body to relay: the bytes the client sent, as it sent them."""
+    wants: frozenset[str] = frozenset()
+    """The object ids a ``fetch`` command wants, which must be tips the rules cover."""
+    object_format: str = "sha1"
+    """The object format a POST names. Without one, git means SHA-1."""
 
 
 def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) -> FetchRequest:
@@ -127,11 +126,7 @@ def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) 
     _check_headers(method, headers)
     if method != "POST":
         return FetchRequest(
-            command=None,
-            wants=frozenset(),
-            object_format="sha1",
-            headers=_without(headers, "accept-encoding") | {"Accept-Encoding": "identity"},
-            body=None,
+            command=None, headers=_without(headers, "accept-encoding") | {"Accept-Encoding": "identity"}, body=None
         )
     if body is None:
         raise GitMalformedRequestBody(detail="The fetch has no body.")
@@ -410,14 +405,15 @@ def _capabilities(data: bytes) -> bytes:
             detail="The provider did not answer in git protocol version 2, which the git endpoint needs to keep a "
             "fetch to the git grant's branches and tags."
         )
-    kept = [lines[0]]
+    kept: list[bytes] = [lines[0]]
     for line in lines[1:-1]:
-        assert isinstance(line, bytes)
+        if not isinstance(line, bytes):
+            raise ResourceBadGateway(detail="The provider's list of capabilities holds a delimiter.")
         name, has_value, value = line.removesuffix(b"\n").partition(b"=")
-        if name.decode(errors="replace") in _REFUSED_COMMANDS:
+        if name in _REFUSED_COMMANDS:
             continue
         if name == b"fetch" and has_value:
-            features = [feature for feature in value.split(b" ") if feature.decode() not in _REFUSED_FETCH_FEATURES]
+            features = [feature for feature in value.split(b" ") if feature not in _REFUSED_FETCH_FEATURES]
             line = b"fetch=" + b" ".join(features) + b"\n"
         kept.append(line)
     return b"".join(_pkt(line) for line in kept) + b"0000"
@@ -580,7 +576,3 @@ def _pkt_lines(data: bytes, detail: str, *, provider: bool = False) -> list[byte
 def _without(headers: Mapping[str, str], name: str) -> dict[str, str]:
     """Return ``headers`` without any spelling of ``name``."""
     return {key: value for key, value in headers.items() if key.lower() != name}
-
-
-def _pkt(payload: bytes) -> bytes:
-    return b"%04x" % (len(payload) + 4) + payload

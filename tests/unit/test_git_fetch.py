@@ -367,6 +367,15 @@ class TestFilterCapabilities:
         )
         assert filtered.headers["Content-Length"] == str(len(content))
 
+    def test_feature_that_is_not_utf8_passes_on(self):
+        answer = pkt(b"version 2\n") + pkt(b"fetch=shallow \xff\n") + b"0000"
+        assert b"".join(filter_response(RULES, self.request, response(answer)).content) == answer
+
+    def test_delimiter(self):
+        answer = pkt(b"version 2\n") + b"0001" + pkt(b"ls-refs\n") + b"0000"
+        with pytest.raises(ResourceBadGateway, match="holds a delimiter"):
+            filter_response(RULES, self.request, response(answer))
+
     def test_version_0_answer(self):
         # A provider that ignores Git-Protocol lists every ref.
         answer = advertisement([f"{TIP} HEAD\0multi_ack thin-pack", f"{OTHER} refs/heads/secret"])

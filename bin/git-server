@@ -593,9 +593,11 @@ class Checks:
         server = self.start()
         url = f"{server.url}/{self.backend.repository['name']}.git"
         head = self.git(fetch_grant, "ls-remote", "--symref", url, "HEAD")
-        default = next(
-            (line.split()[1] for line in head.stdout.splitlines() if line.startswith("ref: ")), "refs/heads/main"
-        )
+        default = next((line.split()[1] for line in head.stdout.splitlines() if line.startswith("ref: ")), None)
+        if not self.check("ls-remote names the default branch", head, default is not None):
+            server.shutdown()
+            return
+        assert default is not None
         grant = grant_for(
             self.args.private_key,
             FetchRule(repository=self.backend.repository_id, branches=[default.removeprefix("refs/heads/")]),
@@ -611,12 +613,15 @@ class Checks:
             return
         # The parent of the clone's oldest commit, which the clone lacks, so git asks the provider for it.
         oldest = self.git(grant, "cat-file", "commit", "HEAD~1", cwd=clone).stdout
-        parent = next((line.split()[1] for line in oldest.splitlines() if line.startswith("parent ")), "0" * 40)
-        self.check(
-            "fetching a commit that is not a tip is refused",
-            result := self.git(grant, "fetch", "origin", parent, cwd=clone),
-            result.returncode != 0 and "remote error: The git grant does not allow fetching" in result.stderr,
-        )
+        parent = next((line.split()[1] for line in oldest.splitlines() if line.startswith("parent ")), None)
+        if parent is None:
+            logger.info("skip fetching a commit that is not a tip, as the default branch has under 3 commits")
+        else:
+            self.check(
+                "fetching a commit that is not a tip is refused",
+                result := self.git(grant, "fetch", "origin", parent, cwd=clone),
+                result.returncode != 0 and "remote error: The git grant does not allow fetching" in result.stderr,
+            )
         self.check(
             "fetch --unshallow is refused",
             result := self.git(grant, "fetch", "--unshallow", "origin", cwd=clone),

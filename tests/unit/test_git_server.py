@@ -1150,6 +1150,19 @@ class TestFetchRules:
         assert recorder.token_lookups == []
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
 
+    def test_refused_ls_refs_never_reaches_the_provider(self):
+        recorder = Recorder()
+        server = make_server(recorder)
+        response = upload_pack(server, make_fetch_body("ls-refs", "exclude refs/heads/main"))
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "application/x-git-upload-pack-result"
+        assert b"".join(response.content) == pkt(
+            b"ERR The git endpoint does not relay ls-refs with exclude under a grant whose fetch rules name branches "
+            b"and tags.\n"
+        )
+        assert recorder.repository_lookups == []
+        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+
     def test_compressed_request_goes_on_as_sent(self):
         body = gzip.compress(CLONE)
         with branch_rules_upstream() as (_, _, server, upstream_requests):
