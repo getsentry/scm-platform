@@ -15,12 +15,14 @@ from scm.errors import (
 from scm.git.fetch import (
     FetchRefused,
     FetchRequest,
+    Refs,
     check_fetch,
     check_wants,
-    filter_response,
-    read_tips,
-    tips_headers,
-    tips_request,
+    filter_capabilities,
+    read_refs,
+    refs_headers,
+    refs_request,
+    refs_response,
 )
 from scm.git.grant import require_public_keys, verify_grant
 from scm.git.push import PushRefused, check_push, check_push_headers
@@ -88,11 +90,11 @@ class GitServer:
 
     A fetch under fetch rules that name branches and tags, none of which allows any object, is kept to them by
     ``scm.git.fetch``. Its request is read and checked before anything is looked up: it must be in protocol version
-    2, run ``ls-refs`` or ``fetch``, and ask for nothing that reaches past its wants. Before a ``fetch`` is relayed,
-    the server lists the tips of the covered branches and tags from the provider, and refuses a want that isn't one
-    of them. The provider's list of capabilities and its ``ls-refs`` answer lose what the rules don't allow on
-    their way to the client. A refused command gets a 200 whose ``ERR`` line git shows as the reason. A fetch under
-    a rule that allows any object is relayed unread.
+    2, run ``ls-refs`` or ``fetch``, and ask for nothing that reaches past its wants. The server answers ``ls-refs``
+    itself with the covered branches and tags it lists from the provider, and lists them again before it relays a
+    ``fetch``, refusing a want that isn't one of their tips. The provider's list of capabilities loses what the
+    endpoint refuses on its way to the client. A refused command gets a 200 whose ``ERR`` line git shows as the
+    reason. A fetch under a rule that allows any object is relayed unread.
 
     The repository's provider says where its git endpoint is, through ``GetGitRemoteProtocol``. A repository whose
     provider has no git remote is refused.
@@ -211,18 +213,21 @@ class GitServer:
                     f"get_token must return an scm.Secret, not {token_type}. Wrap the token in scm.Secret where you "
                     "read it."
                 )
-            if fetch is not None and fetch.wants:
-                check_wants(fetch, self._list_tips(fetch_rules, fetch, remote, token))
-            response = self.relay.forward(
-                remote, token, method=method, route=route, query=query, headers=relayed_headers, body=relayed_body
-            )
-            if response.status_code == 401:
-                # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client
-                # for credentials, which it must never have and which would not help.
-                response.content.close()
-                raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
-            if fetch is not None:
-                response = filter_response(fetch_rules, fetch, response)
+            if fetch is not None and fetch.command == "ls-refs":
+                response = refs_response(self._list_refs(fetch_rules, fetch, remote, token))
+            else:
+                if fetch is not None and fetch.wants:
+                    check_wants(fetch, self._list_refs(fetch_rules, fetch, remote, token).tips)
+                response = self.relay.forward(
+                    remote, token, method=method, route=route, query=query, headers=relayed_headers, body=relayed_body
+                )
+                if response.status_code == 401:
+                    # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the
+                    # client for credentials, which it must never have and which would not help.
+                    response.content.close()
+                    raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
+                if fetch is not None and fetch.command is None:
+                    response = filter_capabilities(response)
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
@@ -263,17 +268,15 @@ class GitServer:
             content=_MeteredStream(response.content, finish, report),
         )
 
-    def _list_tips(
-        self, rules: Sequence[FetchRule], fetch: FetchRequest, remote: GitRemote, token: Secret
-    ) -> frozenset[str]:
+    def _list_refs(self, rules: Sequence[FetchRule], fetch: FetchRequest, remote: GitRemote, token: Secret) -> Refs:
         response = self.relay.forward(
             remote,
             token,
             method="POST",
             route="git-upload-pack",
             query="",
-            headers=tips_headers(fetch.headers),
-            body=io.BytesIO(tips_request(rules, fetch.object_format)),
+            headers=refs_headers(fetch.headers),
+            body=io.BytesIO(refs_request(rules, fetch.object_format)),
         )
         try:
             if response.status_code == 401:
@@ -283,7 +286,7 @@ class GitServer:
                     detail=f"The provider answered HTTP {response.status_code} when the git endpoint listed the "
                     "branches and tags the git grant covers."
                 )
-            return read_tips(rules, response, fetch.object_format)
+            return read_refs(rules, response, fetch.object_format)
         finally:
             response.content.close()
 

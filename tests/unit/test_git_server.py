@@ -23,7 +23,7 @@ from scm.errors import (
     ResourceGatewayTimeout,
     ResourceServiceUnavailable,
 )
-from scm.git.fetch import tips_request
+from scm.git.fetch import refs_request
 from scm.git.grant import key_id, sign_grant
 from scm.git.relay import GitRelay, RelayResponse, ResponseBody
 from scm.git.server import _STATUS, GitServer, _authorize
@@ -1080,7 +1080,7 @@ def upload_pack(
 
 
 CLONE = make_fetch_body("fetch", "thin-pack", "ofs-delta", "deepen 4", f"want {MAIN}", "done")
-TIPS_REQUEST = tips_request([BRANCH_FETCH], "sha1")
+REFS_REQUEST = refs_request([BRANCH_FETCH], "sha1")
 
 
 class TestFetchRules:
@@ -1097,8 +1097,9 @@ class TestFetchRules:
                 f"{MAIN} HEAD symref-target:refs/heads/main", f"{MAIN} refs/heads/main", f"{FIX} refs/heads/seer/fix"
             )
             assert b"".join(fetched.content) == PACK_RESPONSE
-        # The relay's own ls-refs listed the tips before the fetch went on, as the client sent it.
-        assert [received.body for received in upstream_requests[2:]] == [TIPS_REQUEST, CLONE]
+        # The relay's own ls-refs answered the client's, and listed the tips again before the fetch went on, as the
+        # client sent it.
+        assert [received.body for received in upstream_requests[1:]] == [REFS_REQUEST, REFS_REQUEST, CLONE]
         assert upstream_requests[1].headers["Accept-Encoding"] == "identity"
         assert [name for name, _ in recorder.counts] == ["sentry.scm.git.request.succeeded"] * 3
 
@@ -1111,7 +1112,7 @@ class TestFetchRules:
             report = b"".join(response.content)
         assert f"ERR The git grant does not allow fetching {SECRET}: it is not the tip".encode() in report
         # Only the relay's ls-refs reached the provider.
-        assert [received.body for received in upstream_requests] == [TIPS_REQUEST]
+        assert [received.body for received in upstream_requests] == [REFS_REQUEST]
         assert recorder.counts == [
             ("sentry.scm.git.request.failed", {"referrer": REFERRER, "code": "git_operation_not_granted"})
         ]
@@ -1128,18 +1129,14 @@ class TestFetchRules:
         assert recorder.token_lookups == []
         server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
 
-    def test_refused_ls_refs_never_reaches_the_provider(self):
-        recorder = Recorder()
-        server = make_server(recorder)
-        response = upload_pack(server, make_fetch_body("ls-refs", "exclude refs/heads/main"))
-        assert response.status_code == 200
-        assert response.headers["Content-Type"] == "application/x-git-upload-pack-result"
-        assert b"".join(response.content) == pkt(
-            b"ERR The git endpoint does not relay ls-refs with exclude under a grant whose fetch rules name branches "
-            b"and tags.\n"
-        )
-        assert recorder.repository_lookups == []
-        server.relay.forward.assert_not_called()  # type: ignore[attr-defined]
+    def test_ls_refs_lists_covered_refs_whatever_the_client_asks(self):
+        with branch_rules_upstream() as (_, _, server, upstream_requests):
+            body = make_fetch_body("ls-refs", "ref-prefix refs/heads/secret", "exclude refs/heads/main")
+            listed = upload_pack(server, body)
+            assert b"".join(listed.content) == pkt_lines(
+                f"{MAIN} HEAD symref-target:refs/heads/main", f"{MAIN} refs/heads/main", f"{FIX} refs/heads/seer/fix"
+            )
+        assert [received.body for received in upstream_requests] == [REFS_REQUEST]
 
     def test_compressed_request_goes_on_as_sent(self):
         body = gzip.compress(CLONE)
@@ -1158,7 +1155,7 @@ class TestFetchRules:
             assert b"".join(response.content) == PACK_RESPONSE
             response = upload_pack(server, CLONE)
             assert b"ERR" in b"".join(response.content)
-        assert [received.body for received in upstream_requests].count(TIPS_REQUEST) == 3
+        assert [received.body for received in upstream_requests].count(REFS_REQUEST) == 3
 
     @pytest.mark.parametrize(
         "status,code,http_status",
@@ -1170,7 +1167,7 @@ class TestFetchRules:
             response = upload_pack(server, CLONE)
         assert response.status_code == http_status
         assert recorder.error_codes == [code]
-        assert [received.body for received in upstream_requests] == [TIPS_REQUEST]
+        assert [received.body for received in upstream_requests] == [REFS_REQUEST]
 
     def test_provider_that_answers_in_version_0(self):
         advertisement = SERVICE_HEADER + pkt_lines(f"{SECRET} refs/heads/secret")
@@ -1200,4 +1197,4 @@ class TestFetchRules:
             assert b"".join(capabilities.content) == CAPABILITIES
             assert f"{SECRET} refs/heads/secret".encode() in b"".join(listed.content)
             assert b"".join(fetched.content) == PACK_RESPONSE
-        assert TIPS_REQUEST not in [received.body for received in upstream_requests]
+        assert REFS_REQUEST not in [received.body for received in upstream_requests]

@@ -7,9 +7,10 @@ includes the objects of the repository's forks. So GitServer keeps such a fetch 
 
 - Only protocol version 2 is relayed, since versions 0 and 1 list every ref in their first response.
 - The capabilities the provider lists leave out what the endpoint refuses, so git doesn't ask for it.
-- ``ls-refs`` lists only the branches and tags the rules cover, and ``HEAD`` when it points to one of them.
+- GitServer answers ``ls-refs`` itself, whatever the client asked for, with ``HEAD`` and the branches and tags the
+  rules cover, which it lists from the provider with ``refs_request``. git keeps to the refs it asked for itself.
 - Each ``want`` must be the current tip of a covered branch or tag, or the object a covered tag points to.
-  ``check_wants`` checks them against the tips GitServer lists from the provider with ``tips_request``.
+  ``check_wants`` checks them against the same listing.
 - A fetch may not reach past its wants. Under a ``deepen`` without limit (``git fetch --unshallow``) upload-pack
   deepens every commit the client names as shallow, and under ``deepen-relative`` (``git fetch --deepen``) every one
   a ref reaches, until git 2.54, which providers may not run yet. So a client could name a commit of another branch
@@ -49,9 +50,9 @@ round of haves, each about 50 bytes."""
 MAX_ADVERTISEMENT_LENGTH = 64 * 1024
 """The most bytes of the provider's list of capabilities the endpoint reads. Providers send under 1 KiB."""
 
-MAX_TIPS_LENGTH = 16 * 1024 * 1024
-"""The most bytes of the provider's list of tips the endpoint reads. A rule with a branch pattern lists every branch,
-about 100 bytes each."""
+MAX_REFS_LENGTH = 16 * 1024 * 1024
+"""The most bytes of the provider's list of covered refs the endpoint reads. A rule with a branch pattern lists every
+branch, about 100 bytes each."""
 
 INFINITE_DEPTH = 2**31 - 1
 """The depth at which upload-pack unshallows every commit the client names as shallow, and the depth any larger one
@@ -76,7 +77,6 @@ _FILTER = re.compile(r"blob:none|blob:limit=[0-9]+[kmg]?|tree:[0-9]+|object:type
 _FETCH_FLAGS = frozenset(
     {"done", "include-tag", "no-progress", "ofs-delta", "sideband-all", "thin-pack", "wait-for-done"}
 )
-_LS_REFS_FLAGS = frozenset({"peel", "symrefs", "unborn"})
 # Capabilities a request may carry before its arguments. git sends server options only with -o, and they ask the
 # provider to act on the fetch.
 _REQUEST_CAPABILITIES = frozenset({"agent", "object-format", "session-id"})
@@ -132,16 +132,14 @@ def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) 
     raw = _read_body(body)
     data = _decompress(raw) if _header_values(headers, "content-encoding") else raw
     command, object_format, arguments = _read_request(data)
-    relayed = _replacing(headers, "Content-Length", str(len(raw)))
-    if command == "ls-refs":
-        _check_ls_refs(arguments)
-        # The endpoint reads the response to leave out refs the rules don't cover.
-        relayed = _replacing(relayed, "Accept-Encoding", "identity")
-        wants: frozenset[str] = frozenset()
-    else:
-        wants = _check_fetch_arguments(arguments, _OBJECT_ID_LENGTHS[object_format])
+    # GitServer answers ls-refs from its own listing, so the client's arguments don't matter.
+    wants = _check_fetch_arguments(arguments, _OBJECT_ID_LENGTHS[object_format]) if command == "fetch" else frozenset()
     return FetchRequest(
-        command=command, wants=wants, object_format=object_format, headers=relayed, body=io.BytesIO(raw)
+        command=command,
+        wants=wants,
+        object_format=object_format,
+        headers=_replacing(headers, "Content-Length", str(len(raw))),
+        body=io.BytesIO(raw),
     )
 
 
@@ -155,19 +153,28 @@ def check_wants(request: FetchRequest, tips: frozenset[str]) -> None:
         )
 
 
-def tips_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
-    """Return the ``ls-refs`` request that lists the tips of every branch and tag ``rules`` cover, and more.
+class Refs(NamedTuple):
+    """The refs a listing found that the rules cover."""
 
-    A prefix lists every ref whose name starts with it, so ``read_tips`` keeps only the refs a rule covers.
+    lines: list[bytes]
+    """The provider's line for each covered branch and tag, and for ``HEAD`` when it points to one of them."""
+    tips: frozenset[str]
+    """The object ids of the covered branches and tags, and of the objects their tags point to."""
+
+
+def refs_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
+    """Return the ``ls-refs`` request that lists ``HEAD`` and every branch and tag ``rules`` cover, and more.
+
+    A prefix lists every ref whose name starts with it, so ``read_refs`` keeps only the refs a rule covers.
     """
-    prefixes: set[str] = set()
+    prefixes = {"HEAD"}
     for rule in rules:
         prefixes.update(rule.refs)
         if rule.branch_patterns:
             prefixes.add("refs/heads/")
         if rule.tag_patterns:
             prefixes.add("refs/tags/")
-    arguments = ["peel", *(f"ref-prefix {prefix}" for prefix in sorted(prefixes))]
+    arguments = ["symrefs", "peel", "unborn", *(f"ref-prefix {prefix}" for prefix in sorted(prefixes))]
     return (
         _pkt(b"command=ls-refs\n")
         + _pkt(f"object-format={object_format}\n".encode())
@@ -177,8 +184,8 @@ def tips_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
     )
 
 
-def tips_headers(headers: Mapping[str, str]) -> dict[str, str]:
-    """Return the headers of the ``tips_request``, naming the client git's user agent as the client's request does."""
+def refs_headers(headers: Mapping[str, str]) -> dict[str, str]:
+    """Return the headers of the ``refs_request``, naming the client git's user agent as the client's request does."""
     agents = _header_values(headers, "user-agent")
     return {
         "Git-Protocol": "version=2",
@@ -188,48 +195,62 @@ def tips_headers(headers: Mapping[str, str]) -> dict[str, str]:
     } | ({"User-Agent": agents[-1]} if agents else {})
 
 
-def read_tips(rules: Sequence[FetchRule], response: RelayResponse, object_format: str) -> frozenset[str]:
-    """Return the object ids of the refs ``rules`` cover, and of the objects their tags point to, from the provider's
-    answer to ``tips_request``.
+def read_refs(rules: Sequence[FetchRule], response: RelayResponse, object_format: str) -> Refs:
+    """Return the refs ``rules`` cover from the provider's answer to ``refs_request``.
 
     Raises ResourceBadGateway for an answer that isn't a list of refs.
     """
     _check_unencoded(response)
-    data = _read_response(response.content, MAX_TIPS_LENGTH, "list of branches and tags")
+    data = _read_response(response.content, MAX_REFS_LENGTH, "list of branches and tags")
+    id_length = _OBJECT_ID_LENGTHS[object_format]
+    lines: list[bytes] = []
     tips: set[str] = set()
     for line in _response_lines(data):
         fields = _ref_fields(line)
+        # A name that isn't UTF-8 can't be one a rule names.
         if fields is None:
             continue
         ref, object_id, attributes = fields
-        if ref == "HEAD" or not _covers(rules, ref):
+        if ref == "HEAD":
+            target = next((value for key, value in attributes if key == "symref-target"), None)
+            if target is not None and _covers(rules, target):
+                lines.append(line)
             continue
-        tips.add(object_id)
-        tips.update(value for key, value in attributes if key == "peeled")
-    id_length = _OBJECT_ID_LENGTHS[object_format]
-    if any(len(tip) != id_length or not _HEX.fullmatch(tip) for tip in tips):
-        raise ResourceBadGateway(detail="The provider listed a branch or tag whose tip is not an object id.")
-    return frozenset(tips)
+        if not _covers(rules, ref):
+            continue
+        ids = [object_id, *(value for key, value in attributes if key == "peeled")]
+        if any(len(tip) != id_length or not _HEX.fullmatch(tip) for tip in ids):
+            raise ResourceBadGateway(detail="The provider listed a branch or tag whose tip is not an object id.")
+        lines.append(line)
+        tips.update(ids)
+    return Refs(lines=lines, tips=frozenset(tips))
 
 
-def filter_response(rules: Sequence[FetchRule], request: FetchRequest, response: RelayResponse) -> RelayResponse:
-    """Return the provider's response to ``request`` with what the rules don't allow taken out.
+def refs_response(refs: Refs) -> RelayResponse:
+    """Return the ``ls-refs`` answer that lists ``refs``."""
+    content = b"".join(_pkt(line) for line in refs.lines) + b"0000"
+    return RelayResponse(
+        status_code=200,
+        headers={
+            "Content-Type": "application/x-git-upload-pack-result",
+            "Content-Length": str(len(content)),
+            "Cache-Control": "no-cache",
+        },
+        content=_in_memory(content),
+    )
 
-    The capabilities lose the commands and features the endpoint refuses, and ``ls-refs`` loses every ref the rules
-    don't cover. A ``fetch`` response, the pack, passes on unread, as does any response that isn't a success, which
-    holds the provider's message. Raises GitProviderNotSupported for a provider that doesn't answer in protocol
-    version 2, and ResourceBadGateway for a response the endpoint can't read.
+
+def filter_capabilities(response: RelayResponse) -> RelayResponse:
+    """Return the provider's list of capabilities without the commands and features the endpoint refuses.
+
+    A response that isn't a success passes on, as it holds the provider's message. Raises GitProviderNotSupported for
+    a provider that doesn't answer in protocol version 2, and ResourceBadGateway for a response the endpoint can't
+    read.
     """
-    if request.command == "fetch" or not 200 <= response.status_code < 300:
+    if not 200 <= response.status_code < 300:
         return response
     try:
         _check_unencoded(response)
-        if request.command == "ls-refs":
-            return RelayResponse(
-                status_code=response.status_code,
-                headers=_without(response.headers, "content-length"),
-                content=_RefsFilter(rules, response.content),
-            )
         content = _capabilities(_read_response(response.content, MAX_ADVERTISEMENT_LENGTH, "list of capabilities"))
     except Exception:
         response.content.close()
@@ -331,17 +352,6 @@ def _object_format(capabilities: list[str]) -> str:
     return object_format
 
 
-def _check_ls_refs(arguments: list[str]) -> None:
-    for argument in arguments:
-        name, _, value = argument.partition(" ")
-        if argument in _LS_REFS_FLAGS or (name == "ref-prefix" and value):
-            continue
-        raise FetchRefused(
-            detail=f"The git endpoint does not relay ls-refs with {_shown(name)} under a grant "
-            "whose fetch rules name branches and tags."
-        )
-
-
 def _check_fetch_arguments(arguments: list[str], id_length: int) -> frozenset[str]:
     """Refuse the arguments that could reach past the wants, and return the wants."""
     wants: set[str] = set()
@@ -414,75 +424,6 @@ def _capabilities(data: bytes) -> bytes:
 
 def _in_memory(content: bytes) -> Generator[bytes]:
     yield content
-
-
-class _RefsFilter:
-    """The provider's ``ls-refs`` response, passing on only the refs the rules cover, as they arrive."""
-
-    def __init__(self, rules: Sequence[FetchRule], content: ResponseBody) -> None:
-        self.rules = rules
-        self.content = content
-        self.buffer = bytearray()
-        self.ended = False
-
-    def __iter__(self) -> "_RefsFilter":
-        return self
-
-    def __next__(self) -> bytes:
-        while True:
-            kept = self._kept_lines()
-            if kept:
-                return kept
-            if self.ended:
-                if self.buffer:
-                    raise ResourceBadGateway(detail="The provider's list of refs went on after its end.")
-                raise StopIteration
-            try:
-                chunk = next(self.content)
-            except StopIteration:
-                raise ResourceBadGateway(detail="The provider's list of refs ended early.") from None
-            self.buffer += chunk
-
-    def close(self) -> None:
-        self.content.close()
-
-    def _kept_lines(self) -> bytes:
-        kept = bytearray()
-        while not self.ended and len(self.buffer) >= 4:
-            header = bytes(self.buffer[:4])
-            if not _PKT_LENGTH.fullmatch(header):
-                raise ResourceBadGateway(detail="The provider's list of refs is not pkt-lines.")
-            length = int(header, 16)
-            if length == _FLUSH:
-                del self.buffer[:4]
-                kept += b"0000"
-                self.ended = True
-                break
-            if not 4 < length <= _MAX_PKT_LENGTH:
-                raise ResourceBadGateway(detail="The provider's list of refs is not pkt-lines.")
-            if len(self.buffer) < length:
-                break
-            line = bytes(self.buffer[4:length])
-            del self.buffer[:length]
-            if _keeps(self.rules, line):
-                kept += _pkt(line)
-        return bytes(kept)
-
-
-def _keeps(rules: Sequence[FetchRule], line: bytes) -> bool:
-    """Return whether a line of an ``ls-refs`` response goes on to the client."""
-    # The provider's own message, which git shows.
-    if line.startswith(b"ERR "):
-        return True
-    fields = _ref_fields(line)
-    if fields is None:
-        # A name that isn't UTF-8 can't be one a rule names.
-        return False
-    ref, _, attributes = fields
-    if ref == "HEAD":
-        target = next((value for key, value in attributes if key == "symref-target"), None)
-        return target is not None and _covers(rules, target)
-    return _covers(rules, ref)
 
 
 def _ref_fields(line: bytes) -> tuple[str, str, list[tuple[str, str]]] | None:

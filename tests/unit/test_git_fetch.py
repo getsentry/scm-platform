@@ -17,10 +17,11 @@ from scm.git.fetch import (
     FetchRequest,
     check_fetch,
     check_wants,
-    filter_response,
-    read_tips,
-    tips_headers,
-    tips_request,
+    filter_capabilities,
+    read_refs,
+    refs_headers,
+    refs_request,
+    refs_response,
 )
 from scm.git.relay import RelayResponse
 from scm.git.types import FetchRule
@@ -69,22 +70,16 @@ class TestHeaders:
 
 
 class TestLsRefs:
-    def test_as_git_sends_it(self):
-        body = make_fetch_body("ls-refs", "peel", "symrefs", "unborn", "ref-prefix refs/heads/main", "ref-prefix HEAD")
-        request = check_fetch("POST", POST_HEADERS | {"Content-Length": "1"}, io.BytesIO(body))
+    def test_arguments_dont_matter(self):
+        # GitServer answers ls-refs from its own listing.
+        body = make_fetch_body("ls-refs", "symrefs", "ref-prefix refs/heads/secret", "exclude refs/heads/x")
+        request = check_fetch("POST", POST_HEADERS, io.BytesIO(body))
         assert request.command == "ls-refs"
         assert request.wants == frozenset()
-        assert request.body is not None and request.body.read() == body
-        # The endpoint reads the answer, and the body goes on with the length the endpoint read.
-        assert request.headers == POST_HEADERS | {"Content-Length": str(len(body)), "Accept-Encoding": "identity"}
 
-    def test_without_arguments(self):
-        # Lists every ref, which filter_response then narrows.
-        assert check_fetch("POST", POST_HEADERS, io.BytesIO(make_fetch_body("ls-refs"))).command == "ls-refs"
-
-    def test_unknown_argument(self):
-        with pytest.raises(FetchRefused, match="ls-refs with exclude"):
-            check_fetch("POST", POST_HEADERS, io.BytesIO(make_fetch_body("ls-refs", "exclude refs/heads/x")))
+    def test_object_format(self):
+        body = make_fetch_body("ls-refs", capabilities=("object-format=sha256",))
+        assert check_fetch("POST", POST_HEADERS, io.BytesIO(body)).object_format == "sha256"
 
 
 class TestFetchArguments:
@@ -268,12 +263,15 @@ class TestCheckWants:
         assert exc_info.value.code == "git_operation_not_granted"
 
 
-class TestTipsRequest:
+class TestRefsRequest:
     def test_listed_refs(self):
         rules = [FetchRule(repository=5, branches=["seer/fix", "main"]), FetchRule(repository=5, tags=["v1"])]
-        assert tips_request(rules, "sha1") == make_fetch_body(
+        assert refs_request(rules, "sha1") == make_fetch_body(
             "ls-refs",
+            "symrefs",
             "peel",
+            "unborn",
+            "ref-prefix HEAD",
             "ref-prefix refs/heads/main",
             "ref-prefix refs/heads/seer/fix",
             "ref-prefix refs/tags/v1",
@@ -282,12 +280,19 @@ class TestTipsRequest:
 
     def test_patterns(self):
         rules = [FetchRule(repository=5, branch_patterns=["seer/.+"], tag_patterns=["v.+"])]
-        assert tips_request(rules, "sha256") == make_fetch_body(
-            "ls-refs", "peel", "ref-prefix refs/heads/", "ref-prefix refs/tags/", capabilities=("object-format=sha256",)
+        assert refs_request(rules, "sha256") == make_fetch_body(
+            "ls-refs",
+            "symrefs",
+            "peel",
+            "unborn",
+            "ref-prefix HEAD",
+            "ref-prefix refs/heads/",
+            "ref-prefix refs/tags/",
+            capabilities=("object-format=sha256",),
         )
 
     def test_headers(self):
-        assert tips_headers({"user-agent": "git/2.54.0", "Content-Length": "9"}) == {
+        assert refs_headers({"user-agent": "git/2.54.0", "Content-Length": "9"}) == {
             "Git-Protocol": "version=2",
             "Content-Type": "application/x-git-upload-pack-request",
             "Accept": "application/x-git-upload-pack-result",
@@ -296,34 +301,73 @@ class TestTipsRequest:
         }
 
 
-class TestReadTips:
-    def test_covered_refs_and_peeled_tags(self):
+class TestReadRefs:
+    def test_covered_refs(self):
         rules = [*RULES, FetchRule(repository=5, tags=["v1"])]
         answer = pkt_lines(
+            f"{TIP} HEAD symref-target:refs/heads/main",
             f"{TIP} refs/heads/main",
             # A prefix also lists names that start with it.
             f"{OTHER} refs/heads/main-old",
             f"{NEW_ID} refs/tags/v1 peeled:{OLD_ID}",
         )
-        assert read_tips(rules, response(answer), "sha1") == {TIP, NEW_ID, OLD_ID}
+        refs = read_refs(rules, response(answer), "sha1")
+        assert refs.lines == [
+            f"{TIP} HEAD symref-target:refs/heads/main\n".encode(),
+            f"{TIP} refs/heads/main\n".encode(),
+            f"{NEW_ID} refs/tags/v1 peeled:{OLD_ID}\n".encode(),
+        ]
+        assert refs.tips == {TIP, NEW_ID, OLD_ID}
+
+    @pytest.mark.parametrize(
+        "head,kept",
+        [
+            (f"{TIP} HEAD symref-target:refs/heads/main", True),
+            (f"{TIP} HEAD symref-target:refs/heads/secret", False),
+            # Without symrefs, nothing says which branch HEAD is.
+            (f"{TIP} HEAD", False),
+            ("unborn HEAD symref-target:refs/heads/main", True),
+        ],
+    )
+    def test_head(self, head, kept):
+        refs = read_refs(RULES, response(pkt_lines(head)), "sha1")
+        assert refs.lines == ([f"{head}\n".encode()] if kept else [])
+        # HEAD's tip is its branch's, which the branch's own line lists.
+        assert refs.tips == frozenset()
+
+    def test_name_that_is_not_utf8(self):
+        answer = pkt(TIP.encode() + b" refs/heads/\xff\n") + b"0000"
+        assert read_refs(RULES, response(answer), "sha1").lines == []
 
     @pytest.mark.parametrize(
         "answer,detail",
         [
             (pkt(b"ERR repository is disabled\n") + b"0000", "refused to list the repository's refs: repository is"),
             (pkt_lines(f"{TIP} refs/heads/main")[:-4], "does not end with its only flush"),
+            (pkt_lines(f"{TIP} refs/heads/main") + pkt_lines(), "does not end with its only flush"),
             (pkt_lines("nonsense refs/heads/main"), "not an object id"),
+            (pkt_lines(f"{TIP} refs/heads/main peeled:nonsense"), "not an object id"),
             (pkt_lines("refs/heads/main"), "not a ref"),
             (b"garbage", "not pkt-lines"),
         ],
     )
     def test_answer_that_is_not_a_list_of_refs(self, answer, detail):
         with pytest.raises(ResourceBadGateway, match=detail):
-            read_tips(RULES, response(answer), "sha1")
+            read_refs(RULES, response(answer), "sha1")
 
     def test_compressed_answer(self):
         with pytest.raises(ResourceBadGateway, match="compressed"):
-            read_tips(RULES, response(b"", headers={"Content-Encoding": "gzip"}), "sha1")
+            read_refs(RULES, response(b"", headers={"Content-Encoding": "gzip"}), "sha1")
+
+
+def test_refs_response():
+    lines = [f"{TIP} refs/heads/main\n".encode()]
+    answer = refs_response(read_refs(RULES, response(pkt_lines(f"{TIP} refs/heads/main")), "sha1"))
+    content = b"".join(answer.content)
+    assert content == b"".join(pkt(line) for line in lines) + b"0000"
+    assert answer.status_code == 200
+    assert answer.headers["Content-Type"] == "application/x-git-upload-pack-result"
+    assert answer.headers["Content-Length"] == str(len(content))
 
 
 CAPABILITIES = [
@@ -343,11 +387,9 @@ def advertisement(lines: list[str], service: bool = True) -> bytes:
 
 
 class TestFilterCapabilities:
-    request = check_fetch("GET", V2, None)
-
     @pytest.mark.parametrize("service", [True, False], ids=["with-service-line", "without"])
     def test_refused_commands_and_features_are_taken_out(self, service):
-        filtered = filter_response(RULES, self.request, response(advertisement(CAPABILITIES, service)))
+        filtered = filter_capabilities(response(advertisement(CAPABILITIES, service)))
         content = b"".join(filtered.content)
         assert content == advertisement(
             [
@@ -364,98 +406,26 @@ class TestFilterCapabilities:
 
     def test_feature_that_is_not_utf8_passes_on(self):
         answer = pkt(b"version 2\n") + pkt(b"fetch=shallow \xff\n") + b"0000"
-        assert b"".join(filter_response(RULES, self.request, response(answer)).content) == answer
+        assert b"".join(filter_capabilities(response(answer)).content) == answer
 
     def test_delimiter(self):
         answer = pkt(b"version 2\n") + b"0001" + pkt(b"ls-refs\n") + b"0000"
         with pytest.raises(ResourceBadGateway, match="holds a delimiter"):
-            filter_response(RULES, self.request, response(answer))
+            filter_capabilities(response(answer))
 
     def test_version_0_answer(self):
         # A provider that ignores Git-Protocol lists every ref.
         answer = advertisement([f"{TIP} HEAD\0multi_ack thin-pack", f"{OTHER} refs/heads/secret"])
         with pytest.raises(GitProviderNotSupported, match="did not answer in git protocol version 2"):
-            filter_response(RULES, self.request, response(answer, headers={"Content-Length": "1"}))
-
-    def test_provider_failure_passes_on(self):
-        failed = response(b"Repository not found.", status_code=404)
-        assert filter_response(RULES, self.request, failed) is failed
-
-
-class TestFilterRefs:
-    request = check_fetch("POST", POST_HEADERS, io.BytesIO(make_fetch_body("ls-refs", "symrefs", "peel", "unborn")))
-
-    def filtered(self, *parts: bytes, rules: list[FetchRule] = RULES) -> bytes:
-        return b"".join(filter_response(rules, self.request, response(*parts)).content)
-
-    def test_only_covered_refs(self):
-        answer = pkt_lines(
-            f"{TIP} HEAD symref-target:refs/heads/main",
-            f"{TIP} refs/heads/main",
-            f"{OTHER} refs/heads/secret",
-            f"{NEW_ID} refs/heads/seer/fix",
-            f"{OLD_ID} refs/pull/1/head",
-            f"{NEW_ID} refs/tags/v1 peeled:{OLD_ID}",
-        )
-        assert self.filtered(answer) == pkt_lines(
-            f"{TIP} HEAD symref-target:refs/heads/main", f"{TIP} refs/heads/main", f"{NEW_ID} refs/heads/seer/fix"
-        )
-
-    @pytest.mark.parametrize(
-        "head,kept",
-        [
-            (f"{TIP} HEAD symref-target:refs/heads/secret", False),
-            # Without symrefs, nothing says which branch HEAD is.
-            (f"{TIP} HEAD", False),
-            ("unborn HEAD symref-target:refs/heads/main", True),
-        ],
-    )
-    def test_head(self, head, kept):
-        assert self.filtered(pkt_lines(head)) == (pkt_lines(head) if kept else b"0000")
-
-    def test_split_anywhere(self):
-        answer = pkt_lines(f"{TIP} refs/heads/main", f"{OTHER} refs/heads/secret", f"{NEW_ID} refs/heads/seer/fix")
-        one_byte_at_a_time = [answer[i : i + 1] for i in range(len(answer))]
-        assert self.filtered(*one_byte_at_a_time) == pkt_lines(
-            f"{TIP} refs/heads/main", f"{NEW_ID} refs/heads/seer/fix"
-        )
-
-    def test_provider_message_passes_on(self):
-        answer = pkt(b"ERR access denied\n") + b"0000"
-        assert self.filtered(answer) == answer
-
-    def test_name_that_is_not_utf8(self):
-        answer = pkt(TIP.encode() + b" refs/heads/\xff\n") + b"0000"
-        assert self.filtered(answer) == b"0000"
-
-    @pytest.mark.parametrize(
-        "answer,detail",
-        [
-            (pkt_lines(f"{TIP} refs/heads/main")[:-4], "ended early"),
-            (
-                pkt_lines(f"{TIP} refs/heads/main") + pkt(f"{OTHER} refs/heads/secret\n".encode()),
-                "went on after its end",
-            ),
-            (b"zzzz", "not pkt-lines"),
-            (pkt_lines("nonsense"), "not a ref"),
-        ],
-    )
-    def test_answer_that_is_not_a_list_of_refs(self, answer, detail):
-        with pytest.raises(ResourceBadGateway, match=detail):
-            self.filtered(answer)
-
-    def test_length_is_dropped(self):
-        filtered = filter_response(RULES, self.request, response(pkt_lines(), headers={"Content-Length": "4"}))
-        assert "Content-Length" not in filtered.headers
+            filter_capabilities(response(answer, headers={"Content-Length": "1"}))
 
     def test_compressed_answer(self):
         content = chunks(b"")
         compressed = RelayResponse(status_code=200, headers={"Content-Encoding": "gzip"}, content=content)
         with pytest.raises(ResourceBadGateway, match="compressed"):
-            filter_response(RULES, self.request, compressed)
+            filter_capabilities(compressed)
         assert content.gi_frame is None
 
-
-def test_pack_passes_on_unread():
-    pack = response(b"0008NAK\n", b"PACK")
-    assert filter_response(RULES, fetch(*CLONE), pack) is pack
+    def test_provider_failure_passes_on(self):
+        failed = response(b"Repository not found.", status_code=404)
+        assert filter_capabilities(failed) is failed
