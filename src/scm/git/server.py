@@ -184,7 +184,7 @@ class GitServer:
                     # The push's first request, which lists the refs, goes to the provider with the same headers.
                     check_push_headers(method, headers)
             elif not any(rule.any_object for rule in fetch_rules):
-                fetch = check_fetch(method, headers, counted_body)
+                fetch = check_fetch(fetch_rules, method, headers, counted_body)
                 relayed_body, relayed_headers = fetch.body, fetch.headers
             provider = initialize_provider(
                 grant.organization_id,
@@ -276,7 +276,7 @@ class GitServer:
             route="git-upload-pack",
             query="",
             headers=refs_headers(fetch.headers),
-            body=io.BytesIO(refs_request(rules, fetch.object_format)),
+            body=io.BytesIO(refs_request(rules, fetch.object_format, unborn=fetch.unborn)),
         )
         try:
             if response.status_code == 401:

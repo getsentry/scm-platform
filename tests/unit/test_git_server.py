@@ -1099,7 +1099,11 @@ class TestFetchRules:
             assert b"".join(fetched.content) == PACK_RESPONSE
         # The relay's own ls-refs answered the client's, and listed the tips again before the fetch went on, as the
         # client sent it.
-        assert [received.body for received in upstream_requests[1:]] == [REFS_REQUEST, REFS_REQUEST, CLONE]
+        assert [received.body for received in upstream_requests[1:]] == [
+            refs_request([BRANCH_FETCH], "sha1", unborn=True),
+            REFS_REQUEST,
+            CLONE,
+        ]
         assert upstream_requests[1].headers["Accept-Encoding"] == "identity"
         assert [name for name, _ in recorder.counts] == ["sentry.scm.git.request.succeeded"] * 3
 

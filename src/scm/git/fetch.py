@@ -61,7 +61,6 @@ _HEX = re.compile(r"[0-9a-f]+")
 # it read octal and 0x hex.
 _DEPTH = re.compile(r"[1-9][0-9]{0,9}")
 _TIME = re.compile(r"0|[1-9][0-9]{0,19}")
-_NAME = re.compile(r"[\x21-\x7e]+")
 # Filters that only leave objects out. sparse:oid reads a file from the repository, and combine: hides the filters
 # it combines, so both are refused.
 _FILTER = re.compile(r"blob:none|blob:limit=[0-9]+[kmg]?|tree:[0-9]+|object:type=(?:blob|tree|commit|tag)")
@@ -105,10 +104,15 @@ class FetchRequest(NamedTuple):
     """The object ids a ``fetch`` command wants, which must be tips the rules cover."""
     object_format: str = "sha1"
     """The object format a POST names. Without one, git means SHA-1."""
+    unborn: bool = False
+    """Whether an ``ls-refs`` asks for ``HEAD`` when it names a branch with no commit yet, which git asks only of a
+    provider that offers it."""
 
 
-def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) -> FetchRequest:
-    """Read and check a fetch's request under fetch rules that don't allow any object.
+def check_fetch(
+    rules: Sequence[FetchRule], method: str, headers: Mapping[str, str], body: Readable | None
+) -> FetchRequest:
+    """Read and check a fetch's request under ``rules``, none of which allows any object.
 
     ``body`` must end where the request body ends. Raises GitOperationNotGranted for a request that isn't protocol
     version 2, FetchRefused for a command or argument the endpoint refuses, GitMalformedRequestBody for a body that
@@ -125,11 +129,17 @@ def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) 
     data = _decompress(raw) if _header_values(headers, "content-encoding") else raw
     command, object_format, arguments = _read_request(data)
     if command == "ls-refs":
-        # GitServer answers ls-refs from its own listing, so the client's arguments don't matter.
-        return FetchRequest(command=command, object_format=object_format, headers=dict(headers), body=None)
+        # GitServer answers ls-refs from its own listing, so the client's other arguments don't matter.
+        return FetchRequest(
+            command=command,
+            object_format=object_format,
+            headers=dict(headers),
+            body=None,
+            unborn="unborn" in arguments,
+        )
     return FetchRequest(
         command=command,
-        wants=_check_fetch_arguments(arguments, OBJECT_ID_LENGTHS[object_format]),
+        wants=_check_fetch_arguments(rules, arguments, OBJECT_ID_LENGTHS[object_format]),
         object_format=object_format,
         headers=_replacing(headers, "Content-Length", str(len(raw))),
         body=io.BytesIO(raw),
@@ -156,10 +166,12 @@ class Refs(NamedTuple):
     """The object ids of the covered branches and tags, and of the objects their tags point to."""
 
 
-def refs_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
+def refs_request(rules: Sequence[FetchRule], object_format: str, *, unborn: bool = False) -> bytes:
     """Return the ``ls-refs`` request that lists ``HEAD`` and every branch and tag ``rules`` cover, and more.
 
-    A prefix lists every ref whose name starts with it, so ``read_refs`` keeps only the refs a rule covers.
+    A prefix lists every ref whose name starts with it, so ``read_refs`` keeps only the refs a rule covers. With
+    ``unborn``, it also lists a ``HEAD`` that names a branch with no commit yet, which an upload-pack older than git
+    2.31 refuses to be asked for.
     """
     prefixes = {"HEAD"}
     for rule in rules:
@@ -168,7 +180,12 @@ def refs_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
             prefixes.add("refs/heads/")
         if rule.tag_patterns:
             prefixes.add("refs/tags/")
-    arguments = ["symrefs", "peel", *(f"ref-prefix {prefix}" for prefix in sorted(prefixes))]
+    arguments = [
+        "symrefs",
+        "peel",
+        *(["unborn"] if unborn else []),
+        *(f"ref-prefix {prefix}" for prefix in sorted(prefixes)),
+    ]
     return (
         pkt(b"command=ls-refs\n")
         + pkt(f"object-format={object_format}\n".encode())
@@ -348,7 +365,7 @@ def _object_format(capabilities: list[str]) -> str:
     return object_format
 
 
-def _check_fetch_arguments(arguments: list[str], id_length: int) -> frozenset[str]:
+def _check_fetch_arguments(rules: Sequence[FetchRule], arguments: list[str], id_length: int) -> frozenset[str]:
     """Refuse the arguments that could reach past the wants, and return the wants."""
     wants: set[str] = set()
     for argument in arguments:
@@ -375,9 +392,16 @@ def _check_fetch_arguments(arguments: list[str], id_length: int) -> frozenset[st
                 "as git fetch --deepen, under a grant whose fetch rules name branches and tags. Fetch with "
                 "--depth=<n> instead."
             )
-        elif name in ("deepen-since", "deepen-not"):
-            if not (_TIME if name == "deepen-since" else _NAME).fullmatch(value):
-                raise GitMalformedRequestBody(detail=f"The fetch's {name} line does not hold a value git sends.")
+        elif name == "deepen-since":
+            if not _TIME.fullmatch(value):
+                raise GitMalformedRequestBody(detail="The fetch's deepen-since line does not hold a time git sends.")
+        elif name == "deepen-not":
+            # upload-pack fails a deepen-not that names no ref, which would tell whether a ref the grant hides exists.
+            if not _covers(rules, value):
+                raise FetchRefused(
+                    detail=f"The git endpoint does not relay a deepen-not of {_shown(value)}, which is not the full "
+                    "name of a branch or tag the git grant covers. Name one in full, such as refs/heads/main."
+                )
         elif name == "filter":
             if not _FILTER.fullmatch(value):
                 raise FetchRefused(

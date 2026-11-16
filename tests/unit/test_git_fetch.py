@@ -36,7 +36,7 @@ CLONE = ("thin-pack", "no-progress", "ofs-delta", "deepen 4", f"want {TIP}", "do
 
 
 def fetch(*arguments: str, **kwargs) -> FetchRequest:
-    return check_fetch("POST", POST_HEADERS, io.BytesIO(make_fetch_body("fetch", *arguments, **kwargs)))
+    return check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(make_fetch_body("fetch", *arguments, **kwargs)))
 
 
 def chunks(*parts: bytes) -> Generator[bytes]:
@@ -49,7 +49,7 @@ def response(*parts: bytes, status_code: int = 200, headers: dict[str, str] | No
 
 class TestHeaders:
     def test_capabilities_are_asked_for_unencoded(self):
-        request = check_fetch("GET", V2 | {"accept-encoding": "deflate, gzip"}, None)
+        request = check_fetch(RULES, "GET", V2 | {"accept-encoding": "deflate, gzip"}, None)
         assert request.command is None
         assert request.headers == V2 | {"Accept-Encoding": "identity"}
 
@@ -62,25 +62,31 @@ class TestHeaders:
     def test_only_protocol_version_2(self, method, headers):
         # Versions 0 and 1 list every ref in their first response.
         with pytest.raises(GitOperationNotGranted, match="only in git protocol version 2"):
-            check_fetch(method, headers, io.BytesIO(make_fetch_body("ls-refs")))
+            check_fetch(RULES, method, headers, io.BytesIO(make_fetch_body("ls-refs")))
 
     def test_encoding_git_doesnt_send(self):
         with pytest.raises(RpcMalformedRequestHeaders, match="content-encoding"):
-            check_fetch("POST", POST_HEADERS | {"Content-Encoding": "deflate"}, io.BytesIO(b""))
+            check_fetch(RULES, "POST", POST_HEADERS | {"Content-Encoding": "deflate"}, io.BytesIO(b""))
 
 
 class TestLsRefs:
     def test_arguments_dont_matter(self):
         # GitServer answers ls-refs from its own listing.
         body = make_fetch_body("ls-refs", "symrefs", "ref-prefix refs/heads/secret", "exclude refs/heads/x")
-        request = check_fetch("POST", POST_HEADERS, io.BytesIO(body))
+        request = check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
         assert request.command == "ls-refs"
         assert request.wants == frozenset()
         assert request.body is None
+        assert not request.unborn
+
+    def test_unborn(self):
+        # git asks for unborn only of a provider that offers it, so the endpoint asks the provider only then too.
+        body = make_fetch_body("ls-refs", "symrefs", "unborn")
+        assert check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body)).unborn
 
     def test_object_format(self):
         body = make_fetch_body("ls-refs", capabilities=("object-format=sha256",))
-        assert check_fetch("POST", POST_HEADERS, io.BytesIO(body)).object_format == "sha256"
+        assert check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body)).object_format == "sha256"
 
 
 class TestFetchArguments:
@@ -132,6 +138,9 @@ class TestFetchArguments:
             ("packfile-uris https", "does not relay packfile-uris"),
             ("filter sparse:oid=HEAD:sparse", "the filter sparse:oid=HEAD:sparse"),
             ("filter combine:blob:none+tree:0", "the filter combine:"),
+            # upload-pack fails a deepen-not that names no ref, which tells whether a hidden ref exists.
+            ("deepen-not refs/heads/secret", "deepen-not of refs/heads/secret"),
+            ("deepen-not main", "deepen-not of main, which is not the full name"),
             ("upload-pack-option x", "does not relay a fetch with upload-pack-option"),
         ],
     )
@@ -152,7 +161,7 @@ class TestFetchArguments:
     @pytest.mark.parametrize("command", ["object-info", "bundle-uri", "unknown"])
     def test_other_commands(self, command):
         with pytest.raises(FetchRefused, match=f"the {command} command"):
-            check_fetch("POST", POST_HEADERS, io.BytesIO(make_fetch_body(command, f"oid {TIP}")))
+            check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(make_fetch_body(command, f"oid {TIP}")))
 
     @pytest.mark.parametrize(
         "argument",
@@ -164,7 +173,6 @@ class TestFetchArguments:
             "deepen -1",
             "deepen ",
             "deepen-since 0x10",
-            "deepen-not",
             "want " + TIP[:-1],
             "want " + TIP.upper(),
             "have " + "c" * 64,
@@ -207,7 +215,7 @@ class TestMalformed:
     )
     def test_body(self, body, detail):
         with pytest.raises(GitMalformedRequestBody, match=detail):
-            check_fetch("POST", POST_HEADERS, io.BytesIO(body))
+            check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
 
     def test_object_format_mismatch(self):
         with pytest.raises(GitMalformedRequestBody, match="does not name an object id"):
@@ -215,12 +223,12 @@ class TestMalformed:
 
     def test_no_body(self):
         with pytest.raises(GitMalformedRequestBody, match="no body"):
-            check_fetch("POST", POST_HEADERS, None)
+            check_fetch(RULES, "POST", POST_HEADERS, None)
 
     def test_too_long(self):
         body = make_fetch_body("fetch", *[f"have {OLD_ID}"] * (MAX_REQUEST_LENGTH // 40))
         with pytest.raises(GitMalformedRequestBody, match="longer than"):
-            check_fetch("POST", POST_HEADERS, io.BytesIO(body))
+            check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
 
 
 class TestCompressed:
@@ -228,7 +236,7 @@ class TestCompressed:
 
     def test_read_and_relayed_as_sent(self):
         body = gzip.compress(make_fetch_body("fetch", *CLONE))
-        request = check_fetch("POST", self.headers, io.BytesIO(body))
+        request = check_fetch(RULES, "POST", self.headers, io.BytesIO(body))
         assert request.wants == {TIP}
         assert request.body is not None and request.body.read() == body
         assert request.headers["Content-Length"] == str(len(body))
@@ -246,12 +254,12 @@ class TestCompressed:
     )
     def test_not_a_single_gzip_stream(self, body):
         with pytest.raises(GitMalformedRequestBody):
-            check_fetch("POST", self.headers, io.BytesIO(body))
+            check_fetch(RULES, "POST", self.headers, io.BytesIO(body))
 
     def test_too_long_once_decompressed(self):
         body = gzip.compress(make_fetch_body("fetch", *[f"have {OLD_ID}"] * (MAX_REQUEST_LENGTH // 40)))
         with pytest.raises(GitMalformedRequestBody, match="longer than"):
-            check_fetch("POST", self.headers, io.BytesIO(body))
+            check_fetch(RULES, "POST", self.headers, io.BytesIO(body))
 
 
 class TestCheckWants:
@@ -290,6 +298,18 @@ class TestRefsRequest:
             "ref-prefix refs/heads/",
             "ref-prefix refs/tags/",
             capabilities=("object-format=sha256",),
+        )
+
+    def test_unborn(self):
+        assert refs_request(RULES, "sha1", unborn=True) == make_fetch_body(
+            "ls-refs",
+            "symrefs",
+            "peel",
+            "unborn",
+            "ref-prefix HEAD",
+            "ref-prefix refs/heads/main",
+            "ref-prefix refs/heads/seer/fix",
+            capabilities=("object-format=sha1",),
         )
 
     def test_headers(self):
