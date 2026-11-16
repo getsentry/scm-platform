@@ -135,3 +135,12 @@ def make_fetch_body(
     if arguments:
         body += b"0001" + b"".join(pkt(f"{argument}\n".encode()) for argument in arguments)
     return body + b"0000"
+
+
+def pkt_lines(*lines: str) -> bytes:
+    """Each line as a pkt-line ending in a newline, then a flush."""
+    return b"".join(pkt(f"{line}\n".encode()) for line in lines) + b"0000"
+
+
+# The smart-HTTP header that opens upload-pack's list of capabilities.
+SERVICE_HEADER = pkt(b"# service=git-upload-pack\n") + b"0000"

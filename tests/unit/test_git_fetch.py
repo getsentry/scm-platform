@@ -24,7 +24,7 @@ from scm.git.fetch import (
 )
 from scm.git.relay import RelayResponse
 from scm.git.types import FetchRule
-from tests.unit.git_builders import NEW_ID, OLD_ID, make_fetch_body, pkt
+from tests.unit.git_builders import NEW_ID, OLD_ID, SERVICE_HEADER, make_fetch_body, pkt, pkt_lines
 
 RULES = [FetchRule(repository=5, branches=["seer/fix", "main"])]
 V2 = {"Git-Protocol": "version=2"}
@@ -44,10 +44,6 @@ def chunks(*parts: bytes) -> Generator[bytes]:
 
 def response(*parts: bytes, status_code: int = 200, headers: dict[str, str] | None = None) -> RelayResponse:
     return RelayResponse(status_code=status_code, headers=headers or {}, content=chunks(*parts))
-
-
-def refs(*lines: str) -> bytes:
-    return b"".join(pkt(f"{line}\n".encode()) for line in lines) + b"0000"
 
 
 class TestHeaders:
@@ -303,7 +299,7 @@ class TestTipsRequest:
 class TestReadTips:
     def test_covered_refs_and_peeled_tags(self):
         rules = [*RULES, FetchRule(repository=5, tags=["v1"])]
-        answer = refs(
+        answer = pkt_lines(
             f"{TIP} refs/heads/main",
             # A prefix also lists names that start with it.
             f"{OTHER} refs/heads/main-old",
@@ -315,9 +311,9 @@ class TestReadTips:
         "answer,detail",
         [
             (pkt(b"ERR repository is disabled\n") + b"0000", "refused to list the repository's refs: repository is"),
-            (refs(f"{TIP} refs/heads/main")[:-4], "does not end with its only flush"),
-            (refs("nonsense refs/heads/main"), "not an object id"),
-            (refs("refs/heads/main"), "not a ref"),
+            (pkt_lines(f"{TIP} refs/heads/main")[:-4], "does not end with its only flush"),
+            (pkt_lines("nonsense refs/heads/main"), "not an object id"),
+            (pkt_lines("refs/heads/main"), "not a ref"),
             (b"garbage", "not pkt-lines"),
         ],
     )
@@ -343,8 +339,7 @@ CAPABILITIES = [
 
 
 def advertisement(lines: list[str], service: bool = True) -> bytes:
-    head = pkt(b"# service=git-upload-pack\n") + b"0000" if service else b""
-    return head + b"".join(pkt(f"{line}\n".encode()) for line in lines) + b"0000"
+    return (SERVICE_HEADER if service else b"") + pkt_lines(*lines)
 
 
 class TestFilterCapabilities:
@@ -394,7 +389,7 @@ class TestFilterRefs:
         return b"".join(filter_response(rules, self.request, response(*parts)).content)
 
     def test_only_covered_refs(self):
-        answer = refs(
+        answer = pkt_lines(
             f"{TIP} HEAD symref-target:refs/heads/main",
             f"{TIP} refs/heads/main",
             f"{OTHER} refs/heads/secret",
@@ -402,7 +397,7 @@ class TestFilterRefs:
             f"{OLD_ID} refs/pull/1/head",
             f"{NEW_ID} refs/tags/v1 peeled:{OLD_ID}",
         )
-        assert self.filtered(answer) == refs(
+        assert self.filtered(answer) == pkt_lines(
             f"{TIP} HEAD symref-target:refs/heads/main", f"{TIP} refs/heads/main", f"{NEW_ID} refs/heads/seer/fix"
         )
 
@@ -416,12 +411,14 @@ class TestFilterRefs:
         ],
     )
     def test_head(self, head, kept):
-        assert self.filtered(refs(head)) == (refs(head) if kept else b"0000")
+        assert self.filtered(pkt_lines(head)) == (pkt_lines(head) if kept else b"0000")
 
     def test_split_anywhere(self):
-        answer = refs(f"{TIP} refs/heads/main", f"{OTHER} refs/heads/secret", f"{NEW_ID} refs/heads/seer/fix")
+        answer = pkt_lines(f"{TIP} refs/heads/main", f"{OTHER} refs/heads/secret", f"{NEW_ID} refs/heads/seer/fix")
         one_byte_at_a_time = [answer[i : i + 1] for i in range(len(answer))]
-        assert self.filtered(*one_byte_at_a_time) == refs(f"{TIP} refs/heads/main", f"{NEW_ID} refs/heads/seer/fix")
+        assert self.filtered(*one_byte_at_a_time) == pkt_lines(
+            f"{TIP} refs/heads/main", f"{NEW_ID} refs/heads/seer/fix"
+        )
 
     def test_provider_message_passes_on(self):
         answer = pkt(b"ERR access denied\n") + b"0000"
@@ -434,10 +431,13 @@ class TestFilterRefs:
     @pytest.mark.parametrize(
         "answer,detail",
         [
-            (refs(f"{TIP} refs/heads/main")[:-4], "ended early"),
-            (refs(f"{TIP} refs/heads/main") + pkt(f"{OTHER} refs/heads/secret\n".encode()), "went on after its end"),
+            (pkt_lines(f"{TIP} refs/heads/main")[:-4], "ended early"),
+            (
+                pkt_lines(f"{TIP} refs/heads/main") + pkt(f"{OTHER} refs/heads/secret\n".encode()),
+                "went on after its end",
+            ),
             (b"zzzz", "not pkt-lines"),
-            (refs("nonsense"), "not a ref"),
+            (pkt_lines("nonsense"), "not a ref"),
         ],
     )
     def test_answer_that_is_not_a_list_of_refs(self, answer, detail):
@@ -445,7 +445,7 @@ class TestFilterRefs:
             self.filtered(answer)
 
     def test_length_is_dropped(self):
-        filtered = filter_response(RULES, self.request, response(refs(), headers={"Content-Length": "4"}))
+        filtered = filter_response(RULES, self.request, response(pkt_lines(), headers={"Content-Length": "4"}))
         assert "Content-Length" not in filtered.headers
 
     def test_compressed_answer(self):

@@ -1,6 +1,7 @@
 import contextlib
 import gzip
 import io
+import re
 import ssl
 import time
 from collections.abc import Generator
@@ -34,6 +35,7 @@ from tests.unit.error_reports import assert_not_in_frames, assert_not_reported, 
 from tests.unit.git_builders import (
     NEW_ID,
     OLD_ID,
+    SERVICE_HEADER,
     VERSION_1_PUSH_CLAIMS,
     make_fetch_body,
     make_grant,
@@ -42,6 +44,7 @@ from tests.unit.git_builders import (
     make_push_body,
     make_repository,
     pkt,
+    pkt_lines,
 )
 from tests.unit.git_upstream import (
     ClosingAdapter,
@@ -1017,33 +1020,9 @@ BRANCH_FETCH = FetchRule(repository=5, branches=["main", "seer/fix"])
 BRANCH_RULES = [BRANCH_FETCH, PushRule(repository=5, branches=["seer/fix"])]
 BRANCH_GRANT = sign_grant(KEY.private, make_grant(rules=BRANCH_RULES))
 V2_POST = {"Git-Protocol": "version=2", "Content-Type": "application/x-git-upload-pack-request"}
-CAPABILITIES = (
-    pkt(b"# service=git-upload-pack\n")
-    + b"0000"
-    + b"".join(
-        pkt(line + b"\n")
-        for line in (b"version 2", b"ls-refs=unborn", b"fetch=shallow wait-for-done filter", b"bundle-uri")
-    )
-    + b"0000"
-)
+CAPABILITY_LINES = ("version 2", "ls-refs=unborn", "fetch=shallow wait-for-done filter")
+CAPABILITIES = SERVICE_HEADER + pkt_lines(*CAPABILITY_LINES, "bundle-uri")
 PACK_RESPONSE = pkt(b"packfile\n") + pkt(b"\1PACK") + b"0000"
-
-
-def ref_lines(*lines: str) -> bytes:
-    return b"".join(pkt(f"{line}\n".encode()) for line in lines) + b"0000"
-
-
-def pkt_texts(data: bytes) -> list[str]:
-    """The text of each pkt-line in ``data``, leaving out flushes and delimiters."""
-    texts, index = [], 0
-    while index < len(data):
-        length = int(data[index : index + 4], 16)
-        if length < 4:
-            index += 4
-            continue
-        texts.append(data[index + 4 : index + length].decode().rstrip("\n"))
-        index += length
-    return texts
 
 
 class FakeUploadPack:
@@ -1066,14 +1045,14 @@ class FakeUploadPack:
         if b"command=fetch" in data:
             handler.respond(200, PACK_RESPONSE, {"Content-Type": "application/x-git-upload-pack-result"})
             return
-        prefixes = [line.removeprefix("ref-prefix ") for line in pkt_texts(data) if line.startswith("ref-prefix ")]
+        prefixes = [prefix.decode() for prefix in re.findall(rb"ref-prefix ([^\n]+)\n", data)]
         listed = [
             f"{object_id} {name}" + (" symref-target:refs/heads/main" if name == "HEAD" else "")
             for name, object_id in self.refs.items()
             if not prefixes or any(name.startswith(prefix) for prefix in prefixes)
         ]
         handler.respond(
-            self.ls_refs_status, ref_lines(*listed), {"Content-Type": "application/x-git-upload-pack-result"}
+            self.ls_refs_status, pkt_lines(*listed), {"Content-Type": "application/x-git-upload-pack-result"}
         )
 
 
@@ -1086,10 +1065,12 @@ def branch_rules_upstream() -> Generator[tuple[FakeUploadPack, Recorder, GitServ
         yield provider, recorder, make_server(recorder, GitRelay(ca_bundle=upstream.ca_bundle)), upstream.requests
 
 
-def upload_pack(server: GitServer, body: bytes, headers: dict[str, str] | None = None) -> StreamResponse:
+def upload_pack(
+    server: GitServer, body: bytes, headers: dict[str, str] | None = None, grant: str = BRANCH_GRANT
+) -> StreamResponse:
     return request(
         server,
-        BRANCH_GRANT,
+        grant,
         method="POST",
         route="git-upload-pack",
         query="",
@@ -1111,11 +1092,8 @@ class TestFetchRules:
             listed = upload_pack(server, make_fetch_body("ls-refs", "symrefs", "peel", "unborn"))
             fetched = upload_pack(server, CLONE)
             # The provider's bundle-uri is left out, so git doesn't ask for it.
-            assert (
-                b"".join(capabilities.content)
-                == CAPABILITIES.replace(pkt(b"bundle-uri\n"), b"")[len(pkt(b"# service=git-upload-pack\n")) + 4 :]
-            )
-            assert b"".join(listed.content) == ref_lines(
+            assert b"".join(capabilities.content) == pkt_lines(*CAPABILITY_LINES)
+            assert b"".join(listed.content) == pkt_lines(
                 f"{MAIN} HEAD symref-target:refs/heads/main", f"{MAIN} refs/heads/main", f"{FIX} refs/heads/seer/fix"
             )
             assert b"".join(fetched.content) == PACK_RESPONSE
@@ -1195,7 +1173,7 @@ class TestFetchRules:
         assert [received.body for received in upstream_requests] == [TIPS_REQUEST]
 
     def test_provider_that_answers_in_version_0(self):
-        advertisement = pkt(b"# service=git-upload-pack\n") + b"0000" + ref_lines(f"{SECRET} refs/heads/secret")
+        advertisement = SERVICE_HEADER + pkt_lines(f"{SECRET} refs/heads/secret")
         recorder = Recorder()
         server = make_server(recorder, relay_returning(chunks(advertisement)))
         response = request(server, BRANCH_GRANT, headers={"Git-Protocol": "version=2"})
@@ -1204,35 +1182,20 @@ class TestFetchRules:
     def test_push_under_the_same_grant(self):
         body = push_body("refs/heads/seer/fix")
         with branch_rules_upstream() as (_, _, server, upstream_requests):
-            upstream_requests_before = len(upstream_requests)
             response = request(
                 server, BRANCH_GRANT, method="POST", route="git-receive-pack", query="", body=io.BytesIO(body)
             )
             assert response.status_code == 200
-        assert len(upstream_requests) == upstream_requests_before + 1
+        assert len(upstream_requests) == 1
 
     def test_rule_for_any_object_relays_unread(self):
         # A grant with a rule for any object fetches as before: any protocol, every ref, no listing of tips.
         grant = sign_grant(KEY.private, make_grant(rules=[FETCH_ANY, *BRANCH_RULES]))
         with branch_rules_upstream() as (_, _, server, upstream_requests):
             capabilities = request(server, grant)
-            listed = request(
-                server,
-                grant,
-                method="POST",
-                route="git-upload-pack",
-                query="",
-                headers=V2_POST,
-                body=io.BytesIO(make_fetch_body("ls-refs")),
-            )
-            fetched = request(
-                server,
-                grant,
-                method="POST",
-                route="git-upload-pack",
-                query="",
-                headers=V2_POST,
-                body=io.BytesIO(make_fetch_body("fetch", f"want {SECRET}", "deepen-relative", "done")),
+            listed = upload_pack(server, make_fetch_body("ls-refs"), grant=grant)
+            fetched = upload_pack(
+                server, make_fetch_body("fetch", f"want {SECRET}", "deepen-relative", "done"), grant=grant
             )
             assert b"".join(capabilities.content) == CAPABILITIES
             assert f"{SECRET} refs/heads/secret".encode() in b"".join(listed.content)

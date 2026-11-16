@@ -591,43 +591,43 @@ class Checks:
     def check_branch_fetch(self, fetch_grant: str) -> None:
         """Check that a grant to fetch only the default branch sees and fetches nothing else."""
         server = self.start()
-        url = f"{server.url}/{self.backend.repository['name']}.git"
-        head = self.git(fetch_grant, "ls-remote", "--symref", url, "HEAD")
-        default = next((line.split()[1] for line in head.stdout.splitlines() if line.startswith("ref: ")), None)
-        if not self.check("ls-remote names the default branch", head, default is not None):
-            server.shutdown()
-            return
-        assert default is not None
-        grant = grant_for(
-            self.args.private_key,
-            FetchRule(repository=self.backend.repository_id, branches=[default.removeprefix("refs/heads/")]),
-        )
-        listed = self.git(grant, "ls-remote", url)
-        names = {line.split("\t")[1] for line in listed.stdout.splitlines() if "\t" in line}
-        self.check("ls-remote with a branch fetch grant lists only that branch", listed, names == {"HEAD", default})
-        clone = self.workdir / "branch-clone"
-        if not self.expect_success(
-            "shallow clone with a branch fetch grant", self.git(grant, "clone", "--depth=2", url, str(clone))
-        ):
-            server.shutdown()
-            return
-        # The parent of the clone's oldest commit, which the clone lacks, so git asks the provider for it.
-        oldest = self.git(grant, "cat-file", "commit", "HEAD~1", cwd=clone).stdout
-        parent = next((line.split()[1] for line in oldest.splitlines() if line.startswith("parent ")), None)
-        if parent is None:
-            logger.info("skip fetching a commit that is not a tip, as the default branch has under 3 commits")
-        else:
-            self.check(
-                "fetching a commit that is not a tip is refused",
-                result := self.git(grant, "fetch", "origin", parent, cwd=clone),
-                result.returncode != 0 and "remote error: The git grant does not allow fetching" in result.stderr,
+        try:
+            url = f"{server.url}/{self.backend.repository['name']}.git"
+            head = self.git(fetch_grant, "ls-remote", "--symref", url, "HEAD")
+            default = next((line.split()[1] for line in head.stdout.splitlines() if line.startswith("ref: ")), None)
+            if not self.check("ls-remote names the default branch", head, default is not None):
+                return
+            assert default is not None
+            grant = grant_for(
+                self.args.private_key,
+                FetchRule(repository=self.backend.repository_id, branches=[default.removeprefix("refs/heads/")]),
             )
-        self.check(
-            "fetch --unshallow is refused",
-            result := self.git(grant, "fetch", "--unshallow", "origin", cwd=clone),
-            result.returncode != 0 and "deepens history without limit" in result.stderr,
-        )
-        server.shutdown()
+            listed = self.git(grant, "ls-remote", url)
+            names = {line.split("\t")[1] for line in listed.stdout.splitlines() if "\t" in line}
+            self.check("ls-remote with a branch fetch grant lists only that branch", listed, names == {"HEAD", default})
+            clone = self.workdir / "branch-clone"
+            if not self.expect_success(
+                "shallow clone with a branch fetch grant", self.git(grant, "clone", "--depth=2", url, str(clone))
+            ):
+                return
+            # The parent of the clone's oldest commit, which the clone lacks, so git asks the provider for it.
+            oldest = self.git(grant, "cat-file", "commit", "HEAD~1", cwd=clone).stdout
+            parent = next((line.split()[1] for line in oldest.splitlines() if line.startswith("parent ")), None)
+            if parent is None:
+                logger.info("skip fetching a commit that is not a tip, as the default branch has under 3 commits")
+            else:
+                self.check(
+                    "fetching a commit that is not a tip is refused",
+                    result := self.git(grant, "fetch", "origin", parent, cwd=clone),
+                    result.returncode != 0 and "remote error: The git grant does not allow fetching" in result.stderr,
+                )
+            self.check(
+                "fetch --unshallow is refused",
+                result := self.git(grant, "fetch", "--unshallow", "origin", cwd=clone),
+                result.returncode != 0 and "deepens history without limit" in result.stderr,
+            )
+        finally:
+            server.shutdown()
 
     def local_repository(self) -> Path:
         local = self.workdir / "local"

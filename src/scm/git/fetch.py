@@ -27,7 +27,7 @@ whatever their names.
 import io
 import re
 import zlib
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from typing import Literal, NamedTuple
 
 from scm.errors import (
@@ -36,6 +36,7 @@ from scm.errors import (
     GitProviderNotSupported,
     ResourceBadGateway,
     RpcMalformedRequestHeaders,
+    SCMCodedError,
 )
 from scm.git.push import _MAX_PKT_LENGTH, _OBJECT_ID_LENGTHS, _PKT_LENGTH, _pkt
 from scm.git.relay import RelayResponse, ResponseBody, _printable, _read
@@ -125,19 +126,17 @@ def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) 
     """
     _check_headers(method, headers)
     if method != "POST":
-        return FetchRequest(
-            command=None, headers=_without(headers, "accept-encoding") | {"Accept-Encoding": "identity"}, body=None
-        )
+        return FetchRequest(command=None, headers=_replacing(headers, "Accept-Encoding", "identity"), body=None)
     if body is None:
         raise GitMalformedRequestBody(detail="The fetch has no body.")
     raw = _read_body(body)
-    data = _decompress(raw) if any(name.lower() == "content-encoding" for name in headers) else raw
+    data = _decompress(raw) if _header_values(headers, "content-encoding") else raw
     command, object_format, arguments = _read_request(data)
-    relayed = _without(headers, "content-length") | {"Content-Length": str(len(raw))}
+    relayed = _replacing(headers, "Content-Length", str(len(raw)))
     if command == "ls-refs":
         _check_ls_refs(arguments)
         # The endpoint reads the response to leave out refs the rules don't cover.
-        relayed = _without(relayed, "accept-encoding") | {"Accept-Encoding": "identity"}
+        relayed = _replacing(relayed, "Accept-Encoding", "identity")
         wants: frozenset[str] = frozenset()
     else:
         wants = _check_fetch_arguments(arguments, _OBJECT_ID_LENGTHS[object_format])
@@ -180,7 +179,7 @@ def tips_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
 
 def tips_headers(headers: Mapping[str, str]) -> dict[str, str]:
     """Return the headers of the ``tips_request``, naming the client git's user agent as the client's request does."""
-    agents = [value for name, value in headers.items() if name.lower() == "user-agent"]
+    agents = _header_values(headers, "user-agent")
     return {
         "Git-Protocol": "version=2",
         "Content-Type": "application/x-git-upload-pack-request",
@@ -200,9 +199,11 @@ def read_tips(rules: Sequence[FetchRule], response: RelayResponse, object_format
     tips: set[str] = set()
     for line in _response_lines(data):
         fields = _ref_fields(line)
-        if fields is None or fields[0] == "HEAD" or not _covers(rules, fields[0]):
+        if fields is None:
             continue
         ref, object_id, attributes = fields
+        if ref == "HEAD" or not _covers(rules, ref):
+            continue
         tips.add(object_id)
         tips.update(value for key, value in attributes if key == "peeled")
     id_length = _OBJECT_ID_LENGTHS[object_format]
@@ -223,37 +224,33 @@ def filter_response(rules: Sequence[FetchRule], request: FetchRequest, response:
         return response
     try:
         _check_unencoded(response)
-        headers = _without(response.headers, "content-length")
-        if request.command is None:
-            data = _read_response(response.content, MAX_ADVERTISEMENT_LENGTH, "list of capabilities")
-            content = _capabilities(data)
+        if request.command == "ls-refs":
             return RelayResponse(
                 status_code=response.status_code,
-                headers=headers | {"Content-Length": str(len(content))},
-                content=_Body(iter([content])),
+                headers=_without(response.headers, "content-length"),
+                content=_RefsFilter(rules, response.content),
             )
+        content = _capabilities(_read_response(response.content, MAX_ADVERTISEMENT_LENGTH, "list of capabilities"))
     except Exception:
         response.content.close()
         raise
     return RelayResponse(
-        status_code=response.status_code, headers=headers, content=_RefsFilter(rules, response.content)
+        status_code=response.status_code,
+        headers=_replacing(response.headers, "Content-Length", str(len(content))),
+        content=_in_memory(content),
     )
 
 
 def _check_headers(method: str, headers: Mapping[str, str]) -> None:
-    protocols = [value for name, value in headers.items() if name.lower() == "git-protocol"]
+    protocols = _header_values(headers, "git-protocol")
     if not protocols or any(value != "version=2" for value in protocols):
         raise GitOperationNotGranted(
             detail="The git grant's fetch rules name branches and tags, which the git endpoint keeps a fetch to only "
             "in git protocol version 2. Fetch with git 2.26 or later, or set protocol.version=2."
         )
-    if method == "POST":
-        encodings = [value for name, value in headers.items() if name.lower() == "content-encoding"]
-        # git compresses a large request with gzip and sends a small one as it is.
-        if any(value != "gzip" for value in encodings):
-            raise RpcMalformedRequestHeaders(
-                detail="The fetch's content-encoding header holds a value git doesn't send."
-            )
+    # git compresses a large request with gzip and sends a small one as it is.
+    if method == "POST" and any(value != "gzip" for value in _header_values(headers, "content-encoding")):
+        raise RpcMalformedRequestHeaders(detail="The fetch's content-encoding header holds a value git doesn't send.")
 
 
 def _read_body(body: Readable) -> bytes:
@@ -281,7 +278,7 @@ def _decompress(raw: bytes) -> bytes:
 
 def _read_request(data: bytes) -> tuple[Command, str, list[str]]:
     """Return the command a request runs, its object format and its arguments."""
-    lines = _pkt_lines(data, "The fetch's request is not pkt-lines.")
+    lines = _pkt_lines(data, GitMalformedRequestBody, "The fetch's request is not pkt-lines.")
     if not lines or lines[-1] != _FLUSH or lines.count(_FLUSH) > 1:
         raise GitMalformedRequestBody(detail="The fetch's request does not end with its only flush.")
     texts: list[str | int] = []
@@ -303,7 +300,7 @@ def _read_request(data: bytes) -> tuple[Command, str, list[str]]:
             command = "fetch"
         case other:
             raise FetchRefused(
-                detail=f"The git endpoint does not relay the {_printable(other, _SHOWN_LENGTH)} command under a "
+                detail=f"The git endpoint does not relay the {_shown(other)} command under a "
                 "grant whose fetch rules name branches and tags."
             )
     if texts.count(_DELIM) > 1:
@@ -322,9 +319,7 @@ def _object_format(capabilities: list[str]) -> str:
         if name == "server-option":
             raise FetchRefused(detail="The git endpoint does not relay server options.")
         if name not in _REQUEST_CAPABILITIES or not has_value:
-            raise FetchRefused(
-                detail=f"The git endpoint does not relay the {_printable(name, _SHOWN_LENGTH)} capability."
-            )
+            raise FetchRefused(detail=f"The git endpoint does not relay the {_shown(name)} capability.")
         if name == "object-format":
             formats.append(value)
     if len(formats) > 1:
@@ -342,7 +337,7 @@ def _check_ls_refs(arguments: list[str]) -> None:
         if argument in _LS_REFS_FLAGS or (name == "ref-prefix" and value):
             continue
         raise FetchRefused(
-            detail=f"The git endpoint does not relay ls-refs with {_printable(name, _SHOWN_LENGTH)} under a grant "
+            detail=f"The git endpoint does not relay ls-refs with {_shown(name)} under a grant "
             "whose fetch rules name branches and tags."
         )
 
@@ -380,7 +375,7 @@ def _check_fetch_arguments(arguments: list[str], id_length: int) -> frozenset[st
         elif name == "filter":
             if not _FILTER.fullmatch(value):
                 raise FetchRefused(
-                    detail=f"The git endpoint does not relay the filter {_printable(value, _SHOWN_LENGTH)} under a "
+                    detail=f"The git endpoint does not relay the filter {_shown(value)} under a "
                     "grant whose fetch rules name branches and tags."
                 )
         elif name in ("want-ref", "packfile-uris"):
@@ -388,15 +383,13 @@ def _check_fetch_arguments(arguments: list[str], id_length: int) -> frozenset[st
                 detail=f"The git endpoint does not relay {name} under a grant whose fetch rules name branches and tags."
             )
         else:
-            raise FetchRefused(
-                detail=f"The git endpoint does not relay a fetch with {_printable(name, _SHOWN_LENGTH)}."
-            )
+            raise FetchRefused(detail=f"The git endpoint does not relay a fetch with {_shown(name)}.")
     return frozenset(wants)
 
 
 def _capabilities(data: bytes) -> bytes:
     """Return the provider's protocol version 2 list of capabilities without the ones the endpoint refuses."""
-    lines = _pkt_lines(data, "The provider's list of capabilities is not pkt-lines.", provider=True)
+    lines = _pkt_lines(data, ResourceBadGateway, "The provider's list of capabilities is not pkt-lines.")
     # The smart-HTTP header that names the service, which a server may leave out in version 2.
     if lines[:2] == [b"# service=git-upload-pack\n", _FLUSH]:
         lines = lines[2:]
@@ -419,20 +412,8 @@ def _capabilities(data: bytes) -> bytes:
     return b"".join(_pkt(line) for line in kept) + b"0000"
 
 
-class _Body:
-    """A response body held in memory."""
-
-    def __init__(self, chunks: Iterator[bytes]) -> None:
-        self.chunks = chunks
-
-    def __iter__(self) -> "_Body":
-        return self
-
-    def __next__(self) -> bytes:
-        return next(self.chunks)
-
-    def close(self) -> None:
-        pass
+def _in_memory(content: bytes) -> Generator[bytes]:
+    yield content
 
 
 class _RefsFilter:
@@ -525,8 +506,7 @@ def _covers(rules: Sequence[FetchRule], ref: str) -> bool:
 
 
 def _check_unencoded(response: RelayResponse) -> None:
-    encodings = [value for name, value in response.headers.items() if name.lower() == "content-encoding"]
-    if any(value != "identity" for value in encodings):
+    if any(value != "identity" for value in _header_values(response.headers, "content-encoding")):
         raise ResourceBadGateway(detail="The provider compressed a response the git endpoint has to read.")
 
 
@@ -541,7 +521,7 @@ def _read_response(content: ResponseBody, limit: int, what: str) -> bytes:
 
 
 def _response_lines(data: bytes) -> list[bytes]:
-    lines = _pkt_lines(data, "The provider's list of refs is not pkt-lines.", provider=True)
+    lines = _pkt_lines(data, ResourceBadGateway, "The provider's list of refs is not pkt-lines.")
     if not lines or lines[-1] != _FLUSH or _FLUSH in lines[:-1] or _DELIM in lines:
         raise ResourceBadGateway(detail="The provider's list of refs does not end with its only flush.")
     texts = [line for line in lines if isinstance(line, bytes)]
@@ -552,9 +532,8 @@ def _response_lines(data: bytes) -> list[bytes]:
     return texts
 
 
-def _pkt_lines(data: bytes, detail: str, *, provider: bool = False) -> list[bytes | int]:
+def _pkt_lines(data: bytes, error: type[SCMCodedError], detail: str) -> list[bytes | int]:
     """Split ``data`` into pkt-lines, with a flush as 0 and a delimiter as 1."""
-    error = ResourceBadGateway if provider else GitMalformedRequestBody
     lines: list[bytes | int] = []
     index = 0
     while index < len(data):
@@ -573,6 +552,20 @@ def _pkt_lines(data: bytes, detail: str, *, provider: bool = False) -> list[byte
     return lines
 
 
+def _shown(text: str) -> str:
+    return _printable(text, _SHOWN_LENGTH)
+
+
+def _header_values(headers: Mapping[str, str], name: str) -> list[str]:
+    """Return the values of every spelling of ``name``, a lowercase header name."""
+    return [value for key, value in headers.items() if key.lower() == name]
+
+
 def _without(headers: Mapping[str, str], name: str) -> dict[str, str]:
-    """Return ``headers`` without any spelling of ``name``."""
+    """Return ``headers`` without any spelling of ``name``, a lowercase header name."""
     return {key: value for key, value in headers.items() if key.lower() != name}
+
+
+def _replacing(headers: Mapping[str, str], name: str, value: str) -> dict[str, str]:
+    """Return ``headers`` with ``value`` as the only ``name`` header, whatever spelling it had."""
+    return _without(headers, name.lower()) | {name: value}
