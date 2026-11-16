@@ -76,6 +76,7 @@ class TestLsRefs:
         request = check_fetch("POST", POST_HEADERS, io.BytesIO(body))
         assert request.command == "ls-refs"
         assert request.wants == frozenset()
+        assert request.body is None
 
     def test_object_format(self):
         body = make_fetch_body("ls-refs", capabilities=("object-format=sha256",))
@@ -258,7 +259,9 @@ class TestCheckWants:
         check_wants(fetch(*CLONE), frozenset({TIP, OTHER}))
 
     def test_want_that_is_not_a_tip(self):
-        with pytest.raises(FetchRefused, match=f"does not allow fetching {OTHER}: it is not the tip") as exc_info:
+        with pytest.raises(
+            FetchRefused, match=f"does not allow fetching {OTHER}: it is not the tip.*fetch again"
+        ) as exc_info:
             check_wants(fetch(f"want {TIP}", f"want {OTHER}"), frozenset({TIP}))
         assert exc_info.value.code == "git_operation_not_granted"
 
@@ -270,7 +273,6 @@ class TestRefsRequest:
             "ls-refs",
             "symrefs",
             "peel",
-            "unborn",
             "ref-prefix HEAD",
             "ref-prefix refs/heads/main",
             "ref-prefix refs/heads/seer/fix",
@@ -284,7 +286,6 @@ class TestRefsRequest:
             "ls-refs",
             "symrefs",
             "peel",
-            "unborn",
             "ref-prefix HEAD",
             "ref-prefix refs/heads/",
             "ref-prefix refs/tags/",
@@ -346,6 +347,7 @@ class TestReadRefs:
             (pkt_lines(f"{TIP} refs/heads/main")[:-4], "does not end with its only flush"),
             (pkt_lines(f"{TIP} refs/heads/main") + pkt_lines(), "does not end with its only flush"),
             (pkt_lines("nonsense refs/heads/main"), "not an object id"),
+            (pkt_lines("nonsense HEAD symref-target:refs/heads/main"), "not an object id"),
             (pkt_lines(f"{TIP} refs/heads/main peeled:nonsense"), "not an object id"),
             (pkt_lines("refs/heads/main"), "not a ref"),
             (b"garbage", "not pkt-lines"),

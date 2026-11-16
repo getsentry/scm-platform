@@ -1161,10 +1161,12 @@ class TestFetchRules:
         "status,code,http_status",
         [(500, "resource_bad_gateway", 502), (401, "git_token_rejected", 502)],
     )
-    def test_listing_tips_fails(self, status, code, http_status):
+    @pytest.mark.parametrize("body", [CLONE, make_fetch_body("ls-refs", "symrefs")], ids=["fetch", "ls-refs"])
+    def test_listing_refs_fails(self, body, status, code, http_status):
         with branch_rules_upstream() as (provider, recorder, server, upstream_requests):
             provider.ls_refs_status = status
-            response = upload_pack(server, CLONE)
+            response = upload_pack(server, body)
+        # A 401 passed on would make git ask for credentials.
         assert response.status_code == http_status
         assert recorder.error_codes == [code]
         assert [received.body for received in upstream_requests] == [REFS_REQUEST]

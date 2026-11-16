@@ -105,10 +105,11 @@ class FetchRequest(NamedTuple):
     command: Command | None
     """The command a POST runs, or None for the GET that lists the server's capabilities."""
     headers: dict[str, str]
-    """The headers to relay. A response the endpoint reads is asked for without compression, and a body it read
-    goes on with its own length."""
+    """The headers to relay the GET or a ``fetch`` with. The GET's response, which the endpoint reads, is asked for
+    without compression, and a ``fetch`` goes on with the length of the body the endpoint read."""
     body: Readable | None
-    """The body to relay: the bytes the client sent, as it sent them."""
+    """The body to relay a ``fetch`` with: the bytes the client sent, as it sent them. GitServer answers ``ls-refs``
+    itself, so it has none."""
     wants: frozenset[str] = frozenset()
     """The object ids a ``fetch`` command wants, which must be tips the rules cover."""
     object_format: str = "sha1"
@@ -132,11 +133,12 @@ def check_fetch(method: str, headers: Mapping[str, str], body: Readable | None) 
     raw = _read_body(body)
     data = _decompress(raw) if _header_values(headers, "content-encoding") else raw
     command, object_format, arguments = _read_request(data)
-    # GitServer answers ls-refs from its own listing, so the client's arguments don't matter.
-    wants = _check_fetch_arguments(arguments, _OBJECT_ID_LENGTHS[object_format]) if command == "fetch" else frozenset()
+    if command == "ls-refs":
+        # GitServer answers ls-refs from its own listing, so the client's arguments don't matter.
+        return FetchRequest(command=command, object_format=object_format, headers=dict(headers), body=None)
     return FetchRequest(
         command=command,
-        wants=wants,
+        wants=_check_fetch_arguments(arguments, _OBJECT_ID_LENGTHS[object_format]),
         object_format=object_format,
         headers=_replacing(headers, "Content-Length", str(len(raw))),
         body=io.BytesIO(raw),
@@ -149,7 +151,8 @@ def check_wants(request: FetchRequest, tips: frozenset[str]) -> None:
     if refused:
         raise FetchRefused(
             detail=f"The git grant does not allow fetching {refused[0]}: it is not the tip of a branch or tag the "
-            "grant covers. Fetch a branch the grant covers by its name."
+            "grant covers, or that branch has moved since. Fetch a branch the grant covers by its name, and fetch "
+            "again if it moved."
         )
 
 
@@ -174,7 +177,7 @@ def refs_request(rules: Sequence[FetchRule], object_format: str) -> bytes:
             prefixes.add("refs/heads/")
         if rule.tag_patterns:
             prefixes.add("refs/tags/")
-    arguments = ["symrefs", "peel", "unborn", *(f"ref-prefix {prefix}" for prefix in sorted(prefixes))]
+    arguments = ["symrefs", "peel", *(f"ref-prefix {prefix}" for prefix in sorted(prefixes))]
     return (
         _pkt(b"command=ls-refs\n")
         + _pkt(f"object-format={object_format}\n".encode())
@@ -213,16 +216,18 @@ def read_refs(rules: Sequence[FetchRule], response: RelayResponse, object_format
         ref, object_id, attributes = fields
         if ref == "HEAD":
             target = next((value for key, value in attributes if key == "symref-target"), None)
-            if target is not None and _covers(rules, target):
-                lines.append(line)
+            if target is None or not _covers(rules, target):
+                continue
+            # An empty repository's HEAD names a branch with no commit yet.
+            ids = [] if object_id == "unborn" else [object_id]
+        elif _covers(rules, ref):
+            ids = [object_id, *(value for key, value in attributes if key == "peeled")]
+            tips.update(ids)
+        else:
             continue
-        if not _covers(rules, ref):
-            continue
-        ids = [object_id, *(value for key, value in attributes if key == "peeled")]
         if any(len(tip) != id_length or not _HEX.fullmatch(tip) for tip in ids):
-            raise ResourceBadGateway(detail="The provider listed a branch or tag whose tip is not an object id.")
+            raise ResourceBadGateway(detail="The provider listed a ref whose tip is not an object id.")
         lines.append(line)
-        tips.update(ids)
     return Refs(lines=lines, tips=frozenset(tips))
 
 

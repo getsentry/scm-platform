@@ -284,7 +284,8 @@ class GitServer:
             if response.status_code != 200:
                 raise ResourceBadGateway(
                     detail=f"The provider answered HTTP {response.status_code} when the git endpoint listed the "
-                    "branches and tags the git grant covers."
+                    "branches and tags the git grant covers. Try again, and if it keeps failing, check that Sentry's "
+                    "integration can still read this repository."
                 )
             return read_refs(rules, response, fetch.object_format)
         finally:
