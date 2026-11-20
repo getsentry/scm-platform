@@ -840,8 +840,9 @@ class CursorOriginProvider:
         title: str | None = None,
         body: str | None = None,
         state: PullRequestState | None = None,
+        base: str | None = None,
     ) -> ActionResult[PullRequest]:
-        data = {"title": title, "body": body, "state": state}
+        data = {"title": title, "body": body, "state": state, "base": base}
         response = self.patch(
             f"/repos/{self.repository_path}/pulls/{pull_request_id}",
             data={key: value for key, value in data.items() if value is not None},

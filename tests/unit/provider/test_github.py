@@ -1159,6 +1159,15 @@ ACTION_CASES: list[dict[str, Any]] = [
         "expected_data": expected_pull_request(PULL_REQUEST_RAW),
     },
     {
+        "name": "update_pull_request",
+        "operation": "patch",
+        "kwargs": {"pull_request_id": "42", "base": "release"},
+        "path": "/repos/test-org/test-repo/pulls/42",
+        "data": {"base": "release"},
+        "raw": PULL_REQUEST_RAW,
+        "expected_data": expected_pull_request(PULL_REQUEST_RAW),
+    },
+    {
         "name": "create_review_comment_file",
         "operation": "post",
         "kwargs": {

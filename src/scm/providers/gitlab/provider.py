@@ -1266,6 +1266,7 @@ class GitLabProvider:
         title: str | None = None,
         body: str | None = None,
         state: PullRequestState | None = None,
+        base: str | None = None,
     ) -> ActionResult[PullRequest]:
         data = {}
         if title is not None:
@@ -1274,6 +1275,8 @@ class GitLabProvider:
             data["description"] = body
         if state is not None:
             data["state_event"] = PULL_REQUEST_STATE_UPDATE_MAP[state]
+        if base is not None:
+            data["target_branch"] = base
         response = self.put(
             GitLab.merge_request.format(project_id=self.project_id, pr_key=pull_request_id),
             data=data,

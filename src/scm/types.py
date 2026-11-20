@@ -1279,6 +1279,7 @@ class UpdatePullRequestProtocol(Protocol):
         title: str | None = None,
         body: str | None = None,
         state: PullRequestState | None = None,
+        base: BranchName | None = None,
     ) -> ActionResult[PullRequest]: ...
 
 

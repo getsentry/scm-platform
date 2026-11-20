@@ -14111,6 +14111,29 @@ def test_create_pull_request_draft_does_not_double_prefix(client, provider: GitL
     assert client.request.call_args.kwargs["data"]["title"] == title
 
 
+def test_update_pull_request_changes_the_target_branch(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_minimal_mr_response())
+
+    provider.update_pull_request("1", base="release")
+
+    call = client.request.call_args
+    assert call.kwargs["method"] == "PUT"
+    assert call.kwargs["path"] == "/projects/79787061/merge_requests/1"
+    assert call.kwargs["data"] == {"target_branch": "release"}
+
+
+def test_update_pull_request_leaves_the_target_branch_alone_without_base(client, provider: GitLabProvider):
+    client.request.return_value = _make_mock_response(_minimal_mr_response())
+
+    provider.update_pull_request("1", title="New", body="Body", state="closed")
+
+    assert client.request.call_args.kwargs["data"] == {
+        "title": "New",
+        "description": "Body",
+        "state_event": "close",
+    }
+
+
 def _route_request(routes: dict[str, Any], **kwargs) -> Any:
     """Return a mock response whose json_response is selected by request path."""
     path = kwargs["path"]

@@ -1713,11 +1713,13 @@ class BaseTestProvider(Provider):
         title: str | None = None,
         body: str | None = None,
         state: str | None = None,
+        base: str | None = None,
     ) -> ActionResult[PullRequest]:
         raw = make_github_pull_request(
             title=title or "Test PR",
             body=body or "PR description",
             state=state or "open",
+            base_ref=base or "main",
         )
         return ActionResult(
             data=PullRequest(
