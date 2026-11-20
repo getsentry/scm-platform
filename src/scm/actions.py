@@ -897,8 +897,9 @@ def update_pull_request(
     title: str | None = None,
     body: str | None = None,
     state: PullRequestState | None = None,
+    base: BranchName | None = None,
 ) -> ActionResult[PullRequest]:
-    return scm.update_pull_request(pull_request_id, title=title, body=body, state=state)
+    return scm.update_pull_request(pull_request_id, title=title, body=body, state=state, base=base)
 
 
 def request_review(scm: RequestReviewProtocol, pull_request_id: str, reviewers: list[str]) -> None:

@@ -744,6 +744,13 @@ class TestPullRequests:
         assert client.request.call_args.kwargs["data"] == {"body": "", "state": "closed"}
         assert result["data"]["state"] == "closed"
 
+    def test_the_base_is_changed(self, provider: CursorOriginProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.return_value = _response(_pull_request_raw())
+
+        provider.update_pull_request("7", base="release")
+
+        assert client.request.call_args.kwargs["data"] == {"base": "release"}
+
 
 class TestMapAuthor:
     def test_a_user_without_a_public_handle_is_named(self) -> None:
