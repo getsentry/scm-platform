@@ -38,6 +38,7 @@ class Facade:
     # After the isinstance guard MyPy narrows `facade` to `Facade & Protocol`
     # and statically validates method calls.
     provider: Provider
+    passthrough: tuple[type[BaseException], ...] = ()
 
     def __new__(
         cls,
@@ -45,6 +46,7 @@ class Facade:
         *,
         referrer: Referrer = "shared",
         record_count: Callable[[str, int, dict[str, str]], None],
+        passthrough: tuple[type[BaseException], ...] = (),
     ) -> Facade:
         return cls.init_scoped_facade(provider)
 
@@ -54,10 +56,12 @@ class Facade:
         *,
         referrer: Referrer = "shared",
         record_count: Callable[[str, int, dict[str, str]], None],
+        passthrough: tuple[type[BaseException], ...] = (),
     ) -> None:
         self.provider = provider
         self.referrer = referrer
         self.record_count = record_count
+        self.passthrough = passthrough
 
     @classmethod
     def init_scoped_facade(cls, provider):
@@ -73,6 +77,7 @@ class Facade:
                 referrer=self.referrer,
                 provider_fn=lambda: getattr(self.provider, name)(*args, **kwargs),
                 record_count=self.record_count,
+                passthrough=self.passthrough,
             )
 
         return method
