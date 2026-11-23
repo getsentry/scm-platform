@@ -1640,6 +1640,7 @@ class GitHubProvider:
         title: str | None = None,
         body: str | None = None,
         state: PullRequestState | None = None,
+        base: str | None = None,
     ) -> ActionResult[PullRequest]:
         data: dict[str, Any] = {}
         if title is not None:
@@ -1648,6 +1649,8 @@ class GitHubProvider:
             data["body"] = body
         if state is not None:
             data["state"] = state
+        if base is not None:
+            data["base"] = base
         response = self.patch(f"/repos/{self.repository['name']}/pulls/{pull_request_id}", data=data)
         return map_action(response, map_pull_request)
 

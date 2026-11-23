@@ -98,6 +98,7 @@ from scm.types import (
     DiffLine,
     GetBranchProtocol,
     Repository,
+    UpdatePullRequestProtocol,
     WriteCommitAction,
 )
 
@@ -1254,3 +1255,18 @@ def test_create_commit_forwards_expected_head_sha() -> None:
     )
 
     assert recorded == {"expected_head_sha": "abc123"}
+
+
+def test_update_pull_request_forwards_base() -> None:
+    recorded: dict[str, Any] = {}
+
+    class RecordingProvider(BaseTestProvider):
+        def update_pull_request(self, pull_request_id, title=None, body=None, state=None, base=None):
+            recorded["base"] = base
+            return super().update_pull_request(pull_request_id, title, body, state)
+
+    scm = SourceCodeManager(RecordingProvider())
+    assert isinstance(scm, UpdatePullRequestProtocol)
+    update_pull_request(scm, "1", base="release")
+
+    assert recorded == {"base": "release"}
