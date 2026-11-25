@@ -11,6 +11,7 @@ import requests
 from scm.errors import PathIsDirectory, PathIsNotDirectory, ReadmeNotFound, ResourceBadRequest, ResourceNotFound
 from scm.providers.bitbucket.provider import (
     BitbucketProvider,
+    diff_text,
     map_app_installation,
     map_author,
     map_commit_author,
@@ -35,7 +36,6 @@ from scm.types import (
     GetFileUrlProtocol,
     GetGitRemoteProtocol,
     GetPullRequestCommitsProtocol,
-    GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
@@ -68,7 +68,6 @@ SUPPORTED_PROTOCOLS = [
     GetCommitUrlProtocol,
     GetRepositoryProtocol,
     GetPullRequestCommitsProtocol,
-    GetPullRequestDiffProtocol,
     GetPullRequestFilesProtocol,
     GetPullRequestProtocol,
     GetPullRequestsProtocol,
@@ -1023,24 +1022,12 @@ class TestGetPullRequestCommits:
         assert result["data"][-1]["sha"] == merge_hash
 
 
-class TestGetPullRequestDiff:
-    def test_returns_diff_text(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        client.request.return_value = recorded("pull_request_diff")
+def test_diff_text_decodes_utf8_without_charset() -> None:
+    response = requests.Response()
+    response._content = "+Ünïcode\n".encode()
+    response.encoding = "ISO-8859-1"
 
-        result = provider.get_pull_request_diff("1")
-
-        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/diff"
-        assert request_kwargs(client)["allow_redirects"] is True
-        assert result["data"].startswith("diff --git a/src/test_app/math.py b/src/test_app/math.py\n")
-        assert "+def subtract(a, b):\n" in result["data"]
-
-    def test_decodes_utf8_without_charset(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        response = recorded("pull_request_diff")
-        response._content = "+Ünïcode\n".encode()
-        response.encoding = "ISO-8859-1"
-        client.request.return_value = response
-
-        assert provider.get_pull_request_diff("1")["data"] == "+Ünïcode\n"
+    assert diff_text(response) == "+Ünïcode\n"
 
 
 def test_get_pull_request_url(provider: BitbucketProvider) -> None:

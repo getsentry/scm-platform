@@ -516,7 +516,12 @@ class BitbucketProvider:
             request_options=request_options,
             allow_redirects=True,
         )
-        patches = split_patches(self.get_pull_request_diff(pull_request_id, request_options)["data"])
+        diff = self.get(
+            f"{self._pull_request_path(pull_request_id)}/diff",
+            request_options=request_options,
+            allow_redirects=True,
+        )
+        patches = split_patches(diff_text(diff))
         return map_paginated_action(response, lambda raw: map_pull_request_file(raw, patches))
 
     def get_pull_request_commits(
@@ -551,25 +556,6 @@ class BitbucketProvider:
             "type": PROVIDER_TYPE,
             "raw": {"data": values, "headers": dict(response.headers)},
             "meta": {"next_cursor": None},
-        }
-
-    def get_pull_request_diff(
-        self,
-        pull_request_id: str,
-        request_options: RequestOptions | None = None,
-    ) -> ActionResult[str]:
-        # Bitbucket answers with a redirect to the repository diff endpoint.
-        response = self.get(
-            f"{self._pull_request_path(pull_request_id)}/diff",
-            request_options=request_options,
-            allow_redirects=True,
-        )
-        diff = diff_text(response)
-        return {
-            "data": diff,
-            "type": PROVIDER_TYPE,
-            "raw": {"data": diff, "headers": dict(response.headers)},
-            "meta": {},
         }
 
     def get_pull_request_url(self, pull_request_id: str) -> str:
