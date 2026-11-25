@@ -1,4 +1,14 @@
 # Changelog
+## 4.1.0
+
+### New Features ✨
+
+- (scm) Let update_pull_request change a pull request's base branch by @vaind and @claude in [#191](https://github.com/getsentry/scm-platform/pull/191)
+
+### Bug Fixes 🐛
+
+- (typing) Return Self from Facade.__new__ by @chromy and @claude in [#192](https://github.com/getsentry/scm-platform/pull/192)
+
 ## 4.0.0
 
 ### Breaking Changes 🛠
