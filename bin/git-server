@@ -71,7 +71,8 @@ Checks:
         message, which the relay passes on
       - under a grant to fetch the default branch only, ls-remote lists that
         branch and HEAD, a shallow clone succeeds, and fetching an older
-        commit by id or fetching with --unshallow is refused
+        commit by id or fetching with --unshallow is refused, where the
+        branch's history is long enough to try them
     With --push it also commits a 256 KiB file, pushes it with a push grant for
     a new branch, sending the pack chunked as git does for a large push, then
     tags the commit under the same grant. It checks that the grant can neither
@@ -621,11 +622,16 @@ class Checks:
                     result := self.git(grant, "fetch", "origin", parent, cwd=clone),
                     result.returncode != 0 and "remote error: The git grant does not allow fetching" in result.stderr,
                 )
-            self.check(
-                "fetch --unshallow is refused",
-                result := self.git(grant, "fetch", "--unshallow", "origin", cwd=clone),
-                result.returncode != 0 and "deepens history without limit" in result.stderr,
-            )
+            # A clone that holds the whole branch isn't shallow, and git refuses --unshallow there before it asks.
+            shallow = self.git(grant, "rev-parse", "--is-shallow-repository", cwd=clone).stdout.strip() == "true"
+            if not shallow:
+                logger.info("skip fetch --unshallow, as the shallow clone holds the whole default branch")
+            else:
+                self.check(
+                    "fetch --unshallow is refused",
+                    result := self.git(grant, "fetch", "--unshallow", "origin", cwd=clone),
+                    result.returncode != 0 and "deepens history without limit" in result.stderr,
+                )
         finally:
             server.shutdown()
 
