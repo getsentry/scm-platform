@@ -120,6 +120,13 @@ class TestFetchArguments:
         assert request.command == "fetch"
         assert request.wants == {TIP}
 
+    def test_include_tag_is_dropped(self):
+        # upload-pack would add the annotated tags the rules hide that point into the pack.
+        request = fetch(f"want {TIP}", "include-tag", "done")
+        relayed = make_fetch_body("fetch", f"want {TIP}", "done")
+        assert request.body is not None and request.body.read() == relayed
+        assert request.headers["Content-Length"] == str(len(relayed))
+
     def test_wants_are_collected(self):
         assert fetch(f"want {TIP}", f"want {OTHER}", f"want {TIP}", "done").wants == {TIP, OTHER}
 
@@ -234,12 +241,12 @@ class TestMalformed:
 class TestCompressed:
     headers = POST_HEADERS | {"Content-Encoding": "gzip"}
 
-    def test_read_and_relayed_as_sent(self):
-        body = gzip.compress(make_fetch_body("fetch", *CLONE))
-        request = check_fetch(RULES, "POST", self.headers, io.BytesIO(body))
+    def test_read_and_relayed_decompressed(self):
+        body = make_fetch_body("fetch", *CLONE)
+        request = check_fetch(RULES, "POST", self.headers, io.BytesIO(gzip.compress(body)))
         assert request.wants == {TIP}
         assert request.body is not None and request.body.read() == body
-        assert request.headers["Content-Length"] == str(len(body))
+        assert request.headers == POST_HEADERS | {"Content-Length": str(len(body))}
 
     @pytest.mark.parametrize(
         "body",

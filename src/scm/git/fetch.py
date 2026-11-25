@@ -11,9 +11,12 @@ the repository's forks. So under such rules GitServer:
   which upload-pack deepens commits the client names as shallow. Also ``want-ref``, ``packfile-uris``, server
   options, sparse and combined filters, and every command but ``ls-refs`` and ``fetch``.
 
-``have``, ``shallow``, ``thin-pack`` and ``include-tag`` pass, since git sends them on ordinary fetches. A thin pack
-may delta an allowed object against one the client claims to have, and ``include-tag`` adds annotated tags that point
-into the pack.
+``have``, ``shallow`` and ``thin-pack`` pass, since git sends them on ordinary fetches and the endpoint can't tell
+which objects the covered refs reach. They do tell a client about an object it names by full id: upload-pack
+acknowledges a ``have`` it holds and fails on a ``shallow`` of anything but a commit, and a thin pack may delta an
+allowed object against one the client claims to have, which shows how alike the two are. Unlike a ref name, an id
+can't be guessed without the whole content of the object, which it hashes. ``include-tag`` is dropped, because
+upload-pack would add the annotated tags that point into the pack, the hidden ones too.
 """
 
 import io
@@ -96,10 +99,10 @@ class FetchRequest(NamedTuple):
     """The command a POST runs, or None for the GET that lists the server's capabilities."""
     headers: dict[str, str]
     """The headers to relay the GET or a ``fetch`` with. The GET's response, which the endpoint reads, is asked for
-    without compression, and a ``fetch`` goes on with the length of the body the endpoint read."""
+    without compression, and a ``fetch`` goes on uncompressed, with the length of its new body."""
     body: Readable | None
-    """The body to relay a ``fetch`` with: the bytes the client sent, as it sent them. GitServer answers ``ls-refs``
-    itself, so it has none."""
+    """The body to relay a ``fetch`` with: the pkt-lines the client sent, without ``include-tag``. GitServer answers
+    ``ls-refs`` itself, so it has none."""
     wants: frozenset[str] = frozenset()
     """The object ids a ``fetch`` command wants, which must be tips the rules cover."""
     object_format: str = "sha1"
@@ -127,7 +130,7 @@ def check_fetch(
         raise GitMalformedRequestBody(detail="The fetch has no body.")
     raw = _read_body(body)
     data = _decompress(raw) if _header_values(headers, "content-encoding") else raw
-    command, object_format, arguments = _read_request(data)
+    command, object_format, arguments, lines = _read_request(data)
     if command == "ls-refs":
         # GitServer answers ls-refs from its own listing, so the client's other arguments don't matter.
         return FetchRequest(
@@ -137,12 +140,21 @@ def check_fetch(
             body=None,
             unborn="unborn" in arguments,
         )
+    wants = _check_fetch_arguments(rules, arguments, OBJECT_ID_LENGTHS[object_format])
+    # Under include-tag, upload-pack adds the annotated tags that point into the pack, the ones the rules hide too.
+    # Without it, git fetch asks for the covered tags it follows by name, though a single-branch clone gets them only
+    # on its first fetch. _object_format has refused include-tag as a capability, so any line left is an argument.
+    relayed = b"".join(
+        b"%04x" % line if isinstance(line, int) else pkt(line)
+        for line in lines
+        if line not in (b"include-tag", b"include-tag\n")
+    )
     return FetchRequest(
         command=command,
-        wants=_check_fetch_arguments(rules, arguments, OBJECT_ID_LENGTHS[object_format]),
+        wants=wants,
         object_format=object_format,
-        headers=_replacing(headers, "Content-Length", str(len(raw))),
-        body=io.BytesIO(raw),
+        headers=_replacing(_without(headers, "content-encoding"), "Content-Length", str(len(relayed))),
+        body=io.BytesIO(relayed),
     )
 
 
@@ -310,8 +322,8 @@ def _decompress(raw: bytes) -> bytes:
     return data
 
 
-def _read_request(data: bytes) -> tuple[Command, str, list[str]]:
-    """Return the command a request runs, its object format and its arguments."""
+def _read_request(data: bytes) -> tuple[Command, str, list[str], list[bytes | int]]:
+    """Return the command a request runs, its object format, its arguments and its pkt-lines."""
     lines = _pkt_lines(data, GitMalformedRequestBody, "The fetch's request is not pkt-lines.")
     if not lines or lines[-1] != _FLUSH or lines.count(_FLUSH) > 1:
         raise GitMalformedRequestBody(detail="The fetch's request does not end with its only flush.")
@@ -343,7 +355,7 @@ def _read_request(data: bytes) -> tuple[Command, str, list[str]]:
     delim = texts.index(_DELIM) if _DELIM in texts else len(texts) - 1
     capabilities = [text for text in texts[1:delim] if isinstance(text, str)]
     arguments = [text for text in texts[delim + 1 : -1] if isinstance(text, str)]
-    return command, _object_format(capabilities), arguments
+    return command, _object_format(capabilities), arguments, lines
 
 
 def _object_format(capabilities: list[str]) -> str:

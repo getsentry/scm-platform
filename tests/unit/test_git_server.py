@@ -1142,12 +1142,12 @@ class TestFetchRules:
             )
         assert [received.body for received in upstream_requests] == [REFS_REQUEST]
 
-    def test_compressed_request_goes_on_as_sent(self):
+    def test_compressed_request_goes_on_decompressed(self):
         body = gzip.compress(CLONE)
         with branch_rules_upstream() as (_, _, server, upstream_requests):
             assert b"".join(upload_pack(server, body, {"Content-Encoding": "gzip"}).content) == PACK_RESPONSE
-        assert upstream_requests[-1].body == body
-        assert upstream_requests[-1].headers["Content-Encoding"] == "gzip"
+        assert upstream_requests[-1].body == CLONE
+        assert "Content-Encoding" not in upstream_requests[-1].headers
 
     def test_each_fetch_lists_the_tips(self):
         moved = "d" * 40
