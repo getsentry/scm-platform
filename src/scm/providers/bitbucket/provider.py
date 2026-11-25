@@ -422,7 +422,7 @@ class BitbucketProvider:
         response = self.get(
             commits_path,
             params={"include": end_sha, "exclude": start_sha},
-            pagination=pagination or {"per_page": MAX_PAGE_SIZE},
+            pagination={"per_page": MAX_PAGE_SIZE, **(pagination or {})},
             request_options=request_options,
         )
         raw = response.json()
@@ -780,7 +780,7 @@ class BitbucketProvider:
 
     def _split_tree_sha(self, tree_sha: SHA, request_options: RequestOptions | None) -> tuple[SHA, str]:
         ref, _, path = tree_sha.partition(":")
-        return self._resolve_ref(ref, request_options), path
+        return self._resolve_ref(ref, request_options), path.strip("/")
 
     def _get_tree_page(
         self,
@@ -797,7 +797,7 @@ class BitbucketProvider:
         response = self.get(
             self._src_path(commit, path).rstrip("/") + "/",
             params=params,
-            pagination=pagination or {"per_page": MAX_PAGE_SIZE},
+            pagination={"per_page": MAX_PAGE_SIZE, **(pagination or {})},
             request_options=request_options,
         )
         if not _is_listing(response):

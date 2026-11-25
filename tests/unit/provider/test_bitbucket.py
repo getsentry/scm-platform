@@ -1440,6 +1440,15 @@ class TestGetTree:
             },
         ]
 
+    def test_cursor_keeps_page_size(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        # Bitbucket's cursor names a page of a given size, so a later page must ask for the same size.
+        client.request.return_value = recorded("src_recursive_page_2")
+
+        provider.get_tree(COMMIT, pagination={"cursor": "ByUK"})
+
+        assert request_kwargs(client)["params"]["pagelen"] == "100"
+        assert request_kwargs(client)["params"]["page"] == "ByUK"
+
     def test_not_recursive(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.return_value = recorded("src_special")
 
@@ -1448,10 +1457,13 @@ class TestGetTree:
         assert "max_depth" not in request_kwargs(client)["params"]
         assert request_kwargs(client)["params"]["pagelen"] == "100"
 
-    def test_subtree_paths_are_relative(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+    @pytest.mark.parametrize("path", ["src", "src/", "/src"])
+    def test_subtree_paths_are_relative(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock, path: str
+    ) -> None:
         client.request.return_value = recorded("src_subdirectory")
 
-        result = provider.get_tree(f"{COMMIT}:src")
+        result = provider.get_tree(f"{COMMIT}:{path}")
 
         assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/src/{COMMIT}/src/"
         assert result["data"]["truncated"] is False
