@@ -520,10 +520,9 @@ class BitbucketProvider:
             if isinstance(action, WriteCommitAction):
                 fields.append(file_part(action.filename, decode_content(action)))
             elif isinstance(action, DeleteCommitAction):
-                check_commit_path(action.filename)
-                fields.append(("files", action.filename))
+                fields.append(delete_part(action.filename))
             elif isinstance(action, MoveCommitAction):
-                fields.append(("files", action.old_filename))
+                fields.append(delete_part(action.old_filename))
                 fields.append(file_part(action.new_filename, self._file_content(action.old_filename, parent_sha)))
             else:
                 raise ResourceBadRequest(detail="Bitbucket cannot change a file's mode through its commit API.")
@@ -741,6 +740,12 @@ def file_part(path: str, content: bytes) -> tuple[str, tuple[str, bytes, str]]:
         raise ResourceBadRequest(detail=f"Bitbucket cannot write a file named {path!r}.")
     # Bitbucket decodes a part without a filename as text, which mangles binary content.
     return f"/{path.lstrip('/')}", (posixpath.basename(path), content, "application/octet-stream")
+
+
+def delete_part(path: str) -> tuple[str, str]:
+    """A form part that Bitbucket deletes `path` for."""
+    check_commit_path(path)
+    return "files", path.lstrip("/")
 
 
 def check_commit_path(path: str) -> None:

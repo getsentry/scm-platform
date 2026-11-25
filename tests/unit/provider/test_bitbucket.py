@@ -794,6 +794,30 @@ class TestCreateCommit:
         assert ("/notes.txt", b"hello\n") in sent_form(client)
         assert sent_filenames(client) == {"/notes.txt": "notes.txt"}
 
+    def test_strips_leading_slash_from_removed_paths(
+        self, provider: BitbucketProvider, client: unittest.mock.MagicMock
+    ) -> None:
+        client.request.side_effect = [
+            recorded("commit_branch"),
+            recorded("src_meta"),
+            recorded("src_file"),
+            recorded("commit_created"),
+        ]
+
+        provider.create_commit(
+            "test-branch",
+            PARENT,
+            "m",
+            [
+                DeleteCommitAction(filename="/old.txt"),
+                MoveCommitAction(old_filename="/README.md", new_filename="docs/README.md"),
+            ],
+        )
+
+        form = sent_form(client)
+        assert ("files", b"old.txt") in form
+        assert ("files", b"README.md") in form
+
     def test_moves_file(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [
             recorded("commit_branch"),
