@@ -840,14 +840,17 @@ class TestCreateCommit:
         [
             WriteCommitAction(action="create", filename="logo.png", content="not base64!", encoding="base64"),
             ChmodCommitAction(executable=True, filename="run.sh"),
+            WriteCommitAction(action="create", filename='say "hi".txt', content="x", encoding="utf-8"),
+            WriteCommitAction(action="create", filename="docs/../escape.txt", content="x", encoding="utf-8"),
+            DeleteCommitAction(filename="./a.txt"),
         ],
-        ids=["invalid_base64", "chmod"],
+        ids=["invalid_base64", "chmod", "quote", "dot_dot", "dot"],
     )
     def test_refuses_what_an_upload_cannot_write(
         self,
         provider: BitbucketProvider,
         client: unittest.mock.MagicMock,
-        action: WriteCommitAction | ChmodCommitAction,
+        action: WriteCommitAction | ChmodCommitAction | DeleteCommitAction,
     ) -> None:
         client.request.return_value = recorded("commit_branch")
         with pytest.raises(ResourceBadRequest):

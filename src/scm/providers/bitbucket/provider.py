@@ -518,6 +518,7 @@ class BitbucketProvider:
             if isinstance(action, WriteCommitAction):
                 fields.append(file_part(action.filename, decode_content(action)))
             elif isinstance(action, DeleteCommitAction):
+                check_commit_path(action.filename)
                 fields.append(("files", action.filename))
             elif isinstance(action, MoveCommitAction):
                 fields.append(("files", action.old_filename))
@@ -696,8 +697,18 @@ def file_part(path: str, content: bytes) -> tuple[str, tuple[str, bytes, str]]:
 
     The leading slash keeps a file named like a form field, such as `message`, from being read as that field.
     """
+    check_commit_path(path)
+    # urllib3 escapes these in the part's name, and Bitbucket doesn't unescape them.
+    if any(char in path for char in '"\r\n'):
+        raise ResourceBadRequest(detail=f"Bitbucket cannot write a file named {path!r}.")
     # Bitbucket decodes a part without a filename as text, which mangles binary content.
     return f"/{path.lstrip('/')}", (posixpath.basename(path), content, "application/octet-stream")
+
+
+def check_commit_path(path: str) -> None:
+    # Bitbucket resolves dot segments, so the commit would change a different path.
+    if any(segment in {".", ".."} for segment in path.split("/")):
+        raise ResourceBadRequest(detail=f"'{path}' has a '.' or '..' segment.")
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
