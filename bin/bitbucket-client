@@ -45,7 +45,6 @@ Commands:
     create-branch <name> <sha>
     delete-branch <name>
     get-git-ref <ref>
-    get-pull-request-comments <pr_id>
     get-pull-request-comments <pr_id> [--cursor <cursor>] [--per-page <n>]
     create-pull-request-comment <pr_id> <body>
     get-pull-request-review-threads <pr_id>

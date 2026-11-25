@@ -1410,11 +1410,6 @@ class TestGetGitRef:
         client.request.assert_not_called()
 
 
-def with_body(response: requests.Response, body: Any) -> requests.Response:
-    response._content = json.dumps(body).encode()
-    return response
-
-
 def test_get_authenticated_actor(provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
     client.request.return_value = recorded("user")
 
