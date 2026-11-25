@@ -353,7 +353,7 @@ class BitbucketProvider:
         # Filtering the diff by the page's paths fails: Bitbucket rejects query strings over about 4KB.
         repository_api = f"/2.0/repositories/{self.repository_path}"
         response = self.get(f"{repository_api}/diffstat/{sha}", pagination=pagination, request_options=request_options)
-        patches = split_patches(self.get(f"{repository_api}/diff/{sha}", request_options=request_options).text)
+        patches = split_patches(diff_text(self.get(f"{repository_api}/diff/{sha}", request_options=request_options)))
         return map_paginated_action(response, lambda raw: map_commit_file(raw, patches))
 
     def get_commits(
@@ -408,7 +408,7 @@ class BitbucketProvider:
         # A range spec diffs the first commit against the merge base, so the head goes first.
         spec = f"{end_sha}..{start_sha}"
         repository_api = f"/2.0/repositories/{self.repository_path}"
-        patches = split_patches(self.get(f"{repository_api}/diff/{spec}", request_options=request_options).text)
+        patches = split_patches(diff_text(self.get(f"{repository_api}/diff/{spec}", request_options=request_options)))
         diffstats = list(
             iter_all_pages(
                 lambda page: map_paginated_action(
@@ -564,10 +564,11 @@ class BitbucketProvider:
             request_options=request_options,
             allow_redirects=True,
         )
+        diff = diff_text(response)
         return {
-            "data": response.text,
+            "data": diff,
             "type": PROVIDER_TYPE,
-            "raw": {"data": response.text, "headers": dict(response.headers)},
+            "raw": {"data": diff, "headers": dict(response.headers)},
             "meta": {},
         }
 
@@ -695,6 +696,32 @@ def map_commit_file(raw: dict[str, Any], patches: dict[str, str]) -> CommitFile:
     )
 
 
+def diff_text(response: requests.Response) -> str:
+    # Bitbucket sends diffs as text/plain with no charset, which `requests` would read as Latin-1.
+    return response.content.decode("utf-8", errors="replace")
+
+
+# Git quotes a path with special characters, like "b/r\303\251sum\303\251.txt".
+_QUOTED = r'"(?:[^"\\]|\\.)*"'
+_NEW_PATH = re.compile(rf"^\+\+\+ (b/.*?|{_QUOTED})\t?$", re.MULTILINE)
+_OLD_PATH = re.compile(rf"^--- (a/.*?|{_QUOTED})\t?$", re.MULTILINE)
+_C_ESCAPES = {"a": b"\a", "b": b"\b", "t": b"\t", "n": b"\n", "v": b"\v", "f": b"\f", "r": b"\r"}
+
+
+def unquote_git_path(path: str) -> str:
+    if not path.startswith('"'):
+        return path
+    raw = bytearray()
+    for octal, escaped, plain in re.findall(r"\\([0-7]{3})|\\(.)|([^\\]+)", path[1:-1]):
+        if octal:
+            raw.append(int(octal, 8))
+        elif escaped:
+            raw += _C_ESCAPES.get(escaped, escaped.encode())
+        else:
+            raw += plain.encode()
+    return raw.decode("utf-8", errors="replace")
+
+
 def split_patches(diff: str) -> dict[str, str]:
     """Split a unified diff into each file's hunks, keyed by the file's new path."""
     patches = {}
@@ -703,11 +730,8 @@ def split_patches(diff: str) -> dict[str, str]:
             continue
         # The `diff --git` line is ambiguous when a path contains " b/". Git ends a path with spaces in a tab.
         header = section[: hunks.start()]
-        path = re.search(r"^\+\+\+ b/(.*?)\t?$", header, re.MULTILINE) or re.search(
-            r"^--- a/(.*?)\t?$", header, re.MULTILINE
-        )
-        if path:
-            patches[path[1]] = section[hunks.start() :]
+        if path := _NEW_PATH.search(header) or _OLD_PATH.search(header):
+            patches[unquote_git_path(path[1])[2:]] = section[hunks.start() :]
     return patches
 
 

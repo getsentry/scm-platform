@@ -663,6 +663,22 @@ class TestCommitMapping:
             "gone.py": "@@ -1 +0,0 @@\n-x\n",
         }
 
+    def test_split_patches_reads_quoted_paths(self) -> None:
+        diff = (
+            'diff --git "a/r\\303\\251sum\\303\\251.txt" "b/r\\303\\251sum\\303\\251.txt"\n'
+            '--- "a/r\\303\\251sum\\303\\251.txt"\n'
+            '+++ "b/r\\303\\251sum\\303\\251.txt"\n'
+            "@@ -1 +1 @@\n-x\n+y\n"
+            'diff --git "a/say \\"hi\\".txt" "b/say \\"hi\\".txt"\n'
+            '--- "a/say \\"hi\\".txt"\n'
+            "+++ /dev/null\n"
+            "@@ -1 +0,0 @@\n-x\n"
+        )
+        assert split_patches(diff) == {
+            "résumé.txt": "@@ -1 +1 @@\n-x\n+y\n",
+            'say "hi".txt': "@@ -1 +0,0 @@\n-x\n",
+        }
+
     def test_split_patches_skips_files_without_hunks(self) -> None:
         diff = (
             "diff --git a/old.md b/new.md\nsimilarity index 100%\nrename from old.md\nrename to new.md\n"
@@ -1017,6 +1033,14 @@ class TestGetPullRequestDiff:
         assert request_kwargs(client)["allow_redirects"] is True
         assert result["data"].startswith("diff --git a/src/test_app/math.py b/src/test_app/math.py\n")
         assert "+def subtract(a, b):\n" in result["data"]
+
+    def test_decodes_utf8_without_charset(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        response = recorded("pull_request_diff")
+        response._content = "+Ünïcode\n".encode()
+        response.encoding = "ISO-8859-1"
+        client.request.return_value = response
+
+        assert provider.get_pull_request_diff("1")["data"] == "+Ünïcode\n"
 
 
 def test_get_pull_request_url(provider: BitbucketProvider) -> None:
