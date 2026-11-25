@@ -1,0 +1,111 @@
+{
+  "body": {
+    "default_merge_strategy": "merge_commit",
+    "links": {
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits/test-branch"
+      },
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/branch/test-branch"
+      },
+      "pullrequest_create": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/new?source=test-branch&t=1"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/branches/test-branch"
+      }
+    },
+    "merge_strategies": [
+      "merge_commit",
+      "squash",
+      "fast_forward",
+      "squash_fast_forward",
+      "rebase_fast_forward",
+      "rebase_merge"
+    ],
+    "name": "test-branch",
+    "sync_strategies": [
+      "merge_commit",
+      "rebase"
+    ],
+    "target": {
+      "author": {
+        "raw": "Test User <test@example.com>",
+        "type": "author",
+        "user": {
+          "account_id": "557058:00000000-0000-0000-0000-000000000001",
+          "display_name": "Test User",
+          "links": {
+            "avatar": {
+              "href": "https://avatar.example.com/test-user.png"
+            }
+          },
+          "nickname": "test-user",
+          "type": "user",
+          "uuid": "{00000000-0000-0000-0000-000000000001}"
+        }
+      },
+      "date": "2026-11-05T20:25:05+00:00",
+      "hash": "25a878f7635147b9eef09e958ca34395bc67b705",
+      "links": {
+        "approve": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/25a878f7635147b9eef09e958ca34395bc67b705/approve"
+        },
+        "comments": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/25a878f7635147b9eef09e958ca34395bc67b705/comments"
+        },
+        "diff": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diff/25a878f7635147b9eef09e958ca34395bc67b705"
+        },
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/test-repo/commits/25a878f7635147b9eef09e958ca34395bc67b705"
+        },
+        "patch": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/patch/25a878f7635147b9eef09e958ca34395bc67b705"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/25a878f7635147b9eef09e958ca34395bc67b705"
+        },
+        "statuses": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/25a878f7635147b9eef09e958ca34395bc67b705/statuses"
+        }
+      },
+      "message": "Add notes\n",
+      "parents": [
+        {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+            }
+          },
+          "type": "commit"
+        }
+      ],
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      },
+      "type": "commit"
+    },
+    "type": "branch"
+  },
+  "headers": {},
+  "status": 200
+}
