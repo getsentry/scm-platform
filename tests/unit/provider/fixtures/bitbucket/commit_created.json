@@ -1,0 +1,7 @@
+{
+  "body": "",
+  "headers": {
+    "location": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/25a878f7635147b9eef09e958ca34395bc67b705"
+  },
+  "status": 201
+}
