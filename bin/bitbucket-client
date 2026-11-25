@@ -47,7 +47,7 @@ Commands:
     create-pull-request <title> <body> <head> <base> [--draft]
     mark-pull-request-ready-for-review <id>
     mark-pull-request-as-draft <id>
-    update-pull-request <id> [--title <title>] [--body <body>] [--state open|closed]
+    update-pull-request <id> [--title <title>] [--body <body>] [--state open|closed] [--base <branch>]
     request-review <id> <reviewer_uuid> [<reviewer_uuid> ...]
 """
 
@@ -266,6 +266,7 @@ def main():
     p.add_argument("--title", default=None)
     p.add_argument("--body", default=None)
     p.add_argument("--state", default=None, choices=["open", "closed"])
+    p.add_argument("--base", default=None)
 
     p = sub.add_parser("request-review")
     p.add_argument("id")
@@ -435,7 +436,7 @@ def main():
 
     elif args.command == "update-pull-request":
         assert isinstance(scm, UpdatePullRequestProtocol)
-        dump(scm.update_pull_request(args.id, title=args.title, body=args.body, state=args.state))
+        dump(scm.update_pull_request(args.id, title=args.title, body=args.body, state=args.state, base=args.base))
 
     elif args.command == "request-review":
         assert isinstance(scm, RequestReviewProtocol)

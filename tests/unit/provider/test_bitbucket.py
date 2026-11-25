@@ -1622,6 +1622,13 @@ class TestRequestReview:
 
         assert client.request.call_count == 1
 
+    def test_matches_uuids_without_braces(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_created", "{r1}"), recorded("pull_request_created")]
+
+        provider.request_review("5", ["r1", "r2"])
+
+        assert client.request.call_args_list[1].kwargs["data"] == {"reviewers": [{"uuid": "{r1}"}, {"uuid": "{r2}"}]}
+
     def test_author_cannot_review(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [recorded("pull_request_draft"), recorded("pull_request_author_reviewer")]
 

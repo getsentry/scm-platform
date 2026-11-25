@@ -796,7 +796,9 @@ class BitbucketProvider:
         """Add reviewers by account UUID, keeping the ones already on the pull request."""
         current = self.get(self._pull_request_path(pull_request_id)).json()
         existing = [reviewer["uuid"] for reviewer in current["reviewers"]]
-        added = [uuid for uuid in dict.fromkeys(reviewers) if uuid not in existing]
+        # Bitbucket accepts a UUID with or without braces but always returns them.
+        requested = dict.fromkeys(f"{{{uuid.strip('{}')}}}" for uuid in reviewers)
+        added = [uuid for uuid in requested if uuid not in existing]
         if added:
             self._put_pull_request(pull_request_id, current, {}, reviewers=existing + added)
 
