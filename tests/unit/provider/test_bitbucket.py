@@ -43,7 +43,6 @@ from scm.types import (
     CreatePullRequestCommentProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
-    DeletePullRequestCommentProtocol,
     GetAppInstallationProtocol,
     GetAuthenticatedActorProtocol,
     GetBranchProtocol,
@@ -106,7 +105,6 @@ SUPPORTED_PROTOCOLS = [
     GetBranchProtocol,
     GetGitRefProtocol,
     CreatePullRequestCommentProtocol,
-    DeletePullRequestCommentProtocol,
     GetAuthenticatedActorProtocol,
     GetPullRequestCommentsProtocol,
     GetPullRequestReviewThreadsProtocol,
@@ -1518,16 +1516,6 @@ class TestPullRequestComments:
         assert result["data"]["id"] == "897199302"
         assert result["data"]["body"] == "Test created comment"
         assert result["data"]["author"] == TEST_USER
-
-    def test_delete(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
-        response = requests.Response()
-        response.status_code = 204
-        client.request.return_value = response
-
-        provider.delete_pull_request_comment("1", "897199302")
-
-        assert request_kwargs(client)["method"] == "DELETE"
-        assert request_kwargs(client)["path"] == f"/2.0/repositories/{REPO}/pullrequests/1/comments/897199302"
 
 
 class TestGetPullRequestReviewThreads:

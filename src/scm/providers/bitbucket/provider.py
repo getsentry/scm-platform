@@ -747,9 +747,6 @@ class BitbucketProvider:
         response = self.post(self._comments_path(pull_request_id), data={"content": {"raw": body}})
         return map_action(response, map_comment)
 
-    def delete_pull_request_comment(self, pull_request_id: str, comment_id: str) -> None:
-        self.delete(f"{self._comments_path(pull_request_id)}/{comment_id}")
-
     def get_pull_request_review_threads(
         self,
         pull_request_id: str,
