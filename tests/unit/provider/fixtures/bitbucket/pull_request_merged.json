@@ -1,0 +1,191 @@
+{
+  "body": {
+    "author": {
+      "account_id": "557058:00000000-0000-0000-0000-000000000001",
+      "display_name": "Test User",
+      "links": {
+        "avatar": {
+          "href": "https://avatar.example.com/test-user.png"
+        }
+      },
+      "nickname": "test-user",
+      "type": "user",
+      "uuid": "{00000000-0000-0000-0000-000000000001}"
+    },
+    "close_source_branch": false,
+    "closed_by": {
+      "account_id": "557058:00000000-0000-0000-0000-000000000001",
+      "display_name": "Test User",
+      "links": {
+        "avatar": {
+          "href": "https://avatar.example.com/test-user.png"
+        }
+      },
+      "nickname": "test-user",
+      "type": "user",
+      "uuid": "{00000000-0000-0000-0000-000000000001}"
+    },
+    "comment_count": 0,
+    "created_on": "2026-11-05T20:16:20.205113+00:00",
+    "description": "Adds, removes, renames and modifies files.",
+    "destination": {
+      "branch": {
+        "name": "merge-base"
+      },
+      "commit": {
+        "hash": "a682892aa0f4",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo/commits/a682892aa0f4"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/a682892aa0f4"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      }
+    },
+    "draft": false,
+    "id": 2,
+    "links": {
+      "activity": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/activity"
+      },
+      "approve": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/approve"
+      },
+      "comments": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/comments"
+      },
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/commits"
+      },
+      "decline": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/decline"
+      },
+      "diff": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diff/test-workspace/test-repo:a69b43321a23%0Da682892aa0f4?from_pullrequest_id=2&topic=true"
+      },
+      "diffstat": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diffstat/test-workspace/test-repo:a69b43321a23%0Da682892aa0f4?from_pullrequest_id=2&topic=true"
+      },
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/pull-requests/2"
+      },
+      "merge": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/merge"
+      },
+      "mergeability_checks": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/mergeability/checks"
+      },
+      "request-changes": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/request-changes"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2"
+      },
+      "statuses": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/pullrequests/2/statuses"
+      }
+    },
+    "merge_commit": {
+      "hash": "69c00816acfd",
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/test-repo/commits/69c00816acfd"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/69c00816acfd"
+        }
+      },
+      "type": "commit"
+    },
+    "participants": [],
+    "queued": false,
+    "reason": "",
+    "rendered": {
+      "description": {
+        "html": "<p>Adds, removes, renames and modifies files.</p>",
+        "markup": "markdown",
+        "raw": "Adds, removes, renames and modifies files.",
+        "type": "rendered"
+      },
+      "title": {
+        "html": "<p>Change several files</p>",
+        "markup": "markdown",
+        "raw": "Change several files",
+        "type": "rendered"
+      }
+    },
+    "reviewers": [],
+    "source": {
+      "branch": {
+        "links": {},
+        "name": "file-changes",
+        "sync_strategies": [
+          "merge_commit",
+          "rebase"
+        ]
+      },
+      "commit": {
+        "hash": "a69b43321a23",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo/commits/a69b43321a23"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/a69b43321a23"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      }
+    },
+    "state": "MERGED",
+    "summary": {
+      "html": "<p>Adds, removes, renames and modifies files.</p>",
+      "markup": "markdown",
+      "raw": "Adds, removes, renames and modifies files.",
+      "type": "rendered"
+    },
+    "task_count": 0,
+    "title": "Change several files",
+    "type": "pullrequest",
+    "updated_on": "2026-11-05T20:17:01.144315+00:00"
+  },
+  "headers": {},
+  "status": 200
+}
