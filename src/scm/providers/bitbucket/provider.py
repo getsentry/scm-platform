@@ -774,12 +774,15 @@ class BitbucketProvider:
         title: str | None = None,
         body: str | None = None,
         state: PullRequestState | None = None,
+        base: str | None = None,
     ) -> ActionResult[PullRequest]:
         data: dict[str, Any] = {}
         if title is not None:
             data["title"] = title
         if body is not None:
             data["description"] = body
+        if base is not None:
+            data["destination"] = {"branch": {"name": base}}
         response = self.get(self._pull_request_path(pull_request_id))
         current = response.json()
         # Bitbucket can't reopen a declined pull request, so let the PUT fail with its error.

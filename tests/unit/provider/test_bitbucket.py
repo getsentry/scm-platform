@@ -1519,6 +1519,16 @@ class TestUpdatePullRequest:
         assert result["data"]["title"] == "Renamed pull request"
         assert result["data"]["body"] == "An updated description."
 
+    def test_changes_base(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        client.request.side_effect = [with_reviewers("pull_request_created", "{r1}"), recorded("pull_request_updated")]
+
+        provider.update_pull_request("5", base="release")
+
+        assert client.request.call_args_list[1].kwargs["data"] == {
+            "destination": {"branch": {"name": "release"}},
+            "reviewers": [{"uuid": "{r1}"}],
+        }
+
     def test_close_declines(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
         client.request.side_effect = [recorded("pull_request_updated"), recorded("pull_request_declined")]
 
