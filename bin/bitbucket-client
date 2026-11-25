@@ -35,6 +35,10 @@ Commands:
         [--create-branch]
         [--author-name <name> --author-email <email>]
         [--expected-head-sha <sha>]
+    get-branch <name>
+    create-branch <name> <sha>
+    delete-branch <name>
+    get-git-ref <ref>
 """
 
 import argparse
@@ -54,7 +58,10 @@ from scm.types import (
     CompareCommitsProtocol,
     CreateCommitProtocol,
     DeleteCommitAction,
+    CreateBranchProtocol,
+    DeleteBranchProtocol,
     GetAppInstallationProtocol,
+    GetBranchProtocol,
     GetCommitChangesProtocol,
     GetCommitProtocol,
     GetCommitsByPathProtocol,
@@ -64,6 +71,7 @@ from scm.types import (
     GetDirectoryContentsProtocol,
     GetFileContentProtocol,
     GetFileUrlProtocol,
+    GetGitRefProtocol,
     GetGitRemoteProtocol,
     GetPullRequestTemplateProtocol,
     GetReadmeProtocol,
@@ -190,6 +198,18 @@ def main():
     p.add_argument("--author-name", dest="author_name", default=None)
     p.add_argument("--author-email", dest="author_email", default=None)
     p.add_argument("--expected-head-sha", dest="expected_head_sha", default=None)
+    p = sub.add_parser("get-branch")
+    p.add_argument("name")
+
+    p = sub.add_parser("create-branch")
+    p.add_argument("name")
+    p.add_argument("sha")
+
+    p = sub.add_parser("delete-branch")
+    p.add_argument("name")
+
+    p = sub.add_parser("get-git-ref")
+    p.add_argument("ref", help="e.g. heads/main or tags/v1.0.0")
 
     args = parser.parse_args()
     if not args.command:
@@ -302,6 +322,21 @@ def main():
                 expected_head_sha=args.expected_head_sha,
             )
         )
+    elif args.command == "get-branch":
+        assert isinstance(scm, GetBranchProtocol)
+        dump(scm.get_branch(args.name))
+
+    elif args.command == "create-branch":
+        assert isinstance(scm, CreateBranchProtocol)
+        dump(scm.create_branch(args.name, args.sha))
+
+    elif args.command == "delete-branch":
+        assert isinstance(scm, DeleteBranchProtocol)
+        scm.delete_branch(args.name)
+
+    elif args.command == "get-git-ref":
+        assert isinstance(scm, GetGitRefProtocol)
+        dump(scm.get_git_ref(args.ref))
 
 
 if __name__ == "__main__":
