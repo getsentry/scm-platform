@@ -1,0 +1,113 @@
+{
+  "body": {
+    "date": "2026-11-05T20:16:26+00:00",
+    "links": {
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commits/test-tag"
+      },
+      "html": {
+        "href": "https://bitbucket.org/test-workspace/test-repo/commits/tag/test-tag"
+      },
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/refs/tags/test-tag"
+      }
+    },
+    "message": "Added tag test-tag for changeset 1c0671c60997\n",
+    "name": "test-tag",
+    "tagger": {
+      "raw": "Test User <test@example.com>",
+      "type": "author",
+      "user": {
+        "account_id": "557058:00000000-0000-0000-0000-000000000001",
+        "display_name": "Test User",
+        "links": {
+          "avatar": {
+            "href": "https://avatar.example.com/test-user.png"
+          }
+        },
+        "nickname": "test-user",
+        "type": "user",
+        "uuid": "{00000000-0000-0000-0000-000000000001}"
+      }
+    },
+    "target": {
+      "author": {
+        "raw": "Test User <test@example.com>",
+        "type": "author",
+        "user": {
+          "account_id": "557058:00000000-0000-0000-0000-000000000001",
+          "display_name": "Test User",
+          "links": {
+            "avatar": {
+              "href": "https://avatar.example.com/test-user.png"
+            }
+          },
+          "nickname": "test-user",
+          "type": "user",
+          "uuid": "{00000000-0000-0000-0000-000000000001}"
+        }
+      },
+      "date": "2026-11-05T20:00:34+00:00",
+      "hash": "1c0671c60997ab4bd70884bf9f3bd0c41d7043f1",
+      "links": {
+        "approve": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1/approve"
+        },
+        "comments": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1/comments"
+        },
+        "diff": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/diff/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1"
+        },
+        "html": {
+          "href": "https://bitbucket.org/test-workspace/test-repo/commits/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1"
+        },
+        "patch": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/patch/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1"
+        },
+        "statuses": {
+          "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/1c0671c60997ab4bd70884bf9f3bd0c41d7043f1/statuses"
+        }
+      },
+      "message": "Change math on feature/test-branch\n",
+      "parents": [
+        {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/test-workspace/test-repo/commits/a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+            },
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo/commit/a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+            }
+          },
+          "type": "commit"
+        }
+      ],
+      "repository": {
+        "full_name": "test-workspace/test-repo",
+        "links": {
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7B06cc78f5-9826-41c4-9bac-b4f44ca67ef4%7D?ts=default"
+          },
+          "html": {
+            "href": "https://bitbucket.org/test-workspace/test-repo"
+          },
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/test-workspace/test-repo"
+          }
+        },
+        "name": "test-repo",
+        "type": "repository",
+        "uuid": "{06cc78f5-9826-41c4-9bac-b4f44ca67ef4}"
+      },
+      "type": "commit"
+    },
+    "type": "tag"
+  },
+  "headers": {},
+  "status": 200
+}

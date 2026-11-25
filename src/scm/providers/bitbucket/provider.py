@@ -23,6 +23,7 @@ from scm.types import (
     ActionResult,
     ApiClient,
     AppInstallation,
+    BranchName,
     Commit,
     CommitAuthor,
     CommitComparison,
@@ -32,6 +33,7 @@ from scm.types import (
     FileContent,
     FileContentType,
     FileStatus,
+    GitRef,
     GitRemote,
     GitRepository,
     PaginatedActionResult,
@@ -79,6 +81,7 @@ _FILE_STATUSES: dict[str, FileStatus] = {
     "renamed": "renamed",
 }
 _RAW_AUTHOR = re.compile(r"^(?P<name>.*?)\s*<(?P<email>[^>]*)>\s*$")
+_REF_KINDS = {"heads": "branches", "tags": "tags"}
 
 
 class BitbucketProvider:
@@ -463,6 +466,42 @@ class BitbucketProvider:
                 return result
             pagination = {**(pagination or {}), "cursor": cursor}
 
+    def get_branch(
+        self,
+        branch: BranchName,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/refs/branches/{quote(branch)}",
+            request_options=request_options,
+        )
+        return map_action(response, map_branch)
+
+    def create_branch(self, branch: BranchName, sha: SHA) -> ActionResult[GitRef]:
+        response = self.post(
+            f"/2.0/repositories/{self.repository_path}/refs/branches",
+            data={"name": branch, "target": {"hash": sha}},
+        )
+        return map_action(response, map_branch)
+
+    def delete_branch(self, branch: BranchName) -> None:
+        self.delete(f"/2.0/repositories/{self.repository_path}/refs/branches/{quote(branch)}")
+
+    def get_git_ref(
+        self,
+        ref: str,
+        request_options: RequestOptions | None = None,
+    ) -> ActionResult[GitRef]:
+        """Get a `heads/<branch>` or `tags/<tag>` ref."""
+        kind, _, name = ref.partition("/")
+        if kind not in _REF_KINDS or not name:
+            raise ResourceNotFound(detail=f"Unsupported ref '{ref}'.")
+        response = self.get(
+            f"/2.0/repositories/{self.repository_path}/refs/{_REF_KINDS[kind]}/{quote(name)}",
+            request_options=request_options,
+        )
+        return map_action(response, lambda raw: GitRef(ref=f"refs/{kind}/{raw['name']}", sha=raw["target"]["hash"]))
+
 
 def parse_scopes(header: str) -> set[str]:
     return {scope.strip() for scope in header.split(",") if scope.strip()}
@@ -573,6 +612,10 @@ def split_patches(diff: str) -> dict[str, str]:
         if header and (hunks := re.search(r"^@@", body, flags=re.MULTILINE)):
             patches[header.rpartition(" b/")[2]] = body[hunks.start() :]
     return patches
+
+
+def map_branch(raw: dict[str, Any]) -> GitRef:
+    return GitRef(ref=raw["name"], sha=raw["target"]["hash"])
 
 
 def next_cursor(raw: dict[str, Any]) -> str | None:
