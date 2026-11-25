@@ -822,6 +822,19 @@ class TestCreateCommit:
             )
         assert client.request.call_count == 2
 
+    def test_refuses_to_move_directory(self, provider: BitbucketProvider, client: unittest.mock.MagicMock) -> None:
+        meta = recorded("src_meta")
+        body = {key: value for key, value in meta.json().items() if key != "attributes"}
+        meta._content = json.dumps({**body, "type": "commit_directory"}).encode()
+        client.request.side_effect = [recorded("commit_branch"), meta]
+
+        with pytest.raises(ResourceBadRequest, match="is a directory"):
+            provider.create_commit(
+                "test-branch", PARENT, "m", [MoveCommitAction(old_filename="docs", new_filename="d")]
+            )
+
+        assert client.request.call_count == 2
+
     @pytest.mark.parametrize(
         "action",
         [

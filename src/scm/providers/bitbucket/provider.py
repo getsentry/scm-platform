@@ -557,9 +557,12 @@ class BitbucketProvider:
     def _file_content(self, path: str, ref: SHA) -> bytes:
         """Read a file to rewrite it elsewhere, refusing what an upload can't recreate."""
         file_path = self._src_path(ref, path)
+        meta = self.get(file_path, params={"format": "meta"}).json()
+        if meta["type"] != "commit_file":
+            raise ResourceBadRequest(detail=f"Bitbucket can only move files, and '{path}' is a directory.")
         # An upload can't set attributes, so a moved executable or symlink would lose them.
         # `binary` only describes the content, which the upload keeps.
-        attributes = set(self.get(file_path, params={"format": "meta"}).json().get("attributes", [])) - {"binary"}
+        attributes = set(meta.get("attributes") or []) - {"binary"}
         if attributes:
             raise ResourceBadRequest(
                 detail=f"Bitbucket cannot move '{path}' and keep its {', '.join(sorted(attributes))} attribute."
