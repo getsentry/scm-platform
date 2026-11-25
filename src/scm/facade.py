@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable
-from typing import Any, cast
+from typing import Any, Self, cast
 
 from scm.helpers import exec_provider_fn
 from scm.types import ALL_PROTOCOLS, Provider, Referrer
@@ -45,7 +45,7 @@ class Facade:
         *,
         referrer: Referrer = "shared",
         record_count: Callable[[str, int, dict[str, str]], None],
-    ) -> Facade:
+    ) -> Self:
         return cls.init_scoped_facade(provider)
 
     def __init__(
