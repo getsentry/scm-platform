@@ -1,0 +1,35 @@
+{
+  "body": {
+    "values": [
+      {
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "src/test_app",
+        "type": "commit_directory"
+      },
+      {
+        "attributes": [],
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "src/test_app/__init__.py",
+        "size": 0,
+        "type": "commit_file"
+      },
+      {
+        "attributes": [],
+        "commit": {
+          "hash": "a682892aa0f4502ef7a242f75d72d0b41eaa27b9"
+        },
+        "path": "src/test_app/math.py",
+        "size": 32,
+        "type": "commit_file"
+      }
+    ]
+  },
+  "headers": {
+    "content-type": "application/json; charset=utf-8"
+  },
+  "status": 200
+}
