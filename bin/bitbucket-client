@@ -44,6 +44,11 @@ Commands:
     create-branch <name> <sha>
     delete-branch <name>
     get-git-ref <ref>
+    create-pull-request <title> <body> <head> <base> [--draft]
+    mark-pull-request-ready-for-review <id>
+    mark-pull-request-as-draft <id>
+    update-pull-request <id> [--title <title>] [--body <body>] [--state open|closed] [--base <branch>]
+    request-review <id> <reviewer_uuid> [<reviewer_uuid> ...]
 """
 
 import argparse
@@ -63,6 +68,8 @@ from scm.types import (
     CompareCommitsProtocol,
     CreateBranchProtocol,
     CreateCommitProtocol,
+    CreatePullRequestDraftProtocol,
+    CreatePullRequestProtocol,
     DeleteBranchProtocol,
     DeleteCommitAction,
     GetAppInstallationProtocol,
@@ -86,8 +93,11 @@ from scm.types import (
     GetPullRequestUrlProtocol,
     GetReadmeProtocol,
     GetRepositoryProtocol,
+    MarkPullRequestDraftStateProtocol,
     MoveCommitAction,
     PaginationParams,
+    RequestReviewProtocol,
+    UpdatePullRequestProtocol,
     WriteCommitAction,
 )
 
@@ -238,6 +248,30 @@ def main():
     p = sub.add_parser("get-git-ref")
     p.add_argument("ref", help="e.g. heads/main or tags/v1.0.0")
 
+    p = sub.add_parser("create-pull-request")
+    p.add_argument("title")
+    p.add_argument("body")
+    p.add_argument("head")
+    p.add_argument("base")
+    p.add_argument("--draft", action="store_true")
+
+    p = sub.add_parser("mark-pull-request-ready-for-review")
+    p.add_argument("id")
+
+    p = sub.add_parser("mark-pull-request-as-draft")
+    p.add_argument("id")
+
+    p = sub.add_parser("update-pull-request")
+    p.add_argument("id")
+    p.add_argument("--title", default=None)
+    p.add_argument("--body", default=None)
+    p.add_argument("--state", default=None, choices=["open", "closed"])
+    p.add_argument("--base", default=None)
+
+    p = sub.add_parser("request-review")
+    p.add_argument("id")
+    p.add_argument("reviewers", nargs="+")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -383,6 +417,30 @@ def main():
     elif args.command == "get-git-ref":
         assert isinstance(scm, GetGitRefProtocol)
         dump(scm.get_git_ref(args.ref))
+
+    elif args.command == "create-pull-request":
+        if args.draft:
+            assert isinstance(scm, CreatePullRequestDraftProtocol)
+            dump(scm.create_pull_request_draft(args.title, args.body, args.head, args.base))
+        else:
+            assert isinstance(scm, CreatePullRequestProtocol)
+            dump(scm.create_pull_request(args.title, args.body, args.head, args.base))
+
+    elif args.command == "mark-pull-request-ready-for-review":
+        assert isinstance(scm, MarkPullRequestDraftStateProtocol)
+        scm.mark_pull_request_ready_for_review(args.id)
+
+    elif args.command == "mark-pull-request-as-draft":
+        assert isinstance(scm, MarkPullRequestDraftStateProtocol)
+        scm.mark_pull_request_as_draft(args.id)
+
+    elif args.command == "update-pull-request":
+        assert isinstance(scm, UpdatePullRequestProtocol)
+        dump(scm.update_pull_request(args.id, title=args.title, body=args.body, state=args.state, base=args.base))
+
+    elif args.command == "request-review":
+        assert isinstance(scm, RequestReviewProtocol)
+        scm.request_review(args.id, args.reviewers)
 
 
 if __name__ == "__main__":

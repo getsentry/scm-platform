@@ -1,0 +1,10 @@
+{
+  "body": {
+    "error": {
+      "message": "Can only update an open pull request."
+    },
+    "type": "error"
+  },
+  "headers": {},
+  "status": 400
+}
