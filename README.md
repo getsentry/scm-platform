@@ -16,7 +16,7 @@ The platform exposes four subsystems:
 
 - **Actions** — outbound SCM operations initiated by Sentry code. The `SourceCodeManager` class provides 70+ methods covering comments, reactions, pull requests, branches, git objects, reviews, and check runs. With more actions planned to be added as we port more use cases.
 - **Actions RPC** - outbound SCM commands exposed over the network. The `SourceCodeManager` is fully available over the network. This enables usage of the SCM for services outside the monolith.
-- **Git relay** - `git` fetches and pushes for services that hold no provider credentials. Seer signs a `Grant` whose rules name the repositories, and the branches and tags of each, that the holder may fetch or push. `scm.git.server.GitServer` verifies the grant and relays each request its rules allow to the provider with Sentry's token. `scm.git.grant` signs and verifies grants.
+- **Git relay** - `git` fetches and pushes for services that hold no provider credentials. Seer signs a `Grant` whose rules name the repositories, and the branches and tags of each, that the holder may fetch or push. `scm.git.server.GitServer` verifies the grant and relays each request its rules allow to the provider with Sentry's token. `scm.git.grant` signs and verifies grants. [`src/scm/git/README.md`](src/scm/git/README.md) maps its modules.
 - **Event Stream** — inbound webhook processing. SCM service-providers push events which are deserialized into typed, provider-neutral dataclasses (`CheckRunEvent`, `CommentEvent`, `PullRequestEvent`) which are then dispatched to registered listener functions.
 
 ### Why
