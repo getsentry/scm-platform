@@ -13,8 +13,10 @@ from scm.errors import (
 )
 from scm.git.fetch import (
     MAX_REQUEST_LENGTH,
+    Advertisement,
+    Fetch,
     FetchRefused,
-    FetchRequest,
+    LsRefs,
     check_fetch,
     check_wants,
     filter_capabilities,
@@ -22,9 +24,10 @@ from scm.git.fetch import (
     refs_headers,
     refs_request,
     refs_response,
+    respond,
 )
 from scm.git.relay import RelayResponse
-from scm.git.types import FetchRule
+from scm.git.types import FetchRule, Readable
 from tests.unit.git_builders import NEW_ID, OLD_ID, SERVICE_HEADER, make_fetch_body, pkt, pkt_lines
 
 RULES = [FetchRule(repository=5, branches=["seer/fix", "main"])]
@@ -35,8 +38,10 @@ OTHER = "b" * 40
 CLONE = ("thin-pack", "no-progress", "ofs-delta", "deepen 4", f"want {TIP}", "done")
 
 
-def fetch(*arguments: str, **kwargs) -> FetchRequest:
-    return check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(make_fetch_body("fetch", *arguments, **kwargs)))
+def fetch(*arguments: str, **kwargs) -> Fetch:
+    request = check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(make_fetch_body("fetch", *arguments, **kwargs)))
+    assert isinstance(request, Fetch)
+    return request
 
 
 def chunks(*parts: bytes) -> Generator[bytes]:
@@ -50,8 +55,7 @@ def response(*parts: bytes, status_code: int = 200, headers: dict[str, str] | No
 class TestHeaders:
     def test_capabilities_are_asked_for_unencoded(self):
         request = check_fetch(RULES, "GET", V2 | {"accept-encoding": "deflate, gzip"}, None)
-        assert request.command is None
-        assert request.headers == V2 | {"Accept-Encoding": "identity"}
+        assert request == Advertisement(headers=V2 | {"Accept-Encoding": "identity"})
 
     @pytest.mark.parametrize(
         "headers",
@@ -74,19 +78,18 @@ class TestLsRefs:
         # GitServer answers ls-refs from its own listing.
         body = make_fetch_body("ls-refs", "symrefs", "ref-prefix refs/heads/secret", "exclude refs/heads/x")
         request = check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
-        assert request.command == "ls-refs"
-        assert request.wants == frozenset()
-        assert request.body is None
-        assert not request.unborn
+        assert request == LsRefs(headers=POST_HEADERS, object_format="sha1", unborn=False)
 
     def test_unborn(self):
         # git asks for unborn only of a provider that offers it, so the endpoint asks the provider only then too.
         body = make_fetch_body("ls-refs", "symrefs", "unborn")
-        assert check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body)).unborn
+        request = check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
+        assert request == LsRefs(headers=POST_HEADERS, object_format="sha1", unborn=True)
 
     def test_object_format(self):
         body = make_fetch_body("ls-refs", capabilities=("object-format=sha256",))
-        assert check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body)).object_format == "sha256"
+        request = check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
+        assert request == LsRefs(headers=POST_HEADERS, object_format="sha256", unborn=False)
 
 
 class TestFetchArguments:
@@ -116,15 +119,13 @@ class TestFetchArguments:
         ],
     )
     def test_allowed(self, arguments):
-        request = fetch(*arguments)
-        assert request.command == "fetch"
-        assert request.wants == {TIP}
+        assert fetch(*arguments).wants == {TIP}
 
     def test_include_tag_is_dropped(self):
         # upload-pack would add the annotated tags the rules hide that point into the pack.
         request = fetch(f"want {TIP}", "include-tag", "done")
         relayed = make_fetch_body("fetch", f"want {TIP}", "done")
-        assert request.body is not None and request.body.read() == relayed
+        assert request.body.read() == relayed
         assert request.headers["Content-Length"] == str(len(relayed))
 
     def test_wants_are_collected(self):
@@ -300,8 +301,9 @@ class TestCompressed:
     def test_read_and_relayed_decompressed(self):
         body = make_fetch_body("fetch", *CLONE)
         request = check_fetch(RULES, "POST", self.headers, io.BytesIO(gzip.compress(body)))
+        assert isinstance(request, Fetch)
         assert request.wants == {TIP}
-        assert request.body is not None and request.body.read() == body
+        assert request.body.read() == body
         assert request.headers == POST_HEADERS | {"Content-Length": str(len(body))}
 
     @pytest.mark.parametrize(
@@ -327,13 +329,13 @@ class TestCompressed:
 
 class TestCheckWants:
     def test_tips(self):
-        check_wants(fetch(*CLONE), frozenset({TIP, OTHER}))
+        check_wants(fetch(*CLONE).wants, frozenset({TIP, OTHER}))
 
     def test_want_that_is_not_a_tip(self):
         with pytest.raises(
             FetchRefused, match=f"does not allow fetching {OTHER}: it is not the tip.*fetch again"
         ) as exc_info:
-            check_wants(fetch(f"want {TIP}", f"want {OTHER}"), frozenset({TIP}))
+            check_wants(fetch(f"want {TIP}", f"want {OTHER}").wants, frozenset({TIP}))
         assert exc_info.value.code == "git_operation_not_granted"
 
 
@@ -514,3 +516,82 @@ class TestFilterCapabilities:
     def test_provider_failure_passes_on(self):
         failed = response(b"Repository not found.", status_code=404)
         assert filter_capabilities(failed) is failed
+
+
+class FakeUpstream:
+    """A provider that answers each request with the next of ``responses``, keeping what it was sent."""
+
+    def __init__(self, *responses: RelayResponse) -> None:
+        self.responses = list(responses)
+        self.sent: list[tuple[str, str, str, dict[str, str], bytes | None]] = []
+
+    def send(self, *, method: str, route: str, query: str, headers, body: Readable | None) -> RelayResponse:
+        self.sent.append((method, route, query, dict(headers), None if body is None else body.read()))
+        return self.responses.pop(0)
+
+
+class TestRespond:
+    listing = pkt_lines(f"{TIP} HEAD symref-target:refs/heads/main", f"{TIP} refs/heads/main", f"{OTHER} refs/heads/x")
+    listed = (
+        "POST",
+        "git-upload-pack",
+        "",
+        refs_headers({"User-Agent": "git/2.54.0"}),
+        refs_request(RULES, "sha1"),
+    )
+    headers = POST_HEADERS | {"User-Agent": "git/2.54.0"}
+
+    def test_advertisement_loses_what_the_endpoint_refuses(self):
+        upstream = FakeUpstream(response(advertisement(CAPABILITIES)))
+        answer = respond(RULES, check_fetch(RULES, "GET", V2, None), upstream)
+        filtered = filter_capabilities(response(advertisement(CAPABILITIES)))
+        content = b"".join(answer.content)
+        assert content == b"".join(filtered.content)
+        assert b"bundle-uri" not in content
+        assert upstream.sent == [
+            ("GET", "info/refs", "service=git-upload-pack", V2 | {"Accept-Encoding": "identity"}, None)
+        ]
+
+    @pytest.mark.parametrize("unborn", [False, True])
+    def test_ls_refs_is_answered_from_the_endpoints_own_listing(self, unborn):
+        upstream = FakeUpstream(response(self.listing))
+        body = make_fetch_body("ls-refs", "ref-prefix refs/heads/x", *(["unborn"] if unborn else []))
+        answer = respond(RULES, check_fetch(RULES, "POST", self.headers, io.BytesIO(body)), upstream)
+        assert b"".join(answer.content) == pkt_lines(
+            f"{TIP} HEAD symref-target:refs/heads/main", f"{TIP} refs/heads/main"
+        )
+        assert upstream.sent == [(*self.listed[:4], refs_request(RULES, "sha1", unborn=unborn))]
+
+    def test_fetch_of_a_tip_goes_on_once_the_tips_are_listed(self):
+        pack = response(b"PACK")
+        upstream = FakeUpstream(response(self.listing), pack)
+        body = make_fetch_body("fetch", *CLONE)
+        request = check_fetch(RULES, "POST", self.headers, io.BytesIO(body))
+        assert respond(RULES, request, upstream) is pack
+        assert upstream.sent == [
+            self.listed,
+            ("POST", "git-upload-pack", "", self.headers | {"Content-Length": str(len(body))}, body),
+        ]
+
+    def test_fetch_of_anything_else_never_reaches_the_provider(self):
+        listing = chunks(self.listing)
+        upstream = FakeUpstream(RelayResponse(status_code=200, headers={}, content=listing))
+        body = make_fetch_body("fetch", f"want {TIP}", f"want {OTHER}", "done")
+        with pytest.raises(FetchRefused, match=f"does not allow fetching {OTHER}"):
+            respond(RULES, check_fetch(RULES, "POST", self.headers, io.BytesIO(body)), upstream)
+        assert upstream.sent == [self.listed]
+        assert listing.gi_frame is None
+
+    def test_fetch_without_wants_lists_no_tips(self):
+        pack = response(b"0000")
+        upstream = FakeUpstream(pack)
+        body = make_fetch_body("fetch", f"have {TIP}", "done")
+        assert respond(RULES, check_fetch(RULES, "POST", self.headers, io.BytesIO(body)), upstream) is pack
+        assert [sent[4] for sent in upstream.sent] == [body]
+
+    def test_provider_that_fails_to_list_the_refs(self):
+        failed = chunks(b"Internal Server Error")
+        upstream = FakeUpstream(RelayResponse(status_code=500, headers={}, content=failed))
+        with pytest.raises(ResourceBadGateway, match="answered HTTP 500 when the git endpoint listed"):
+            respond(RULES, fetch(*CLONE), upstream)
+        assert failed.gi_frame is None

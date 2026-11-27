@@ -108,3 +108,14 @@ def check_arguments(rules: Sequence[FetchRule], arguments: list[str], id_length:
         else:
             raise FetchRefused(detail=f"The git endpoint does not relay a fetch with {shown(name)}.")
     return frozenset(wants)
+
+
+def check_wants(wants: frozenset[str], tips: frozenset[str]) -> None:
+    """Refuse a fetch that wants anything but ``tips``, the objects of the refs the rules cover. Raises FetchRefused."""
+    refused = sorted(wants - tips)
+    if refused:
+        raise FetchRefused(
+            detail=f"The git grant does not allow fetching {refused[0]}: it is not the tip of a branch or tag the "
+            "grant covers, or that branch has moved since. Fetch a branch the grant covers by its name, and fetch "
+            "again if it moved."
+        )
