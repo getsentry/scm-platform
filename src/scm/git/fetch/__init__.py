@@ -18,8 +18,9 @@ allowed object against one the client claims to have, which shows how alike the 
 can't be guessed without the whole content of the object, which it hashes. ``include-tag`` is dropped, because
 upload-pack would add the annotated tags that point into the pack, the hidden ones too.
 
-``check_fetch`` reads a request with ``scm.git.fetch.request`` and checks it against ``scm.git.fetch.policy``.
-``scm.git.fetch.upstream`` holds what GitServer then asks the provider and reads from it.
+``check_fetch`` reads a request with ``scm.git.fetch.request`` and checks it against ``scm.git.fetch.policy``,
+before GitServer looks anything up. ``respond`` then answers it from the provider, with what
+``scm.git.fetch.upstream`` asks the provider and reads from it.
 """
 
 import io
@@ -28,7 +29,7 @@ from typing import NamedTuple
 
 from scm.errors import GitMalformedRequestBody
 from scm.git.fetch.headers import header_values, replacing_header, without_header
-from scm.git.fetch.policy import INFINITE_DEPTH, check_arguments, check_capabilities
+from scm.git.fetch.policy import INFINITE_DEPTH, check_arguments, check_capabilities, check_wants
 from scm.git.fetch.request import (
     MAX_REQUEST_LENGTH,
     Command,
@@ -43,13 +44,16 @@ from scm.git.fetch.upstream import (
     MAX_ADVERTISEMENT_LENGTH,
     MAX_REFS_LENGTH,
     Refs,
+    Upstream,
     filter_capabilities,
+    list_refs,
     read_refs,
     refs_headers,
     refs_request,
     refs_response,
 )
 from scm.git.pktline import OBJECT_ID_LENGTHS, pkt
+from scm.git.relay import RelayResponse
 from scm.git.types import FetchRule, Readable
 
 __all__ = [
@@ -57,38 +61,60 @@ __all__ = [
     "MAX_ADVERTISEMENT_LENGTH",
     "MAX_REFS_LENGTH",
     "MAX_REQUEST_LENGTH",
+    "Advertisement",
     "Command",
+    "Fetch",
     "FetchRefused",
     "FetchRequest",
+    "LsRefs",
     "Refs",
+    "Upstream",
     "check_fetch",
     "check_wants",
     "filter_capabilities",
+    "list_refs",
     "read_refs",
     "refs_headers",
     "refs_request",
     "refs_response",
+    "respond",
 ]
 
 
-class FetchRequest(NamedTuple):
-    """A fetch's request, read and checked, and what to relay for it."""
+class Advertisement(NamedTuple):
+    """The GET that lists the provider's capabilities."""
 
-    command: Command | None
-    """The command a POST runs, or None for the GET that lists the server's capabilities."""
     headers: dict[str, str]
-    """The headers to relay the GET or a ``fetch`` with. The GET's response, which the endpoint reads, is asked for
-    without compression, and a ``fetch`` goes on uncompressed, with the length of its new body."""
-    body: Readable | None
-    """The body to relay a ``fetch`` with: the pkt-lines the client sent, without ``include-tag``. GitServer answers
-    ``ls-refs`` itself, so it has none."""
-    wants: frozenset[str] = frozenset()
-    """The object ids a ``fetch`` command wants, which must be tips the rules cover."""
-    object_format: str = "sha1"
-    """The object format a POST names. Without one, git means SHA-1."""
-    unborn: bool = False
-    """Whether an ``ls-refs`` asks for ``HEAD`` when it names a branch with no commit yet, which git asks only of a
+    """The headers to relay the GET with. Its response, which the endpoint reads, is asked for without compression."""
+
+
+class LsRefs(NamedTuple):
+    """An ``ls-refs`` command, which the endpoint answers from its own listing of the covered refs."""
+
+    headers: dict[str, str]
+    """The client's headers, for the user agent the listing names."""
+    object_format: str
+    """The object format the request names. Without one, git means SHA-1."""
+    unborn: bool
+    """Whether the client asks for ``HEAD`` when it names a branch with no commit yet, which git asks only of a
     provider that offers it."""
+
+
+class Fetch(NamedTuple):
+    """A ``fetch`` command that asks for nothing the endpoint refuses, with its wants still to check."""
+
+    headers: dict[str, str]
+    """The headers to relay the command with: uncompressed, with the length of its new body."""
+    body: Readable
+    """The body to relay: the pkt-lines the client sent, without ``include-tag``."""
+    wants: frozenset[str]
+    """The object ids the command wants, which must be tips the rules cover."""
+    object_format: str
+    """The object format the request names. Without one, git means SHA-1."""
+
+
+type FetchRequest = Advertisement | LsRefs | Fetch
+"""A fetch's request, read and checked: one of the three requests git makes in protocol version 2."""
 
 
 def check_fetch(
@@ -99,12 +125,11 @@ def check_fetch(
     ``body`` must end where the request body ends. Raises GitOperationNotGranted for a request that isn't protocol
     version 2, FetchRefused for a command or argument the endpoint refuses, GitMalformedRequestBody for a body that
     isn't a protocol version 2 request, RpcMalformedRequestHeaders for an encoding git doesn't send, and
-    ClientClosedRequest if reading the body fails. The wants are checked later, against the tips, by
-    ``check_wants``.
+    ClientClosedRequest if reading the body fails. The wants are checked later, against the tips, by ``respond``.
     """
     check_headers(method, headers)
     if method != "POST":
-        return FetchRequest(command=None, headers=replacing_header(headers, "Accept-Encoding", "identity"), body=None)
+        return Advertisement(headers=replacing_header(headers, "Accept-Encoding", "identity"))
     if body is None:
         raise GitMalformedRequestBody(detail="The fetch has no body.")
     raw = read_body(body)
@@ -112,14 +137,8 @@ def check_fetch(
     check_capabilities(request.capabilities)
     object_format = object_format_of(request.capabilities)
     if request.command == "ls-refs":
-        # GitServer answers ls-refs from its own listing, so the client's other arguments don't matter.
-        return FetchRequest(
-            command=request.command,
-            object_format=object_format,
-            headers=dict(headers),
-            body=None,
-            unborn="unborn" in request.arguments,
-        )
+        # The endpoint answers ls-refs from its own listing, so the client's other arguments don't matter.
+        return LsRefs(headers=dict(headers), object_format=object_format, unborn="unborn" in request.arguments)
     wants = check_arguments(rules, request.arguments, OBJECT_ID_LENGTHS[object_format])
     # Under include-tag, upload-pack adds the annotated tags that point into the pack, the ones the rules hide too.
     # Without it, git fetch asks for the covered tags it follows by name, though a single-branch clone gets them only
@@ -129,21 +148,35 @@ def check_fetch(
         for line in request.lines
         if line not in (b"include-tag", b"include-tag\n")
     )
-    return FetchRequest(
-        command=request.command,
-        wants=wants,
-        object_format=object_format,
+    return Fetch(
         headers=replacing_header(without_header(headers, "content-encoding"), "Content-Length", str(len(relayed))),
         body=io.BytesIO(relayed),
+        wants=wants,
+        object_format=object_format,
     )
 
 
-def check_wants(request: FetchRequest, tips: frozenset[str]) -> None:
-    """Refuse a fetch that wants anything but ``tips``, the objects of the refs the rules cover. Raises FetchRefused."""
-    refused = sorted(request.wants - tips)
-    if refused:
-        raise FetchRefused(
-            detail=f"The git grant does not allow fetching {refused[0]}: it is not the tip of a branch or tag the "
-            "grant covers, or that branch has moved since. Fetch a branch the grant covers by its name, and fetch "
-            "again if it moved."
-        )
+def respond(rules: Sequence[FetchRule], request: FetchRequest, upstream: Upstream) -> RelayResponse:
+    """Answer a request that ``check_fetch`` read under ``rules``, from the provider.
+
+    Raises FetchRefused for a ``fetch`` that wants anything but a current tip of the refs ``rules`` cover, and what
+    ``list_refs`` and ``filter_capabilities`` raise for a provider's answer the endpoint can't use.
+    """
+    match request:
+        case Advertisement():
+            return filter_capabilities(
+                upstream.send(
+                    method="GET", route="info/refs", query="service=git-upload-pack", headers=request.headers, body=None
+                )
+            )
+        case LsRefs():
+            return refs_response(
+                list_refs(upstream, rules, request.headers, request.object_format, unborn=request.unborn)
+            )
+        case Fetch():
+            # upload-pack sends nothing for a command without wants, so there are no tips to list for it.
+            if request.wants:
+                check_wants(request.wants, list_refs(upstream, rules, request.headers, request.object_format).tips)
+            return upstream.send(
+                method="POST", route="git-upload-pack", query="", headers=request.headers, body=request.body
+            )

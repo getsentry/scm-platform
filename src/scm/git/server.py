@@ -1,4 +1,3 @@
-import io
 from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
@@ -9,25 +8,13 @@ from scm.errors import (
     GitRepositoryNotGranted,
     GitTokenRejected,
     GitTokenUnavailable,
-    ResourceBadGateway,
     SCMCodedError,
 )
-from scm.git.fetch import (
-    FetchRefused,
-    FetchRequest,
-    Refs,
-    check_fetch,
-    check_wants,
-    filter_capabilities,
-    read_refs,
-    refs_headers,
-    refs_request,
-    refs_response,
-)
+from scm.git.fetch import FetchRefused, FetchRequest, check_fetch, respond
 from scm.git.grant import require_public_keys, verify_grant
 from scm.git.push import PushRefused, check_push, check_push_headers
-from scm.git.relay import GitRelay, ResponseBody, _route_operation
-from scm.git.types import GRANT_HEADER, FetchRule, GetToken, GitOperation, Grant, Readable
+from scm.git.relay import GitRelay, RelayResponse, ResponseBody, _route_operation
+from scm.git.types import GRANT_HEADER, GetToken, GitOperation, Grant, Readable
 from scm.helpers import initialize_provider
 from scm.rpc.types import StreamResponse
 from scm.secret import Secret
@@ -174,7 +161,6 @@ class GitServer:
             operation = _authorize(grant, repository_id, method, route, query)
             context["operation"] = operation
             relayed_body: Readable | None = counted_body
-            relayed_headers: Mapping[str, str] = headers
             fetch_rules = grant.fetch_rules(repository_id)
             fetch: FetchRequest | None = None
             if operation == "push":
@@ -185,7 +171,6 @@ class GitServer:
                     check_push_headers(method, headers)
             elif not any(rule.any_object for rule in fetch_rules):
                 fetch = check_fetch(fetch_rules, method, headers, counted_body)
-                relayed_body, relayed_headers = fetch.body, fetch.headers
             provider = initialize_provider(
                 grant.organization_id,
                 repository_id,
@@ -213,21 +198,11 @@ class GitServer:
                     f"get_token must return an scm.Secret, not {token_type}. Wrap the token in scm.Secret where you "
                     "read it."
                 )
-            if fetch is not None and fetch.command == "ls-refs":
-                response = refs_response(self._list_refs(fetch_rules, fetch, remote, token))
+            upstream = _Upstream(self.relay, remote, token)
+            if fetch is not None:
+                response = respond(fetch_rules, fetch, upstream)
             else:
-                if fetch is not None and fetch.wants:
-                    check_wants(fetch, self._list_refs(fetch_rules, fetch, remote, token).tips)
-                response = self.relay.forward(
-                    remote, token, method=method, route=route, query=query, headers=relayed_headers, body=relayed_body
-                )
-                if response.status_code == 401:
-                    # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the
-                    # client for credentials, which it must never have and which would not help.
-                    response.content.close()
-                    raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
-                if fetch is not None and fetch.command is None:
-                    response = filter_capabilities(response)
+                response = upstream.send(method=method, route=route, query=query, headers=headers, body=relayed_body)
         except SCMCodedError as e:
             self.record_count("sentry.scm.git.request.failed", 1, {"code": e.code} | referrer_tag)
             if e.code != "client_closed_request":
@@ -268,28 +243,27 @@ class GitServer:
             content=_MeteredStream(response.content, finish, report),
         )
 
-    def _list_refs(self, rules: Sequence[FetchRule], fetch: FetchRequest, remote: GitRemote, token: Secret) -> Refs:
+
+class _Upstream:
+    """The repository's provider, reached through the relay with Sentry's token."""
+
+    def __init__(self, relay: GitRelay, remote: GitRemote, token: Secret) -> None:
+        self.relay = relay
+        self.remote = remote
+        self.token = token
+
+    def send(
+        self, *, method: str, route: str, query: str, headers: Mapping[str, str], body: Readable | None
+    ) -> RelayResponse:
         response = self.relay.forward(
-            remote,
-            token,
-            method="POST",
-            route="git-upload-pack",
-            query="",
-            headers=refs_headers(fetch.headers),
-            body=io.BytesIO(refs_request(rules, fetch.object_format, unborn=fetch.unborn)),
+            self.remote, self.token, method=method, route=route, query=query, headers=headers, body=body
         )
-        try:
-            if response.status_code == 401:
-                raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
-            if response.status_code != 200:
-                raise ResourceBadGateway(
-                    detail=f"The provider answered HTTP {response.status_code} when the git endpoint listed the "
-                    "branches and tags the git grant covers. Try again, and if it keeps failing, check that Sentry's "
-                    "integration can still read this repository."
-                )
-            return read_refs(rules, response, fetch.object_format)
-        finally:
+        if response.status_code == 401:
+            # The provider rejected the token Sentry supplied. Passed on, the 401 would make git ask the client for
+            # credentials, which it must never have and which would not help.
             response.content.close()
+            raise GitTokenRejected(detail="The provider rejected Sentry's credentials for this repository.")
+        return response
 
 
 def _authorize(grant: Grant, repository_id: RepositoryId, method: str, route: str, query: str) -> GitOperation:

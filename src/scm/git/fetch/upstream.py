@@ -1,15 +1,16 @@
 """What the endpoint asks the provider and reads from it, for a fetch kept to branches and tags: the refs the rules
 cover, and the provider's list of capabilities without what the endpoint refuses."""
 
+import io
 from collections.abc import Generator, Mapping, Sequence
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
 from scm.errors import GitProviderNotSupported, ResourceBadGateway
 from scm.git.fetch.headers import header_values, replacing_header
 from scm.git.fetch.policy import REFUSED_COMMANDS, REFUSED_FETCH_FEATURES, covers
 from scm.git.pktline import DELIM, FLUSH, OBJECT_ID_LENGTHS, is_object_id, pkt, split_pkt_lines
 from scm.git.relay import RelayResponse, ResponseBody, _printable
-from scm.git.types import FetchRule
+from scm.git.types import FetchRule, Readable
 
 MAX_ADVERTISEMENT_LENGTH = 64 * 1024
 """The most bytes of the provider's list of capabilities the endpoint reads. Providers send under 1 KiB."""
@@ -17,6 +18,15 @@ MAX_ADVERTISEMENT_LENGTH = 64 * 1024
 MAX_REFS_LENGTH = 16 * 1024 * 1024
 """The most bytes of the provider's list of covered refs the endpoint reads. A rule with a branch pattern lists every
 branch, about 100 bytes each."""
+
+
+class Upstream(Protocol):
+    """Sends a request to the repository's provider with Sentry's token, as ``GitRelay.forward`` does, and raises
+    GitTokenRejected when the provider rejects the token."""
+
+    def send(
+        self, *, method: str, route: str, query: str, headers: Mapping[str, str], body: Readable | None
+    ) -> RelayResponse: ...
 
 
 class Refs(NamedTuple):
@@ -66,6 +76,37 @@ def refs_headers(headers: Mapping[str, str]) -> dict[str, str]:
         "Accept": "application/x-git-upload-pack-result",
         "Accept-Encoding": "identity",
     } | ({"User-Agent": agents[-1]} if agents else {})
+
+
+def list_refs(
+    upstream: Upstream,
+    rules: Sequence[FetchRule],
+    headers: Mapping[str, str],
+    object_format: str,
+    *,
+    unborn: bool = False,
+) -> Refs:
+    """Ask the provider for the refs ``rules`` cover. ``headers`` are the client's, for the user agent they name.
+
+    Raises ResourceBadGateway if the provider doesn't answer with a list of refs.
+    """
+    response = upstream.send(
+        method="POST",
+        route="git-upload-pack",
+        query="",
+        headers=refs_headers(headers),
+        body=io.BytesIO(refs_request(rules, object_format, unborn=unborn)),
+    )
+    try:
+        if response.status_code != 200:
+            raise ResourceBadGateway(
+                detail=f"The provider answered HTTP {response.status_code} when the git endpoint listed the "
+                "branches and tags the git grant covers. Try again, and if it keeps failing, check that Sentry's "
+                "integration can still read this repository."
+            )
+        return read_refs(rules, response, object_format)
+    finally:
+        response.content.close()
 
 
 def read_refs(rules: Sequence[FetchRule], response: RelayResponse, object_format: str) -> Refs:
