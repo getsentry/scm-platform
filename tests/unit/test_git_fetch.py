@@ -157,14 +157,6 @@ class TestFetchArguments:
             fetch(f"want {TIP}", f"shallow {OTHER}", argument, "done")
         assert exc_info.value.report == pkt(f"ERR {exc_info.value.detail}\n".encode())
 
-    @pytest.mark.parametrize(
-        "capability,detail",
-        [("server-option=x", "does not relay server options"), ("trace2=1", "the trace2 capability")],
-    )
-    def test_refused_capability(self, capability, detail):
-        with pytest.raises(FetchRefused, match=detail):
-            fetch(*CLONE, capabilities=("agent=git/2.54.0", capability))
-
     @pytest.mark.parametrize("command", ["object-info", "bundle-uri", "unknown"])
     def test_other_commands(self, command):
         with pytest.raises(FetchRefused, match=f"the {command} command"):
@@ -189,6 +181,70 @@ class TestFetchArguments:
     def test_malformed_argument(self, argument):
         with pytest.raises(GitMalformedRequestBody):
             fetch(f"want {TIP}", argument)
+
+
+@pytest.mark.parametrize("command", ["ls-refs", "fetch"])
+class TestCapabilities:
+    @pytest.mark.parametrize(
+        "capability,detail",
+        [
+            ("server-option=x", "does not relay server options"),
+            ("trace2=1", "the trace2 capability"),
+            # Dropped from a fetch's arguments, so it must not pass as a capability either.
+            ("include-tag", "the include-tag capability"),
+        ],
+    )
+    def test_refused(self, command, capability, detail):
+        body = make_fetch_body(command, capabilities=("agent=git/2.54.0", capability))
+        with pytest.raises(FetchRefused, match=detail):
+            check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
+
+    @pytest.mark.parametrize(
+        "capabilities,detail",
+        [
+            (("object-format=sha1", "object-format=sha256"), "more than one object format"),
+            (("object-format=md5",), "an object format git doesn't have"),
+        ],
+    )
+    def test_object_format_git_doesnt_send(self, command, capabilities, detail):
+        with pytest.raises(GitMalformedRequestBody, match=detail):
+            check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(make_fetch_body(command, capabilities=capabilities)))
+
+
+class TestFirstFailure:
+    """A refused request gets a report git shows and a malformed one a 400, so the order of the checks shows."""
+
+    def test_command_before_the_lists_of_arguments(self):
+        body = pkt(b"command=object-info\n") + b"0001" + pkt(b"size\n") + b"0001" + pkt(b"size\n") + b"0000"
+        with pytest.raises(FetchRefused, match="the object-info command"):
+            check_fetch(RULES, "POST", POST_HEADERS, io.BytesIO(body))
+
+    def test_every_capability_before_the_object_format(self):
+        with pytest.raises(FetchRefused, match="the trace2 capability"):
+            fetch(capabilities=("object-format=sha1", "object-format=sha256", "trace2=1"))
+
+    @pytest.mark.parametrize(
+        "capability,error,detail",
+        [
+            ("trace2=1", FetchRefused, "the trace2 capability"),
+            ("object-format=md5", GitMalformedRequestBody, "an object format git doesn't have"),
+        ],
+    )
+    @pytest.mark.parametrize("argument", ["deepen-relative", "want nonsense"])
+    def test_capabilities_before_arguments(self, capability, error, detail, argument):
+        with pytest.raises(error, match=detail):
+            fetch(argument, capabilities=(capability,))
+
+    @pytest.mark.parametrize(
+        "arguments,error",
+        [
+            (("deepen-relative", "want nonsense"), FetchRefused),
+            (("want nonsense", "deepen-relative"), GitMalformedRequestBody),
+        ],
+    )
+    def test_arguments_in_the_order_sent(self, arguments, error):
+        with pytest.raises(error):
+            fetch(*arguments)
 
 
 class TestMalformed:
