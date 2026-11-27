@@ -1,4 +1,18 @@
 # Changelog
+## 4.2.0
+
+### New Features ✨
+
+#### Bitbucket
+
+- Add pull request reads by @wedamija in [#183](https://github.com/getsentry/scm-platform/pull/183)
+- Add commit writes by @wedamija in [#182](https://github.com/getsentry/scm-platform/pull/182)
+- Add branch reads and writes by @wedamija in [#181](https://github.com/getsentry/scm-platform/pull/181)
+
+#### Other
+
+- (git) Keep fetches to their rules' branches and tags by @vaind and @claude in [#190](https://github.com/getsentry/scm-platform/pull/190)
+
 ## 4.1.0
 
 ### New Features ✨
